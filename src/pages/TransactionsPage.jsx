@@ -680,7 +680,7 @@ export default function TransactionsPage({ sb, lang, user, tabId, branchId, toas
             placeholder={T('ابحث برقم المعاملة أو الإقامة أو الرقم الموحد أو التأمينات أو الموارد البشرية أو المرجع أو الفاتورة…','Search by transaction, iqama, unified, GOSI, HRSD, reference or invoice no…')}
             value={q}
             onChange={e => { setQ(e.target.value); setPage(0) }}
-            style={{ width: '100%', padding: '11px 14px 11px 38px', borderRadius: 12, background: 'var(--card-grad2)', border: '1px solid var(--bd)', color: 'var(--tx)', fontSize: 13, fontFamily: F, boxSizing: 'border-box' }}
+            style={{ width: '100%', padding: '11px 14px 11px 38px', borderRadius: 12, background: 'var(--search-bg)', border: '1px solid transparent', color: 'var(--tx)', fontSize: 13, fontFamily: F, boxSizing: 'border-box' }}
           />
         </div>
         {(() => {
@@ -4182,7 +4182,7 @@ function ApplicationDetails({ code, d, isAr, T, invTotal }) {
       if (f.src === 'd:doc_type' && v === det.doc_type) v = docTypeLabel(det.doc_type)
       if (f.date) v = fmtGreg(v)
       else if (f.months && !isNaN(Number(v))) { const n = Number(v); v = n + ' ' + (n >= 3 && n <= 10 ? T('أشهر', 'months') : T('شهر', 'month')) }
-      else if (f.money && !isNaN(Number(v))) v = num(v) + ' ' + T('ر.س', 'SAR')
+      else if (f.money && !isNaN(Number(v))) v = num(v) + (f.noUnit ? '' : ' ' + T('ر.س', 'SAR'))
       else if (f.suffix) v = String(v) + f.suffix
       return v
     }
@@ -5814,5 +5814,5 @@ const FieldChanges = ({ T, changes, LBL, showVal }) => (
   ))}</>
 )
 
-const btnFilter = (active) => ({ padding: '11px 16px', borderRadius: 12, background: active ? 'rgba(176,125,0,.12)' : 'var(--card-grad2)', border: '1px solid ' + (active ? 'rgba(176,125,0,.3)' : 'rgba(255,255,255,.05)'), color: active ? C.gold : 'var(--tx2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 8 })
+const btnFilter = (active) => ({ padding: '11px 16px', borderRadius: 12, background: active ? 'var(--accent-soft)' : 'var(--search-bg)', border: '1px solid ' + (active ? 'var(--accent-bd)' : 'transparent'), color: active ? 'var(--accent)' : 'var(--tx2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 8, boxShadow: active ? 'var(--shadow-sm)' : 'none' })
 const btnPg = (disabled) => ({ padding: '8px 16px', background: disabled ? 'rgba(255,255,255,.03)' : 'rgba(176,125,0,.12)', border: '1px solid ' + (disabled ? 'rgba(255,255,255,.06)' : 'rgba(176,125,0,.3)'), borderRadius: 10, color: disabled ? 'var(--tx4)' : C.gold, fontSize: 12, fontWeight: 600, cursor: disabled ? 'not-allowed' : 'pointer', fontFamily: F })

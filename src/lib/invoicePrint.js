@@ -240,7 +240,7 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
     workPermit: { ar: 'رخصة العمل', en: 'Work Permit', hi: 'कार्य परमिट', ur: 'ورک پرمٹ', bn: 'ওয়ার্ক পারমিট' },
     iqamaPrintFee: { ar: 'طباعة الإقامة', en: 'Iqama Print', hi: 'इक़ामा प्रिंट', ur: 'اقامہ پرنٹ', bn: 'ইকামা প্রিন্ট' },
     medicalIns: { ar: 'التأمين الطبي', en: 'Medical Insurance', hi: 'चिकित्सा बीमा', ur: 'طبی بیمہ', bn: 'চিকিৎসা বীমা' },
-    lateFine: { ar: 'غرامة الإقامة', en: 'Iqama Late Fine', hi: 'इक़ामा विलंब जुर्माना', ur: 'تاخیر جرمانہ', bn: 'বিলম্ব জরিমানা' },
+    lateFine: { ar: 'غرامة تأخير التجديد', en: 'Renewal Late Fine', hi: 'इक़ामा विलंब जुर्माना', ur: 'تاخیر جرمانہ', bn: 'বিলম্ব জরিমানা' },
     saudizationFactor: { ar: 'معامل السعودة', en: 'Saudization Factor', hi: 'सऊदीकरण कारक', ur: 'سعودائزیشن عنصر', bn: 'সৌদিকরণ গুণক' },
     certType: { ar: 'نوع التصديق', en: 'Certification Type', hi: 'प्रमाणन प्रकार', ur: 'تصدیق کی قسم', bn: 'সত্যায়ন ধরন' },
     chamberPrinted: { ar: 'تصديق مطبوعات', en: 'Printed Certification', hi: 'मुद्रित प्रमाणन', ur: 'مطبوعہ تصدیق', bn: 'মুদ্রিত সত্যায়ন' },
@@ -324,10 +324,10 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
     ? [
         ['رسوم نقل الكفالة', tcB.transfer_fee],
         ['تجديد الإقامة', tcB.iqama_renewal_fee],
+        ['غرامة تأخير التجديد', tcB.late_fine_amount],
         ['رخصة العمل', tcB.work_permit_fee],
         ['رسم تغيير المهنة', tcB.prof_change_fee],
         ['التأمين الطبي', tcB.medical_fee],
-        ['غرامة الإقامة', tcB.late_fine_amount],
         ...(Array.isArray(tcB.extras) ? tcB.extras.map(e => [e?.name || '', e?.amount]) : []),
         ['رسوم المكتب', tcB.office_fee],
       ].filter(([, amt]) => Number(amt) > 0).map(([label, amount]) => ({ label, amount: Number(amount) }))
@@ -506,9 +506,11 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
 
   // ── Service (+ ajeer/iqama/visa specifics) ──
   let svcExtra = ''
-  if (code === 'ajeer' && d0) {
-    // عقد أجير: حقول الفاتورة من other_applications.details (رقم العقد ومرفق التصريح لا يُطبعان — يُدخَلان في المعاملة).
-    const dt = d0.details || {}
+  if (code === 'ajeer') {
+    // عقد أجير: حقول الفاتورة (الرقم الموحد للمنشأة المستعارة + المدينة + مدة العقد) تُخزَّن في
+    // other_applications.details عبر فرع ajeer_contract، بينما d0 يُحمَّل من ajeer_applications (فارغ
+    // للسجلات الجديدة) — فنقرأها من other_applications. رقم العقد ومرفقه لا يُطبعان (يُدخَلان في المعاملة).
+    const dt = otherApp0?.details || d0?.details || {}
     const rows = [
       dt.borrower_700 ? kvRow(lab('borrowerUnifiedNo'), esc(String(dt.borrower_700))) : '',
       dt.city_name ? kvRow(lab('city'), esc(String(dt.city_name))) : '',
@@ -556,7 +558,7 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
         else if (f.opts) v = f.opts[v] || v
         if (f.date) return kvRow(regLab(f), num2(fmtD(v)))
         if (f.months && !isNaN(Number(v))) return kvRow(regLab(f), `${num2(v)} ${lab('months')}`)
-        if (f.money && !isNaN(Number(v))) return kvRow(regLab(f), `${num2(nm(v))} ${cur}`)
+        if (f.money && !isNaN(Number(v))) return kvRow(regLab(f), f.noUnit ? `${num2(nm(v))}` : `${num2(nm(v))} ${cur}`)
         if (f.suffix) return kvRow(regLab(f), `${num2(v)}${esc(f.suffix)}`)
         if (f.mono) return kvRow(regLab(f), num2(v))
         return kvRow(regLab(f), esc(String(v)))
@@ -687,13 +689,10 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
     const dt = d0?.details || {}
     const pname = p => p ? (rtl ? (p.name_ar || p.name_en) : (p.name_en || p.name_ar)) : ''
     const fmtDT = d => { if (!d) return ''; const x = new Date(d); if (isNaN(x)) return ''; return `${fmtD(d)} · ${String(x.getHours()).padStart(2, '0')}:${String(x.getMinutes()).padStart(2, '0')}` }
-    // التاريخ صار بجانب تاق الحالة (endText) — فلم يعد ضمن صفوف البيانات.
-    const metaRows = (person, noteLbl, noteVal, extra = '') => {
-      let r = extra
-      r += kvRow(lab('txnBy'), esc(pname(person)))
-      if (noteVal) r += kvRow(noteLbl, esc(String(noteVal).trim()))
-      return r ? `<div class="est-grid" style="margin-top:2.5mm">${r}</div>` : ''
-    }
+    // قسم «المعاملة» في المطبوعات يعرض تاقات الحالة فقط (الحالة + التاريخ داخل التاق) — بلا أي صفوف
+    // نصّية: لا «بواسطة»، لا ملاحظات/أسباب (المحاسب/الإنجاز/الإلغاء)، ولا بيانات مُدخلة (مرفقات/أرقام/تواريخ).
+    // كل الوسائط مُتجاهلة عمداً — التاقات فقط في كل فاتورة لأي خدمة/طلب.
+    const metaRows = () => ''
     const whenTxt = d => { const s = fmtDT(d); return s ? num2(s) : '' }
     const RED = '#C0392B', GREEN = '#1E7E34', BLUE = '#0C7FB8', GOLD = '#B8860B'
     let inner = ''
@@ -738,24 +737,16 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
         : mod1Done ? statusTag(lab('salaryEditedNew'), GOLD, 'rgba(176,125,0,.10)', lab('phaseSalaryEdit'), true, m1When)
         : statusTag(lab('stNew'), BLUE, 'rgba(56,189,248,.12)', lab('phaseSalaryEdit'), true)
       inner += `<div>${m1Tag}</div>`
-      if (mod1Done) {
-        const ex1 = data?.doneFilesMap?.salary_new_file ? kvRow(lab('newSalaryScreenshot'), lab('attachedYes')) : ''
-        inner += metaRows(sr?.completer?.person, lab('completionNote'), sr?.completion_note, ex1)
-      } else if (cancelled) {
+      // بناءً على الطلب: مطبوعات تعديل الراتب تُبقي تاقات الحالات فقط (بلا صفوف الراتب الأساسي/تاريخ الإرجاع/المرفقات).
+      if (cancelled) {
         inner += metaRows(sr?.canceller?.person, lab('cancelNote'), sr?.cancelled_reason)
       }
-      // المرحلة ٢ — تظهر بعد إنجاز المرحلة ١ (غير الملغاة).
+      // المرحلة ٢ — تظهر بعد إنجاز المرحلة ١ (غير الملغاة): تاق الحالة فقط.
       if (mod1Done && !cancelled) {
         const m2When = ph === 'returned' ? whenTxt(dt.salary_returned_at) : ''
         const m2Tag = ph === 'returned' ? statusTag(lab('salaryReturned'), GREEN, 'rgba(39,160,70,.10)', lab('phaseSalaryReturn'), true, m2When)
           : statusTag(lab('salaryAwaitingReturn'), BLUE, 'rgba(56,189,248,.12)', lab('phaseSalaryReturn'), true)
         inner += `<div style="margin-top:3mm">${m2Tag}</div>`
-        let ex2 = ''
-        if (dt.salary_return_date) ex2 += kvRow(lab('salaryReturnDate'), num2(fmtD(dt.salary_return_date)))
-        if (ph === 'returned' && dt.base_salary != null) ex2 += kvRow(lab('baseSalary'), `${num2(nm(dt.base_salary))} ${cur}`)
-        if (ph === 'returned' && data?.doneFilesMap?.salary_base_file) ex2 += kvRow(lab('baseSalaryScreenshot'), lab('attachedYes'))
-        if (ph === 'returned' && dt.salary_returned_by_name) ex2 += kvRow(lab('txnBy'), esc(String(dt.salary_returned_by_name)))
-        if (ex2) inner += `<div class="est-grid" style="margin-top:2.5mm">${ex2}</div>`
       }
     } else {
       const stWhen = reqStatusCode === 'done' ? whenTxt(sr?.completed_at) : reqStatusCode === 'cancelled' ? whenTxt(sr?.cancelled_at) : ''
@@ -769,7 +760,8 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
         const inputs = DONE_INPUTS[code] || []
         const dlab = f => esc(rtl ? f.label_ar : f.label_en)
         for (const f of inputs) {
-          if (f.type === 'file') { if (data?.doneFilesMap?.[f.key]) extra += kvRow(dlab(f), lab('attachedYes')) }
+          // طباعة الإقامة: لا يُطبع مؤشّر «صورة الإقامة — مرفقة». بقية الخدمات تُبقيه.
+          if (f.type === 'file') { if (code !== 'iqama_print' && data?.doneFilesMap?.[f.key]) extra += kvRow(dlab(f), lab('attachedYes')) }
           else if (dt[f.key] != null && dt[f.key] !== '') {
             // المهنة الجديدة مخزّنة بالعربي — تُترجم للإنجليزية في اللغات غير العربية (مثل بقية أسماء المهن).
             const tv = (code === 'profession_change' && f.key === 'new_occupation') ? occTr(dt[f.key]) : dt[f.key]
@@ -890,9 +882,13 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
     if (s.includes('تصديق المطبوعات') || s.includes('تصديق مطبوعات')) return lab('chamberPrinted')
     return s
   }
-  // الخصومات (مثل طباعة حسبة نقل الكفالة): مجموع البنود − الإجمالي النهائي = الخصم الكلي،
+  // بنود الرسوم فقط — نستبعد أسطر الخصم (مثل «الخصم»/تغطية المكتب في تجديد الإقامة، المخزَّنة بعلم discount:true)
+  // كي لا تُحتسب كرسم موجب وتُضخّم الإجمالي الابتدائي، فتظهر مرتين (مرة في المجموع ومرة في الخصم المتبقّي).
+  // نكتشف سطر الخصم بالعلم discount أو بعنوانه «الخصم» — لأن الفواتير المخزَّنة سابقًا لم تحفظ العلم.
+  const feeLines = breakdown.filter(l => !(l?.discount || String(l?.label || '').trim() === 'الخصم'))
+  // الخصومات (مثل طباعة حسبة نقل الكفالة): مجموع بنود الرسوم − الإجمالي النهائي = الخصم الكلي،
   // نفصله إلى «خصم أبشر» (من الحسبة المرتبطة) و«خصم المكتب» (الباقي)، ونعرض الإجمالي الابتدائي والنهائي.
-  const lineSum = breakdown.reduce((s, l) => s + (Number(l.amount) || 0), 0)
+  const lineSum = feeLines.reduce((s, l) => s + (Number(l.amount) || 0), 0)
   const disc = Math.max(0, lineSum - totalA)
   const absherDisc = Math.min(Math.max(0, Number(data?.tc?.absher_discount || 0)), disc)
   const officeDisc = Math.max(0, disc - absherDisc)
@@ -935,7 +931,7 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
     if (/كرت العمل|رخصة العمل|رخصة عمل|تصريح العمل/.test(s) && renMo > 0) return ` (${renMo} ${moW(renMo)})`
     return ''
   }
-  const priceTbl = breakdown.length ? `<table class="price-table"><thead><tr><th>${lab('item')}</th><th class="l">${lab('value')}</th></tr></thead><tbody>${breakdown.map(l => `<tr><td>${esc(fmtPriceLabel(l.label || '') + monthSuffix(l.label))}</td><td class="l">${amtCell(l.amount)}</td></tr>`).join('')}${priceTotalRows}</tbody></table>` : ''
+  const priceTbl = feeLines.length ? `<table class="price-table"><thead><tr><th>${lab('item')}</th><th class="l">${lab('value')}</th></tr></thead><tbody>${feeLines.map(l => `<tr><td>${esc(fmtPriceLabel(l.label || '') + monthSuffix(l.label))}</td><td class="l">${amtCell(l.amount)}</td></tr>`).join('')}${priceTotalRows}</tbody></table>` : ''
   const pctPaid = pctOf(paidA, totalA)
   // الإجمالي الابتدائي والخصومات تظهر في جدول البنود — فلا نكرّرها هنا، نكتفي بالإجمالي النهائي.
   const discRows = `<div class="sum-row"><span class="k">${lab(disc > 0 ? 'finalTotal' : 'total')}</span><span class="v">${num2(nm(totalA))} ${cur}</span></div>`

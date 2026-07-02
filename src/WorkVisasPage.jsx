@@ -116,11 +116,12 @@ const StatusBadge = ({ code, T }) => {
 
 const btnFilter = (active) => ({
   height: 44, padding: '0 16px', borderRadius: 12,
-  background: active ? 'rgba(176,125,0,.12)' : 'var(--card-grad2)',
-  border: '1px solid ' + (active ? 'rgba(176,125,0,.3)' : 'rgba(255,255,255,.05)'),
-  color: active ? C.gold : 'var(--tx2)',
+  background: active ? 'var(--accent-soft)' : 'var(--search-bg)',
+  border: '1px solid ' + (active ? 'var(--accent-bd)' : 'transparent'),
+  color: active ? 'var(--accent)' : 'var(--tx2)',
   fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: F,
   display: 'flex', alignItems: 'center', gap: 8, boxSizing: 'border-box',
+  boxShadow: active ? 'var(--shadow-sm)' : 'none',
 })
 const selStyle = { width: '100%', height: 40, padding: '0 12px', borderRadius: 10, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.06)', color: '#fff', fontSize: 12.5, fontFamily: F, outline: 'none', cursor: 'pointer' }
 const FilterField = ({ label, children }) => (
@@ -435,7 +436,7 @@ export default function WorkVisasPage({ sb, toast, lang, user, onTabChange }) {
           </svg>
           <input value={search} onChange={e => { setSearch(e.target.value); setPage(0) }}
             placeholder={T('ابحث برقم التأشيرة، الحدود، الجواز، اسم العامل، الجنسية، السفارة، أو المنشأة…', 'Search by visa, border, passport, worker, nationality, embassy, or facility…')}
-            style={{ width: '100%', height: 44, padding: '0 14px 0 38px', borderRadius: 12, background: 'var(--card-grad2)', border: '1px solid rgba(255,255,255,.05)', color: '#fff', fontSize: 13, fontFamily: F, boxSizing: 'border-box', outline: 'none' }}/>
+            style={{ width: '100%', height: 44, padding: '0 14px 0 38px', borderRadius: 12, background: 'var(--search-bg)', border: '1px solid transparent', color: 'var(--tx)', fontSize: 13, fontFamily: F, boxSizing: 'border-box', outline: 'none' }}/>
         </div>
         <button type="button" onClick={() => setAdvOpen(v => !v)} style={btnFilter(advOpen || advCount > 0)}>
           {T('تصفية', 'Filter')}

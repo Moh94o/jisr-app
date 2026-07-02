@@ -88,6 +88,18 @@ const localPhone = raw => {
   if (!dg) return ''
   return dg.startsWith('966') ? '0' + dg.slice(3) : (dg.startsWith('0') ? dg : '0' + dg.slice(-9))
 }
+// خدمات ذات حقل «السبب» (خروج نهائي، الموافقة للنقل الخارجي، طباعة الإقامة): نصّ السبب
+// المُدخل في الطلب (other_applications.details) يظهر سطراً مستقلاً أسفل الأرصدة (بالعربية).
+const REASON_KEY = { final_exit_visa: 'reason', external_transfer_approval: 'reason', iqama_print: 'print_reason' }
+function reasonLine(inv, lang) {
+  if (lang !== 'ar') return []
+  const key = REASON_KEY[inv.service_type?.code]
+  if (!key) return []
+  const raw = inv.service_request?.other_applications
+  const oa = Array.isArray(raw) ? raw[0] : raw
+  const txt = String(oa?.details?.[key] || '').trim()
+  return txt ? [` السبب: ${txt}`] : []
+}
 // نقل الكفالة وتجديد الإقامة (بالعربية): أسطر إضافية أسفل الأرصدة — الوسيط + جواله (نقل فقط)،
 // المدة (المتوقعة/التجديد)، وفائدة المكتب (صافي الرسوم المكتبية بعد الخصم).
 function calcExtra(inv, lang) {
@@ -119,6 +131,8 @@ function decoCard(inv, lang, titleKey, moneyLines) {
   const { name, phone } = party(inv)
   const bPhone = localPhone(inv.branch?.phone)
   const extra = calcExtra(inv, lang)
+  // السبب لا يُعرض على بطاقة الإلغاء (سطر السبب هناك = سبب الإلغاء، لا سبب الخدمة).
+  const reason = titleKey === 'cancel_title' ? [] : reasonLine(inv, lang)
   const issueDate = (lang === 'ar' && inv.created_at) ? ` ${String(inv.created_at).slice(0, 10)}` : ''
   const updateLine = (lang === 'ar' && (inv.last_activity_at || inv.created_at)) ? ` ${String(inv.last_activity_at || inv.created_at).slice(0, 10)}` : ''
   // نقل الكفالة وتجديد الإقامة يعرضان العامل → نسبق سطر الطرف بـ «اسم العامل:» (بالعربية).
@@ -135,7 +149,7 @@ function decoCard(inv, lang, titleKey, moneyLines) {
     updateLine,
     ...money.slice(1),
     DIV_DOT,
-    ...(extra.length ? [...extra, DIV_SQ] : [DIV_SQ]),
+    ...(extra.length || reason.length ? [...extra, ...reason, DIV_SQ] : [DIV_SQ]),
     M.inquiry,
     bPhone,
     `${M.thanks_card} 🙏`,

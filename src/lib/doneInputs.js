@@ -17,7 +17,7 @@ export const DONE_INPUTS = {
     { key: 'ins_company', label_ar: 'اسم الشركة', label_en: 'Insurance Company', type: 'text', req: true },
     { key: 'ins_policy_no', label_ar: 'رقم بوليصة التأمين', label_en: 'Policy No', type: 'text', req: true, mono: true },
     { key: 'ins_expiry', label_ar: 'تاريخ انتهاء التأمين', label_en: 'Insurance Expiry', type: 'date', req: true },
-    { key: 'ins_policy_file', label_ar: 'ملف بوليصة التأمين', label_en: 'Policy File', type: 'file', req: true, inLabel_ar: 'إرفاق ملف بوليصة التأمين', inLabel_en: 'Attach policy file' },
+    { key: 'ins_policy_file', label_ar: 'ملف بوليصة التأمين', label_en: 'Policy File', type: 'file', req: true, fixedHeight: true, inLabel_ar: 'إرفاق ملف بوليصة التأمين', inLabel_en: 'Attach policy file' },
   ],
   profession_change: [
     { key: 'new_occupation', label_ar: 'المهنة الجديدة', label_en: 'New Occupation', type: 'select', source: 'occupations', req: true },
@@ -25,12 +25,12 @@ export const DONE_INPUTS = {
   ],
   // خروج وعودة / خروج نهائي: تمرّان أولاً على بوّابة موافقة المحاسب، ثم عند الإنجاز تُدخَل بيانات التأشيرة الصادرة.
   exit_reentry_visa: [
-    { key: 'visa_number', label_ar: 'رقم التأشيرة', label_en: 'Visa No', type: 'text', req: true, mono: true, full: true },
+    { key: 'visa_number', label_ar: 'رقم التأشيرة', label_en: 'Visa No', type: 'text', req: true, mono: true, full: true, digits: 9 },
     { key: 'visa_expiry', label_ar: 'تاريخ انتهاء التأشيرة', label_en: 'Visa Expiry', type: 'date', req: true },
     { key: 'visa_attachment', label_ar: 'مرفق التأشيرة', label_en: 'Visa Attachment', type: 'file', req: true, fixedHeight: true, inLabel_ar: 'إرفاق التأشيرة', inLabel_en: 'Attach visa' },
   ],
   final_exit_visa: [
-    { key: 'visa_number', label_ar: 'رقم التأشيرة', label_en: 'Visa No', type: 'text', req: true, mono: true, full: true },
+    { key: 'visa_number', label_ar: 'رقم التأشيرة', label_en: 'Visa No', type: 'text', req: true, mono: true, full: true, digits: 9 },
     { key: 'visa_expiry', label_ar: 'تاريخ انتهاء التأشيرة', label_en: 'Visa Expiry', type: 'date', req: true },
     { key: 'visa_attachment', label_ar: 'مرفق التأشيرة', label_en: 'Visa Attachment', type: 'file', req: true, fixedHeight: true, inLabel_ar: 'إرفاق التأشيرة', inLabel_en: 'Attach visa' },
   ],

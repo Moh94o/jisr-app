@@ -134,7 +134,7 @@ export const TXN_SERVICES = {
       { src: 'w_name', l_ar: 'العامل', l_en: 'Worker' },
       { src: 'w_iqama', l_ar: 'رقم الإقامة', l_en: 'Iqama No', mono: true },
       { src: 'f_name', l_ar: 'المنشأة', l_en: 'Facility' },
-      { src: 'd:new_salary', l_ar: 'الراتب الجديد', l_en: 'New Salary', mono: true, money: true, color: '#2ecc71' },
+      { src: 'd:new_salary', l_ar: 'الراتب الجديد', l_en: 'New Salary', mono: true, money: true, noUnit: true, color: '#2ecc71' },
       { src: 'd:salary_months', l_ar: 'مدة الراتب', l_en: 'Salary Months', months: true },
     ],
   },

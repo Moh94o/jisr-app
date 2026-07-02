@@ -447,7 +447,9 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
     }
   }, [calc?.disabledPeriods, f.renewalMonths])
 
-  const absher = f.absher_on ? (parseFloat(f.absher) || 0) : 0
+  // سقف خصم أبشر = رسوم تجديد الإقامة + أي غرامة تأخير (لا يشمل الرخصة/التأمين/رسوم المكتب).
+  const absherCap = calc ? Math.max(0, (calc.renewalBase || 0) + (calc.fine || 0)) : 0
+  const absher = f.absher_on ? Math.min(parseFloat(f.absher) || 0, absherCap) : 0
   const grandTotal = Math.max(0, (calc?.subtotal || 0) - absher)
   // رقم الجوال إلزامي: 9 أرقام يبدأ بـ 5
   const phoneValid = /^5\d{8}$/.test(phone)
@@ -945,7 +947,7 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
                   color: null,
                   fineToggle: calc.inGrace,
                 },
-                ...(calc.fine > 0 ? [{ label: T('غرامة تأخّر الإقامة', 'Iqama Late Fine'), value: calc.fine, note: null, color: C.red }] : []),
+                ...(calc.fine > 0 ? [{ label: T('غرامة تأخير التجديد', 'Renewal Late Fine'), value: calc.fine, note: null, color: C.red }] : []),
                 { label: T('رخصة العمل', 'Work Permit'), value: calc.workPermit, note: calc.wpExcess > 0 ? T(`زائد عن حد ${nm(calc.coverWorkPermit)}`, `over ${nm(calc.coverWorkPermit)} cap`) : withinNote, color: null },
                 { label: T('التأمين الطبي', 'Medical'), value: calc.medical, note: calc.medInsuredValid ? T('تأمين ساري', 'insured') : (calc.medExcess > 0 ? T(`زائد عن حد ${nm(calc.medGovCover)}`, `over ${nm(calc.medGovCover)} cap`) : withinNote), color: null },
                 ...(f.changeProfession ? [{ label: T('تغيير المهنة', 'Occupation Change'), value: calc.profChange, note: calc.profChangeIsFree ? T('مهنة معفاة', 'exempt occupation') : null, color: C.gold }] : []),
@@ -1004,7 +1006,7 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
                     </span>
                     {/* حقل المبلغ */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, direction: dir, opacity: f.absher_on ? 1 : .5, transition: '.2s' }}>
-                      <input type="text" inputMode="decimal" disabled={!f.absher_on || !fEdit('rw_absher')} value={f.absher || ''} onChange={e => set('absher', e.target.value.replace(/[^0-9.]/g, ''))} placeholder="0" style={{ flex: 1, height: 32, padding: '0 12px', borderRadius: 8, border: `1px solid ${f.absher_on ? '#27a0464d' : 'rgba(39,160,70,.22)'}`, background: f.absher_on ? '#27a0460f' : 'rgba(39,160,70,.06)', fontFamily: F, fontSize: 14, fontWeight: 500, color: f.absher_on ? '#27a046' : 'var(--tx5)', outline: 'none', textAlign: 'center', transition: '.2s' }} />
+                      <input type="text" inputMode="decimal" disabled={!f.absher_on || !fEdit('rw_absher')} value={f.absher || ''} onChange={e => { const v = e.target.value.replace(/[^0-9.]/g, ''); const n = parseFloat(v); set('absher', (isFinite(n) && n > absherCap) ? String(absherCap) : v) }} placeholder="0" style={{ flex: 1, height: 32, padding: '0 12px', borderRadius: 8, border: `1px solid ${f.absher_on ? '#27a0464d' : 'rgba(39,160,70,.22)'}`, background: f.absher_on ? '#27a0460f' : 'rgba(39,160,70,.06)', fontFamily: F, fontSize: 14, fontWeight: 500, color: f.absher_on ? '#27a046' : 'var(--tx5)', outline: 'none', textAlign: 'center', transition: '.2s' }} />
                       <span style={{ fontSize: 13, fontWeight: 500, color: f.absher_on ? '#27a046' : 'var(--tx5)' }}>{T('ريال', 'SAR')}</span>
                     </div>
                   </div>

@@ -184,11 +184,12 @@ const IqamaCell = ({ iso, T }) => {
 // Filter button style — matches SbcFacilities btnFilter
 const btnFilter = (active) => ({
   height: 44, padding: '0 16px', borderRadius: 12,
-  background: active ? 'rgba(176,125,0,.12)' : 'var(--card-grad2)',
-  border: '1px solid ' + (active ? 'rgba(176,125,0,.3)' : 'var(--bd)'),
-  color: active ? C.gold : 'var(--tx2)',
+  background: active ? 'var(--accent-soft)' : 'var(--search-bg)',
+  border: '1px solid ' + (active ? 'var(--accent-bd)' : 'transparent'),
+  color: active ? 'var(--accent)' : 'var(--tx2)',
   fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: F,
   display: 'flex', alignItems: 'center', gap: 8, boxSizing: 'border-box',
+  boxShadow: active ? 'var(--shadow-sm)' : 'none',
 })
 
 /* ═══ منتقي منشأة العامل — بحث + كروت زجاجية بنفس تصميم اختيار العميل في الفاتورة ═══ */
@@ -1158,7 +1159,7 @@ export default function TempWorkforcePage({ sb, toast, lang, user, onTabChange }
           </svg>
           <input value={search} onChange={e => { setSearch(e.target.value); setPage(0) }}
             placeholder={T('ابحث بالاسم، الإقامة، الحدود، الجواز، المهنة، رقم الجوال، أو رقم المنشأة (موحّد/تأمينات/موارد)…','Search by name, iqama, border, passport, occupation, mobile, or facility no. (unified/GOSI/HRSD)…')}
-            style={{ width: '100%', height: 44, padding: '0 14px 0 38px', borderRadius: 12, background: 'var(--card-grad2)', border: '1px solid var(--bd)', color: 'var(--tx)', fontSize: 13, fontFamily: F, boxSizing: 'border-box', outline: 'none' }}/>
+            style={{ width: '100%', height: 44, padding: '0 14px 0 38px', borderRadius: 12, background: 'var(--search-bg)', border: '1px solid transparent', color: 'var(--tx)', fontSize: 13, fontFamily: F, boxSizing: 'border-box', outline: 'none' }}/>
         </div>
         <button type="button" onClick={() => setAdvOpen(v => !v)} style={btnFilter(advOpen || advCount > 0)}>
           {T('تصفية', 'Filter')}

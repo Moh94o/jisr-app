@@ -339,7 +339,7 @@ export default function RenewalCalcPage({ sb, toast, user, lang, emptyIcon, onNe
   }
   const PRICING_KEYS = CARD_FIELDS.pricing
   const BOOL_KEYS = ['change_profession', 'exemption']
-  const rcFieldLabel = (k) => ({ worker_name: T('الاسم', 'Name'), iqama_number: T('رقم الإقامة', 'Iqama'), phone: T('رقم الجوال', 'Mobile'), nationality_id: T('الجنسية', 'Nationality'), dob: T('تاريخ الميلاد', 'Date of Birth'), occupation_name_ar: T('المهنة', 'Occupation'), iqama_expiry_gregorian: T('انتهاء الإقامة (ميلادي)', 'Iqama Expiry (G)'), iqama_expiry_hijri: T('انتهاء الإقامة (هجري)', 'Iqama Expiry (H)'), renewal_months: T('مدة التجديد', 'Renewal Period'), change_profession: T('تغيير المهنة', 'Change Occupation'), new_occupation_name_ar: T('المهنة الجديدة', 'New Occupation'), exemption: T('الإعفاء', 'Exemption'), work_permit_expiry: T('انتهاء رخصة العمل', 'Work Permit Expiry'), office_fee: T('رسوم المكتب', 'Office Fee'), iqama_renewal_fee: T('تجديد الإقامة', 'Iqama Renewal'), late_fine_amount: T('غرامة تأخّر الإقامة', 'Late Fine'), work_permit_fee: T('رسوم رخصة العمل', 'Work Permit'), medical_fee: T('التأمين الطبي', 'Medical'), prof_change_fee: T('تغيير المهنة', 'Occupation Change'), gov_excess: T('الزائد عن الحدود الحكومية', 'Gov Excess'), absher_discount: T('خصم أبشر', 'Absher Discount'), manual_discount: T('خصم المكتب', 'Office Discount') }[k] || k)
+  const rcFieldLabel = (k) => ({ worker_name: T('الاسم', 'Name'), iqama_number: T('رقم الإقامة', 'Iqama'), phone: T('رقم الجوال', 'Mobile'), nationality_id: T('الجنسية', 'Nationality'), dob: T('تاريخ الميلاد', 'Date of Birth'), occupation_name_ar: T('المهنة', 'Occupation'), iqama_expiry_gregorian: T('انتهاء الإقامة (ميلادي)', 'Iqama Expiry (G)'), iqama_expiry_hijri: T('انتهاء الإقامة (هجري)', 'Iqama Expiry (H)'), renewal_months: T('مدة التجديد', 'Renewal Period'), change_profession: T('تغيير المهنة', 'Change Occupation'), new_occupation_name_ar: T('المهنة الجديدة', 'New Occupation'), exemption: T('الإعفاء', 'Exemption'), work_permit_expiry: T('انتهاء رخصة العمل', 'Work Permit Expiry'), office_fee: T('رسوم المكتب', 'Office Fee'), iqama_renewal_fee: T('تجديد الإقامة', 'Iqama Renewal'), late_fine_amount: T('غرامة تأخير التجديد', 'Renewal Late Fine'), work_permit_fee: T('رسوم رخصة العمل', 'Work Permit'), medical_fee: T('التأمين الطبي', 'Medical'), prof_change_fee: T('تغيير المهنة', 'Occupation Change'), gov_excess: T('الزائد عن الحدود الحكومية', 'Gov Excess'), absher_discount: T('خصم أبشر', 'Absher Discount'), manual_discount: T('خصم المكتب', 'Office Discount') }[k] || k)
 
   const openCardEdit = (card) => {
     const r = detailsRow || {}
@@ -436,12 +436,12 @@ export default function RenewalCalcPage({ sb, toast, user, lang, emptyIcon, onNe
       iqamaExpiryH: { ar: 'انتهاء الإقامة (هجري)', en: 'Iqama Expiry (H)', hi: 'इक़ामा (हिजरी)', ur: 'اقامہ (ہجری)', bn: 'ইকামা (হিজরি)' },
       renewalPeriod: { ar: 'مدة التجديد', en: 'Renewal Period', hi: 'नवीनीकरण अवधि', ur: 'تجدید مدت', bn: 'নবায়ন মেয়াদ' },
       expectedExpiry: { ar: 'انتهاء الإقامة المتوقع', en: 'Expected Iqama Expiry', hi: 'अपेक्षित समाप्ति', ur: 'متوقع میعاد', bn: 'প্রত্যাশিত মেয়াদ' },
-      officeFee: { ar: 'رسوم المكتب', en: 'Office Fee', hi: 'कार्यालय शुल्क', ur: 'دفتر فیس', bn: 'অফিস ফি' },
+      officeFee: { ar: 'رسوم المكتب (تشمل رسوم السجل التجاري وقوى ومقيم والغرفة التجارية والسعودة)', en: 'Office Fee (incl. Commercial Registration, Qiwa, Muqeem, Chamber of Commerce & Saudization)', hi: 'कार्यालय शुल्क (वाणिज्यिक रजिस्टर, क़िवा, मुक़ीम, वाणिज्य चैंबर और सऊदीकरण शुल्क सहित)', ur: 'دفتر فیس (تجارتی رجسٹریشن، قوی، مقیم، چیمبر آف کامرس اور سعودائزیشن کی فیسوں سمیت)', bn: 'অফিস ফি (বাণিজ্যিক রেজিস্ট্রেশন, কিওয়া, মুকিম, চেম্বার অফ কমার্স ও সৌদিকরণ ফি সহ)' },
       iqamaRenewal: { ar: 'تجديد الإقامة', en: 'Iqama Renewal', hi: 'इक़ामा नवीनीकरण', ur: 'اقامہ تجدید', bn: 'ইকামা নবায়ন' },
       workPermit: { ar: 'رخصة العمل', en: 'Work Permit', hi: 'कार्य परमिट', ur: 'ورک پرمٹ', bn: 'ওয়ার্ক পারমিট' },
       profChange: { ar: 'تغيير المهنة', en: 'Occupation Change', hi: 'पेशा परिवर्तन', ur: 'پیشہ تبدیلی', bn: 'পেশা পরিবর্তন' },
       medical: { ar: 'التأمين الطبي', en: 'Medical Insurance', hi: 'चिकित्सा बीमा', ur: 'طبی بیمہ', bn: 'চিকিৎসা বীমা' },
-      lateFine: { ar: 'غرامة تأخّر الإقامة', en: 'Iqama Late Fine', hi: 'विलंब जुर्माना', ur: 'تاخیر جرمانہ', bn: 'বিলম্ব জরিমানা' },
+      lateFine: { ar: 'غرامة تأخير التجديد', en: 'Renewal Late Fine', hi: 'विलंब जुर्माना', ur: 'تاخیر جرمانہ', bn: 'বিলম্ব জরিমানা' },
       discount: { ar: 'الخصم', en: 'Discount', hi: 'छूट', ur: 'رعایت', bn: 'ছাড়' },
       subtotal: { ar: 'إجمالي الرسوم', en: 'Subtotal', hi: 'उप-योग', ur: 'ذیلی کل', bn: 'উপমোট' },
       absherDiscount: { ar: 'خصم أبشر', en: 'Absher Discount', hi: 'अबशर छूट', ur: 'ابشر رعایت', bn: 'আবশের ছাড়' },
@@ -499,7 +499,7 @@ export default function RenewalCalcPage({ sb, toast, user, lang, emptyIcon, onNe
     const billedMos = r.billed_renewal_months != null ? Number(r.billed_renewal_months) : (() => { let billed = renMo; const exp = r.iqama_expiry_gregorian ? new Date(r.iqama_expiry_gregorian) : null; if (exp && !isNaN(exp)) { const ref = dateVal ? new Date(dateVal) : new Date(); ref.setHours(0, 0, 0, 0); exp.setHours(0, 0, 0, 0); if (exp < ref) { const end = new Date(ref); end.setMonth(end.getMonth() + renMo); let mm = (end.getFullYear() - exp.getFullYear()) * 12 + (end.getMonth() - exp.getMonth()); let d = end.getDate() - exp.getDate(); if (d < 0) { mm -= 1; d += new Date(end.getFullYear(), end.getMonth(), 0).getDate() } billed = d > 0 ? mm + 1 : mm } } return billed })()
     const renIqamaSuffix = billedMos > 0 ? ` (${num2(billedMos)} ${moWord})` : ''
     const renSuffix = renMo > 0 ? ` (${num2(renMo)} ${moWord})` : ''
-    const lineItems = [fIqama > 0 ? ['iqamaRenewal', fIqama] : null, fWP > 0 ? ['workPermit', fWP] : null, fProf > 0 ? ['profChange', fProf] : null, fMed > 0 ? ['medical', fMed] : null, fLate > 0 ? ['lateFine', fLate] : null].filter(Boolean)
+    const lineItems = [fIqama > 0 ? ['iqamaRenewal', fIqama] : null, fLate > 0 ? ['lateFine', fLate] : null, fWP > 0 ? ['workPermit', fWP] : null, fProf > 0 ? ['profChange', fProf] : null, fMed > 0 ? ['medical', fMed] : null].filter(Boolean)
 
     const natBadge = () => { if (natObj.flag) return ` <img class="flag" src="${esc(natObj.flag)}" alt="${esc(pickNat)}" title="${esc(pickNat)}"/>`; return (pickNat && pickNat !== '—') ? ` <span class="nat-txt">${esc(pickNat)}</span>` : '' }
 
@@ -574,10 +574,12 @@ ${durLabel ? `<div class="hero-fact full"><div class="k">${lab('expectedDuration
 
     const priceRows = lineItems.map(([k, amt]) => `<tr><td>${lab(k)}${k === 'iqamaRenewal' ? renIqamaSuffix : k === 'workPermit' ? renSuffix : ''}</td><td class="l">${num2(nm2(amt))} ${cur}</td></tr>`).join('')
     const extraRows = extras.map(e => `<tr><td>${esc(e.name || '')}</td><td class="l">${num2(nm2(Number(e.amount)))} ${cur}</td></tr>`).join('')
-    const coverRow = cover > 0 ? `<tr><td>${lab('discount')}</td><td class="l" style="color:var(--ok)">${num2(nm2(cover))} ${cur}</td></tr>` : ''
     const officeRow = officeFee > 0 ? `<tr><td>${lab('officeFee')}</td><td class="l">${num2(nm2(officeFee))} ${cur}</td></tr>` : ''
-    const priceTbl = `<table class="price-table"><thead><tr><th>${lab('item')}</th><th class="l">${lab('value')}</th></tr></thead><tbody>${priceRows}${extraRows}${officeRow}${coverRow}<tr class="total-row"><td>${lab('subtotal')}</td><td class="l">${num2(nm2(subtotalV))} ${cur}</td></tr></tbody></table>`
-    const sumRows = `<div class="sum-row"><span class="k">${lab('subtotal')}</span><span class="v">${num2(nm2(subtotalV))} ${cur}</span></div>` + (absher > 0 ? `<div class="sum-row paid"><span class="k">${lab('absherDiscount')}</span><span class="v">${num2(nm2(absher))} ${cur}</span></div>` : '') + (manualDisc > 0 ? `<div class="sum-row paid"><span class="k">${lab('officeDiscount')}</span><span class="v">${num2(nm2(manualDisc))} ${cur}</span></div>` : '') + `<div class="sum-row remain"><span class="k">${lab('finalTotal')}</span><span class="v">${num2(nm2(finalTotal))} ${cur}</span></div>`
+    // إجمالي الرسوم الكامل (قبل خصم المكتب) = صافي الإجمالي + تغطية المكتب — فتُطابق مجموع بنود الجدول.
+    const grossSubtotal = subtotalV + cover
+    const priceTbl = `<table class="price-table"><thead><tr><th>${lab('item')}</th><th class="l">${lab('value')}</th></tr></thead><tbody>${priceRows}${extraRows}${officeRow}<tr class="total-row"><td>${lab('subtotal')}</td><td class="l">${num2(nm2(grossSubtotal))} ${cur}</td></tr></tbody></table>`
+    // الملخّص المالي (يسار): الإجمالي الكامل ← خصم المكتب (تغطية) ← خصم أبشر ← خصم المكتب اليدوي ← المجموع النهائي.
+    const sumRows = `<div class="sum-row"><span class="k">${lab('subtotal')}</span><span class="v">${num2(nm2(grossSubtotal))} ${cur}</span></div>` + (cover > 0 ? `<div class="sum-row paid"><span class="k">${lab('officeDiscount')}</span><span class="v">${num2(nm2(cover))} ${cur}</span></div>` : '') + (absher > 0 ? `<div class="sum-row paid"><span class="k">${lab('absherDiscount')}</span><span class="v">${num2(nm2(absher))} ${cur}</span></div>` : '') + (manualDisc > 0 ? `<div class="sum-row paid"><span class="k">${lab('officeDiscount')}</span><span class="v">${num2(nm2(manualDisc))} ${cur}</span></div>` : '') + `<div class="sum-row remain"><span class="k">${lab('finalTotal')}</span><span class="v">${num2(nm2(finalTotal))} ${cur}</span></div>`
     const summaryBlk = `<div class="summary-card">${sumRows}</div>`
     const priceSummaryBlk = secTitle('pricing') + `<div class="price-summary">${priceTbl}${summaryBlk}</div>`
 
@@ -1034,10 +1036,10 @@ ${noticeBlk}
               const officeFeeV = Number(r.office_fee || 0); const subtotalV = Number(r.subtotal || 0); const totalV = Number(r.total_amount || 0)
               const lineItems = [
                 Number(r.iqama_renewal_fee || 0) > 0 ? [T('تجديد الإقامة', 'Iqama Renewal') + renIqamaSuffix, r.iqama_renewal_fee, null] : null,
+                Number(r.late_fine_amount || 0) > 0 ? [T('غرامة تأخير التجديد', 'Renewal Late Fine'), r.late_fine_amount, '#e5867a'] : null,
                 Number(r.work_permit_fee || 0) > 0 ? [T('رخصة العمل', 'Work Permit') + renSuffix, r.work_permit_fee, null] : null,
                 Number(r.prof_change_fee || 0) > 0 ? [T('تغيير المهنة', 'Change Occupation'), r.prof_change_fee, null] : null,
                 Number(r.medical_fee || 0) > 0 ? [T('التأمين الطبي', 'Medical Insurance'), r.medical_fee, null] : null,
-                Number(r.late_fine_amount || 0) > 0 ? [T('غرامة تأخّر الإقامة', 'Iqama Late Fine'), r.late_fine_amount, '#e5867a'] : null,
                 ...extras.map(e => [e.name || T('بند إضافي', 'Extra'), Number(e.amount || 0), C.blue]),
               ].filter(Boolean)
               return <>
@@ -1213,7 +1215,7 @@ ${noticeBlk}
         const belowFloor = !!(d && d.capped)
         return <FKModal open onClose={() => { if (approveSaving) return; setApproveForm(null); if (approveSaved) { setApproveSaved(false); setDetailsRow(null); load() } }} width={520} variant="edit"
           success={approveSaved ? <SuccessView title={T('تم تصديق الحسبة', 'Quote approved')} code={f._quoteNo ? noDash(f._quoteNo) : undefined} /> : null}
-          title={T('تصديق الحسبة', 'Approve Quote') + (f._quoteNo ? ' — ' + noDash(f._quoteNo) : '')} subtitle={f._workerName || undefined} Icon={BadgeCheck}
+          title={T('تصديق الحسبة', 'Approve Quote')} subtitle={f._workerName || undefined} Icon={BadgeCheck}
           onSubmit={submitApproval} submitting={approveSaving} submitLabel={T('تصديق الحسبة', 'Approve Quote')}
           pages={[{ valid: isGM(user) ? !belowFloor : true, content: (
             <ModalSection Icon={BadgeCheck} label={T('تأكيد التصديق', 'Confirm Approval')}>
@@ -1276,7 +1278,7 @@ ${noticeBlk}
         const setF = (k, v) => setCancelForm(p => ({ ...p, [k]: v }))
         return <FKModal open onClose={() => { if (cancelSaving) return; setCancelForm(null); if (cancelSaved) { setCancelSaved(false); setDetailsRow(null); load() } }} width={520} variant="edit"
           success={cancelSaved ? <SuccessView title={T('تم إلغاء الحسبة', 'Quote cancelled')} code={f._quoteNo ? noDash(f._quoteNo) : undefined} /> : null}
-          title={T('إلغاء الحسبة', 'Cancel Quote') + (f._quoteNo ? ' — ' + noDash(f._quoteNo) : '')} subtitle={f._workerName || undefined} Icon={AlertCircle}
+          title={T('إلغاء الحسبة', 'Cancel Quote')} subtitle={f._workerName || undefined} Icon={AlertCircle}
           onSubmit={submitCancel} submitting={cancelSaving} submitLabel={T('تأكيد الإلغاء', 'Confirm Cancellation')}
           pages={[{ valid: true, content: (
             <ModalSection Icon={AlertCircle} label={T('تأكيد الإلغاء', 'Confirm Cancellation')}>
@@ -1317,7 +1319,7 @@ ${noticeBlk}
           {fVis('work_permit_expiry') && <FKDateField label={T('انتهاء رخصة العمل', 'Work Permit Expiry')} value={f.work_permit_expiry || ''} onChange={v => setF('work_permit_expiry', v)} disabled={!fEd('work_permit_expiry')} />}
         </div></ModalSection>
         else content = <ModalSection Icon={Banknote} label={T('الرسوم', 'Fees')}><div style={GRID}>
-          {[['office_fee', T('رسوم المكتب', 'Office Fee')], ['iqama_renewal_fee', T('تجديد الإقامة', 'Iqama Renewal')], ['late_fine_amount', T('غرامة تأخّر الإقامة', 'Late Fine')], ['work_permit_fee', T('رسوم رخصة العمل', 'Work Permit')], ['medical_fee', T('التأمين الطبي', 'Medical')], ['prof_change_fee', T('تغيير المهنة', 'Occupation Change')], ['gov_excess', T('الزائد عن الحدود الحكومية', 'Gov Excess')], ['absher_discount', T('خصم أبشر', 'Absher Discount')], ['manual_discount', T('خصم المكتب', 'Office Discount')]].filter(([k]) => fVis(k)).map(([k, l]) => <CurrencyField key={k} label={l} value={f[k] ?? ''} onChange={v => setF(k, v)} disabled={!fEd(k)} />)}
+          {[['office_fee', T('رسوم المكتب', 'Office Fee')], ['iqama_renewal_fee', T('تجديد الإقامة', 'Iqama Renewal')], ['late_fine_amount', T('غرامة تأخير التجديد', 'Renewal Late Fine')], ['work_permit_fee', T('رسوم رخصة العمل', 'Work Permit')], ['medical_fee', T('التأمين الطبي', 'Medical')], ['prof_change_fee', T('تغيير المهنة', 'Occupation Change')], ['gov_excess', T('الزائد عن الحدود الحكومية', 'Gov Excess')], ['absher_discount', T('خصم أبشر', 'Absher Discount')], ['manual_discount', T('خصم المكتب', 'Office Discount')]].filter(([k]) => fVis(k)).map(([k, l]) => <CurrencyField key={k} label={l} value={f[k] ?? ''} onChange={v => setF(k, v)} disabled={!fEd(k)} />)}
           <div style={{ gridColumn: '1/-1', display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderRadius: 9, background: 'rgba(176,125,0,.08)', border: '1px solid rgba(176,125,0,.3)', minHeight: 44 }}><span style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx2)' }}>{T('الإجمالي بعد التعديل', 'New total')}</span><span style={{ flex: 1 }} /><span style={{ fontSize: 16, fontWeight: 600, color: C.gold, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{(() => { const sum = ['office_fee', 'iqama_renewal_fee', 'late_fine_amount', 'work_permit_fee', 'medical_fee', 'prof_change_fee', 'gov_excess'].reduce((s, k) => s + (Number(f[k]) || 0), 0); const tot = Math.max(0, sum - (Number(f.absher_discount) || 0) - (Number(f.manual_discount) || 0)); return nm(tot) + ' ' + T('ريال', 'SAR') })()}</span></div>
         </div></ModalSection>
         return <FKModal open onClose={() => { if (!cardSaving) setCardEdit(null) }} width={560} variant="edit" title={titles[f.card]} Icon={FileText}

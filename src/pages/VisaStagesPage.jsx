@@ -313,11 +313,11 @@ function StageList({ T, isAr, title, desc, rows, stateOf, columns, onOpen, loadi
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
           </span>
           <input type="text" value={q} onChange={e => setQ(e.target.value)} placeholder={T('ابحث برقم الحدود أو التأشيرة أو المرجع…','Search by border, visa, or reference…')}
-            style={{ width: '100%', height: 44, padding: '0 38px', borderRadius: 12, background: 'var(--card-grad2)', border: '1px solid rgba(255,255,255,.06)', color: 'var(--tx1)', fontFamily: F, fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
+            style={{ width: '100%', height: 44, padding: '0 38px', borderRadius: 12, background: 'var(--search-bg)', border: '1px solid transparent', color: 'var(--tx)', fontFamily: F, fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
         </div>
         {[{ v: '', l: T('الكل','All') }, { v: 'pending', l: T('بانتظار','Pending') }, { v: 'done', l: T('مكتملة','Done') }].map(o => (
           <button key={o.v} type="button" onClick={() => setFlt(o.v)}
-            style={{ height: 44, padding: '0 16px', borderRadius: 12, background: flt === o.v ? 'rgba(176,125,0,.12)' : 'var(--card-grad2)', border: '1px solid ' + (flt === o.v ? 'rgba(176,125,0,.3)' : 'rgba(255,255,255,.05)'), color: flt === o.v ? C.gold : 'var(--tx2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: F }}>
+            style={{ height: 44, padding: '0 16px', borderRadius: 12, background: flt === o.v ? 'var(--accent-soft)' : 'var(--search-bg)', border: '1px solid ' + (flt === o.v ? 'var(--accent-bd)' : 'transparent'), color: flt === o.v ? 'var(--accent)' : 'var(--tx2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: F, boxShadow: flt === o.v ? 'var(--shadow-sm)' : 'none' }}>
             {o.l}
           </button>
         ))}

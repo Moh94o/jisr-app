@@ -1585,7 +1585,7 @@ const[quoteNoteModal,setQuoteNoteModal]=useState(false)
 // كل كرت له زر «تعديل» يفتح نافذة بحقول ذلك الكرت فقط، ثم يُحفظ عبر update-quotation
 // (update_fields للبيانات / adjust_fees للرسوم) — والخادم يكتب سجل التغيير في transfer_calculation_audit.
 const CARD_FIELDS={worker:['worker_name','iqama_number','phone','nationality_id','dob'],professional:['occupation_name_ar','sponsor_changes','change_profession','new_occupation_name_ar','hrsd_worker_status','resident_status_ar','iqama_expiry_gregorian','iqama_expiry_hijri'],conditions:['renewal_months','has_notice_period','employer_consent'],pricing:['transfer_fee','iqama_renewal_fee','work_permit_fee','prof_change_fee','medical_fee','office_fee','late_fine_amount','absher_discount','manual_discount']}
-const tcFieldLabel=(k)=>({worker_name:T('الإسم','Name'),iqama_number:T('رقم الإقامة','Iqama'),phone:T('رقم الجوال','Mobile'),nationality_id:T('الجنسية','Nationality'),nationality:T('الجنسية','Nationality'),dob:T('تاريخ الميلاد','Date of Birth'),occupation_name_ar:T('المهنة','Occupation'),sponsor_changes:T('عدد مرات نقل الخدمات','Transfer Count'),change_profession:T('تغيير المهنة','Change Occupation'),new_occupation_name_ar:T('المهنة الجديدة','New Occupation'),hrsd_worker_status:T('حالة العامل','Worker Status'),resident_status_ar:T('حالة المقيم','Resident Status'),iqama_expiry_gregorian:T('انتهاء الإقامة (ميلادي)','Iqama Expiry (G)'),iqama_expiry_hijri:T('انتهاء الإقامة (هجري)','Iqama Expiry (H)'),transfer_fee:T('رسوم نقل الكفالة','Transfer Fee'),iqama_renewal_fee:T('تجديد الإقامة','Iqama Renewal'),work_permit_fee:T('رخصة العمل','Work Permit'),prof_change_fee:T('تغيير المهنة','Change Occupation'),medical_fee:T('التأمين الطبي','Medical'),office_fee:T('رسوم المكتب','Office Fee'),late_fine_amount:T('غرامة الإقامة','Late Fine'),absher_discount:T('خصم أبشر','Absher Discount'),manual_discount:T('خصم المكتب','Office Discount')}[k]||k)
+const tcFieldLabel=(k)=>({worker_name:T('الإسم','Name'),iqama_number:T('رقم الإقامة','Iqama'),phone:T('رقم الجوال','Mobile'),nationality_id:T('الجنسية','Nationality'),nationality:T('الجنسية','Nationality'),dob:T('تاريخ الميلاد','Date of Birth'),occupation_name_ar:T('المهنة','Occupation'),sponsor_changes:T('عدد مرات نقل الخدمات','Transfer Count'),change_profession:T('تغيير المهنة','Change Occupation'),new_occupation_name_ar:T('المهنة الجديدة','New Occupation'),hrsd_worker_status:T('حالة العامل','Worker Status'),resident_status_ar:T('حالة المقيم','Resident Status'),iqama_expiry_gregorian:T('انتهاء الإقامة (ميلادي)','Iqama Expiry (G)'),iqama_expiry_hijri:T('انتهاء الإقامة (هجري)','Iqama Expiry (H)'),transfer_fee:T('رسوم نقل الكفالة','Transfer Fee'),iqama_renewal_fee:T('تجديد الإقامة','Iqama Renewal'),work_permit_fee:T('رخصة العمل','Work Permit'),prof_change_fee:T('تغيير المهنة','Change Occupation'),medical_fee:T('التأمين الطبي','Medical'),office_fee:T('رسوم المكتب','Office Fee'),late_fine_amount:T('غرامة تأخير التجديد','Renewal Late Fine'),absher_discount:T('خصم أبشر','Absher Discount'),manual_discount:T('خصم المكتب','Office Discount')}[k]||k)
 const[cardEdit,setCardEdit]=useState(null)
 const[cardSaving,setCardSaving]=useState(false)
 const openCardEdit=(card)=>{const tc=detailsRow?._tc||{};const f={card,_id:detailsRow.id};CARD_FIELDS[card].forEach(k=>{f[k]=tc[k]??(typeof tc[k]==='boolean'?tc[k]:'')});if(card==='worker'&&!f.nationality_id&&tc.nationality){const n=(nationalities||[]).find(x=>x.name_ar===tc.nationality);if(n)f.nationality_id=n.id}setCardEdit(f)}
@@ -1658,7 +1658,7 @@ iqamaRenewal:{ar:'تجديد الإقامة',en:'Iqama Renewal',hi:'इक़ा
 workPermit:{ar:'رخصة العمل',en:'Work Permit',hi:'कार्य परमिट',ur:'ورک پرمٹ',bn:'ওয়ার্ক পারমিট'},
 profChange:{ar:'تغيير المهنة',en:'Occupation Change',hi:'पेशा परिवर्तन',ur:'پیشہ تبدیلی',bn:'পেশা পরিবর্তন'},
 medical:{ar:'التأمين الطبي',en:'Medical Insurance',hi:'चिकित्सा बीमा',ur:'طبی بیمہ',bn:'চিকিৎসা বীমা'},
-lateFine:{ar:'غرامة الإقامة',en:'Iqama Late Fine',hi:'इक़ामा विलंब जुर्माना',ur:'تاخیر جرمانہ',bn:'বিলম্ব জরিমানা'},
+lateFine:{ar:'غرامة تأخير التجديد',en:'Renewal Late Fine',hi:'इक़ामा विलंब जुर्माना',ur:'تاخیر جرمانہ',bn:'বিলম্ব জরিমানা'},
 officeFee:{ar:'رسوم المكتب (تشمل رسوم السجل التجاري وقوى ومقيم والغرفة التجارية والسعودة)',en:'Office Fee (incl. Commercial Registration, Qiwa, Muqeem, Chamber of Commerce & Saudization)',hi:'कार्यालय शुल्क (वाणिज्यिक रजिस्टर, क़िवा, मुक़ीम, वाणिज्य चैंबर और सऊदीकरण शुल्क सहित)',ur:'دفتر فیس (تجارتی رجسٹریشن، قوی، مقیم، چیمبر آف کامرس اور سعودائزیشن کی فیسوں سمیت)',bn:'অফিস ফি (বাণিজ্যিক রেজিস্ট্রেশন, কিওয়া, মুকিম, চেম্বার অফ কমার্স ও সৌদিকরণ ফি সহ)'},
 subtotal:{ar:'إجمالي الرسوم',en:'Subtotal',hi:'उप-योग',ur:'ذیلی کل',bn:'উপমোট'},
 absherDiscount:{ar:'خصم أبشر',en:'Absher Discount',hi:'अबशर छूट',ur:'ابشر رعایت',bn:'আবশের ছাড়'},
@@ -1751,7 +1751,7 @@ const residentCombined=[tc.resident_status_ar,tc.hrsd_worker_status].filter(s=>s
 const cancelled=r.status==='cancelled'
 const stKey=r.status==='approved'?'statusApproved':(r.status==='invoiced'||r.status==='completed')?'statusInvoiced':r.status==='cancelled'?'cancelled':'statusPricedAwait'
 const extras=(Array.isArray(tc.extras)?tc.extras:[]).filter(e=>Number(e?.amount)>0)
-const lineItems=[fTransfer>0?['transferFee',fTransfer]:null,fIqama>0?['iqamaRenewal',fIqama]:null,fWP>0?['workPermit',fWP]:null,fProf>0?['profChange',fProf]:null,fMed>0?['medical',fMed]:null,fLate>0?['lateFine',fLate]:null].filter(Boolean)
+const lineItems=[fTransfer>0?['transferFee',fTransfer]:null,fIqama>0?['iqamaRenewal',fIqama]:null,fLate>0?['lateFine',fLate]:null,fWP>0?['workPermit',fWP]:null,fProf>0?['profChange',fProf]:null,fMed>0?['medical',fMed]:null].filter(Boolean)
 
 // علم الجنسية الصغير بجوار العنوان (أو نص احتياطي إن لم يوجد علم)
 const natBadge=()=>{if(natObj.flag)return ` <img class="flag" src="${esc(natObj.flag)}" alt="${esc(pick(natObj))}" title="${esc(pick(natObj))}"/>`;const n=pick(natObj);return (n&&n!=='—')?` <span class="nat-txt">${esc(n)}</span>`:''}
@@ -2780,10 +2780,10 @@ const lateFine=Number(tc.late_fine_amount||0);const officeFeeV=Number(tc.office_
 const lineItems=[
 Number(tc.transfer_fee||0)>0?[T('رسوم نقل الكفالة','Sponsorship Transfer Fee'),tc.transfer_fee,null]:null,
 Number(tc.iqama_renewal_fee||0)>0?[T('تجديد الإقامة','Iqama Renewal')+renIqamaSuffix,tc.iqama_renewal_fee,null]:null,
+lateFine>0?[T('غرامة تأخير التجديد','Renewal Late Fine'),lateFine,'#e5867a']:null,
 Number(tc.work_permit_fee||0)>0?[T('رخصة العمل','Work Permit')+renSuffix,tc.work_permit_fee,null]:null,
 Number(tc.prof_change_fee||0)>0?[T('تغيير المهنة','Change Occupation'),tc.prof_change_fee,null]:null,
 Number(tc.medical_fee||0)>0?[T('التأمين الطبي','Medical Insurance'),tc.medical_fee,null]:null,
-lateFine>0?[T('غرامة الإقامة','Iqama Late Fine'),lateFine,'#e5867a']:null,
 ...((Array.isArray(tc.extras)?tc.extras:[]).map((e)=>{const a=Number(e?.amount)||0;return a>0?[e?.name||T('بند إضافي','Extra'),a,C.blue]:null}).filter(Boolean)),
 ].filter(Boolean);
 return<div style={{background:'var(--card-grad2)',border:'1px solid var(--bd)',borderRadius:16,overflow:'hidden'}}>
@@ -2932,7 +2932,7 @@ else if(f.card==='conditions')content=<ModalSection Icon={FileText} label={T('ا
 {fVis('employer_consent')&&<YesNo label={T('موافقة صاحب العمل الحالي','Current Employer Consent')} value={f.employer_consent} onChange={v=>setF('employer_consent',v)} disabled={!fEd('employer_consent')}/>}
 </div></ModalSection>;
 else content=<ModalSection Icon={Banknote} label={T('الرسوم','Fees')}><div style={GRID}>
-{[['transfer_fee',T('رسوم نقل الكفالة','Transfer Fee')],['iqama_renewal_fee',T('تجديد الإقامة','Iqama Renewal')],['work_permit_fee',T('رخصة العمل','Work Permit')],['prof_change_fee',T('تغيير المهنة','Change Occupation')],['medical_fee',T('التأمين الطبي','Medical Insurance')],['late_fine_amount',T('غرامة الإقامة','Iqama Late Fine')],['office_fee',T('رسوم المكتب','Office Fee')],['absher_discount',T('خصم أبشر','Absher Discount')],['manual_discount',T('خصم المكتب','Office Discount')]].filter(([k])=>fVis(k)).map(([k,l])=><CurrencyField key={k} label={l} value={f[k]??''} onChange={v=>setF(k,v)} disabled={!fEd(k)}/>)}
+{[['transfer_fee',T('رسوم نقل الكفالة','Transfer Fee')],['iqama_renewal_fee',T('تجديد الإقامة','Iqama Renewal')],['late_fine_amount',T('غرامة تأخير التجديد','Renewal Late Fine')],['work_permit_fee',T('رخصة العمل','Work Permit')],['prof_change_fee',T('تغيير المهنة','Change Occupation')],['medical_fee',T('التأمين الطبي','Medical Insurance')],['office_fee',T('رسوم المكتب','Office Fee')],['absher_discount',T('خصم أبشر','Absher Discount')],['manual_discount',T('خصم المكتب','Office Discount')]].filter(([k])=>fVis(k)).map(([k,l])=><CurrencyField key={k} label={l} value={f[k]??''} onChange={v=>setF(k,v)} disabled={!fEd(k)}/>)}
 <div style={{gridColumn:'1/-1',display:'flex',alignItems:'center',gap:10,padding:'12px 14px',borderRadius:9,background:'rgba(176,125,0,.08)',border:'1px solid rgba(176,125,0,.3)',minHeight:44}}><span style={{fontSize:13,fontWeight:600,color:'var(--tx2)'}}>{T('الإجمالي بعد التعديل','New total')}</span><span style={{flex:1}}/><span style={{fontSize:16,fontWeight:600,color:FKC.gold,direction:'ltr',fontVariantNumeric:'tabular-nums'}}>{(()=>{const sum=['transfer_fee','iqama_renewal_fee','work_permit_fee','prof_change_fee','medical_fee','office_fee','late_fine_amount'].reduce((s,k)=>s+(Number(f[k])||0),0);const tot=Math.max(0,sum-(Number(f.absher_discount)||0)-(Number(f.manual_discount)||0));return nm(tot)+' '+T('ريال','SAR')})()}</span></div>
 </div></ModalSection>;
 return<FKModal open onClose={()=>{if(!cardSaving)setCardEdit(null)}} width={560} variant="edit" title={titles[f.card]} Icon={FileText}
@@ -2956,7 +2956,7 @@ const nameOk=!nameMissing||(!!_wnInput&&_wnInput!=='—'&&_wnInput!=='-');
 const ready=nameOk&&!belowFloor;
 return <FKModal open onClose={()=>{if(approveSaving)return;setApproveForm(null);if(approveSaved){setApproveSaved(false);setDetailsRow(null)}}} width={560} variant="edit"
  success={approveSaved?<SuccessView title={T('تم تصديق الحسبة','Quote approved')} code={f._quoteNo?noDash(f._quoteNo):undefined}/>:null}
- title={T('تصديق الحسبة','Approve Quote')+(f._quoteNo?' — '+noDash(f._quoteNo):'')} subtitle={f._workerName||undefined} Icon={BadgeCheck}
+ title={T('تصديق الحسبة','Approve Quote')} subtitle={f._workerName||undefined} Icon={BadgeCheck}
  onSubmit={submitApproval} submitting={approveSaving} submitLabel={T('تصديق الحسبة','Approve Quote')}
  nextLabel={T('التالي','Next')} backLabel={T('السابق','Back')}
  pages={[
@@ -2982,7 +2982,6 @@ return <FKModal open onClose={()=>{if(approveSaving)return;setApproveForm(null);
  {f.floorMode!=='none'&&<div style={{display:'flex',justifyContent:'space-between',fontSize:11,color:'var(--tx3)'}}><span>{T('الأرضية','Floor')}: <b style={{color:'var(--tx2)'}}>{nm(_dd.floor)}</b> {T('ريال','SAR')}</span><span>{T('أقصى خصم','Max discount')}: <b style={{color:'var(--tx2)'}}>{nm(_dd.maxDiscount)}</b> {T('ريال','SAR')}</span></div>}
  </div>}
  <CurrencyField full label={T(<>خصم المكتب <span style={{fontSize:11,fontWeight:500,color:'var(--tx4)'}}>(اختياري)</span></>,<>Office Discount <span style={{fontSize:11,fontWeight:500,color:'var(--tx4)'}}>(optional)</span></>)} value={f.manual_discount||''} onChange={v=>setF('manual_discount',v)}/>
- {belowFloor&&<div style={{gridColumn:'1/-1',fontSize:11,fontWeight:600,color:'#c0392b'}}>{isGM?T(`الخصم يتجاوز الحد المسموح (${nm(_dd.maxDiscount)} ريال) — سينزل رسوم المكتب تحت الأرضية.`,`Discount exceeds the allowed max (${nm(_dd.maxDiscount)} SAR) — it would push the office fee below the floor.`):T('الخصم المُدخل يتجاوز الحد المسموح — سيُطبَّق الحد الأقصى المسموح تلقائياً.','The entered discount exceeds the allowed limit — the maximum allowed will be applied automatically.')}</div>}
  </>:<div style={{gridColumn:'1/-1',fontSize:11.5,color:'var(--tx4)',fontWeight:600,padding:'10px 12px',borderRadius:9,background:'var(--inputBg)',border:'1px solid var(--bd)'}}>{T('خصم المكتب غير مُتاح (معطّل من إعدادات الخدمات).','Office discount is disabled in service settings.')}</div>}
  <div style={{gridColumn:'1/-1',display:'flex',flexDirection:'column',gap:7,padding:'12px 14px',borderRadius:9,background:'rgba(176,125,0,.08)',border:'1px solid rgba(176,125,0,.3)'}}>
  {/* الخصم يُطبَّق على رسوم المكتب (لا على الإجمالي) — نُبرز رسوم المكتب بعد الخصم، والإجمالي سطرٌ ثانوي. */}
@@ -2999,7 +2998,7 @@ const f=cancelForm;
 const setF=(k,v)=>setCancelForm(p=>({...p,[k]:v}));
 return<FKModal open onClose={()=>{if(cancelSaving)return;setCancelForm(null);if(cancelSaved){setCancelSaved(false);setDetailsRow(null)}}} width={520} variant="edit"
  success={cancelSaved?<SuccessView title={T('تم إلغاء الحسبة','Quote cancelled')} code={f._quoteNo?noDash(f._quoteNo):undefined}/>:null}
- title={T('إلغاء الحسبة','Cancel Quote')+(f._quoteNo?' — '+noDash(f._quoteNo):'')} subtitle={f._workerName||undefined} Icon={AlertCircle}
+ title={T('إلغاء الحسبة','Cancel Quote')} subtitle={f._workerName||undefined} Icon={AlertCircle}
  onSubmit={submitCancel} submitting={cancelSaving} submitLabel={T('تأكيد الإلغاء','Confirm Cancellation')}
  pages={[{valid:true,content:(
  <ModalSection Icon={AlertCircle} label={T('تأكيد الإلغاء','Confirm Cancellation')}>

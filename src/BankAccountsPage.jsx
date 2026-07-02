@@ -811,14 +811,14 @@ export default function BankAccountsPage({ sb, user, toast, lang }) {
         <div style={{ flex: '1 1 280px', position: 'relative' }}>
           <Search size={14} color="var(--tx4)" style={{ position: 'absolute', top: '50%', left: 14, transform: 'translateY(-50%)', pointerEvents: 'none' }} />
           <input value={searchQ} onChange={e => setSearchQ(e.target.value)} placeholder="ابحث بالبنك، اسم الحساب، رقم الحساب، الآيبان…"
-            style={{ width: '100%', height: 44, padding: '0 14px 0 38px', borderRadius: 12, background: 'var(--card-grad2)', border: '1px solid var(--bd)', color: 'var(--tx)', fontSize: 13, fontFamily: F, boxSizing: 'border-box' }} />
+            style={{ width: '100%', height: 44, padding: '0 14px 0 38px', borderRadius: 12, background: 'var(--search-bg)', border: '1px solid transparent', color: 'var(--tx)', fontSize: 13, fontFamily: F, boxSizing: 'border-box' }} />
         </div>
         {(() => {
           const hasFilters = !!(bankFilter || branchFilter || statusFilter)
           const active = advOpen || hasFilters
           const clearAll = () => { setBankFilter(''); setBranchFilter(''); setStatusFilter('') }
           return (
-            <button onClick={() => setAdvOpen(o => !o)} style={{ height: 44, padding: '0 16px', borderRadius: 12, flexShrink: 0, background: active ? 'rgba(176,125,0,.12)' : 'var(--card-grad2)', border: active ? '1px solid rgba(176,125,0,.4)' : '1px solid var(--bd)', color: active ? FKC.gold : 'var(--tx2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 8, boxSizing: 'border-box', transition: '.2s' }}>
+            <button onClick={() => setAdvOpen(o => !o)} style={{ height: 44, padding: '0 16px', borderRadius: 12, flexShrink: 0, background: active ? 'var(--accent-soft)' : 'var(--search-bg)', border: active ? '1px solid var(--accent-bd)' : '1px solid transparent', color: active ? 'var(--accent)' : 'var(--tx2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 8, boxSizing: 'border-box', transition: '.2s', boxShadow: active ? 'var(--shadow-sm)' : 'none' }}>
               تصفية
               {hasFilters ? (
                 <span role="button" tabIndex={0} title="مسح الفلاتر"
