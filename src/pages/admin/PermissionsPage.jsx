@@ -1636,6 +1636,27 @@ function WorkInfoModal({ sb, user, branches, roles, toast, onClose, onSaved }) {
     }).eq('id', user.id).select()
     if (error) { setErrMsg(error.message.slice(0, 100)); setSaving(false); return }
     if ((data || []).length === 0) { setErrMsg('لم يتم الحفظ — ليست لديك صلاحية كافية'); setSaving(false); return }
+    // ── Keep role authority (user_roles) in sync with the chosen office(s) ──
+    // Module-level branch authority is derived from user_roles.branch_id, NOT from
+    // users.branch_ids. Without this, changing the office here would leave the user
+    // unable to act (approve/invoice/certify…) in the new office — the edge functions'
+    // branch gate (v_user_branch_permissions) would still point at the old office.
+    // GM bypasses the gate entirely, so it's skipped there.
+    if (!isGM) {
+      const origBranchIds = ((user.branch_ids && user.branch_ids.length) ? user.branch_ids : (user.primary_branch_id ? [user.primary_branch_id] : [])).filter(Boolean)
+      const sameBranches = origBranchIds.length === branchIds.length && origBranchIds.every(id => branchIds.includes(id))
+      const roleChanged = (user.role_id || '') !== f.role_id
+      if (roleChanged || !sameBranches) {
+        try {
+          // When the role itself changed, drop the previous role's assignment rows.
+          if (roleChanged && user.role_id) await sb.from('user_roles').delete().eq('user_id', user.id).eq('role_id', user.role_id)
+          // Rewrite the (new) role's branch rows to exactly the selected offices.
+          await sb.from('user_roles').delete().eq('user_id', user.id).eq('role_id', f.role_id)
+          const ins = branchIds.map(b => ({ user_id: user.id, role_id: f.role_id, branch_id: b }))
+          if (ins.length) { const { error: urErr } = await sb.from('user_roles').insert(ins); if (urErr) throw urErr }
+        } catch (e) { setErrMsg('تم حفظ البيانات لكن تعذّرت مزامنة صلاحية المكاتب: ' + (e.message || '').slice(0, 80)); setSaving(false); return }
+      }
+    }
     // Email change — updates the auth login email too (so the user can sign in with it).
     if (email && (user.email || '') !== email) {
       const { data: emData, error: emErr } = await sb.functions.invoke('admin-set-email', { body: { user_id: user.id, email } })

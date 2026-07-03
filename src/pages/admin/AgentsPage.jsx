@@ -51,6 +51,8 @@ const cardTitle = { fontSize: 16, fontWeight: 600, color: '#fff', letterSpacing:
 const Lbl = ({ children }) => (
   <div style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600, marginBottom: 6, letterSpacing: '.2px' }}>{children}</div>
 )
+// حقل تاريخ داخل شريط تصفية سجل الفواتير — بنفس مظهر قوائم Drop
+const fltInput = { width: '100%', height: 42, padding: '0 12px', borderRadius: 9, border: '1px solid transparent', background: 'rgba(0,0,0,.18)', boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)', color: 'var(--tx)', fontFamily: F, fontSize: 13, fontWeight: 600, outline: 'none', boxSizing: 'border-box', colorScheme: 'dark' }
 
 /* ─── KPI hero card — matches the Clients page HeroStat ─── */
 function HeroStat({ tone, label, value, footer }) {
@@ -483,7 +485,7 @@ function AgentDetailPage({ sb, user, agent, agentStats, toast, onBack, T, isAr, 
         service_type:service_type_id(code,value_ar,value_en),
         status:status_id(code,value_ar,value_en),
         branch:branch_id(branch_code),
-        invoice:invoices(id,invoice_no,total_amount,paid_amount,remaining_amount,created_at,status:status_id(code,value_ar,value_en))
+        invoice:invoices(id,invoice_no,total_amount,paid_amount,remaining_amount,created_at,status:status_id(code,value_ar,value_en),payments(payment_date,is_valid,deleted_at))
       )
     `).eq('agent_id', agent.id).is('service_request.deleted_at', null)
       .then(({ data }) => {
@@ -497,14 +499,44 @@ function AgentDetailPage({ sb, user, agent, agentStats, toast, onBack, T, isAr, 
   const totalCom = links?.reduce((s, r) => s + Number(r.commission_amount || 0), 0) || 0
   const reqCount = links?.length || 0
 
+  // فلاتر سجل الفواتير — تاريخ الإصدار (من/إلى) + حالة الإلغاء + نوع الخدمة
+  const [fltFrom, setFltFrom] = useState('')
+  const [fltTo, setFltTo] = useState('')
+  const [fltStatus, setFltStatus] = useState('all')   // all | active | cancelled
+  const [fltSvc, setFltSvc] = useState('all')
+
   // الفواتير المرتبطة بطلبات الوسيط — كل طلب يحمل فاتورته
   const invoiceRows = (links || [])
-    .map(r => { const sr = r.service_request; const inv = sr?.invoice?.[0]; return inv ? { ...inv, service_type: sr.service_type, quantity: sr.quantity, branch: sr.branch } : null })
+    .map(r => {
+      const sr = r.service_request; const inv = sr?.invoice?.[0]; if (!inv) return null
+      // تاريخ آخر دفعة صالحة (غير محذوفة) — الأحدث بين المدفوعات
+      const payDates = (inv.payments || []).filter(p => p && p.is_valid !== false && !p.deleted_at && p.payment_date).map(p => p.payment_date).sort()
+      return { ...inv, last_payment_at: payDates.length ? payDates[payDates.length - 1] : null, service_type: sr.service_type, quantity: sr.quantity, branch: sr.branch }
+    })
     .filter(Boolean)
   const openInvoice = (id) => { if (id) window.dispatchEvent(new CustomEvent('app-navigate-invoice', { detail: { id } })) }
   // الفواتير الملغاة تُستثنى من كل الحسابات المالية والإحصاءات (تظهر في السجل فقط بختم «ملغاة»)
   const isCancelled = (r) => (r.status?.code || '') === 'cancelled'
   const activeInvoices = invoiceRows.filter(r => !isCancelled(r))
+
+  // خيارات نوع الخدمة المتاحة فعلياً في فواتير هذا الوسيط
+  const svcOptions = (() => {
+    const seen = new Map()
+    invoiceRows.forEach(r => { const c = r.service_type?.code; if (c && !seen.has(c)) seen.set(c, isAr ? r.service_type?.value_ar : (r.service_type?.value_en || r.service_type?.value_ar)) })
+    return [{ v: 'all', l: T('كل الخدمات', 'All services') }, ...[...seen].map(([v, l]) => ({ v, l: l || v }))]
+  })()
+  // تطبيق الفلاتر على السجل المعروض (لا يمسّ الحسابات المالية أعلاه)
+  const isoDay = (iso) => (iso ? String(iso).slice(0, 10) : '')
+  const filteredInvoiceRows = invoiceRows.filter(r => {
+    const day = isoDay(r.created_at)
+    if (fltFrom && day && day < fltFrom) return false
+    if (fltTo && day && day > fltTo) return false
+    if (fltStatus === 'active' && isCancelled(r)) return false
+    if (fltStatus === 'cancelled' && !isCancelled(r)) return false
+    if (fltSvc !== 'all' && (r.service_type?.code || '') !== fltSvc) return false
+    return true
+  })
+  const fltActive = !!(fltFrom || fltTo || fltStatus !== 'all' || fltSvc !== 'all')
   const invTotal = activeInvoices.reduce((s, r) => s + Number(r.total_amount || 0), 0)
   const invPaid = activeInvoices.reduce((s, r) => s + Number(r.paid_amount || 0), 0)
   const invDue = Math.max(0, invTotal - invPaid)
@@ -568,14 +600,53 @@ function AgentDetailPage({ sb, user, agent, agentStats, toast, onBack, T, isAr, 
             <div style={cardHeader}>
               <span style={{ width: 6, height: 6, borderRadius: '50%', background: GOLD }} />
               <span style={cardTitle}>{T('سجل الفواتير', 'Invoices')}</span>
-              <span style={{ marginInlineStart: 'auto', fontSize: 11, color: 'var(--tx4)', fontWeight: 600 }}>{invoiceRows.length}</span>
             </div>
+            {/* شريط التصفية — تاريخ الإصدار (من/إلى) + حالة الفاتورة + نوع الخدمة */}
+            {invoiceRows.length > 0 && (
+              <div style={{ padding: '12px 18px', borderBottom: '1px solid rgba(255,255,255,.06)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10, alignItems: 'end' }}>
+                <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 12, color: 'var(--tx3)', fontWeight: 600 }}>{T('عدد الفواتير', 'Invoices')}</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 700, color: GOLD, direction: 'ltr', fontVariantNumeric: 'tabular-nums', padding: '2px 10px', borderRadius: 999, background: 'rgba(176,125,0,.12)', border: '1px solid rgba(176,125,0,.28)' }}>
+                    {fltActive ? `${filteredInvoiceRows.length} / ${invoiceRows.length}` : invoiceRows.length}
+                  </span>
+                </div>
+                <div>
+                  <Lbl>{T('من تاريخ', 'From date')}</Lbl>
+                  <input type="date" value={fltFrom} onChange={e => setFltFrom(e.target.value)} style={fltInput} />
+                </div>
+                <div>
+                  <Lbl>{T('إلى تاريخ', 'To date')}</Lbl>
+                  <input type="date" value={fltTo} onChange={e => setFltTo(e.target.value)} style={fltInput} />
+                </div>
+                <div>
+                  <Lbl>{T('حالة الفاتورة', 'Status')}</Lbl>
+                  <Drop value={fltStatus} onChange={setFltStatus} options={[
+                    { v: 'all', l: T('الكل', 'All') },
+                    { v: 'active', l: T('غير ملغاة', 'Not cancelled') },
+                    { v: 'cancelled', l: T('ملغاة', 'Cancelled') },
+                  ]} />
+                </div>
+                <div>
+                  <Lbl>{T('نوع الخدمة', 'Service')}</Lbl>
+                  <Drop value={fltSvc} onChange={setFltSvc} options={svcOptions} />
+                </div>
+                {fltActive && (
+                  <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end' }}>
+                    <button type="button" onClick={() => { setFltFrom(''); setFltTo(''); setFltStatus('all'); setFltSvc('all') }}
+                      style={{ height: 30, padding: '0 14px', borderRadius: 8, background: 'transparent', border: '1px dashed rgba(176,125,0,.5)', color: GOLD, fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                      {T('مسح الفلاتر', 'Clear filters')}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
             <div style={{ padding: '14px 18px' }}>
               {links === null && <div style={{ color: 'var(--tx4)', fontSize: 12, padding: 16, textAlign: 'center' }}>{T('جاري التحميل…', 'Loading…')}</div>}
               {links !== null && invoiceRows.length === 0 && <div style={{ color: 'var(--tx4)', fontSize: 12, padding: 16, textAlign: 'center' }}>{T('لا توجد فواتير بعد', 'No invoices yet')}</div>}
-              {invoiceRows.length > 0 && (
+              {invoiceRows.length > 0 && filteredInvoiceRows.length === 0 && <div style={{ color: 'var(--tx4)', fontSize: 12, padding: 16, textAlign: 'center' }}>{T('لا توجد فواتير مطابقة للفلاتر', 'No invoices match the filters')}</div>}
+              {filteredInvoiceRows.length > 0 && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {invoiceRows.map(invoice => (
+                  {filteredInvoiceRows.map(invoice => (
                     <InvoiceRow key={invoice.id} invoice={invoice} openInvoice={openInvoice} T={T} isAr={isAr} />
                   ))}
                 </div>
@@ -587,26 +658,6 @@ function AgentDetailPage({ sb, user, agent, agentStats, toast, onBack, T, isAr, 
 
         {/* Left column — commission summary + stats (sticky) */}
         <div className="cld-side" style={{ gridColumn: 2, position: 'sticky', top: 14, display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {/* Financial summary */}
-          {cardVisible(user, 'admin_agents', 'financial_summary') && (
-          <div style={cardChrome}>
-            <div style={cardHeader}><span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} /><span style={cardTitle}>{T('الملخص المالي', 'Financial Summary')}</span></div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 1, padding: 1, background: 'rgba(255,255,255,.04)' }}>
-              <AmountBox label={T('الفوترة', 'Invoiced')} value={num(Math.round(invTotal))} color={GOLD} />
-              <AmountBox label={T('المدفوع', 'Paid')} value={num(Math.round(invPaid))} color={C.ok} />
-              <AmountBox label={T('المتبقي', 'Remaining')} color={invDue > 0 ? C.red : 'var(--tx)'} value={num(Math.round(invDue))} />
-            </div>
-            <div style={{ padding: '14px 22px 18px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 11, color: 'var(--tx3)' }}>
-                <span>{T('نسبة السداد', 'Paid')}</span>
-                <span style={{ color: invPs.c, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{invPct}%</span>
-              </div>
-              <div style={{ height: 8, borderRadius: 999, background: 'rgba(255,255,255,.04)', overflow: 'hidden' }}>
-                <div style={{ height: '100%', width: `${invPct}%`, background: `linear-gradient(90deg, ${invPs.c}, ${invPs.c}dd)`, transition: 'width .3s' }} />
-              </div>
-            </div>
-          </div>
-          )}
           {cardVisible(user, 'admin_agents', 'statistics') && (
           <div style={cardChrome}>
             <div style={cardHeader}><span style={{ width: 6, height: 6, borderRadius: '50%', background: C.blue }} /><span style={cardTitle}>{T('إحصاءات', 'Stats')}</span></div>
@@ -672,6 +723,14 @@ function InvoiceRow({ invoice, openInvoice, T, isAr }) {
   ) : null
   const branchChip = invoice.branch?.branch_code ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 600, color: cancelled ? 'var(--tx4)' : GOLD, direction: 'ltr' }}><Building2 size={10} />{invoice.branch.branch_code}</span> : null
   const paidLabel = <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: C.ok, fontWeight: 600 }}>{T('تم السداد بالكامل', 'Fully paid')}<Check size={11} /></span>
+  // تاريخ إصدار الفاتورة + تاريخ آخر دفعة مستلمة
+  const dateChip = (label, iso, Icon, clr) => (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 10.5, fontWeight: 600, color: 'var(--tx4)' }}>
+      <Icon size={11} color={cancelled ? 'var(--tx5)' : clr} />
+      {label}
+      <span style={{ color: iso ? 'var(--tx2)' : 'var(--tx5)', direction: 'ltr', fontVariantNumeric: 'tabular-nums', fontFamily: 'monospace' }}>{iso ? fmtGreg(iso) : '—'}</span>
+    </span>
+  )
 
   const amtPill = (label, value, color) => (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, fontWeight: 600, color: 'var(--tx3)' }}>
@@ -693,6 +752,10 @@ function InvoiceRow({ invoice, openInvoice, T, isAr }) {
               <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{T('الإجمالي', 'Total')}</span>
               <b style={{ fontSize: 18, lineHeight: 1, color: cancelled ? 'var(--tx3)' : GOLD, direction: 'ltr', fontVariantNumeric: 'tabular-nums', textDecoration: cancelled ? 'line-through' : 'none' }}>{num(total)}</b>
             </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap', paddingBottom: 2, borderBottom: '1px dashed rgba(255,255,255,.06)' }}>
+            {dateChip(T('الإصدار', 'Issued'), invoice.created_at, Calendar, GOLD)}
+            {dateChip(T('آخر دفعة', 'Last payment'), invoice.last_payment_at, Wallet, C.ok)}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
             {branchChip || <span />}
