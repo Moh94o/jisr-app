@@ -257,9 +257,9 @@ export function buildInvoiceWaMessage(inv, day = null) {
 // يُنسخ من زر الواتساب أعلى صفحة الفواتير بعد ما يخلص الموظف إرسال فواتير اليوم:
 // عدد الفواتير الجديدة + الخدمات (الكمية x النوع — المبلغ) + المقبوضات (نقد/تحويلات)
 // + المسترد والملغى. نفس أرقام كروت الإحصاء (invoice_period_stats) ونفس صيغة رسالة الفاتورة.
-export function buildDaySummaryWaMessage({ dateStr, newCount = 0, services = [], cash, bank, refunded, cancelled, oldPays, net, returned }) {
+export function buildDaySummaryWaMessage({ dateStr, title, scopeLine, newCount = 0, services = [], cash, bank, refunded, cancelled, oldPays, net, returned }) {
   const cur = M.currency
-  // التاريخ بالصيغة العالمية يوم-شهر-سنة
+  // التاريخ بالصيغة العالمية يوم-شهر-سنة (النصوص غير التاريخية — كالمدى أو «كل التواريخ» — تُعرض كما هي)
   const dateDisp = /^\d{4}-\d{2}-\d{2}$/.test(dateStr || '') ? dateStr.split('-').reverse().join('-') : dateStr
   const invLbl = n => (n >= 3 && n <= 10) ? 'فواتير' : 'فاتورة'
   const visaLbl = n => (n >= 3 && n <= 10) ? 'تأشيرات' : 'تأشيرة'
@@ -297,8 +297,8 @@ export function buildDaySummaryWaMessage({ dateStr, newCount = 0, services = [],
   }
   const empty = !newCount && !svcLines.length && !recv.length && !neg.length && !netBlock.length
   return [
-    `📊 *ملخص حركة اليوم* | \`${dateDisp}\``,
-    ' يوم العمل يبدأ 5:00 فجراً بتوقيت الرياض',
+    `📊 *${title || 'ملخص حركة اليوم'}* | \`${dateDisp}\``,
+    scopeLine || ' يوم العمل يبدأ 5:00 فجراً بتوقيت الرياض',
     DIV_SQ,
     `🧾 *الفواتير الجديدة: ${num(newCount)} ${invLbl(newCount)}*`,
     ...(empty ? [' لا توجد حركة مسجّلة اليوم'] : []),

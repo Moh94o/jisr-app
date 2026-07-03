@@ -5,6 +5,7 @@ import { buildGosiBookmarklet } from './pages/gosiSyncBookmarklet.js'
 import { buildQiwaBookmarklet } from './pages/qiwaSyncBookmarklet.js'
 import { Sel } from './pages/KafalaCalculator.jsx'
 import { can as canPerm, canCardBtn, cardVisible, isGM, userOffices } from './lib/permissions.js'
+import { branchLabel } from './lib/utils.js'
 import { Building2, Hash, Plus, Ban, Trash2, Pencil } from 'lucide-react'
 import { Modal as FKModal, ModalSection, ActionButton, SuccessView, GRID, TextField, Segmented, Select, DateField, Switch, EmptyState } from './components/ui/FormKit.jsx'
 
@@ -3343,7 +3344,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
       .order('sort_order')
       .then(({ data }) => setOrgTypes(data || []))
     sb.from('branches')
-      .select('id, branch_code, city:cities(name_ar, name_en)')
+      .select('id, branch_code, name_ar, city:cities(name_ar, name_en)')
       .is('deleted_at', null)
       .order('branch_code')
       .then(({ data }) => {
@@ -3534,7 +3535,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
       // نوع المنشأة والفرع عبر الربط المباشر، ثم نُعيد تشكيل كل صف ليطابق
       // الحقول التي يتوقعها الجدول/الفلاتر.
       const { data, error } = await sb.from('facilities')
-        .select('*, org_type:lookup_items!facilities_organization_type_id_fkey(id,code,value_ar,value_en), branch:branches!facilities_branch_id_fkey(id,branch_code,city:cities(name_ar,name_en))')
+        .select('*, org_type:lookup_items!facilities_organization_type_id_fkey(id,code,value_ar,value_en), branch:branches!facilities_branch_id_fkey(id,branch_code,name_ar,city:cities(name_ar,name_en))')
         .is('deleted_at', null)
         .order('name_ar', { ascending: true })
       if (error) throw error
@@ -4192,7 +4193,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
     for (const b of Object.values(branchByFacility)) {
       if (b?.branch_code && !seen.has(b.branch_code)) {
         const city = b.city ? T(b.city.name_ar, b.city.name_en || b.city.name_ar) : ''
-        seen.set(b.branch_code, { v: b.branch_code, l: city ? `${b.branch_code} — ${city}` : b.branch_code })
+        seen.set(b.branch_code, { v: b.branch_code, l: city ? `${branchLabel(b)} — ${city}` : branchLabel(b) })
       }
     }
     return [...seen.values()].sort((a, b) => String(a.v).localeCompare(String(b.v)))
@@ -7564,7 +7565,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
               <Select req label={T('المكتب التابع', 'Affiliated Branch')}
                 placeholder={T('اختر المكتب…', 'Select branch…')}
                 options={branchOpts} getKey={o => o.id}
-                getLabel={o => `${o.branch_code || '—'}${o.city ? ' — ' + T(o.city.name_ar, o.city.name_en || o.city.name_ar) : ''}`}
+                getLabel={o => `${branchLabel(o)}${o.city ? ' — ' + T(o.city.name_ar, o.city.name_en || o.city.name_ar) : ''}`}
                 value={addForm.branch_id}
                 onChange={v => setAddForm(p => ({ ...p, branch_id: v }))} />
             </div>
@@ -7619,7 +7620,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
               <Select label={T('المكتب التابع', 'Affiliated Branch')}
                 placeholder={T('اختر المكتب…', 'Select branch…')}
                 options={branchOpts} getKey={o => o.id}
-                getLabel={o => `${o.branch_code || '—'}${o.city ? ' — ' + T(o.city.name_ar, o.city.name_en || o.city.name_ar) : ''}`}
+                getLabel={o => `${branchLabel(o)}${o.city ? ' — ' + T(o.city.name_ar, o.city.name_en || o.city.name_ar) : ''}`}
                 value={editForm.branch_id}
                 onChange={v => setEditForm(p => ({ ...p, branch_id: v }))} />
               <Switch full label={T('المركز السعودي', 'Saudi Center')} color={C.ok}

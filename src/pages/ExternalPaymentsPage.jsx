@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { Modal, TextField, Select, EmptyState, ConfirmDialog, GRID } from '../components/ui/FormKit.jsx'
 import { StatStripSkeleton, SkeletonTable } from '../components/ui/Skeleton.jsx'
 import { can, cardVisible } from '../lib/permissions.js'
+import { branchLabel } from '../lib/utils.js'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = {
@@ -308,7 +309,7 @@ function AddBankTransferModal({ sb, user, lang, branches, defaultBranch, onClose
       onSubmit={submit} submitting={saving} submitLabel={T('حفظ', 'Save')} errorMsg={saveErr}>
       <div style={GRID}>
         <Select label={T('الفرع', 'Branch')} req error={err.branch_id} value={f.branch_id} onChange={(k) => set('branch_id', k)}
-          options={branches} getKey={(o) => o.id} getLabel={(o) => o.branch_code || o.name_ar || o.id} placeholder={T('اختر الفرع', 'Select branch')} />
+          options={branches} getKey={(o) => o.id} getLabel={(o) => branchLabel(o)} placeholder={T('اختر الفرع', 'Select branch')} />
         <TextField label={T('المستفيد', 'Beneficiary')} req error={err.beneficiary_name} value={f.beneficiary_name} onChange={(v) => set('beneficiary_name', v)} placeholder={T('اسم المستفيد', 'Beneficiary name')} />
         <TextField label={T('البنك', 'Bank')} value={f.bank_name} onChange={(v) => set('bank_name', v)} />
         <TextField label={T('الآيبان', 'IBAN')} value={f.iban} onChange={(v) => set('iban', v)} dir="ltr" upper placeholder="SA…" />

@@ -9,6 +9,7 @@ import {
 import { Shimmer } from '../../components/ui/Skeleton.jsx'
 import { TAB_CARDS, CARD_GROUP_LABELS, MODULE_ACTIONS, TAB_FIELDS, TAB_MODALS, TAB_STAGES, TAB_SERVICE_SCOPE, TAB_STATS_MODE, groupFields, tabModule as catTabModule } from '../../lib/permCatalog.js'
 import { isGM as isGmUser } from '../../lib/permissions.js'
+import { branchLabel } from '../../lib/utils.js'
 import { ALL_SERVICES, SVC_CODE_MAP } from '../../ServiceRequestPage.jsx'
 
 const F = "'Cairo','Tajawal',sans-serif"
@@ -94,7 +95,7 @@ export default function PermissionsPage({ sb, user, toast, lang, nav, hubTabs, v
       sb.from('users')
         .select('id,role_id,primary_branch_id,branch_ids,is_active,personal_phone,email,plain_password,ui_visibility,created_at,last_login_at,person:persons(id,name_ar,name_en,id_number,id_type_id,nationality_id,phone_primary,birth_date,email),branch:branches!users_primary_branch_id_fkey(id,branch_code),role:roles!users_role_id_fkey(id,name_ar,name_en,color)')
         .is('deleted_at', null).order('created_at'),
-      sb.from('branches').select('id,branch_code').is('deleted_at', null).order('branch_code'),
+      sb.from('branches').select('id,branch_code,name_ar').is('deleted_at', null).order('branch_code'),
       sb.from('roles').select('id,name_ar,name_en,color').order('name_ar'),
       sb.from('nationalities').select('id,name_ar,name_en,flag_url').eq('is_active', true).order('name_ar'),
       sb.from('permissions').select('*').eq('is_active', true).order('module_sort').order('sort_order'),
@@ -396,7 +397,7 @@ function UsersTab({ sb, user, toast, lang, loading, users, branches, nationaliti
               </div>
               <div>
                 <div style={fLbl}>المكتب</div>
-                <Select searchable options={[{ id: '', branch_code: 'كل المكاتب' }, ...(branches || [])]} getKey={o => o.id} getLabel={o => o.branch_code}
+                <Select searchable options={[{ id: '', branch_code: 'كل المكاتب' }, ...(branches || [])]} getKey={o => o.id} getLabel={o => branchLabel(o)}
                   value={branchFilter || null} onChange={v => setBranchFilter(v || '')} placeholder="كل المكاتب" />
               </div>
               <div>
@@ -772,7 +773,7 @@ export function PermissionsPanel({ sb, currentUser, u, role, mode = 'user', bran
                 {pol.mode === 'specific' && (
                   <MultiSelect placeholder="اختر المكاتب…" value={pol.ids || []}
                     onChange={(ids) => setOffice(id, { mode: 'specific', ids })}
-                    options={branches || []} getKey={b => b.id} getLabel={b => b.branch_code} />
+                    options={branches || []} getKey={b => b.id} getLabel={b => branchLabel(b)} />
                 )}
                 {pol.mode === 'inherit' && <span style={{ fontSize: 10, color: 'var(--tx5)', fontWeight: 600 }}>يستخدم المكاتب المسندة للحساب افتراضياً.</span>}
               </div>
@@ -1043,7 +1044,7 @@ function RoleAssignmentCard({ sb, currentUser, u, roles, branches, toast, onChan
                           {row.scope === 'specific' && (
                             <MultiSelect placeholder="اختر الفروع…" value={row.branchIds}
                               onChange={(ids) => setBranches(row.role_id, ids)}
-                              options={branches || []} getKey={b => b.id} getLabel={b => b.branch_code} />
+                              options={branches || []} getKey={b => b.id} getLabel={b => branchLabel(b)} />
                           )}
                           {row.scope === 'specific' && (!row.branchIds || !row.branchIds.length) && (
                             <span style={{ fontSize: 10, color: C.gold, fontWeight: 600 }}>اختر فرعاً واحداً على الأقل ليُحفظ.</span>
@@ -1667,7 +1668,7 @@ function WorkInfoModal({ sb, user, branches, roles, toast, onClose, onSaved }) {
           {!isGM && (
             <MultiSelect label="المكتب" req hint="يمكن اختيار أكثر من مكتب" placeholder="— اختر —"
               value={f.branch_ids} onChange={v => set('branch_ids', v)}
-              options={branches} getKey={b => b.id} getLabel={b => b.branch_code} />
+              options={branches} getKey={b => b.id} getLabel={b => branchLabel(b)} />
           )}
           <PhoneField label="رقم الجوال" value={f.personal_phone} onChange={v => set('personal_phone', v)} />
           <TextField label="البريد الإلكتروني" hint={EMAIL_DOMAIN} dir="ltr" placeholder="name" full={isGM}
@@ -1959,7 +1960,7 @@ function NewUserModal({ sb, toast, branches, roles, nationalities, onClose, onSa
               {!isGM && (
                 <MultiSelect label="المكتب" req hint="يمكن اختيار أكثر من مكتب" placeholder="الافتراضي"
                   value={f.branch_ids} onChange={v => set('branch_ids', v)}
-                  options={branches} getKey={b => b.id} getLabel={b => b.branch_code} />
+                  options={branches} getKey={b => b.id} getLabel={b => branchLabel(b)} />
               )}
             </div>
           </ModalSection>

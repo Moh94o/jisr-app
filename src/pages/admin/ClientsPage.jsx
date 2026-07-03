@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import BackButton from '../../components/BackButton'
 import { can as canPerm, cardVisible, canCardBtn, tabOffices, fieldVisible, fieldEditable, modalAllowed } from '../../lib/permissions.js'
-import { noDash, clientEditChanges } from '../../lib/utils.js'
+import { noDash, clientEditChanges, branchLabel } from '../../lib/utils.js'
 import { Modal as FKModal, ModalSection, GRID, TextField, IdField, PhoneField, Select, MultiSelect, Dropdown as FKDropdown, SuccessView, EmptyState } from '../../components/ui/FormKit.jsx'
 import { SkeletonCards, SkeletonList } from '../../components/ui/Skeleton.jsx'
 import {
@@ -219,7 +219,7 @@ export default function ClientsPage({ sb, lang, user, toast, emptyIcon }) {
 
   /* ─── Bootstrap: branches, nationalities, headline stats ─── */
   useEffect(() => {
-    sb.from('branches').select('id,branch_code').order('branch_code').then(({ data }) => {
+    sb.from('branches').select('id,branch_code,name_ar').order('branch_code').then(({ data }) => {
       // المستخدم المقيّد بمكاتب لا يرى في التصفية إلا مكاتبه.
       const all = data || []
       setBranches(officeScope ? all.filter(b => officeScope.includes(b.id)) : all)
@@ -418,7 +418,7 @@ export default function ClientsPage({ sb, lang, user, toast, emptyIcon }) {
             <div>
               <Lbl>{T('المكتب', 'Branch')}</Lbl>
               <FKDropdown value={filters.branch_id} onChange={v => { setFilters(f => ({ ...f, branch_id: v })); setPage(0) }} placeholder={T('جميع المكاتب', 'All branches')} getKey={o => o.v} getLabel={o => o.l}
-                options={[{ v: '', l: T('جميع المكاتب', 'All branches') }, ...branches.map(b => ({ v: b.id, l: b.branch_code }))]} />
+                options={[{ v: '', l: T('جميع المكاتب', 'All branches') }, ...branches.map(b => ({ v: b.id, l: branchLabel(b) }))]} />
             </div>
             <div>
               <Lbl>{T('الجنسية', 'Nationality')}</Lbl>
@@ -559,21 +559,23 @@ function ClientDetailPage({ sb, client, clientStats, user, toast, onBack, T, isA
 
   const accent = colorFor(client.id)
   const name = (isAr ? client.name_ar : (client.name_en || client.name_ar)) || client.name_ar || client.name_en || '—'
-  const totalAmt = requests?.reduce((s, r) => s + (r.invoice?.[0] ? Number(r.invoice[0].total_amount || 0) : 0), 0) || 0
-  const paidAmt = requests?.reduce((s, r) => s + (r.invoice?.[0] ? Number(r.invoice[0].paid_amount || 0) : 0), 0) || 0
+  // كل الحسابات (الملخص المالي والإحصاءات) تتجاهل الطلبات الملغاة — تظهر فقط في سجل الفواتير كختم «ملغية».
+  const activeReqs = (requests || []).filter(r => r.status?.code !== 'cancelled')
+  const totalAmt = activeReqs.reduce((s, r) => s + (r.invoice?.[0] ? Number(r.invoice[0].total_amount || 0) : 0), 0)
+  const paidAmt = activeReqs.reduce((s, r) => s + (r.invoice?.[0] ? Number(r.invoice[0].paid_amount || 0) : 0), 0)
   const due = Math.max(0, totalAmt - paidAmt)
   const pct = totalAmt > 0 ? Math.min(100, Math.round((paidAmt / totalAmt) * 100)) : 0
   const ps = payState(totalAmt, paidAmt)
-  const invCount = requests?.filter(r => r.invoice?.[0]).length || 0
+  const invCount = activeReqs.filter(r => r.invoice?.[0]).length
   // عدد العمال = مجموع الكميات في الطلبات؛ التأشيرات ونقل الكفالة من نوع الخدمة
-  const workerCount = requests?.reduce((s, r) => s + Number(r.quantity || 0), 0) || 0
-  const visaCount = requests?.filter(r => (r.service_type?.code || '').includes('work_visa')).length || 0
-  const kafalaCount = requests?.filter(r => { const code = r.service_type?.code || ''; return code.includes('kafala') || code === 'transfer' }).length || 0
-  const lastInvoiceIso = (() => { const ds = (requests || []).map(r => r.invoice?.[0]?.created_at).filter(Boolean); return ds.length ? ds.slice().sort().slice(-1)[0] : null })()
+  const workerCount = activeReqs.reduce((s, r) => s + Number(r.quantity || 0), 0)
+  const visaCount = activeReqs.filter(r => (r.service_type?.code || '').includes('work_visa')).length
+  const kafalaCount = activeReqs.filter(r => { const code = r.service_type?.code || ''; return code.includes('kafala') || code === 'transfer' }).length
+  const lastInvoiceIso = (() => { const ds = activeReqs.map(r => r.invoice?.[0]?.created_at).filter(Boolean); return ds.length ? ds.slice().sort().slice(-1)[0] : null })()
   // Invoices derived from the client's requests (each request carries its invoice).
   const invoiceRows = (requests || [])
     .filter(r => r.invoice?.[0])
-    .map(r => ({ ...r.invoice[0], service_type: r.service_type, quantity: r.quantity, branch: r.branch }))
+    .map(r => ({ ...r.invoice[0], service_type: r.service_type, quantity: r.quantity, branch: r.branch, cancelled: r.status?.code === 'cancelled' }))
   const openInvoice = (id) => { if (id) window.dispatchEvent(new CustomEvent('app-navigate-invoice', { detail: { id } })) }
 
   // per-field visibility (users.ui_visibility 'field:admin_clients:<key>')
@@ -711,7 +713,9 @@ function InvoiceRow({ invoice, openInvoice, T, isAr, fv = () => true }) {
   const total = Number(invoice.total_amount || 0)
   const paid = Number(invoice.paid_amount || 0)
   const remaining = Number(invoice.remaining_amount || 0)
+  const cancelled = !!invoice.cancelled
   const ps = payState(total, paid)
+  const railClr = cancelled ? C.red : ps.c
   const sClr = svcColor(invoice.service_type?.code)
   const invNo = noDash(invoice.invoice_no) || `#${String(invoice.id).slice(0, 8)}`
   const svcName = isAr ? invoice.service_type?.value_ar : (invoice.service_type?.value_en || invoice.service_type?.value_ar)
@@ -743,9 +747,14 @@ function InvoiceRow({ invoice, openInvoice, T, isAr, fv = () => true }) {
 
   // شريط حالة — colored pay-status rail + prominent total, paid/remaining as pills
   return (
-    <div style={{ padding: '12px 12px', borderRadius: 10, background: 'var(--inputBg)', border: '1px solid var(--bd)' }}>
+    <div style={{ position: 'relative', overflow: 'hidden', padding: '12px 12px', borderRadius: 10, background: 'var(--inputBg)', border: `1px solid ${cancelled ? 'rgba(232,114,101,.30)' : 'var(--bd)'}`, opacity: cancelled ? .72 : 1 }}>
+      {cancelled && (
+        <span style={{ position: 'absolute', top: '50%', insetInlineEnd: 14, transform: 'translateY(-50%) rotate(-14deg)', pointerEvents: 'none', border: `2px solid ${C.red}`, color: C.red, borderRadius: 7, padding: '3px 12px', fontSize: 15, fontWeight: 800, letterSpacing: 1, opacity: .85, fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+          {T('ملغية', 'CANCELLED')}
+        </span>
+      )}
       <div style={{ display: 'flex' }}>
-        <div style={{ width: 4, alignSelf: 'stretch', borderRadius: 999, background: ps.c, marginInlineEnd: 12 }} />
+        <div style={{ width: 4, alignSelf: 'stretch', borderRadius: 999, background: railClr, marginInlineEnd: 12 }} />
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 8, minWidth: 0 }}>{fv('il_invoice_no') && noBtn()}<div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>{fv('il_service') && serviceChip}</div></div>
@@ -858,7 +867,7 @@ function ClientEditModal({ sb, client, branches, nationalities, toast, user, onC
               {fVis('ci_nationality') && <Select label={T('الجنسية', 'Nationality')} req value={f.nationality_id} onChange={v => set('nationality_id', v)} placeholder={T('— اختر —', '— Select —')} disabled={!fEd('ci_nationality')}
                 options={nationalities} getKey={n => n.id} getLabel={n => isAr ? n.name_ar : (n.name_en || n.name_ar)} />}
               {fVis('ci_branch') && <MultiSelect label={T('المكتب', 'Branch')} req hint={T('يمكن اختيار أكثر من مكتب', 'You can select more than one branch')} value={f.branch_ids} onChange={v => set('branch_ids', v)} placeholder={T('— اختر —', '— Select —')} disabled={!fEd('ci_branch')}
-                options={branches} getKey={b => b.id} getLabel={b => b.branch_code} />}
+                options={branches} getKey={b => b.id} getLabel={b => branchLabel(b)} />}
             </div>
           </ModalSection>
         ),

@@ -2108,7 +2108,7 @@ input[type=number]{-moz-appearance:textfield}
 {sel&&<div className="bento-check"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>}
 <div className="bento-icon"><Building2 size={22} color={C.bentoGold} strokeWidth={1.5}/></div>
 <div className="bento-label">{b.name_ar||b.branch_code}</div>
-{b.branch_code&&<div className="bento-sub">{b.branch_code}</div>}
+{b.name_ar&&b.branch_code&&<div className="bento-sub">{b.branch_code}</div>}
 </div>)})}
 </div>
 </div>

@@ -4,6 +4,15 @@
 // Display/copy only — the stored value keeps its dashes for navigation, search and DB lookups.
 export const noDash = (v) => String(v ?? '').replace(/-/g, '');
 
+// ═══ اسم المكتب في القوائم — «النك نيم — الكود» (أو الكود وحده إن لا يوجد نك نيم) ═══
+// b: صف مكتب فيه branch_code و name_ar (النك نيم). يُستخدم في كل دروب داون للمكاتب/الفروع.
+export const branchLabel = (b) => {
+  if (!b) return '—';
+  const nick = String(b.name_ar || b.nickname || '').trim();
+  const code = String(b.branch_code || '').trim();
+  return nick && code ? `${nick} — ${code}` : (nick || code || String(b.id || '—'));
+};
+
 // ═══ UI-9: تصدير Excel ═══
 export async function exportToExcel(data, columns, fileName = 'export') {
   if (!data?.length) return;

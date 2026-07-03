@@ -8,6 +8,7 @@ import { Modal as FKModal, ModalSection as FKSection, ActionButton as FKAction, 
 import BackButton from './components/BackButton'
 import { SkeletonCards, SkeletonList } from './components/ui/Skeleton.jsx'
 import { can, cardVisible, canCardBtn } from './lib/permissions.js'
+import { branchLabel } from './lib/utils.js'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const MONO_F = "'JetBrains Mono','Cairo',sans-serif"
@@ -235,7 +236,7 @@ function LinkedOfficesEditor({ sb, account, branches, toast, onClose, onChanged 
         <div style={GRID}>
           <FKSelect label="المكتب" req searchable value={newBranch}
             onChange={v => setNewBranch(v)}
-            options={available} getKey={o => o.id} getLabel={o => o.branch_code} placeholder="اختر المكتب..." />
+            options={available} getKey={o => o.id} getLabel={o => branchLabel(o)} placeholder="اختر المكتب..." />
           <FKMulti label="الغرض" searchable={false} value={newPurposes} onChange={setNewPurposes}
             options={PURPOSE_SELECT_OPTS} getKey={o => o.k} getLabel={o => o.l} placeholder="اختر الغرض..." />
         </div>
@@ -577,7 +578,7 @@ export default function BankAccountsPage({ sb, user, toast, lang }) {
 
   useEffect(() => {
     if (!sb) return
-    sb.from('branches').select('id, branch_code').is('deleted_at', null).order('branch_code').then(({ data }) => setBranches(data || []))
+    sb.from('branches').select('id, branch_code, name_ar').is('deleted_at', null).order('branch_code').then(({ data }) => setBranches(data || []))
   }, [sb])
 
   const totalBalance = useMemo(() => accounts.reduce((s, a) => s + Number(a.current_balance || 0), 0), [accounts])
@@ -849,7 +850,7 @@ export default function BankAccountsPage({ sb, user, toast, lang }) {
               </div>
               <div>
                 <div style={fLbl}>المكتب</div>
-                <FKSelect searchable options={[{ v: '', l: 'كل المكاتب' }, ...(branches || []).map(b => ({ v: b.branch_code, l: b.branch_code }))]} getKey={o => o.v} getLabel={o => o.l}
+                <FKSelect searchable options={[{ v: '', l: 'كل المكاتب' }, ...(branches || []).map(b => ({ v: b.branch_code, l: branchLabel(b) }))]} getKey={o => o.v} getLabel={o => o.l}
                   value={branchFilter || null} onChange={v => setBranchFilter(v || '')} placeholder="كل المكاتب" />
               </div>
               <div>

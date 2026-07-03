@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import BackButton from './components/BackButton'
 import { can as canPerm, isGM, cardVisible, canCardBtn, tabOffices, tabServiceTypes, statsMode, fieldVisible, fieldEditable, modalAllowed, canTabBranch } from './lib/permissions.js'
 import { ALL_SERVICES, SVC_CODE_MAP } from './ServiceRequestPage.jsx'
-import { noDash, clientEditChanges } from './lib/utils.js'
+import { noDash, clientEditChanges, branchLabel } from './lib/utils.js'
 import { OFFICE_LOGO_SVG } from './lib/officeBrand.js'
 import { Modal, SuccessView, EmptyState, ModalSection, InfoRow, InfoGrid, GRID, FULL, CurrencyField, Segmented, TextField, TextArea, IdField, PhoneField, DateField, Select as FKSelect, Dropdown as FKDropdown, FileField, Checkbox, C as FKC, useFKLang } from './components/ui/FormKit.jsx'
 import { Plus, RotateCcw, Ban, Printer, Info, Wallet, FileText, Landmark, Building2, User, Search, CheckCircle2, Circle, CreditCard, Briefcase, Calendar, CalendarRange, BadgeCheck, Hash, Phone, Globe, Link2, MessageSquare, Paperclip } from 'lucide-react'
@@ -891,7 +891,7 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
   useEffect(() => {
     let alive = true
     Promise.all([
-      sb.from('branches').select('id,branch_code').order('branch_code'),
+      sb.from('branches').select('id,branch_code,name_ar').order('branch_code'),
       sb.from('lookup_items').select('id,code,value_ar,value_en,category:lookup_categories!inner(category_key)').eq('category.category_key', 'service_type'),
       sb.from('lookup_items').select('id,code,category:lookup_categories!inner(category_key)').eq('category.category_key', 'invoice_status').eq('code', 'cancelled').limit(1),
       sb.from('agents').select('id,name_ar,name_en').order('name_ar'),
@@ -1142,31 +1142,63 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
     if (waSumBusy) return
     setWaSumBusy(true)
     try {
-      const start = riyadhDayStart()
-      // فواتير اليوم (المنشأة بعد 5 فجراً) — لكل خدمة: عدد الفواتير + كمية التأشيرات + المجموع.
+      // ── الملخص يتبع التصفية الحالية (نفس منطق كروت الإحصاء) ──
+      // بلا تصفية: حركة اليوم + قيد المكتب. مع تصفية يوم/مدى: ذلك المدى. مع تصفية بلا تاريخ: كل التواريخ
+      // (كالكروت). تصفية الخدمة/الحالة/البحث/المبلغ تُقيَّد بمجموعة الفواتير المطابقة (search_invoice_ids).
+      const bStart = (ds) => new Date(ds + 'T02:00:00.000Z')          // 5:00 فجراً بتوقيت الرياض
+      const dShift = (ds, n) => { const d = new Date(ds + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10) }
+      const active = statFilters.active
+      const hasDate = !!(from || to)
+      const dFrom = from || to || todayStr
+      const dTo = to || from || todayStr
+      let start = null, end = null
+      if (!active) { start = riyadhDayStart(); end = null }             // اليوم فقط
+      else if (hasDate) { start = bStart(dFrom); end = bStart(dShift(dTo, 1)) }  // المدى المحدد
+      // active && !hasDate ⇒ كل التواريخ (start/end = null)
+      const branchScope = branchSel.length ? branchSel : officeScope
+
+      // عند وجود تصفية غير المكتب/التاريخ نقيّد بمجموعة الفواتير المطابقة (تشمل البحث الذكي).
+      const needIds = active && !!(serviceType.length || payFilter.length || dq.trim() || amountMin !== '' || amountMax !== '' || paymentPlan || reqStage.length || accStatus || agentFilter || natFilter || overdue)
+      let idSet = null
+      if (needIds) {
+        const { active: _a, ...f } = statFilters
+        const { data: idRows } = await sb.rpc('search_invoice_ids', { ...f, p_limit: 5000, p_offset: 0 })
+        idSet = new Set((idRows || []).map(r => r.id))
+      }
+
+      // فواتير الفترة (المنشأة ضمنها) — لكل خدمة: عدد الفواتير + كمية التأشيرات + المجموع.
       let invQ = sb.from('invoices')
         .select('id,total_amount,paid_amount,status:status_id(code),service_type:service_type_id(code,value_ar),service_request:service_request_id(quantity,visa_applications(id,deleted_at))')
-        .is('deleted_at', null).gte('created_at', start.toISOString())
-      if (officeScope) invQ = invQ.in('branch_id', officeScope)
-      // كل دفعات اليوم — بما فيها دفعات على فواتير صادرة أيامًا سابقة (تُفرز في سطرها الخاص).
-      const payQ = sb.from('payments')
-        .select('amount,is_valid,payment_method:payment_method_id(code),invoice:invoice_id(created_at,branch_id,status:status_id(code))')
-        .is('deleted_at', null).gte('payment_date', start.toISOString())
-      // الفواتير المُلغاة اليوم — بصرف النظر عن تاريخ إنشائها (يُعتمد تاريخ الإلغاء لا الإنشاء).
+        .is('deleted_at', null)
+      if (start) invQ = invQ.gte('created_at', start.toISOString())
+      if (end) invQ = invQ.lt('created_at', end.toISOString())
+      if (branchScope) invQ = invQ.in('branch_id', branchScope)
+      // دفعات الفترة — بما فيها دفعات على فواتير صادرة أيامًا سابقة (تُفرز في سطرها الخاص).
+      let payQ = sb.from('payments')
+        .select('amount,is_valid,payment_method:payment_method_id(code),invoice:invoice_id(id,created_at,branch_id,status:status_id(code))')
+        .is('deleted_at', null)
+      if (start) payQ = payQ.gte('payment_date', start.toISOString())
+      if (end) payQ = payQ.lt('payment_date', end.toISOString())
+      // الفواتير المُلغاة ضمن الفترة — يُعتمد تاريخ الإلغاء لا الإنشاء.
       let cxlQ = sb.from('invoices')
-        .select('id,paid_amount,cancel_log,updated_at,status:status_id!inner(code)')
-        .is('deleted_at', null).eq('status.code', 'cancelled').gte('updated_at', start.toISOString())
-      if (officeScope) cxlQ = cxlQ.in('branch_id', officeScope)
+        .select('id,paid_amount,cancel_log,updated_at,branch_id,status:status_id!inner(code)')
+        .is('deleted_at', null).eq('status.code', 'cancelled')
+      if (start) cxlQ = cxlQ.gte('updated_at', start.toISOString())
+      if (end) cxlQ = cxlQ.lt('updated_at', end.toISOString())
+      if (branchScope) cxlQ = cxlQ.in('branch_id', branchScope)
       const [{ data: created, error: e1 }, { data: pays, error: e2 }, { data: cxl, error: e3 }] = await Promise.all([invQ, payQ, cxlQ])
       if (e1 || e2 || e3) throw (e1 || e2 || e3)
 
-      // الفواتير الجديدة = المنشأة اليوم غير الملغاة (الملغاة لها سطرها الخاص أسفل الرسالة).
-      const live = (created || []).filter(r => r.status?.code !== 'cancelled')
-      // الملغاة اليوم = حالتها «ملغاة» وآخر قيد إلغاء في cancel_log ضمن يوم العمل (fallback: عُدِّلت اليوم).
+      const inSet = id => !idSet || idSet.has(id)
+      // الفواتير الجديدة = المنشأة ضمن الفترة غير الملغاة والمطابقة للتصفية.
+      const live = (created || []).filter(r => r.status?.code !== 'cancelled' && inSet(r.id))
+      // الملغاة = آخر قيد إلغاء في cancel_log ضمن الفترة (fallback: عُدِّلت ضمنها) + مطابقة للتصفية.
       const cancelledRows = (cxl || []).filter(r => {
+        if (!inSet(r.id)) return false
         const log = Array.isArray(r.cancel_log) ? r.cancel_log : []
         const at = log.length ? log[log.length - 1]?.at : null
-        return at ? new Date(at) >= start : true
+        if (at) { const t = new Date(at); return (!start || t >= start) && (!end || t < end) }
+        return true
       })
       const svcMap = new Map()
       for (const r of live) {
@@ -1179,27 +1211,39 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
         svcMap.set(code, e)
       }
 
-      // دفعات اليوم ضمن قيد المكتب. المقبوضات تستثني الفواتير الملغاة (لا تُحتسب كإيراد)،
-      // أما المرتجعات فتُحتسب حتى لو أُلغيت الفاتورة (الاسترداد فعليًا حصل اليوم).
-      const officeScoped = (pays || []).filter(p => p.invoice && (!officeScope || officeScope.includes(p.invoice.branch_id)))
-      const recv = officeScoped.filter(p => p.invoice.status?.code !== 'cancelled' && p.is_valid && Number(p.amount) > 0)
+      // دفعات الفترة ضمن نطاق التصفية. المقبوضات تستثني الفواتير الملغاة (لا تُحتسب كإيراد)،
+      // أما المرتجعات فتُحتسب حتى لو أُلغيت الفاتورة (الاسترداد فعليًا حصل ضمن الفترة).
+      const scoped = (pays || []).filter(p => p.invoice && (!branchScope || branchScope.includes(p.invoice.branch_id)) && inSet(p.invoice.id))
+      const recv = scoped.filter(p => p.invoice.status?.code !== 'cancelled' && p.is_valid && Number(p.amount) > 0)
       const sumOf = arr => arr.reduce((s, p) => s + Number(p.amount || 0), 0)
       const cashP = recv.filter(p => p.payment_method?.code === 'cash')
       const bankP = recv.filter(p => p.payment_method?.code === 'bank_transfer' || p.payment_method?.code === 'pos')
-      // دفعة على فاتورة سابقة = فاتورتها أُنشئت قبل بداية يوم العمل الحالي.
-      const oldP = recv.filter(p => businessDayKey(p.invoice.created_at) !== todayStr)
+      // دفعة على فاتورة سابقة = فاتورتها أُنشئت قبل بداية الفترة (فقط عند وجود بداية محددة للفترة).
+      const oldP = start ? recv.filter(p => new Date(p.invoice.created_at) < start) : []
       // مقدار الاسترداد لدفعة: دفعة صحيحة سالبة (مرتجع) أو دفعة أُبطلت (غير صحيحة).
       const refundMag = p => !p.is_valid ? Math.abs(Number(p.amount) || 0) : (Number(p.amount) < 0 ? -Number(p.amount) : 0)
-      const refundSum = officeScoped.reduce((s, p) => s + refundMag(p), 0)
-      const refundCnt = officeScoped.filter(p => !p.is_valid || Number(p.amount) < 0).length
+      const refundSum = scoped.reduce((s, p) => s + refundMag(p), 0)
+      const refundCnt = scoped.filter(p => !p.is_valid || Number(p.amount) < 0).length
 
-      // «المُعاد للعميل» = المرتجعات + مبالغ الفواتير الملغاة اليوم — كلاهما فلوس نقدية تُعاد للعميل.
+      // «المُعاد للعميل» = المرتجعات + مبالغ الفواتير الملغاة ضمن الفترة — كلاهما فلوس نقدية تُعاد للعميل.
       // paid_amount للفاتورة الملغاة صافٍ من أي مرتجع مُسجّل عليها (تريغر paid_amount)، فلا ازدواج بالحساب.
       const cancelledSum = cancelledRows.reduce((s, r) => s + Number(r.paid_amount || 0), 0)
       const returnedToCustomer = refundSum + cancelledSum
 
+      // وسم الفترة + سطر التصفية في ترويسة الرسالة.
+      const disp = ds => ds.split('-').reverse().join('-')
+      const periodLabel = !active ? todayStr : (hasDate ? (dFrom === dTo ? dFrom : `${disp(dFrom)} ← ${disp(dTo)}`) : 'كل التواريخ')
+      const brCodes = branchSel.length ? branchSel.map(id => branches.find(b => b.id === id)?.branch_code).filter(Boolean).join('، ') : ''
+      const scopeBits = []
+      if (brCodes) scopeBits.push(`المكاتب: ${brCodes}`)
+      if (!active) scopeBits.push('يوم العمل يبدأ 5:00 فجراً بتوقيت الرياض')
+      else if (!hasDate) scopeBits.push('كل التواريخ')
+      const scopeLine = scopeBits.length ? ' ' + scopeBits.join(' · ') : undefined
+
       const msg = buildDaySummaryWaMessage({
-        dateStr: todayStr,
+        dateStr: periodLabel,
+        title: active ? 'ملخص الفواتير' : 'ملخص حركة اليوم',
+        scopeLine,
         newCount: live.length,
         services: [...svcMap.values()].sort((a, b) => b.inv - a.inv)
           .map(s => ({ label: waSvcName(s.code), invCnt: s.inv, qty: s.qty, showQty: VISA_SVC_CODES.has(s.code), sum: s.sum })),
@@ -1218,7 +1262,7 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
       })
       navigator.clipboard?.writeText(msg)
       setWaSumCopied(true); setTimeout(() => setWaSumCopied(false), 1500)
-      toast?.(T('تم نسخ ملخص اليوم', 'Day summary copied'))
+      toast?.(T('تم نسخ الملخص', 'Summary copied'))
     } catch { toast?.(T('تعذّر النسخ', 'Copy failed')) }
     finally { setWaSumBusy(false) }
   }
@@ -1243,7 +1287,7 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
           </div>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
             {/* زر واتساب — نفس أيقونة كرت الفاتورة لكن للملخص الشامل: ينسخ حركة اليوم كاملة (5 فجراً → 5 فجراً) */}
-            <button title={T('نسخ ملخص اليوم (واتساب)', 'Copy day summary (WhatsApp)')} onClick={copyDaySummary} disabled={waSumBusy}
+            <button title={statFilters.active ? T('نسخ ملخص التصفية الحالية (واتساب)', 'Copy current-filter summary (WhatsApp)') : T('نسخ ملخص اليوم (واتساب)', 'Copy day summary (WhatsApp)')} onClick={copyDaySummary} disabled={waSumBusy}
               style={{ width: 42, height: 42, borderRadius: 11, border: '1px solid var(--bd)', background: 'var(--inputBg)', color: waSumCopied ? C.ok : '#25D366', cursor: waSumBusy ? 'default' : 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', transition: '.15s', flexShrink: 0, opacity: waSumBusy ? .5 : 1, padding: 0, boxShadow: '0 2px 7px rgba(0,0,0,.12), inset 0 1px 0 rgba(176,125,0,.10)' }}
               onMouseEnter={ev => { if (waSumBusy) return; ev.currentTarget.style.background = '#25D3661f'; ev.currentTarget.style.borderColor = '#25D36666' }}
               onMouseLeave={ev => { ev.currentTarget.style.background = 'var(--inputBg)'; ev.currentTarget.style.borderColor = 'var(--bd)' }}>
@@ -1333,7 +1377,7 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 14 }}>
               <div>
                 <div style={fLbl}>{T('المكتب','Branch')}</div>
-                <FKDropdown multi selectedKeys={branchSel} onChange={arr => { setBranchSel(arr); setPage(0) }} placeholder={T('كل المكاتب','All branches')} getKey={o => o.v} getLabel={o => o.l} options={branches.map(b => ({ v: b.id, l: b.branch_code }))} />
+                <FKDropdown multi selectedKeys={branchSel} onChange={arr => { setBranchSel(arr); setPage(0) }} placeholder={T('كل المكاتب','All branches')} getKey={o => o.v} getLabel={o => o.l} options={branches.map(b => ({ v: b.id, l: branchLabel(b) }))} />
               </div>
               <div>
                 <div style={fLbl}>{T('تاريخ من','Date From')}</div>
@@ -5989,7 +6033,7 @@ function ServiceEditModal({ sb, toast, T, isAr, srId, invId, svcName, svcCode, c
   const [err, setErr] = useState('')
   // قائمة المكاتب — نفس مصدر فلتر الفواتير (الجدول يحمل branch_code فقط، بلا أسماء).
   useEffect(() => {
-    sb.from('branches').select('id,branch_code').order('branch_code')
+    sb.from('branches').select('id,branch_code,name_ar').order('branch_code')
       .then(({ data }) => setBranches(data || []))
   }, [])
   // زر الحفظ يُفعَّل فقط عند وجود تعديل فعلي.
@@ -6079,7 +6123,7 @@ function ServiceEditModal({ sb, toast, T, isAr, srId, invId, svcName, svcCode, c
       <ModalSection flex Icon={FileText} label={T('تفاصيل الخدمة','Service Details')} style={{ marginTop: 6 }}>
         <div style={GRID}>
           {visOffice && <FKSelect full label={T('المكتب','Office')} value={branchId} onChange={v => { setErr(''); setBranchId(v) }} placeholder={T('— اختر —','— Select —')}
-            options={branches} getKey={b => b.id} getLabel={b => b.branch_code || '—'} disabled={!editOffice} />}
+            options={branches} getKey={b => b.id} getLabel={b => branchLabel(b)} disabled={!editOffice} />}
           {isChamber ? (
             <>
               <Segmented full height={64} label={T('نوع التصديق','Certification Type')} value={subtype} onChange={v => { setErr(''); setSubtype(v) }}
@@ -6138,7 +6182,7 @@ function OfficeEditModal({ sb, toast, T, srId, invId, currentBranchId, editorId,
   const [err, setErr] = useState('')
   // قائمة المكاتب — نفس مصدر فلتر الفواتير (الجدول يحمل branch_code فقط، بلا أسماء).
   useEffect(() => {
-    sb.from('branches').select('id,branch_code').order('branch_code')
+    sb.from('branches').select('id,branch_code,name_ar').order('branch_code')
       .then(({ data }) => setBranches(data || []))
   }, [])
   const branchChanged = String(branchId || '') !== String(currentBranchId || '')
@@ -6164,7 +6208,7 @@ function OfficeEditModal({ sb, toast, T, srId, invId, currentBranchId, editorId,
       <ModalSection flex Icon={FileText} label={T('المكتب','Office')} style={{ marginTop: 6 }}>
         <div style={GRID}>
           <FKSelect full label={T('المكتب','Office')} value={branchId} onChange={v => { setErr(''); setBranchId(v) }} placeholder={T('— اختر —','— Select —')}
-            options={branches} getKey={b => b.id} getLabel={b => b.branch_code || '—'} disabled={!editOffice} />
+            options={branches} getKey={b => b.id} getLabel={b => branchLabel(b)} disabled={!editOffice} />
         </div>
       </ModalSection>
     </div>
@@ -7394,7 +7438,7 @@ function PermanentVisaEditModal({ sb, toast, T, isAr, inv, data, editorId, edito
     let alive = true
     ;(async () => {
       const [brRes, occRes, natRes, emRes, vaRes, instRes] = await Promise.all([
-        sb.from('branches').select('id,branch_code').order('branch_code'),
+        sb.from('branches').select('id,branch_code,name_ar').order('branch_code'),
         sb.from('occupations').select('id,name_ar,code').is('is_active', true).order('name_ar').limit(2000),
         sb.from('nationalities').select('id,name_ar,code,country_name_ar,flag_url').is('is_active', true).order('name_ar'),
         sb.from('embassies').select('id,name_ar,name_en,nationality_id').is('is_active', true).order('name_ar'),
@@ -7603,7 +7647,7 @@ function PermanentVisaEditModal({ sb, toast, T, isAr, inv, data, editorId, edito
       <ModalSection Icon={Building2} label={T('المكتب', 'Office')} style={{ marginTop: 6 }}>
         <div style={GRID}>
           <FKSelect full label={T('المكتب', 'Office')} value={branchId} onChange={setBranchId} placeholder={T('— اختر —', '— Select —')}
-            options={branches} getKey={b => b.id} getLabel={b => b.branch_code || '—'} getSub={b => b.branch_code || ''} />
+            options={branches} getKey={b => b.id} getLabel={b => branchLabel(b)} getSub={b => b.branch_code || ''} />
         </div>
       </ModalSection>
     </div>

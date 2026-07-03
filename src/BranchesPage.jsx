@@ -225,20 +225,20 @@ export default function BranchesPage({ sb, toast, user, lang }) {
   }
 
   const openAdd = () => {
-    setForm({ branch_code: '', region_id: '', city_id: '', district_id: '', phone: '', manager_user_id: '',
+    setForm({ branch_code: '', name_ar: '', region_id: '', city_id: '', district_id: '', phone: '', manager_user_id: '',
       building_number: '', street: '', street_en: '', postal_code: '', is_active: true })
     setPop(true)
   }
   const openEdit = (r) => {
     setForm({
-      _id: r.id, branch_code: r.branch_code || '', region_id: r.region_id || '', city_id: r.city_id || '',
+      _id: r.id, branch_code: r.branch_code || '', name_ar: r.name_ar || '', region_id: r.region_id || '', city_id: r.city_id || '',
       district_id: r.district_id || '', phone: (r.phone || '').replace(/^\+?966/, ''), manager_user_id: r.manager_user_id || '',
       building_number: r.building_number || '', street: r.street || '', street_en: r.street_en || '',
       postal_code: r.postal_code || '', is_active: r.is_active !== false,
       // Snapshot of the editable fields before any change, so the success card can
       // show a before → after comparison. Stripped before the DB write in saveBranch.
       _orig: {
-        branch_code: r.branch_code || '', region_id: r.region_id || '',
+        branch_code: r.branch_code || '', name_ar: r.name_ar || '', region_id: r.region_id || '',
         city_id: r.city_id || '', district_id: r.district_id || '', phone: (r.phone || '').replace(/^\+?966/, ''),
       },
     })
@@ -847,6 +847,7 @@ function BranchActivityChart({ days, color, label }) {
    ═══════════════════════════════════════════════════════════════ */
 function LocationBody({ branch }) {
   const tiles = [
+    { l: 'النك نيم', v: branch.name_ar, gold: true, full: true },
     { l: 'المنطقة', v: branch.region_name },
     { l: 'المدينة', v: branch.city_name },
     { l: 'الحي', v: branch.district_name },
@@ -854,7 +855,7 @@ function LocationBody({ branch }) {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, padding: '4px 0' }}>
       {tiles.map((t, i) => (
-        <div key={i} style={{ padding: '12px 14px', borderRadius: 11, background: t.gold ? 'rgba(176,125,0,.07)' : 'var(--bd2)', border: `1px solid ${t.gold ? 'rgba(176,125,0,.2)' : 'var(--bd)'}` }}>
+        <div key={i} style={{ gridColumn: t.full ? '1 / -1' : undefined, padding: '12px 14px', borderRadius: 11, background: t.gold ? 'rgba(176,125,0,.07)' : 'var(--bd2)', border: `1px solid ${t.gold ? 'rgba(176,125,0,.2)' : 'var(--bd)'}` }}>
           <div style={{ fontSize: 12, color: t.gold ? 'rgba(176,125,0,.8)' : 'var(--tx4)', fontWeight: 600, letterSpacing: '.2px', marginBottom: 5 }}>{t.l}</div>
           <div style={{ fontSize: 15, fontWeight: 600, color: t.gold ? GOLD : (t.v ? 'var(--tx)' : 'var(--tx5)'), direction: t.ltr ? 'ltr' : 'rtl', textAlign: 'right', fontFamily: t.ltr ? "'JetBrains Mono','Cairo',sans-serif" : F }}>{t.v || '—'}</div>
         </div>
@@ -1058,7 +1059,8 @@ function BranchDetailPage({ sb, branch, dashboard, users, banks: propsBanks, doc
       <div style={{ marginBottom: 18, marginTop: 6 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <Building2 size={26} color={GOLD} strokeWidth={1.8} style={{ flexShrink: 0 }} />
-          <div style={{ fontSize: 22, fontWeight: 600, color: GOLD, fontFamily: "'JetBrains Mono','Cairo',sans-serif", letterSpacing: '-.2px', direction: 'ltr', unicodeBidi: 'isolate', lineHeight: 1 }}>{branch.branch_code || '—'}</div>
+          {branch.name_ar && <div style={{ fontSize: 20, fontWeight: 600, color: 'var(--tx)', letterSpacing: '-.2px', lineHeight: 1 }}>{branch.name_ar}</div>}
+          <div style={{ fontSize: branch.name_ar ? 15 : 22, fontWeight: 600, color: GOLD, fontFamily: "'JetBrains Mono','Cairo',sans-serif", letterSpacing: '-.2px', direction: 'ltr', unicodeBidi: 'isolate', lineHeight: 1 }}>{branch.branch_code || '—'}</div>
         </div>
         <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 10, lineHeight: 1.6 }}>العنوان والموقع، عقد الإيجار، الفواتير (كهرباء/ماء/إنترنت)، أرقام الجوالات، والمستخدمون.</div>
         {(branch.phone || lastActivity || alerts > 0) && (
@@ -2158,7 +2160,7 @@ function BranchFormModal({ open, onClose, form, setForm, saving, success, onSave
   const [errMsg, setErrMsg] = useState('')
   useEffect(() => { if (!open) setErrMsg('') }, [open])
   // Editable fields, and which of them actually changed vs the openEdit snapshot.
-  const CMP_KEYS = ['branch_code', 'region_id', 'city_id', 'district_id', 'phone']
+  const CMP_KEYS = ['branch_code', 'name_ar', 'region_id', 'city_id', 'district_id', 'phone']
   const orig = form._orig
   const changedKeys = (isEdit && orig)
     ? CMP_KEYS.filter(k => String(form[k] || '') !== String(orig[k] || ''))
@@ -2190,6 +2192,13 @@ function BranchFormModal({ open, onClose, form, setForm, saving, success, onSave
       }>
       <FKSection Icon={Building2} label="بيانات المكتب">
         <div style={GRID}>
+          <div style={{ gridColumn: '1/-1' }}>
+            <FKField label="النك نيم (اسم المكتب)">
+              <input value={form.name_ar || ''}
+                onChange={e => setForm(p => ({ ...p, name_ar: e.target.value }))}
+                placeholder="مثال: مكتب الخبر - الصبيخة" style={{ ...sF }} />
+            </FKField>
+          </div>
           <FKSelect label="المنطقة" req searchable
             options={regions} getKey={o => o.id} getLabel={o => o.name_ar}
             value={form.region_id || null} onChange={v => setForm(p => ({ ...p, region_id: v, city_id: '', district_id: '' }))}

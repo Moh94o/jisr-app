@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import BackButton from '../../components/BackButton'
 import { Drop } from './PermissionsPage.jsx'
 import { can as canPerm, cardVisible, canCardBtn } from '../../lib/permissions.js'
-import { noDash } from '../../lib/utils.js'
+import { noDash, branchLabel } from '../../lib/utils.js'
 import { Modal as FKModal, ModalSection, GRID, TextField, IdField, PhoneField, CurrencyField, Select, SuccessView, EmptyState } from '../../components/ui/FormKit.jsx'
 import { SkeletonCards, SkeletonList } from '../../components/ui/Skeleton.jsx'
 import {
@@ -206,7 +206,7 @@ export default function AgentsPage({ sb, lang, user, toast, emptyIcon }) {
 
   /* ─── Bootstrap: branches, nationalities, agents + commission roll-up ─── */
   useEffect(() => {
-    sb.from('branches').select('id,branch_code').order('branch_code').then(({ data }) => setBranches(data || []))
+    sb.from('branches').select('id,branch_code,name_ar').order('branch_code').then(({ data }) => setBranches(data || []))
     sb.from('nationalities').select('id,name_ar,name_en').eq('is_active', true).order('name_ar').then(({ data }) => setNationalities(data || []))
 
     setLoading(true)
@@ -352,7 +352,7 @@ export default function AgentsPage({ sb, lang, user, toast, emptyIcon }) {
             <div>
               <Lbl>{T('المكتب', 'Branch')}</Lbl>
               <Drop value={filters.branch_id} onChange={v => { setFilters(f => ({ ...f, branch_id: v })); setPage(0) }} placeholder={T('جميع المكاتب', 'All branches')}
-                options={[{ v: '', l: T('جميع المكاتب', 'All branches') }, ...branches.map(b => ({ v: b.id, l: b.branch_code }))]} />
+                options={[{ v: '', l: T('جميع المكاتب', 'All branches') }, ...branches.map(b => ({ v: b.id, l: branchLabel(b) }))]} />
             </div>
             <div>
               <Lbl>{T('الجنسية', 'Nationality')}</Lbl>
@@ -763,7 +763,7 @@ function AgentEditModal({ sb, agent, branches, nationalities, toast, onClose, on
               <Select label="الجنسية" req value={f.nationality_id} onChange={v => set('nationality_id', v)} placeholder="— اختر —"
                 options={nationalities} getKey={n => n.id} getLabel={n => n.name_ar} />
               <Select label="المكتب" req value={f.branch_id} onChange={v => set('branch_id', v)} placeholder="— اختر —"
-                options={branches} getKey={b => b.id} getLabel={b => b.branch_code} />
+                options={branches} getKey={b => b.id} getLabel={b => branchLabel(b)} />
               <CurrencyField label="العمولة الافتراضية" hint="اختياري" full value={f.default_commission_amount} onChange={v => set('default_commission_amount', v)} />
             </div>
           </ModalSection>

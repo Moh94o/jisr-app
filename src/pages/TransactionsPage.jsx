@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { CalendarPopup, Sel, DateField } from './KafalaCalculator.jsx'
 import BackButton from '../components/BackButton'
-import { noDash } from '../lib/utils.js'
+import { noDash, branchLabel } from '../lib/utils.js'
 import { Modal, ModalSection, TextField, TextArea, Select, CurrencyField, FileField, SuccessView, GRID, EmptyState } from '../components/ui/FormKit.jsx'
 import { StatStripSkeleton, SkeletonCards, SkeletonTable, Shimmer } from '../components/ui/Skeleton.jsx'
 import { Wallet, Building2, FileText as FileTextIco, MessageSquare, Send, CheckCircle2, Ban, Clock, CreditCard, User, Plus, Paperclip, Lock, Pencil, Upload, FileCheck, Check } from 'lucide-react'
@@ -235,7 +235,7 @@ export default function TransactionsPage({ sb, lang, user, tabId, branchId, toas
   useEffect(() => {
     let alive = true
     Promise.all([
-      sb.from('branches').select('id,branch_code').order('branch_code'),
+      sb.from('branches').select('id,branch_code,name_ar').order('branch_code'),
       sb.from('lookup_items').select('id,code,value_ar,value_en,category:lookup_categories!inner(category_key)').eq('is_active', true).in('category.category_key', ['service_type', 'request_status']),
     ]).then(([b, l]) => {
       if (!alive) return
@@ -723,7 +723,7 @@ export default function TransactionsPage({ sb, lang, user, tabId, branchId, toas
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 14 }}>
               <div>
                 <div style={fLbl}>{T('المكتب','Branch')}</div>
-                <Sel value={branchFilter} onChange={v => { setBranchFilter(v); setPage(0) }} placeholder={T('كل المكاتب','All branches')} options={[{ v: '', l: T('كل المكاتب','All branches') }, ...branches.map(b => ({ v: b.id, l: b.branch_code }))]} />
+                <Sel value={branchFilter} onChange={v => { setBranchFilter(v); setPage(0) }} placeholder={T('كل المكاتب','All branches')} options={[{ v: '', l: T('كل المكاتب','All branches') }, ...branches.map(b => ({ v: b.id, l: branchLabel(b) }))]} />
               </div>
               <div>
                 <div style={fLbl}>{T('تاريخ من','Date From')}</div>
