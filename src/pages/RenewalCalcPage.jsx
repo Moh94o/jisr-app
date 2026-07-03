@@ -199,7 +199,8 @@ export default function RenewalCalcPage({ sb, toast, user, lang, emptyIcon, onNe
     if (!swrGet(rcCacheKey)) setLoading(true)
     // قيد المكتب: المستخدم غير المدير العام يرى حسبات مكاتبه فقط (القائمة والإحصاءات معاً، فهي محسوبة من الصفوف).
     let calcQ = sb.from('iqama_renewal_calculation').select('*').is('deleted_at', null).order('created_at', { ascending: false }).limit(500)
-    if (officeScope) calcQ = calcQ.or(`branch_id.in.(${officeScope.join(',')}),branch_id.is.null`)
+    // المستخدم المقيّد بمكتب يرى حسبات مكاتبه فقط — الحسبات بلا فرع (اليتيمة) تُستبعد (يراها المدير العام فقط)، مطابقةً للـRLS.
+    if (officeScope) calcQ = calcQ.or(`branch_id.in.(${officeScope.join(',')})`)
     const res = await Promise.all([
       calcQ,
       sb.from('users').select(USER_SELECT).is('deleted_at', null),

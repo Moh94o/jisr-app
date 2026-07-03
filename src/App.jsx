@@ -1533,7 +1533,9 @@ const isAr=lang!=='en';const T=(a,e)=>isAr?a:e;const dir=isAr?'rtl':'ltr';const 
 const isGM=user?.role?.name_ar==='المدير العام'||user?.role?.name_en==='General Manager'
 // مكاتب المستخدم لتبويب حسبة نقل الكفالات: null=بلا قيد (المدير العام/«كل المكاتب»). يقيّد القائمة والإحصاءات معاً.
 const officeScope=useMemo(()=>tabOffices(user,'transfer_calc'),[user])
-const tcOrScope=officeScope?`branch_id.in.(${officeScope.join(',')}),branch_id.is.null`:null
+// Office-scoped users see only their own office's quotes — branchless (orphan) quotes are
+// intentionally excluded (only unrestricted users / GM see them). Matches the DB RLS.
+const tcOrScope=officeScope?`branch_id.in.(${officeScope.join(',')})`:null
 const[data,setData]=useState([]);const[tcLoading,setTcLoading]=useState(true);const[workers,setWorkers]=useState([]);const[facilities,setFacilities]=useState([]);const[branches,setBranches]=useState([]);const[nationalities,setNationalities]=useState([])
 const[pop,setPop]=useState(false);const[form,setForm]=useState({});const[saving,setSaving]=useState(false);const[viewRow,setViewRow]=useState(null);const[detailsRow,setDetailsRow]=useState(null);const[detailsTab,setDetailsTab]=useState('worker');const[wizStep,setWizStep]=useState(0);const[workerMode,setWorkerMode]=useState('existing');const[addingExtra,setAddingExtra]=useState(false);const[extraDraft,setExtraDraft]=useState({name:'',amount:''});const[savingExtra,setSavingExtra]=useState(false);const[editingExtraIdx,setEditingExtraIdx]=useState(null);const[editExtraDraft,setEditExtraDraft]=useState({name:'',amount:''})
 // Office filter: GM defaults to all (''); non-GM is locked to their own branch.
