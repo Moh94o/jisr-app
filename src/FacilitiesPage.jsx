@@ -6,6 +6,7 @@ import { buildQiwaBookmarklet } from './pages/qiwaSyncBookmarklet.js'
 import { Sel } from './pages/KafalaCalculator.jsx'
 import { can as canPerm, canCardBtn, cardVisible, isGM, userOffices } from './lib/permissions.js'
 import { branchLabel } from './lib/utils.js'
+import { navSetHere } from './lib/navStack.js'
 import { Building2, Hash, Plus, Ban, Trash2, Pencil } from 'lucide-react'
 import { Modal as FKModal, ModalSection, ActionButton, SuccessView, GRID, TextField, Segmented, Select, DateField, Switch, EmptyState } from './components/ui/FormKit.jsx'
 
@@ -551,7 +552,7 @@ function FacilityDetailPage({ facility: f, branchInfo, sb, T, lang, onBack, onEd
   return (
     <div style={{ fontFamily: F, paddingTop: 0, paddingBottom: 80, color: 'var(--tx2)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, gap: 12, flexWrap: 'wrap' }}>
-        <BackButton onBack={onBack} label={T('رجوع', 'Back')} />
+        <BackButton onBack={onBack} label={T('رجوع', 'Back')} navKind="facility" navId={f.id} isAr={lang !== 'en'} />
       </div>
 
       {/* Header */}
@@ -3975,6 +3976,17 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
     window.addEventListener('facility-open', handler)
     return () => window.removeEventListener('facility-open', handler)
   }, [])
+
+  // سلسلة الرجوع الذكية: تسجيل ملف المنشأة المفتوح كموقع حالي — القفزات منه
+  // (عامل/فاتورة) يعود زرّها الذهبي إلى ملف هذه المنشأة نفسه.
+  useEffect(() => {
+    const vf = viewId ? rows.find(r => r.id === viewId) : null
+    if (viewId) {
+      const nm = vf ? (vf.name_ar || vf.name_en || vf.name || '') : ''
+      navSetHere({ event: 'facility-open', detail: { id: viewId }, label: { ar: 'ملف المنشأة ' + nm, en: 'Facility: ' + (vf?.name_en || vf?.name_ar || vf?.name || '') } })
+    } else navSetHere(null)
+    return () => navSetHere(null)
+  }, [viewId, rows])
   useEffect(() => { loadProvenance() }, [loadProvenance, rows.length])
   useEffect(() => { loadAdminsCount() }, [loadAdminsCount, rows.length])
   useEffect(() => { loadWorkerCounts() }, [loadWorkerCounts])

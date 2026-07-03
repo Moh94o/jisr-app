@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import BackButton from '../../components/BackButton'
 import { can as canPerm, cardVisible, canCardBtn, tabOffices, fieldVisible, fieldEditable, modalAllowed } from '../../lib/permissions.js'
 import { noDash, clientEditChanges, branchLabel } from '../../lib/utils.js'
+import { navSetHere } from '../../lib/navStack.js'
 import { Modal as FKModal, ModalSection, GRID, TextField, IdField, PhoneField, Select, MultiSelect, Dropdown as FKDropdown, SuccessView, EmptyState } from '../../components/ui/FormKit.jsx'
 import { SkeletonCards, SkeletonList } from '../../components/ui/Skeleton.jsx'
 import {
@@ -217,6 +218,14 @@ export default function ClientsPage({ sb, lang, user, toast, emptyIcon }) {
   const [selectedId, setSelectedId] = useState(null)
   const [refreshTick, setRefreshTick] = useState(0)
 
+  // سلسلة الرجوع الذكية: إعادة فتح ملف عميل معيّن عند الرجوع إليه من صفحة أخرى
+  // (مثلاً بعد فتح فاتورة من داخل ملفه)، وتسجيل الملف المفتوح كموقع حالي.
+  useEffect(() => {
+    const handler = (e) => { const id = e?.detail?.id; if (id) setSelectedId(id) }
+    window.addEventListener('client-open', handler)
+    return () => window.removeEventListener('client-open', handler)
+  }, [])
+
   /* ─── Bootstrap: branches, nationalities, headline stats ─── */
   useEffect(() => {
     sb.from('branches').select('id,branch_code,name_ar').order('branch_code').then(({ data }) => {
@@ -336,7 +345,32 @@ export default function ClientsPage({ sb, lang, user, toast, emptyIcon }) {
   const totalPages = Math.max(1, Math.ceil(total / PAGE))
   const hasFilters = filters.branch_id || filters.nationality_id
 
-  const selectedClient = selectedId ? rows.find(r => r.id === selectedId) : null
+  // العميل المستهدف قد لا يكون ضمن الصفحة المحمّلة حالياً (القائمة مقسّمة صفحات) —
+  // عند الاسترجاع من سلسلة الرجوع نجلبه مباشرة بنفس حقول القائمة.
+  const [deepClient, setDeepClient] = useState(null)
+  useEffect(() => {
+    if (!selectedId || !sb) return
+    if (rows.find(r => r.id === selectedId)) return
+    let alive = true
+    ;(async () => {
+      const { data } = await sb.from('clients').select(`
+      id, name_ar, name_en, id_number, phone, created_at, nationality_id, branch_id, branch_ids,
+      nationality:nationality_id(name_ar,name_en,flag_url),
+      branch:branch_id(branch_code)
+    `).eq('id', selectedId).is('deleted_at', null).maybeSingle()
+      if (alive && data) setDeepClient(data)
+    })()
+    return () => { alive = false }
+  }, [selectedId, rows, sb])
+  const selectedClient = selectedId ? (rows.find(r => r.id === selectedId) || (deepClient?.id === selectedId ? deepClient : null)) : null
+
+  // تسجيل الملف المفتوح كموقع حالي في سلسلة الرجوع — أي قفزة منه (فاتورة…)
+  // يعود زرّها الذهبي إلى ملف هذا العميل نفسه.
+  useEffect(() => {
+    if (selectedClient) navSetHere({ event: 'client-open', detail: { id: selectedClient.id }, label: { ar: 'ملف العميل ' + (selectedClient.name_ar || selectedClient.name_en || ''), en: 'Client: ' + (selectedClient.name_en || selectedClient.name_ar || '') } })
+    else navSetHere(null)
+    return () => navSetHere(null)
+  }, [selectedClient])
 
   // Nationality donut data (matches Users page shape)
   const natDist = useMemo(() => (stats?.topNats || []).map(([name, cnt], i) => ({ name, cnt, color: ROLE_PALETTE[i % ROLE_PALETTE.length] })), [stats])

@@ -4,6 +4,7 @@ import BackButton from './components/BackButton'
 import { can as canPerm, isGM, cardVisible, canCardBtn, tabOffices, tabServiceTypes, statsMode, fieldVisible, fieldEditable, modalAllowed, canTabBranch } from './lib/permissions.js'
 import { ALL_SERVICES, SVC_CODE_MAP } from './ServiceRequestPage.jsx'
 import { noDash, clientEditChanges, branchLabel } from './lib/utils.js'
+import { navSetHere } from './lib/navStack.js'
 import { OFFICE_LOGO_SVG } from './lib/officeBrand.js'
 import { Modal, SuccessView, EmptyState, ModalSection, InfoRow, InfoGrid, GRID, FULL, CurrencyField, Segmented, TextField, TextArea, IdField, PhoneField, DateField, Select as FKSelect, Dropdown as FKDropdown, FileField, Checkbox, C as FKC, useFKLang } from './components/ui/FormKit.jsx'
 import { Plus, RotateCcw, Ban, Printer, Info, Wallet, FileText, Landmark, Building2, User, Search, CheckCircle2, Circle, CreditCard, Briefcase, Calendar, CalendarRange, BadgeCheck, Hash, Phone, Globe, Link2, MessageSquare, Paperclip } from 'lucide-react'
@@ -13,6 +14,7 @@ import { TXN_SERVICES } from './pages/txnServices.js'
 import { buildInvoiceDoc } from './lib/invoicePrint.js'
 import { buildInvoiceWaMessage, buildDaySummaryWaMessage, fetchInvoicePrintData } from './lib/invoiceWa.js'
 import { DONE_INPUTS, SALARY_RETURN_INPUTS, SELF_PARTY_DONE_SVCS, DONE_FILE_NOTES, doneInputsFor } from './lib/doneInputs.js'
+import { swrGet, swrSet, useLiveRefresh, emitDataChanged } from './lib/liveData.js'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = {
@@ -317,15 +319,19 @@ function InvCard({ d, row, sb, T, isAr, toast, onClick }) {
   const dm = d.dayMoney || {}
   const dayIn = dm.cancelledToday ? 0 : Number(dm.received || 0)
   const dayOut = Number(dm.refunded || 0) + Number(dm.cancelledAmt || 0)
-  const moneyChip = (amount, color, sign, title) => (
-    <span title={title} onClick={e => e.stopPropagation()} style={{ height: 26, padding: '0 8px', borderRadius: 7, border: '1px solid ' + color + '59', background: color + '14', color, display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11, fontWeight: 600, fontVariantNumeric: 'tabular-nums', direction: 'ltr', flexShrink: 0, boxSizing: 'border-box', cursor: 'default' }}>
-      <span>{sign}</span><span>{num(amount)}</span>
+  // شريحة حركة اليوم: سهم صاعد أخضر (مستلم) أو نازل أحمر (مُعاد) + المبلغ فقط — بدون خلفية.
+  const moneyChip = (amount, color, up, title) => (
+    <span title={title} onClick={e => e.stopPropagation()} style={{ height: 26, padding: '0 4px', color, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 3, fontSize: 11, fontWeight: 700, fontVariantNumeric: 'tabular-nums', direction: 'ltr', flexShrink: 0, boxSizing: 'border-box', cursor: 'default' }}>
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+        {up ? <><line x1="12" y1="19" x2="12" y2="5" /><polyline points="5 12 12 5 19 12" /></> : <><line x1="12" y1="5" x2="12" y2="19" /><polyline points="19 12 12 19 5 12" /></>}
+      </svg>
+      <span>{num(amount)}</span>
     </span>
   )
   const dayChips = (dayIn > 0 || dayOut > 0) ? (
     <>
-      {dayIn > 0 && moneyChip(dayIn, C.ok, '+', T('المستلم على الفاتورة في هذا اليوم', 'Received on this invoice that day'))}
-      {dayOut > 0 && moneyChip(dayOut, C.red, '−', T('المُعاد للعميل في هذا اليوم (إلغاء/استرجاع)', 'Returned to customer that day (cancel/refund)'))}
+      {dayIn > 0 && moneyChip(dayIn, C.ok, true, T('المستلم على الفاتورة في هذا اليوم', 'Received on this invoice that day'))}
+      {dayOut > 0 && moneyChip(dayOut, C.red, false, T('المُعاد للعميل في هذا اليوم (إلغاء/استرجاع)', 'Returned to customer that day (cancel/refund)'))}
     </>
   ) : null
   const cardActions = (vertical) => (
@@ -884,20 +890,24 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
   const [nationalities, setNationalities] = useState([])
 
   const [detail, setDetail] = useState(null)
+  // سلسلة الرجوع الذكية: تسجيل الفاتورة المفتوحة كموقع حالي — أي قفزة منها
+  // (عامل/منشأة/حسبة/معاملة) يعود زرّها الذهبي إلى هذه الفاتورة نفسها.
+  useEffect(() => {
+    if (detail) navSetHere({ event: 'invoice-open', detail: { id: detail.id }, label: { ar: 'فاتورة رقم ' + noDash(detail.invoice_no || ''), en: 'Invoice ' + noDash(detail.invoice_no || '') } })
+    else navSetHere(null)
+    return () => navSetHere(null)
+  }, [detail])
   const [cancelledStatusId, setCancelledStatusId] = useState(null)
   const [busyId, setBusyId] = useState(null)
   const [refreshTick, setRefreshTick] = useState(0)
 
+  // تحديث تلقائي: أي دفعة/فاتورة/إلغاء/استرجاع/معاملة (من هذا الجهاز أو مستخدم آخر)
+  // تصل كإشارة Realtime فتُعاد قراءة القائمة والكروت صامتاً — بلا رفرش يدوي وبلا وميض.
+  useLiveRefresh(['invoices', 'payments', 'installments', 'service_requests'], () => setRefreshTick(t => t + 1))
+
   useEffect(() => {
     let alive = true
-    Promise.all([
-      sb.from('branches').select('id,branch_code,name_ar').order('branch_code'),
-      sb.from('lookup_items').select('id,code,value_ar,value_en,category:lookup_categories!inner(category_key)').eq('category.category_key', 'service_type'),
-      sb.from('lookup_items').select('id,code,category:lookup_categories!inner(category_key)').eq('category.category_key', 'invoice_status').eq('code', 'cancelled').limit(1),
-      sb.from('agents').select('id,name_ar,name_en').order('name_ar'),
-      sb.from('nationalities').select('id,name_ar,name_en').eq('is_active', true).order('name_ar'),
-    ]).then(([b, s, st, ag, nat]) => {
-      if (!alive) return
+    const applyLookups = ([b, s, st, ag, nat]) => {
       // المستخدم المقيّد بمكاتب/أنواع خدمات لا يرى في قائمة التصفية إلا المسموح له.
       const allBranches = b.data || []
       setBranches(officeScope ? allBranches.filter(x => officeScope.includes(x.id)) : allBranches)
@@ -906,6 +916,21 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
       setCancelledStatusId(st.data?.[0]?.id || null)
       setAgents(ag.data || [])
       setNationalities(nat.data || [])
+    }
+    // كاش الجلسة: القوائم المرجعية شبه ثابتة — ارسمها فوراً من آخر جلب ثم حدّثها بالخلفية.
+    const ck = 'inv:lookups'
+    const cached = swrGet(ck)
+    if (cached) applyLookups(cached)
+    Promise.all([
+      sb.from('branches').select('id,branch_code,name_ar').order('branch_code'),
+      sb.from('lookup_items').select('id,code,value_ar,value_en,category:lookup_categories!inner(category_key)').eq('category.category_key', 'service_type'),
+      sb.from('lookup_items').select('id,code,category:lookup_categories!inner(category_key)').eq('category.category_key', 'invoice_status').eq('code', 'cancelled').limit(1),
+      sb.from('agents').select('id,name_ar,name_en').order('name_ar'),
+      sb.from('nationalities').select('id,name_ar,name_en').eq('is_active', true).order('name_ar'),
+    ]).then((res) => {
+      if (!alive) return
+      swrSet(ck, res)
+      applyLookups(res)
     })
     return () => { alive = false }
   }, [sb, officeScope])
@@ -938,6 +963,20 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
     let alive = true
     const dayStart = riyadhDayStart()
     const dayEnd = new Date(dayStart.getTime() + 24 * 3600 * 1000)
+    const applyAgg = ([s, d, a, c, pc]) => {
+      const items = s.data || []
+      setStatsAgg({
+        services: items.filter(i => i.dim === 'service_type'),
+        statuses: items.filter(i => i.dim === 'status'),
+      })
+      setStatsDaily(d.data || [])
+      setAging(a.data || [])
+      setStatsTotalCount(c.count || 0)
+      setDailyCash((pc.data || []).reduce((s2, p) => s2 + (Number(p.amount) || 0), 0))
+    }
+    const ck = 'inv:agg:' + JSON.stringify(officeScope || null)
+    const cached = swrGet(ck)
+    if (cached) applyAgg(cached)
     Promise.all([
       sb.from('v_invoice_stats').select('*'),
       sb.from('v_invoice_daily').select('*'),
@@ -952,17 +991,10 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
         .is('deleted_at', null)
         .gte('payment_date', dayStart.toISOString())
         .lt('payment_date', dayEnd.toISOString()),
-    ]).then(([s, d, a, c, pc]) => {
+    ]).then((res) => {
       if (!alive) return
-      const items = s.data || []
-      setStatsAgg({
-        services: items.filter(i => i.dim === 'service_type'),
-        statuses: items.filter(i => i.dim === 'status'),
-      })
-      setStatsDaily(d.data || [])
-      setAging(a.data || [])
-      setStatsTotalCount(c.count || 0)
-      setDailyCash((pc.data || []).reduce((s, p) => s + (Number(p.amount) || 0), 0))
+      swrSet(ck, res)
+      applyAgg(res)
     })
     return () => { alive = false }
   }, [sb, officeScope, refreshTick])
@@ -1049,11 +1081,7 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
     const normKpi = (x) => ({ cnt: Number(x?.cnt) || 0, sum: Number(x?.sum) || 0 })
     const normSvc = (rows) => (rows || []).map(s => ({ code: s.code, cnt: Number(s.cnt) || 0, sum: Number(s.sum) || 0 }))
     const { active, ...f } = statFilters
-    Promise.all([
-      sb.rpc('invoice_period_stats', { p_start: active ? null : todayStart.toISOString(), ...f }),
-      sb.rpc('invoice_period_stats', { p_start: active ? null : weekStart.toISOString(), ...f }),
-    ]).then(([t, w]) => {
-      if (!alive) return
+    const applyPeriod = ([t, w]) => {
       if (t.data) {
         setPeriodStats({ cash: normKpi(t.data.cash), bank: normKpi(t.data.bank), cancelled: normKpi(t.data.cancelled), voided: normKpi(t.data.voided) })
         setSvcToday(normSvc(t.data.services))
@@ -1062,6 +1090,17 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
         setWeekStats({ cash: normKpi(w.data.cash), bank: normKpi(w.data.bank), voided: normKpi(w.data.voided) })
         setSvcWeek(normSvc(w.data.services))
       }
+    }
+    const ck = 'inv:period:' + todayStart.toISOString().slice(0, 10) + ':' + JSON.stringify(f) + ':' + (active ? 1 : 0)
+    const cached = swrGet(ck)
+    if (cached) applyPeriod(cached)
+    Promise.all([
+      sb.rpc('invoice_period_stats', { p_start: active ? null : todayStart.toISOString(), ...f }),
+      sb.rpc('invoice_period_stats', { p_start: active ? null : weekStart.toISOString(), ...f }),
+    ]).then((res) => {
+      if (!alive) return
+      swrSet(ck, res)
+      applyPeriod(res)
     })
     return () => { alive = false }
   }, [sb, statFilters, refreshTick])
@@ -1071,21 +1110,47 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
   // ثم نجلب البيانات الكاملة (INVOICE_SELECT) لتلك المعرّفات ونعيد ترتيبها بنفس ترتيب الـ RPC.
   useEffect(() => {
     let alive = true
-    setLoading(true); setErr(null)
+    setErr(null)
+    const { active, ...f } = statFilters
+    // كاش الجلسة: نفس الصفحة + نفس التصفية تُرسم فوراً من آخر نتيجة (بلا سكيلتون)
+    // بينما يجري جلبٌ صامت يحدّثها — تبديل التبويبات والرجوع من التفاصيل صار لحظياً.
+    const ck = 'inv:list:' + page + ':' + JSON.stringify(f)
+    const cached = swrGet(ck)
+    if (cached) { setRows(cached.rows); setTotal(cached.total); setLoading(false) }
+    else setLoading(true)
+    const fail = () => { setErr(T('تعذّر تحميل الفواتير — حاول مرة أخرى', 'Could not load invoices — please try again')); setLoading(false) }
+    const done = (rowsSorted, totalCount) => {
+      swrSet(ck, { rows: rowsSorted, total: totalCount })
+      setRows(rowsSorted); setTotal(totalCount); setLoading(false)
+    }
     ;(async () => {
-      const { active, ...f } = statFilters
+      // رحلة واحدة بدل رحلتين: search_invoices_page تعيد صفوف الفواتير نفسها فيُنفَّذ
+      // البحث + جلب التضمينات في طلب واحد، والعدّ الكلي يجري بالتوازي لا بالتسلسل.
+      const [listRes, cntRes] = await Promise.all([
+        sb.rpc('search_invoices_page', { ...f, p_limit: PAGE, p_offset: page * PAGE }).select(INVOICE_SELECT),
+        sb.rpc('search_invoice_ids', { ...f, p_limit: 1, p_offset: 0 }),
+      ])
+      if (!alive) return
+      if (!listRes.error) {
+        const ts = v => (v ? new Date(v).getTime() : -Infinity)
+        const sorted = (listRes.data || []).slice().sort((a, b) => (ts(b.last_activity_at) - ts(a.last_activity_at)) || (ts(b.created_at) - ts(a.created_at)))
+        const totalCount = !cntRes.error && cntRes.data?.length ? Number(cntRes.data[0].total) : page * PAGE + sorted.length
+        done(sorted, totalCount)
+        return
+      }
+      // احتياط (نسخة مخطط قديمة بلا الدالة الجديدة): المسار السابق برحلتين متعاقبتين.
+      console.warn('[invoices] search_invoices_page failed — fallback to two-step', listRes.error)
       const { data: idRows, error: e1 } = await sb.rpc('search_invoice_ids', { ...f, p_limit: PAGE, p_offset: page * PAGE })
       if (!alive) return
-      if (e1) { console.warn('[invoices] list load failed', e1); setErr(T('تعذّر تحميل الفواتير — حاول مرة أخرى', 'Could not load invoices — please try again')); setLoading(false); return }
+      if (e1) { console.warn('[invoices] list load failed', e1); fail(); return }
       const ids = (idRows || []).map(r => r.id)
       const totalCount = (idRows && idRows.length) ? Number(idRows[0].total) : 0
-      if (!ids.length) { setRows([]); setTotal(0); setLoading(false); return }
+      if (!ids.length) { done([], 0); return }
       const { data, error: e2 } = await sb.from('invoices').select(INVOICE_SELECT).in('id', ids).is('deleted_at', null)
       if (!alive) return
-      if (e2) { console.warn('[invoices] detail load failed', e2); setErr(T('تعذّر تحميل الفواتير — حاول مرة أخرى', 'Could not load invoices — please try again')); setLoading(false); return }
+      if (e2) { console.warn('[invoices] detail load failed', e2); fail(); return }
       const pos = new Map(ids.map((id, idx) => [id, idx]))
-      const sorted = (data || []).slice().sort((a, b) => (pos.get(a.id) ?? 0) - (pos.get(b.id) ?? 0))
-      setRows(sorted); setTotal(totalCount); setLoading(false)
+      done((data || []).slice().sort((a, b) => (pos.get(a.id) ?? 0) - (pos.get(b.id) ?? 0)), totalCount)
     })()
     return () => { alive = false }
   }, [sb, page, statFilters, refreshTick])
@@ -1179,12 +1244,13 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
         .is('deleted_at', null)
       if (start) payQ = payQ.gte('payment_date', start.toISOString())
       if (end) payQ = payQ.lt('payment_date', end.toISOString())
-      // الفواتير المُلغاة ضمن الفترة — يُعتمد تاريخ الإلغاء لا الإنشاء.
+      // الفواتير المُلغاة ضمن الفترة — يُعتمد تاريخ الإلغاء لا الإنشاء. تُجلب كل الملغاة
+      // (عددها صغير) وتُرشَّح محليًا بتاريخ الإلغاء — لا تُرشَّح بـ updated_at في الاستعلام:
+      // أي UPDATE جماعي (كإعادة بناء search_text) يحرّكه فيُخرج إلغاءات حقيقية من نافذتها
+      // أو يُدخل فيها ملغاة قديمة.
       let cxlQ = sb.from('invoices')
-        .select('id,paid_amount,cancel_log,updated_at,branch_id,status:status_id!inner(code)')
+        .select('id,paid_amount,cancel_log,created_at,branch_id,status:status_id!inner(code)')
         .is('deleted_at', null).eq('status.code', 'cancelled')
-      if (start) cxlQ = cxlQ.gte('updated_at', start.toISOString())
-      if (end) cxlQ = cxlQ.lt('updated_at', end.toISOString())
       if (branchScope) cxlQ = cxlQ.in('branch_id', branchScope)
       const [{ data: created, error: e1 }, { data: pays, error: e2 }, { data: cxl, error: e3 }] = await Promise.all([invQ, payQ, cxlQ])
       if (e1 || e2 || e3) throw (e1 || e2 || e3)
@@ -1192,13 +1258,16 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
       const inSet = id => !idSet || idSet.has(id)
       // الفواتير الجديدة = المنشأة ضمن الفترة غير الملغاة والمطابقة للتصفية.
       const live = (created || []).filter(r => r.status?.code !== 'cancelled' && inSet(r.id))
-      // الملغاة = آخر قيد إلغاء في cancel_log ضمن الفترة (fallback: عُدِّلت ضمنها) + مطابقة للتصفية.
+      // الملغاة = آخر قيد إلغاء في cancel_log ضمن الفترة + مطابقة للتصفية.
+      // بلا cancel_log (فواتير مهاجرة من Bubble): لا يُعتمد updated_at وحده — أي UPDATE جماعي
+      // (كإعادة بناء search_text) يوقعها كلها في الفترة. تُحتسب فقط إن أُنشئت ضمن الفترة أيضًا.
       const cancelledRows = (cxl || []).filter(r => {
         if (!inSet(r.id)) return false
         const log = Array.isArray(r.cancel_log) ? r.cancel_log : []
         const at = log.length ? log[log.length - 1]?.at : null
         if (at) { const t = new Date(at); return (!start || t >= start) && (!end || t < end) }
-        return true
+        const c = new Date(r.created_at)
+        return (!start || c >= start) && (!end || c < end)
       })
       const svcMap = new Map()
       for (const r of live) {
@@ -1415,7 +1484,8 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
         <EmptyState icon={emptyIcon} title={T('لا توجد فواتير', 'No invoices')} desc={T('أنشئ أول فاتورة من زر «فاتورة جديدة»', 'Create your first invoice using “New Invoice”')} />
       )}
 
-      {!loading && !err && grouped.order.map(dayKey => {
+      {/* أثناء البحث/التصفية تبقى النتائج السابقة ظاهرة مُعتَّمة قليلاً بدل أن تختفي — إحساس أسرع بلا وميض */}
+      {!err && rows.length > 0 && <div style={{ opacity: loading ? .55 : 1, transition: 'opacity .2s ease', pointerEvents: loading ? 'none' : 'auto' }}>{grouped.order.map(dayKey => {
         const dayRows = grouped.days[dayKey]
         // Payments collected on this day (across both new and reactivated invoices)
         const dayPaymentsOf = (r) => (r.payments || []).filter(p => p.deleted_at == null && p.is_valid && businessDayKey(p.payment_date) === dayKey)
@@ -1608,7 +1678,7 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
             </div>
           </div>
         )
-      })}
+      })}</div>}
 
       {/* Pagination — Slim split with divider lines */}
       {!loading && total > PAGE && (() => {
@@ -1677,6 +1747,10 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user, onO
   const [workPermitModal, setWorkPermitModal] = useState(false)
   const [payEdit, setPayEdit] = useState(null)
   const [refreshTick, setRefreshTick] = useState(0)
+
+  // تحديث تلقائي لصفحة التفاصيل: أي دفعة/تعديل/إلغاء على هذه الفاتورة — حتى من مستخدم
+  // أو جهاز آخر — يعيد الجلب صامتاً (الإعادة لا تمسّ data.loading فلا يظهر سكيلتون).
+  useLiveRefresh(['invoices', 'payments', 'installments', 'service_requests'], () => setRefreshTick(t => t + 1))
 
   // Re-fetch the FULL invoice row on open and after each action and merge it into inv.
   // We pull INVOICE_SELECT (not just totals) so that the joined party/pricing/note fields
@@ -1915,6 +1989,8 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user, onO
   // every card. (Kept as a named handler so all edit modals share one onSaved.)
   const reloadInvoiceFull = async () => {
     setRefreshTick(t => t + 1)
+    // تُحدِّث أيضاً قائمة الفواتير خلف صفحة التفاصيل فوراً (بلا انتظار إشارة Realtime).
+    emitDataChanged('invoices')
   }
 
   // فاتورة ملغاة = للقراءة فقط: نُخفي كل أزرار التعديل في كل البطاقات
@@ -2092,7 +2168,7 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user, onO
     <div style={{ fontFamily: F, paddingTop: 0, paddingBottom: 80, color: 'var(--tx2)' }}>
       {/* Top bar: back */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, gap: 12, flexWrap: 'wrap' }}>
-        <BackButton onBack={onBack} label={T('رجوع','Back')} />
+        <BackButton onBack={onBack} label={T('رجوع','Back')} navKind="invoice" navId={inv.id} isAr={isAr} />
       </div>
       {/* Header — underlined title + tags */}
       <div style={{ marginBottom: 18, marginTop: 6 }}>
@@ -3773,6 +3849,9 @@ const ActionModal = ({ type, stage = null, onClose, sb, T, isAr, inv, total, pai
       // print: nothing to write — just close. Real printing logic stays out of this
       // commit so we can keep the change focused on the persistence work the user asked for.
       onSaved?.()
+      // إشارة محلية فورية (لا تنتظر رحلة Realtime): تُحدِّث قائمة الفواتير والكروت
+      // وحسبات النقل/التجديد المفتوحة في الخلفية بعد أي دفعة/استرجاع/إلغاء/إنجاز.
+      emitDataChanged('invoices', 'payments', 'installments', 'service_requests')
       if (successInfo) setDone(successInfo)
       else onClose()
     } catch (e) {

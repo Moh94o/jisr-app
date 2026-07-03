@@ -3,6 +3,8 @@ import { RefreshCw, Printer, BadgeCheck, MessageSquare, Plus, Paperclip, User, F
 import { C, F, EmptyState, Modal as FKModal, ModalSection, TextArea, TextField, FileField, CurrencyField, YesNo, Select as FKSelect, DateField as FKDateField, GRID, SuccessView } from '../components/ui/FormKit.jsx'
 import { can as canPerm, cardVisible, canCardBtn, tabOffices, fieldVisible, fieldEditable, modalAllowed, isGM } from '../lib/permissions.js'
 import { noDash } from '../lib/utils.js'
+import { navSetHere } from '../lib/navStack.js'
+import { swrGet, swrSet, useLiveRefresh } from '../lib/liveData.js'
 import { getIqamaRenewalPricingConfig } from '../lib/kafalaPricing.js'
 import { computeRenewalDerived } from '../lib/renewalDerived.js'
 import OfficialStampBadge from '../components/ui/OfficialStampBadge.jsx'
@@ -172,18 +174,8 @@ export default function RenewalCalcPage({ sb, toast, user, lang, emptyIcon, onNe
   }
 
   // ── جلب البيانات (التسعيرات + المستخدمون + الفروع + الجنسيات) ──
-  const load = async () => {
-    if (!sb) return
-    setLoading(true)
-    // قيد المكتب: المستخدم غير المدير العام يرى حسبات مكاتبه فقط (القائمة والإحصاءات معاً، فهي محسوبة من الصفوف).
-    let calcQ = sb.from('iqama_renewal_calculation').select('*').is('deleted_at', null).order('created_at', { ascending: false }).limit(500)
-    if (officeScope) calcQ = calcQ.or(`branch_id.in.(${officeScope.join(',')}),branch_id.is.null`)
-    const [rRes, uRes, bRes, nRes] = await Promise.all([
-      calcQ,
-      sb.from('users').select(USER_SELECT).is('deleted_at', null),
-      sb.from('branches').select('id,code:branch_code').is('deleted_at', null),
-      sb.from('nationalities').select('id,name_ar,name_en,flag_url'),
-    ])
+  const rcCacheKey = 'rc:list:' + JSON.stringify(officeScope || null)
+  const applyRcBundle = ([rRes, uRes, bRes, nRes]) => {
     const userMap = Object.fromEntries((uRes.data || []).map(u => [u.id, u]))
     const branchMap = Object.fromEntries((bRes.data || []).map(b => [b.id, b.code]))
     const flat = u => u ? { id: u.id, name_ar: u.person?.name_ar || null, name_en: u.person?.name_en || null, branch: u.branch ? { code: u.branch.code } : null } : null
@@ -201,7 +193,25 @@ export default function RenewalCalcPage({ sb, toast, user, lang, emptyIcon, onNe
     setNationalities(nRes.data || [])
     setLoading(false)
   }
-  useEffect(() => { load() }, [sb, officeScope])
+  const load = async () => {
+    if (!sb) return
+    // كاش الجلسة: لا سبينر إن كانت لدينا نتيجة سابقة — تُعرض فوراً ويحدّثها الجلب الصامت أدناه.
+    if (!swrGet(rcCacheKey)) setLoading(true)
+    // قيد المكتب: المستخدم غير المدير العام يرى حسبات مكاتبه فقط (القائمة والإحصاءات معاً، فهي محسوبة من الصفوف).
+    let calcQ = sb.from('iqama_renewal_calculation').select('*').is('deleted_at', null).order('created_at', { ascending: false }).limit(500)
+    if (officeScope) calcQ = calcQ.or(`branch_id.in.(${officeScope.join(',')}),branch_id.is.null`)
+    const res = await Promise.all([
+      calcQ,
+      sb.from('users').select(USER_SELECT).is('deleted_at', null),
+      sb.from('branches').select('id,code:branch_code').is('deleted_at', null),
+      sb.from('nationalities').select('id,name_ar,name_en,flag_url'),
+    ])
+    swrSet(rcCacheKey, res)
+    applyRcBundle(res)
+  }
+  useEffect(() => { const cached = swrGet(rcCacheKey); if (cached) applyRcBundle(cached); load() }, [sb, officeScope])
+  // تحديث تلقائي: أي إنشاء/تصديق/فوترة/إلغاء لحسبة تجديد (من هذا الجهاز أو غيره) يعيد الجلب صامتاً بلا رفرش.
+  useLiveRefresh(['iqama_renewal_calculation', 'invoices'], load)
 
   // ── سجل التغييرات/المصادر للحقول (يُحمَّل عند فتح التفاصيل) ──
   const loadDetailAudit = useCallback(async () => {
@@ -249,6 +259,15 @@ export default function RenewalCalcPage({ sb, toast, user, lang, emptyIcon, onNe
     window.addEventListener('hashchange', onHash)
     return () => window.removeEventListener('hashchange', onHash)
   }, [])
+  // سلسلة الرجوع الذكية: تسجيل الحسبة المفتوحة كموقع حالي — تُعاد فتحها عبر
+  // hash إعادة الفتح أعلاه عند الرجوع إليها من صفحة أخرى (مثل الفاتورة).
+  useEffect(() => {
+    if (detailsRow) {
+      const q = detailsRow.quote_no || ''
+      navSetHere({ hash: '#renewal_calc?q=' + encodeURIComponent(q), label: { ar: 'حسبة التجديد ' + q, en: 'Renewal quote ' + q } })
+    } else navSetHere(null)
+    return () => navSetHere(null)
+  }, [detailsRow])
 
   // ── إحصاءات ── تُحسب أدناه من المجموعة المفلترة (searched) لتعكس البحث/الفلاتر الحالية.
 
@@ -922,7 +941,7 @@ ${noticeBlk}
     return <div style={{ fontFamily: F, paddingTop: 0, color: 'var(--tx2)', direction: dir }}>
       <div style={{ marginBottom: 20 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, gap: 12 }}>
-          <BackButton onBack={() => setDetailsRow(null)} label={T('رجوع', 'Back')} />
+          <BackButton onBack={() => setDetailsRow(null)} label={T('رجوع', 'Back')} navKind="renewal_quote" navId={r.quote_no || ''} isAr={dir === 'rtl'} />
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
           <div>

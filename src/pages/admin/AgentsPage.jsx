@@ -3,6 +3,7 @@ import BackButton from '../../components/BackButton'
 import { Drop } from './PermissionsPage.jsx'
 import { can as canPerm, cardVisible, canCardBtn } from '../../lib/permissions.js'
 import { noDash, branchLabel } from '../../lib/utils.js'
+import { navSetHere } from '../../lib/navStack.js'
 import { Modal as FKModal, ModalSection, GRID, TextField, IdField, PhoneField, CurrencyField, Select, SuccessView, EmptyState } from '../../components/ui/FormKit.jsx'
 import { SkeletonCards, SkeletonList } from '../../components/ui/Skeleton.jsx'
 import {
@@ -204,6 +205,14 @@ export default function AgentsPage({ sb, lang, user, toast, emptyIcon }) {
   const [selectedId, setSelectedId] = useState(null)
   const [refreshTick, setRefreshTick] = useState(0)
 
+  // سلسلة الرجوع الذكية: إعادة فتح ملف وسيط معيّن عند الرجوع إليه من صفحة أخرى
+  // (مثلاً بعد فتح فاتورة من داخل ملفه).
+  useEffect(() => {
+    const handler = (e) => { const id = e?.detail?.id; if (id) setSelectedId(id) }
+    window.addEventListener('agent-open', handler)
+    return () => window.removeEventListener('agent-open', handler)
+  }, [])
+
   /* ─── Bootstrap: branches, nationalities, agents + commission roll-up ─── */
   useEffect(() => {
     sb.from('branches').select('id,branch_code,name_ar').order('branch_code').then(({ data }) => setBranches(data || []))
@@ -285,6 +294,13 @@ export default function AgentsPage({ sb, lang, user, toast, emptyIcon }) {
   const natDist = useMemo(() => (stats?.topNats || []).map(([name, cnt], i) => ({ name, cnt, color: ROLE_PALETTE[i % ROLE_PALETTE.length] })), [stats])
 
   const selectedAgent = selectedId ? agents.find(a => a.id === selectedId) : null
+  // تسجيل ملف الوسيط المفتوح كموقع حالي في سلسلة الرجوع — أي قفزة منه (فاتورة…)
+  // يعود زرّها الذهبي إلى ملف هذا الوسيط نفسه.
+  useEffect(() => {
+    if (selectedAgent) navSetHere({ event: 'agent-open', detail: { id: selectedAgent.id }, label: { ar: 'ملف الوسيط ' + (selectedAgent.name_ar || selectedAgent.name_en || ''), en: 'Agent: ' + (selectedAgent.name_en || selectedAgent.name_ar || '') } })
+    else navSetHere(null)
+    return () => navSetHere(null)
+  }, [selectedAgent])
   if (selectedAgent) {
     return (
       <AgentDetailPage sb={sb} user={user} agent={selectedAgent} agentStats={selectedAgent._stats}

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { CalendarPopup, Sel, DateField } from './KafalaCalculator.jsx'
 import BackButton from '../components/BackButton'
 import { noDash, branchLabel } from '../lib/utils.js'
+import { navSetHere, navSetPageLabel } from '../lib/navStack.js'
 import { Modal, ModalSection, TextField, TextArea, Select, CurrencyField, FileField, SuccessView, GRID, EmptyState } from '../components/ui/FormKit.jsx'
 import { StatStripSkeleton, SkeletonCards, SkeletonTable, Shimmer } from '../components/ui/Skeleton.jsx'
 import { Wallet, Building2, FileText as FileTextIco, MessageSquare, Send, CheckCircle2, Ban, Clock, CreditCard, User, Plus, Paperclip, Lock, Pencil, Upload, FileCheck, Check } from 'lucide-react'
@@ -374,6 +375,34 @@ export default function TransactionsPage({ sb, lang, user, tabId, branchId, toas
     return () => { alive = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialDetailId, sb])
+
+  // سلسلة الرجوع الذكية: إعادة فتح معاملة معيّنة عند الرجوع إليها من صفحة أخرى
+  // (بعد قفزة منها إلى عامل/منشأة/فاتورة) — نفس آلية الجلب المباشر أعلاه.
+  useEffect(() => {
+    const handler = async (e) => {
+      const id = e?.detail?.id
+      if (!id || !sb) return
+      const { data } = await sb.from('service_requests').select(SR_SELECT).eq('id', id).is('deleted_at', null).maybeSingle()
+      if (data) setDetail(data)
+    }
+    window.addEventListener('txn-open', handler)
+    return () => window.removeEventListener('txn-open', handler)
+  }, [sb])
+
+  // تسجيل الموقع الحالي: المعاملة المفتوحة (بمرجعها) أو تبويب الخدمة نفسه —
+  // فيقرأ زر الرجوع الذهبي في صفحة الوجهة «الرجوع إلى معاملة …» أو اسم التبويب.
+  useEffect(() => {
+    if (lockedLabel) navSetPageLabel({ ar: T('معاملات ', 'Transactions: ') + lockedLabel, en: T('معاملات ', 'Transactions: ') + lockedLabel })
+    return () => navSetPageLabel(null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lockedLabel])
+  useEffect(() => {
+    if (detail) {
+      const ref = noDash(['TXN', detail.branch?.branch_code, String(detail.request_ref_no || '').slice(-6)].filter(Boolean).join('-'))
+      navSetHere({ event: 'txn-open', detail: { id: detail.id }, label: { ar: 'المعاملة ' + ref, en: 'Transaction ' + ref } })
+    } else navSetHere(null)
+    return () => navSetHere(null)
+  }, [detail])
 
   /* ─────── Stats (from server-side aggregation views) ─────── */
   const stats = useMemo(() => {
@@ -1590,7 +1619,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
     <div style={{ fontFamily: F, paddingTop: 0, paddingBottom: 60, color: 'var(--tx2)' }}>
       {/* Top bar: back */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, gap: 12, flexWrap: 'wrap' }}>
-        <BackButton onBack={onBack} label={T('رجوع','Back')} />
+        <BackButton onBack={onBack} label={T('رجوع','Back')} navKind="txn" navId={sr.id} isAr={isAr} />
       </div>
 
       {/* Header — title + service tag + ref + branch + date + status (matches InvoiceDetailPage header) */}

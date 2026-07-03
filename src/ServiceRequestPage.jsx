@@ -1395,7 +1395,10 @@ const rows=kafalaInstallments
 const first=parseFloat(rows[0]?.amount)||0
 // «دفعات متعددة» تتطلب دفعتين على الأقل — وإلا فهي دفعة واحدة
 if(rows.length<2){setErr(T('الدفعات المتعددة تتطلب دفعتين على الأقل','Multiple installments require at least two'));return false}
-if(first<minFirst){setErr(T(`الدفعة الأولى يجب ألا تقل عن ${fmtAmt(minFirst.toFixed(2))} ريال (مجموع الرسوم الحكومية)`,`The first installment must be at least ${fmtAmt(minFirst.toFixed(2))} SAR (total government fees)`));return false}
+// ⚠️ استثناء لمرة واحدة (حالة خاصة يوم 2026-07-03): السماح بدفعة أولى أقل من الرسوم
+// الحكومية — يبطل تلقائياً بعد نهاية هذا اليوم ويعود الشرط للعمل. يُحذف لاحقاً.
+const oneTimeBypass=new Date().toISOString().slice(0,10)==='2026-07-03'
+if(first<minFirst&&!oneTimeBypass){setErr(T(`الدفعة الأولى يجب ألا تقل عن ${fmtAmt(minFirst.toFixed(2))} ريال (مجموع الرسوم الحكومية)`,`The first installment must be at least ${fmtAmt(minFirst.toFixed(2))} SAR (total government fees)`));return false}
 // كل دفعة يجب أن تحمل مبلغاً موجباً
 if(rows.some(r=>(parseFloat(r.amount)||0)<=0)){setErr(T('يرجى إدخال مبلغ لكل دفعة','Please enter an amount for each installment'));return false}
 // كل دفعة بعد الأولى تحتاج تاريخاً

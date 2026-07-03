@@ -1563,7 +1563,13 @@ function WorkInfoModal({ sb, user, branches, roles, toast, onClose, onSaved }) {
     name_en: user.person?.name_en || '',
     id_number: user.person?.id_number || '',
     role_id: user.role_id || '',
-    branch_ids: (user.branch_ids && user.branch_ids.length) ? user.branch_ids : (user.primary_branch_id ? [user.primary_branch_id] : []),
+    // نتجاهل أي مكتب لم يعد موجوداً في قائمة الفروع (id معلّق من فرع محذوف/أُعيد إنشاؤه)
+    // وإلا ظهر العدّاد «١ مُختار» بلا أي عنصر مؤشّر في القائمة، ولَبقي المكتب الوهمي محفوظاً عند الحفظ.
+    branch_ids: (() => {
+      const live = new Set((branches || []).map(b => b.id))
+      const src = (user.branch_ids && user.branch_ids.length) ? user.branch_ids : (user.primary_branch_id ? [user.primary_branch_id] : [])
+      return src.filter(id => live.has(id))
+    })(),
     personal_phone: (user.personal_phone || '').replace(/^\+?966/, '').replace(/^0/, ''),
     email: (user.email || '').split('@')[0],
     password: '',

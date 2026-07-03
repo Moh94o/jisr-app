@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import BackButton from './components/BackButton'
 import { can as canPerm, cardVisible, canCardBtn } from './lib/permissions.js'
+import { navSetHere } from './lib/navStack.js'
 import { UserPlus, Building2, Search, X, Hash, FileText, ShieldCheck, Users, MapPin, Check, Plus, Pencil, Trash2, Phone, ChevronLeft, ChevronRight, HeartPulse, RefreshCw, AlertCircle, LogOut } from 'lucide-react'
 import { Modal as FKModal, ModalSection, ActionButton, SuccessView, GRID, TextField, IdField, DateField, Select, FileField, PhoneField, PhoneListField, EmptyState } from './components/ui/FormKit.jsx'
 
@@ -733,6 +734,16 @@ export default function WorkforcePage({ sb, toast, lang, user, onTabChange }) {
     window.addEventListener('worker-open', handler)
     return () => window.removeEventListener('worker-open', handler)
   }, [sb])
+
+  // سلسلة الرجوع الذكية: تسجيل ملف العامل المفتوح كموقع حالي — القفزات منه
+  // (منشأة/فاتورة) يعود زرّها الذهبي إلى ملف هذا العامل نفسه.
+  useEffect(() => {
+    if (detail) {
+      const nm = detail.name_ar || detail.name_en || ''
+      navSetHere({ event: 'worker-open', detail: { id: detail.id }, label: { ar: 'ملف العامل ' + nm, en: 'Worker: ' + (detail.name_en || detail.name_ar || '') } })
+    } else navSetHere(null)
+    return () => navSetHere(null)
+  }, [detail])
 
   const facById = useMemo(() => {
     const m = {}; facilities.forEach(f => { m[f.id] = f }); return m
@@ -1779,7 +1790,7 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
   return (
     <div style={{ fontFamily: F, paddingTop: 0, paddingBottom: 80, color: 'var(--tx2)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, gap: 12, flexWrap: 'wrap' }}>
-        <BackButton onBack={onBack} label={T('رجوع','Back')} />
+        <BackButton onBack={onBack} label={T('رجوع','Back')} navKind="worker" navId={w.id} isAr={isAr} />
       </div>
       {/* Header — أيقونة + عنوان عام + وصف + زر الحذف (نفس تصميم تفاصيل المنشأة) */}
       <div style={{ marginBottom: 18, marginTop: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 14, flexWrap: 'wrap' }}>

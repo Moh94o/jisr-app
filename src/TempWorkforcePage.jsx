@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import BackButton from './components/BackButton'
 import { can as canPerm, can, cardVisible, canCardBtn } from './lib/permissions.js'
+import { navSetHere } from './lib/navStack.js'
 import { UserPlus, Building2, Search, X, Hash, FileText, ShieldCheck, Users, MapPin, Check, Plus, Pencil, Trash2, Phone, ChevronLeft, ChevronRight, HeartPulse, RefreshCw, AlertCircle, LogOut } from 'lucide-react'
 import { Modal as FKModal, ModalSection, ActionButton, SuccessView, GRID, TextField, IdField, DateField, Select, FileField, PhoneField, PhoneListField, EmptyState } from './components/ui/FormKit.jsx'
 
@@ -733,6 +734,16 @@ export default function TempWorkforcePage({ sb, toast, lang, user, onTabChange }
     window.addEventListener('temp-worker-open', handler)
     return () => window.removeEventListener('temp-worker-open', handler)
   }, [sb])
+
+  // سلسلة الرجوع الذكية: تسجيل ملف العامل المؤقت المفتوح — القفزات منه
+  // (منشأة/فاتورة) يعود زرّها الذهبي إلى ملفه نفسه.
+  useEffect(() => {
+    if (detail) {
+      const nm = detail.name_ar || detail.name_en || ''
+      navSetHere({ event: 'temp-worker-open', detail: { id: detail.id }, label: { ar: 'ملف العامل المؤقت ' + nm, en: 'Temp worker: ' + (detail.name_en || detail.name_ar || '') } })
+    } else navSetHere(null)
+    return () => navSetHere(null)
+  }, [detail])
 
   const facById = useMemo(() => {
     const m = {}; facilities.forEach(f => { m[f.id] = f }); return m
