@@ -1404,7 +1404,7 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
                 {dayPmtCount > 0 && <span style={{ color: C.blue, fontVariantNumeric: 'tabular-nums' }}>{num(dayPmtCount)} {dayPmtCount === 1 ? T('دفعة','pmt') : T('مدفوعات','pmts')}</span>}
                 <span style={{ color: C.ok, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>+ {num(dayPaid)}</span>
                 {dayVoid > 0 && <span style={{ color: C.red, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }} title={T('الملغى والمسترد','Cancelled & refunded')}>− {num(dayVoid)}</span>}
-                <span title={T('الصافي اليومي','Daily net')} style={{ color: dayNet >= 0 ? C.ok : C.red, direction: 'ltr', fontVariantNumeric: 'tabular-nums', fontWeight: 700 }}>= {dayNet < 0 ? '− ' : ''}{num(Math.abs(dayNet))}</span>
+                <span title={T('الصافي اليومي','Daily net')} style={{ color: dayNet >= 0 ? C.ok : C.red, fontVariantNumeric: 'tabular-nums', fontWeight: 700 }}>= <span style={{ direction: 'ltr', unicodeBidi: 'isolate' }}>{dayNet < 0 ? '− ' : ''}{num(Math.abs(dayNet))}</span></span>
               </div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
