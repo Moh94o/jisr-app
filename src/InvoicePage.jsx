@@ -8240,7 +8240,7 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
             )}
           </div>
           <div style={{ padding: '14px 22px' }}>
-            {/* بيانات التأشيرات (الأرقام/المرفقات) تُعرض بالكامل في كرت المعاملة — أُزيلت من هنا لتفادي التكرار (بطلب المستخدم). */}
+            <VisaInfoRows inv={inv} isAr={isAr} T={T} svc={svc} data={data} user={user} />
             <ChangeLog T={T} title={T('سجل تعديل التأشيرات', 'Visa edit log')} entries={Array.isArray(inv.service_log) ? inv.service_log : []}
               actionLabel={T('تم تعديل بيانات التأشيرات', 'Visa details edited')}
               renderDetail={c => <FieldChanges T={T} changes={c.changes} LBL={{ office: ['المكتب', 'Office'], composition: ['بيانات التأشيرات', 'Visa details'], files: ['توزيع الملفات', 'File distribution'] }} />} />

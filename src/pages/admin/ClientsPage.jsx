@@ -231,7 +231,7 @@ export default function ClientsPage({ sb, lang, user, toast, emptyIcon }) {
     const inOffice = (qb) => officeScope ? qb.or(`branch_id.in.(${officeScope.join(',')}),branch_id.is.null`) : qb
     Promise.all([
       inOffice(sb.from('clients').select('id,branch_id,created_at,nationality_id,name_ar,name_en,id_number,phone,nationality:nationality_id(name_ar,name_en)').is('deleted_at', null)),
-      inOffice(sb.from('service_requests').select('id,client_id,request_date,branch_id,quantity').is('deleted_at', null)),
+      inOffice(sb.from('service_requests').select('id,client_id,request_date,branch_id,quantity,status:status_id(code)').is('deleted_at', null)),
       inOffice(sb.from('invoices').select('total_amount,paid_amount,service_request_id').is('deleted_at', null)),
       sb.from('payments').select('service_request_id,payment_date').is('deleted_at', null),
     ]).then(([cR, srR, invR, payR]) => {
@@ -248,7 +248,8 @@ export default function ClientsPage({ sb, lang, user, toast, emptyIcon }) {
       (!qq || [c.name_ar, c.name_en, c.id_number, c.phone].some(v => String(v || '').toLowerCase().includes(qq)))
     )
     const clientIds = new Set(cs.map(c => c.id))
-    const srs = raw.srs.filter(sr => sr.client_id && clientIds.has(sr.client_id))
+    // الطلبات الملغاة خارج كل الحسابات (الفوترة/المدفوع/العدّادات) — تظهر فقط في سجل الفواتير
+    const srs = raw.srs.filter(sr => sr.client_id && clientIds.has(sr.client_id) && sr.status?.code !== 'cancelled')
     const srIds = new Set(srs.map(sr => sr.id))
     const invs = raw.invs.filter(i => srIds.has(i.service_request_id))
     const pays = raw.pays.filter(p => srIds.has(p.service_request_id))

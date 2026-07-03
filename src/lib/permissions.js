@@ -282,7 +282,9 @@ export const tabOffices = (user, tabId) => {
   const { mode, ids } = tabOfficePolicy(user, tabId)
   // Permanent rule: invoice issuers are always capped to their own office(s),
   // regardless of an all-branches role assignment or an 'all' office policy.
-  if (tabId === 'invoices' && isInvoiceIssuer(user)) {
+  // Applies to invoices AND the quote pages that feed them (نقل الكفالة / تجديد الإقامة),
+  // so a single-office issuer never sees other offices' calculations there.
+  if (['invoices', 'transfer_calc', 'renewal_calc'].includes(tabId) && isInvoiceIssuer(user)) {
     const own = userOffices(user)
     if (own.length) return (mode === 'specific' && ids.length) ? own.filter(id => ids.includes(id)) : own
     // No assigned office → fall through to the normal logic (never lock out).

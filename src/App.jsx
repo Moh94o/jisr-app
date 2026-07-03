@@ -1527,12 +1527,12 @@ const[advFilter,setAdvFilter]=useState({from:'',to:'',service:'',employee:'',off
 // `priced_by`/`approved_by`/`created_by` have no DB-level FK to `users`, so we fetch users
 // separately and pass a userMap here to attach the related user/person/branch.
 const flattenTcUser=(u)=>u?{name_ar:u.person?.name_ar||null,name_en:u.person?.name_en||null,branch:u.branch?{code:u.branch.code||u.branch.branch_code||null}:null,branch_id:u.primary_branch_id||null}:null
-const mapTcToLegacy=(t,userMap={})=>{const extras=Array.isArray(t.extras)?t.extras:[];const extrasTotal=extras.reduce((s,e)=>s+Number(e?.amount||0),0);const meta={quote_no:t.quote_no,worker_name:t.worker_name,iqama_number:t.iqama_number,phone:t.phone?'+966'+t.phone:null,iqama_expiry:t.iqama_expiry_gregorian,expected_expiry:t.expected_expiry_date,duration_months:t.duration_months,duration_days:t.duration_days,expected_duration_months:t.expected_duration_months,expected_duration_days:t.expected_duration_days,billed_renewal_months:t.billed_renewal_months,government_fees:Number(t.government_fees||0),office_fee_net:Number(t.office_fee_net||0),renewal_months:t.renewal_months,transfer_only:!!t.transfer_only,change_profession:!!t.change_profession,new_occupation:t.new_occupation_name_ar,prof_change_fee:Number(t.prof_change_fee||0),office_fee:Number(t.office_fee||0),transfer_fee:Number(t.transfer_fee||0),absher_discount:Number(t.absher_discount||0),extras,warnings:(t.warnings||[]).map(w=>typeof w==='string'?w:(w?.text||''))};return{id:t.id,status:t.status,created_at:t.created_at,updated_at:t.updated_at,deleted_at:t.deleted_at,priced_at:t.priced_at,priced_by:t.priced_by,approved_at:t.approved_at,approved_by:t.approved_by,created_by:t.created_by,transfer_fee:Number(t.transfer_fee||0),iqama_cost:Number(t.iqama_renewal_fee||0),work_permit_cost:Number(t.work_permit_fee||0),insurance_cost:Number(t.medical_fee||0),other_costs:Number(t.office_fee||0)+Number(t.prof_change_fee||0)+Number(t.late_fine_amount||0)+extrasTotal,other_costs_desc:[t.prof_change_fee>0?'تغيير المهنة':null,'رسوم المكتب',...extras.map(e=>e.name)].filter(Boolean).join(' + '),government_fees:0,total_cost:Number(t.subtotal||0),client_charge:Number(t.total_amount||0),profit:0,transfer_type:t.transfer_only?'transfer_only':'sponsorship',new_employer_name:t.worker_name,workers:null,facilities:null,cancelled_at:t.cancelled_at,cancelled_by:t.cancelled_by,cancel_reason:t.cancel_reason,priced_user:flattenTcUser(userMap[t.priced_by]),approved_user:flattenTcUser(userMap[t.approved_by]),created_user:flattenTcUser(userMap[t.created_by]),invoiced_user:flattenTcUser(userMap[t.invoiced_by]),cancelled_user:flattenTcUser(userMap[t.cancelled_by]),notes:JSON.stringify(meta),_meta:meta,_tc:t}}
+const mapTcToLegacy=(t,userMap={},branchMap={})=>{const extras=Array.isArray(t.extras)?t.extras:[];const extrasTotal=extras.reduce((s,e)=>s+Number(e?.amount||0),0);const meta={quote_no:t.quote_no,worker_name:t.worker_name,iqama_number:t.iqama_number,phone:t.phone?'+966'+t.phone:null,iqama_expiry:t.iqama_expiry_gregorian,expected_expiry:t.expected_expiry_date,duration_months:t.duration_months,duration_days:t.duration_days,expected_duration_months:t.expected_duration_months,expected_duration_days:t.expected_duration_days,billed_renewal_months:t.billed_renewal_months,government_fees:Number(t.government_fees||0),office_fee_net:Number(t.office_fee_net||0),renewal_months:t.renewal_months,transfer_only:!!t.transfer_only,change_profession:!!t.change_profession,new_occupation:t.new_occupation_name_ar,prof_change_fee:Number(t.prof_change_fee||0),office_fee:Number(t.office_fee||0),transfer_fee:Number(t.transfer_fee||0),absher_discount:Number(t.absher_discount||0),extras,warnings:(t.warnings||[]).map(w=>typeof w==='string'?w:(w?.text||''))};return{id:t.id,status:t.status,created_at:t.created_at,updated_at:t.updated_at,deleted_at:t.deleted_at,priced_at:t.priced_at,priced_by:t.priced_by,approved_at:t.approved_at,approved_by:t.approved_by,created_by:t.created_by,transfer_fee:Number(t.transfer_fee||0),iqama_cost:Number(t.iqama_renewal_fee||0),work_permit_cost:Number(t.work_permit_fee||0),insurance_cost:Number(t.medical_fee||0),other_costs:Number(t.office_fee||0)+Number(t.prof_change_fee||0)+Number(t.late_fine_amount||0)+extrasTotal,other_costs_desc:[t.prof_change_fee>0?'تغيير المهنة':null,'رسوم المكتب',...extras.map(e=>e.name)].filter(Boolean).join(' + '),government_fees:0,total_cost:Number(t.subtotal||0),client_charge:Number(t.total_amount||0),profit:0,transfer_type:t.transfer_only?'transfer_only':'sponsorship',new_employer_name:t.worker_name,workers:null,facilities:null,cancelled_at:t.cancelled_at,cancelled_by:t.cancelled_by,cancel_reason:t.cancel_reason,priced_user:flattenTcUser(userMap[t.priced_by]),approved_user:flattenTcUser(userMap[t.approved_by]),created_user:flattenTcUser(userMap[t.created_by]),invoiced_user:flattenTcUser(userMap[t.invoiced_by]),cancelled_user:flattenTcUser(userMap[t.cancelled_by]),notes:JSON.stringify(meta),_meta:meta,_tc:t,_officeCode:(branchMap||{})[t.branch_id]||null}}
 const TC_SELECT='*'
 const USER_SELECT='id,primary_branch_id,person:persons(name_ar,name_en),branch:branches!users_primary_branch_id_fkey(code:branch_code)'
 const buildUserMap=(rows)=>Object.fromEntries((rows||[]).map(u=>[u.id,u]))
-const refetchTc=async()=>{let tcQ=sb.from('transfer_calculation').select(TC_SELECT).is('deleted_at',null).order('created_at',{ascending:false});if(tcOrScope)tcQ=tcQ.or(tcOrScope);const[tRes,uRes]=await Promise.all([tcQ,sb.from('users').select(USER_SELECT).is('deleted_at',null)]);const userMap=buildUserMap(uRes.data);setData((tRes.data||[]).map(r=>mapTcToLegacy(r,userMap)))}
-useEffect(()=>{let tcQ=sb.from('transfer_calculation').select(TC_SELECT).is('deleted_at',null).order('created_at',{ascending:false});if(tcOrScope)tcQ=tcQ.or(tcOrScope);Promise.all([tcQ,sb.from('branches').select('id,code:branch_code').is('deleted_at',null).order('branch_code'),sb.from('nationalities').select('id,name_ar,name_en,code,flag_url').order('name_ar'),sb.from('users').select(USER_SELECT).is('deleted_at',null)]).then(([t,b,n,u])=>{const userMap=buildUserMap(u?.data);setData((t.data||[]).map(r=>mapTcToLegacy(r,userMap)));setWorkers([]);setFacilities([]);setBranches(b?.data||[]);setNationalities(n?.data||[]);setTcLoading(false)})},[sb,tcOrScope])
+const refetchTc=async()=>{let tcQ=sb.from('transfer_calculation').select(TC_SELECT).is('deleted_at',null).order('created_at',{ascending:false});if(tcOrScope)tcQ=tcQ.or(tcOrScope);const[tRes,uRes]=await Promise.all([tcQ,sb.from('users').select(USER_SELECT).is('deleted_at',null)]);const userMap=buildUserMap(uRes.data);const branchMap=Object.fromEntries((branches||[]).map(b=>[b.id,b.code||b.branch_code]));setData((tRes.data||[]).map(r=>mapTcToLegacy(r,userMap,branchMap)))}
+useEffect(()=>{let tcQ=sb.from('transfer_calculation').select(TC_SELECT).is('deleted_at',null).order('created_at',{ascending:false});if(tcOrScope)tcQ=tcQ.or(tcOrScope);Promise.all([tcQ,sb.from('branches').select('id,code:branch_code').is('deleted_at',null).order('branch_code'),sb.from('nationalities').select('id,name_ar,name_en,code,flag_url').order('name_ar'),sb.from('users').select(USER_SELECT).is('deleted_at',null)]).then(([t,b,n,u])=>{const userMap=buildUserMap(u?.data);const branchMap=Object.fromEntries((b?.data||[]).map(x=>[x.id,x.code||x.branch_code]));setData((t.data||[]).map(r=>mapTcToLegacy(r,userMap,branchMap)));setWorkers([]);setFacilities([]);setBranches(b?.data||[]);setNationalities(n?.data||[]);setTcLoading(false)})},[sb,tcOrScope])
 // Auto-open a quote's details when arriving via #transfer_calc?q=<quote_no> (e.g. from the Kafala calculator success screen).
 useEffect(()=>{if(!data.length)return;let q='';try{const m=(window.location.hash||'').match(/[?&]q=([^&]*)/);if(m)q=decodeURIComponent(m[1])}catch{}if(!q)return;const row=data.find(r=>r._tc?.quote_no===q||r._meta?.quote_no===q);if(row){setDetailsRow(row);try{window.history.replaceState(null,'','#transfer_calc')}catch{}}},[data])
 // The Kafala calculator opens as an overlay over this (already-mounted) page, so its data is stale and the
@@ -2108,7 +2108,7 @@ const curLbl=T2('ر.س','SAR')
 const svcHtml=svcItems.map(([name,amt],i)=>{const n=Number(amt);const isDisc=n<0||String(name).includes('خصم')||/discount/i.test(String(name));return `<div class="svc-row"><div class="svc-left"><span class="svc-badge">${String(i+1).padStart(2,'0')}</span><span class="svc-name${isDisc?' disc':''}">${esc(name)}</span></div><span class="svc-amt${isDisc?' disc':''}" dir="rtl">${n!==0?`<span class="num">${nm2(n)}</span><span class="cur">${curLbl}</span>`:`<span class="inc">${T2('رسوم متضمّنة','Included')}</span>`}</span></div>`}).join('')
 const dateLabel=r.status==='priced'?T2('تاريخ التسعيرة','Pricing Date'):(r.status==='approved'||r.status==='invoiced'||r.status==='completed')?T2('تاريخ التصديق','Approval Date'):T2('تاريخ الإصدار','Issue Date')
 const dateValue=r.status==='priced'?(r.priced_at||r.created_at):(r.status==='approved'||r.status==='invoiced'||r.status==='completed')?(r.approved_at||r.priced_at||r.created_at):r.created_at
-const officeCode=r.priced_user?.branch?.code||r.approved_user?.branch?.code||r.created_user?.branch?.code||''
+const officeCode=r._officeCode||r.priced_user?.branch?.code||r.approved_user?.branch?.code||r.created_user?.branch?.code||''
 const stampStatus=stLabel[r.status]||r.status||''
 const html=`<!DOCTYPE html><html dir="${rtl?'rtl':'ltr'}" lang="${printLang}"><head><meta charset="utf-8"><title>${T2('حسبة نقل الكفالة','Sponsorship Transfer Calculation')} ${esc(noDash(quoteNo))}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -2554,7 +2554,7 @@ return<svg width={size} height={size} style={{display:'block'}}>
 </button>};const absher=Number(meta.absher_discount||0);const durMo=meta.expected_duration_months??meta.duration_months??0;const durDays=meta.expected_duration_days??meta.duration_days??0;const durText=durMo>0?durMo+T(' شهر','mo'):(durDays>0?durDays+T(' يوم','d'):'');const fmtD=d=>{if(!d)return'—';const dt=new Date(d);if(isNaN(dt))return'—';const y=dt.getFullYear();const mo=String(dt.getMonth()+1).padStart(2,'0');const da=String(dt.getDate()).padStart(2,'0');return `${da}-${mo}-${y}`};return <>
 
 {(()=>{
-const officeCodeLocal=r.priced_user?.branch?.code||r.approved_user?.branch?.code||r.created_user?.branch?.code||null
+const officeCodeLocal=r._officeCode||r.priced_user?.branch?.code||r.approved_user?.branch?.code||r.created_user?.branch?.code||null
 const expectedDays=Number(meta.expected_iqama_days||0)
 const durMonths=Number(meta.expected_duration_months??meta.duration_months??0)||(expectedDays>0?Math.round(expectedDays/30):0)
 const durLabel=durMonths>0?(durMonths+' '+T('شهر','mo')):(expectedDays>0?(expectedDays+' '+T('يوم','d')):null)
@@ -2592,7 +2592,7 @@ const stamps=[]
 // حسبة ملغاة: يعرض الكرت ختم «ملغاة» فقط بدل ختم المرحلة (مسعّرة/مصدّقة/مفوترة).
 if(r.status==='cancelled'){
 const cancelledBy=r.cancelled_user?(lang==='en'?r.cancelled_user.name_en||r.cancelled_user.name_ar:r.cancelled_user.name_ar):(pricedBy||approvedBy)
-const officeCode=r.priced_user?.branch?.code||r.approved_user?.branch?.code||r.created_user?.branch?.code||null
+const officeCode=r._officeCode||r.priced_user?.branch?.code||r.approved_user?.branch?.code||r.created_user?.branch?.code||null
 return<div style={{display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,padding:'0 6px'}}>
 <div style={{transform:'scale(0.85)',transformOrigin:'center'}}>
 <OfficialStampBadge status={stLabel.cancelled} employeeName={cancelledBy} branchCode={officeCode} date={r.cancelled_at||r.priced_at} color={stClr.cancelled} rotate={-5} variant="double"/>
@@ -2601,12 +2601,12 @@ return<div style={{display:'flex',alignItems:'center',justifyContent:'center',fl
 }
 // Priced stage
 if(r.priced_at&&pricedBy){
-stamps.push({key:'p',label:stLabel.priced,name:pricedBy,branch:r.priced_user?.branch?.code,date:r.priced_at,color:stClr.priced,userId:r.priced_by})
+stamps.push({key:'p',label:stLabel.priced,name:pricedBy,branch:r._officeCode||r.priced_user?.branch?.code,date:r.priced_at,color:stClr.priced,userId:r.priced_by})
 }
 // Approved stage — only add if different user
 const isApprovedLike=r.status==='approved'||r.status==='invoiced'||r.status==='completed'
 if(isApprovedLike&&r.approved_at&&approvedBy&&r.approved_by&&r.approved_by!==r.priced_by){
-stamps.push({key:'a',label:r.status==='invoiced'||r.status==='completed'?stLabel.invoiced:stLabel.approved,name:approvedBy,branch:r.approved_user?.branch?.code,date:r.approved_at,color:r.status==='invoiced'||r.status==='completed'?stClr.invoiced:stClr.approved,userId:r.approved_by})
+stamps.push({key:'a',label:r.status==='invoiced'||r.status==='completed'?stLabel.invoiced:stLabel.approved,name:approvedBy,branch:r._officeCode||r.approved_user?.branch?.code,date:r.approved_at,color:r.status==='invoiced'||r.status==='completed'?stClr.invoiced:stClr.approved,userId:r.approved_by})
 }
 // If the priced user also approved/invoiced, update their label to reflect the latest status
 if(stamps.length===1&&isApprovedLike&&r.approved_at){
@@ -2616,7 +2616,7 @@ stamps[0].color=r.status==='invoiced'||r.status==='completed'?stClr.invoiced:stC
 }
 // Fallback when no priced action yet — show current status
 if(!stamps.length){
-const officeCode=r.priced_user?.branch?.code||r.approved_user?.branch?.code||r.created_user?.branch?.code||null
+const officeCode=r._officeCode||r.priced_user?.branch?.code||r.approved_user?.branch?.code||r.created_user?.branch?.code||null
 stamps.push({key:'c',label:stLabel[r.status]||r.status,name:pricedBy||approvedBy,branch:officeCode,date:r.priced_at||r.created_at,color:sc})
 }
 const scale=stamps.length>=2?0.62:0.85
@@ -2689,7 +2689,7 @@ return<div style={{fontFamily:"'Cairo','Tajawal',sans-serif",paddingTop:0,color:
 <span style={{color:C.gold,fontFamily:'monospace',fontWeight:600,fontSize:14}}>{noDash(quoteNo)}</span>
 <QuoteCopyBtn val={noDash(quoteNo)} title={T('نسخ رقم التسعيرة','Copy quote no')}/>
 </span>
-{(()=>{const branch=dr.priced_user?.branch?.code||dr.approved_user?.branch?.code||dr.created_user?.branch?.code;if(!branch)return null;return<>
+{(()=>{const branch=dr._officeCode||dr.priced_user?.branch?.code||dr.approved_user?.branch?.code||dr.created_user?.branch?.code;if(!branch)return null;return<>
 <span style={{width:3.5,height:3.5,borderRadius:'50%',background:'var(--tx4)'}}/>
 <span title={T('المكتب','Branch')} style={{color:C.gold,fontWeight:600,fontSize:13.5,direction:'ltr',display:'inline-flex',alignItems:'center',gap:4}}>
 <span>{branch}</span>
