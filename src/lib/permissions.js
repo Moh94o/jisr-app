@@ -280,6 +280,17 @@ export const isAccountant = (user) => {
   return user?.role?.name_ar === ACCOUNTANT_ROLE_AR
 }
 
+// The «مسعر» (Pricer) role only ever prices/views quotes for its own office(s).
+// Like the invoice issuer, it is permanently office-bound for the quote pages
+// (نقل الكفالة / تجديد الإقامة) — enforced here AND in the DB RLS via
+// current_user_quote_offices(); an all-branches role grant never widens it.
+const PRICER_ROLE_AR = 'مسعر'
+export const isPricer = (user) => {
+  if (isGM(user)) return false
+  if (Array.isArray(user?.roleNames) && user.roleNames.length) return user.roleNames.includes(PRICER_ROLE_AR)
+  return user?.role?.name_ar === PRICER_ROLE_AR
+}
+
 // Roles that land on (and refresh into) the invoices page instead of the home dashboard.
 export const landsOnInvoices = (user) => isInvoiceIssuer(user) || isAccountant(user)
 
@@ -290,11 +301,12 @@ export const tabOffices = (user, tabId) => {
   if (isGM(user)) return null
   // An explicit per-user office override (advanced) wins.
   const { mode, ids } = tabOfficePolicy(user, tabId)
-  // Permanent rule: invoice issuers are always capped to their own office(s),
-  // regardless of an all-branches role assignment or an 'all' office policy.
-  // Applies to invoices AND the quote pages that feed them (نقل الكفالة / تجديد الإقامة),
-  // so a single-office issuer never sees other offices' calculations there.
-  if (['invoices', 'transfer_calc', 'renewal_calc'].includes(tabId) && isInvoiceIssuer(user)) {
+  // Permanent rule: invoice issuers (all three tabs) and pricers (the quote tabs)
+  // are always capped to their own office(s), regardless of an all-branches role
+  // assignment or an 'all' office policy — so a single-office holder never sees
+  // other offices' calculations. Mirrored in the DB RLS (current_user_quote_offices).
+  const officeBound = isInvoiceIssuer(user) || (isPricer(user) && ['transfer_calc', 'renewal_calc'].includes(tabId))
+  if (['invoices', 'transfer_calc', 'renewal_calc'].includes(tabId) && officeBound) {
     const own = userOffices(user)
     if (own.length) return (mode === 'specific' && ids.length) ? own.filter(id => ids.includes(id)) : own
     // No assigned office → fall through to the normal logic (never lock out).
