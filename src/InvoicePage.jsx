@@ -1399,11 +1399,12 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
                 <span style={{ fontSize: 12, color: 'var(--tx4)', fontVariantNumeric: 'tabular-nums', direction: 'ltr' }}>{dayFull(dayKey)}</span>
               </div>
               <div style={{ fontSize: 11, color: 'var(--tx3)', display: 'flex', gap: 16, fontWeight: 600 }}>
+                {/* RTL منطقي: العدد ← المدفوعات ← +المُحصّل ← −المُعاد ← =الصافي (النتيجة أخيراً) */}
                 <span>{num(newRows.length)} {T('فاتورة','invoices')}</span>
                 {dayPmtCount > 0 && <span style={{ color: C.blue, fontVariantNumeric: 'tabular-nums' }}>{num(dayPmtCount)} {dayPmtCount === 1 ? T('دفعة','pmt') : T('مدفوعات','pmts')}</span>}
-                <span title={T('الصافي اليومي','Daily net')} style={{ color: dayNet >= 0 ? C.ok : C.red, direction: 'ltr', fontVariantNumeric: 'tabular-nums', fontWeight: 700 }}>{dayNet < 0 ? '− ' : ''}{num(Math.abs(dayNet))}</span>
                 <span style={{ color: C.ok, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>+ {num(dayPaid)}</span>
                 {dayVoid > 0 && <span style={{ color: C.red, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }} title={T('الملغى والمسترد','Cancelled & refunded')}>− {num(dayVoid)}</span>}
+                <span title={T('الصافي اليومي','Daily net')} style={{ color: dayNet >= 0 ? C.ok : C.red, direction: 'ltr', fontVariantNumeric: 'tabular-nums', fontWeight: 700 }}>= {dayNet < 0 ? '− ' : ''}{num(Math.abs(dayNet))}</span>
               </div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
