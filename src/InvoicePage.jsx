@@ -1382,11 +1382,11 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
         // المُحصّل = الدفعات الموجبة الصحيحة في هذا اليوم فقط (لا تُخصم منها المستردات — تظهر مستقلة بالأحمر).
         const dayPaid  = dayRows.reduce((s, r) => s + dayPaymentsOf(r).filter(p => Number(p.amount) > 0).reduce((a, p) => a + Number(p.amount || 0), 0), 0)
         const dayPmtCount = dayRows.reduce((s, r) => s + (createdThisDay(r) ? 0 : dayPaymentsOf(r).length), 0)
-        // الملغى + المسترد لهذا اليوم (يُعرض بالأحمر):
-        // • المسترد = مبالغ المستردات (دفعات سالبة أو مُبطَلة) بتاريخ هذا اليوم على فواتير غير ملغاة.
+        // الملغى + المسترد لهذا اليوم (يُعرض بالأحمر) = كلاهما فلوس تُعاد للعميل:
+        // • المسترد = مبالغ المستردات (دفعات سالبة أو مُبطَلة) بتاريخ هذا اليوم — حتى على فاتورة ملغاة
+        //   (paid_amount للفاتورة الملغاة صافٍ من مرتجعها، فلا ازدواج مع «الملغى»).
         // • الملغى  = المبلغ المسدّد على الفواتير الملغاة التي وقع آخر نشاط لها في هذا اليوم.
-        const dayRefunded = dayRows.reduce((s, r) => r.status?.code === 'cancelled' ? s
-          : s + (r.payments || []).filter(p => p.deleted_at == null && businessDayKey(p.payment_date) === dayKey)
+        const dayRefunded = dayRows.reduce((s, r) => s + (r.payments || []).filter(p => p.deleted_at == null && businessDayKey(p.payment_date) === dayKey)
               .reduce((a, p) => a + (!p.is_valid ? Math.abs(Number(p.amount) || 0) : (Number(p.amount) < 0 ? -Number(p.amount) : 0)), 0), 0)
         const dayCancelled = dayRows.reduce((s, r) => s + (r.status?.code === 'cancelled' ? Number(r.paid_amount || 0) : 0), 0)
         const dayVoid = dayRefunded + dayCancelled
