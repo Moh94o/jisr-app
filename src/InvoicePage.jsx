@@ -756,6 +756,8 @@ function StatsCards({ T, periodStats, svcToday, mode = 'real' }) {
   const bankSum = z ? 0 : ps.bank.sum, bankCnt = z ? 0 : ps.bank.cnt
   const refSum = z ? 0 : (ps.voided.sum + ps.cancelled.sum)
   const refCnt = z ? 0 : (ps.voided.cnt + ps.cancelled.cnt)
+  // الصافي النقدي = النقد المستلم − المُعاد للعميل (المرتجعة + الملغاة).
+  const netCash = cashSum - refSum
   const svcs = z ? [] : buildTodaySvcs(svcToday)
   const svcTotal = svcs.reduce((a, b) => a + b.cnt, 0)
 
@@ -768,6 +770,12 @@ function StatsCards({ T, periodStats, svcToday, mode = 'real' }) {
           <span style={{ fontSize: 24, color: 'var(--tx)', fontWeight: 600, letterSpacing: '.2px' }}>{T('نقدًا', 'Cash')}</span>
           <div style={{ direction: 'ltr', textAlign: 'right' }}>
             <span style={{ fontSize: 46, fontWeight: 600, color: C.gold, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{num(cashSum)}</span>
+            {/* الصافي النقدي — النقد بعد خصم المرتجعة/الملغاة */}
+            <div style={{ direction: 'rtl', marginTop: 8, display: 'flex', alignItems: 'baseline', gap: 6 }}>
+              <span style={{ fontSize: 12.5, color: 'var(--tx3)', fontWeight: 600 }}>{T('الصافي النقدي', 'Net Cash')}</span>
+              <span style={{ fontSize: 17, fontWeight: 600, color: netCash < 0 ? C.red : '#27a046', direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(netCash)}</span>
+              <span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>{T('ريال', 'SAR')}</span>
+            </div>
           </div>
           <span style={{ fontSize: 12.5, color: 'var(--tx3)', fontWeight: 600 }}>{T('عدد العمليات', 'Receipts')} <span style={{ color: C.gold, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(cashCnt)}</span></span>
         </div>
