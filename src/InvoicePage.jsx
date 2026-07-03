@@ -773,12 +773,14 @@ function StatsCards({ T, periodStats, svcToday, mode = 'real' }) {
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <span style={{ fontSize: 12.5, color: 'var(--tx3)', fontWeight: 600 }}>{T('عدد العمليات', 'Receipts')} <span style={{ color: C.gold, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(cashCnt)}</span></span>
-            {/* الصافي النقدي — النقد بعد خصم المرتجعة/الملغاة */}
-            <div style={{ direction: 'rtl', display: 'flex', alignItems: 'baseline', gap: 6 }}>
-              <span style={{ fontSize: 12.5, color: 'var(--tx3)', fontWeight: 600 }}>{T('الصافي النقدي', 'Net Cash')}</span>
-              <span style={{ fontSize: 17, fontWeight: 600, color: netCash < 0 ? C.red : '#27a046', direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(netCash)}</span>
-              <span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>{T('ريال', 'SAR')}</span>
-            </div>
+            {/* الصافي النقدي — النقد بعد خصم المرتجعة/الملغاة، بشكل «تاق» مثل تاق حالة المعاملة */}
+            {(() => { const netColor = netCash < 0 ? C.red : '#27a046'; return (
+              <span style={{ alignSelf: 'flex-start', direction: 'rtl', display: 'inline-flex', alignItems: 'center', gap: 6, borderInlineStart: '3px solid ' + netColor, background: netColor + '10', padding: '5px 11px', color: netColor, flexShrink: 0 }}>
+                <span style={{ fontSize: 12, fontWeight: 600 }}>{T('الصافي النقدي', 'Net Cash')}</span>
+                <span style={{ fontSize: 15, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(netCash)}</span>
+                <span style={{ fontSize: 10.5, fontWeight: 600, opacity: .85 }}>{T('ريال', 'SAR')}</span>
+              </span>
+            )})()}
           </div>
         </div>
         <div style={{ position: 'relative', width: 72, background: `linear-gradient(180deg, ${C.gold}1a, ${C.gold}08)`, borderInlineStart: '1px solid var(--bd)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
