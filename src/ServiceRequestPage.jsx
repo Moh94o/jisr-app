@@ -3,6 +3,7 @@ import {CalendarRange,CalendarClock,ArrowLeftRight,RefreshCw,Users,FileCheck,Ell
 import {isServiceActive,isServiceBillable,isServiceActiveFor,isServiceBillableFor,getPricingFor,getBranchOverrides,getDocTypes,docTypeLabel} from './ServiceAdminPage.jsx'
 import {TXN_SERVICES} from './pages/txnServices.js'
 import {noDash} from './lib/utils.js'
+import {isGM,userOffices} from './lib/permissions.js'
 import {KAFALA_DEFAULTS,getKafalaPricingConfig} from './lib/kafalaPricing.js'
 // حدود الرسوم الحكومية المشمولة ضمن «رسوم المكتب» لتجديد الإقامة — ما يتجاوزها يُضاف للإجمالي. (الغرامة تُضاف دائمًا فوق ذلك)
 const IQAMA_COVER={iqama:650,workPermit:100,medical:1000}
@@ -316,6 +317,10 @@ const[cities,setCities]=useState([])
 const[selCat,setSelCat]=useState('')
 const[selSvc,setSelSvc]=useState(preselectedService||null)
 const[showOthers,setShowOthers]=useState(false)
+// خطوة اختيار المكتب (قبل الخدمة) — للمدير العام ولمن له أكثر من مكتب. المكتب المختار يغذّي كل الكتابات والتسعير.
+const[svcBranch,setSvcBranch]=useState(null)
+const[branchConfirmed,setBranchConfirmed]=useState(false)
+const[branchList,setBranchList]=useState([])
 const[customName,setCustomName]=useState('')
 const[clientMode,setClientMode]=useState('existing')
 const[clientQ,setClientQ]=useState('')
@@ -371,6 +376,14 @@ const[bankAccOpen,setBankAccOpen]=useState(false)
 const bankAccTriggerRef=useRef(null)
 const[bankAccPos,setBankAccPos]=useState({top:0,left:0,width:0})
 const openBankAccDropdown=()=>{if(bankAccTriggerRef.current){const r=bankAccTriggerRef.current.getBoundingClientRect();setBankAccPos({top:r.bottom+4,left:r.left,width:r.width})}setBankAccOpen(v=>!v)}
+// المكاتب المتاحة لاختيار مكتب الفاتورة — المدير العام يرى كل المكاتب، وغيره يرى مكاتبه فقط.
+useEffect(()=>{let alive=true;sb.from('branches').select('id,branch_code,name_ar').is('deleted_at',null).eq('is_active',true).order('name_ar').then(({data})=>{if(alive)setBranchList(data||[])});return()=>{alive=false}},[sb])
+// المكتب المختار يعيد تحميل حسابات التحويلات الواردة الخاصة به (ويصفّر الحساب المحدد).
+useEffect(()=>{const eff=svcBranch||branchId||null;let alive=true
+let q=sb.from('bank_account_branches').select('id,branch_id,account_purpose,bank_accounts!inner(id,bank_name,account_name,account_number,iban,is_primary,deleted_at)').is('deleted_at',null).eq('is_active',true).eq('account_purpose','التحويلات الواردة').is('bank_accounts.deleted_at',null)
+if(eff)q=q.eq('branch_id',eff)
+q.then(({data})=>{if(alive){setBankAccounts((data||[]).map(j=>({...(j.bank_accounts||{}),_junction_id:j.id,branch_id:j.branch_id,account_purpose:j.account_purpose})));setSelBankAcc('')}})
+return()=>{alive=false}},[sb,svcBranch,branchId])
 // Visa services: installment plan overrides (empty = use default 1/3 split)
 const[visaInstallments,setVisaInstallments]=useState({issuance:'',authorization:'',residencePerVisa:''})
 // Visa services: total price override (null = use computed pricing.total)
@@ -378,7 +391,7 @@ const[totalOverride,setTotalOverride]=useState(null)
 // Read per-installment + total minimum pricing config — branch-aware via getPricingFor (falls back to global defaults).
 // Returns per-visa minimums; callers multiply by visa count for absolute thresholds.
 const getVisaMinConfig=(svc)=>{
-const branchForPricing=user?.primary_branch_id||branchId||null
+const branchForPricing=svcBranch||user?.primary_branch_id||branchId||null
 const p=getPricingFor(svc,branchForPricing)||{}
 return{
   issuance:Number(p.issuance)||0,
@@ -578,6 +591,22 @@ const hasMergedField=!!svcSingleField
 // The broker (الوسيط) field inside it is only relevant for permanent work visa and kafala transfer.
 const showBroker=selSvc==='work_visa_permanent'||selSvc==='kafala_transfer'
 const hasBrokerStep=!!selSvc
+// ── خطوة اختيار المكتب ──────────────────────────────────────────────────────
+// المدير العام يختار من كل المكاتب؛ غيره من مكاتبه فقط. تظهر الخطوة عند وجود أكثر من خيار.
+const gm=isGM(user)
+const presetBranch=user?.primary_branch_id||branchId||null
+const branchOptions=gm?branchList:branchList.filter(b=>userOffices(user).includes(b.id))
+const needBranch=branchOptions.length>1
+// المدير العام لا مكتب افتراضي له ⇒ نُبقيه على شاشة المكتب حتى تُحمّل القائمة (نتفادى وميض شاشة الخدمة).
+const branchesLoading=gm&&!branchList.length
+const onBranchScreen=(needBranch||branchesLoading)&&!branchConfirmed
+// مكتب واحد فقط ⇒ يُختار تلقائياً وتُتخطّى الخطوة؛ وإلا نُهيّئ المكتب المُمرَّر من اللوحة (إن كان ضمن الخيارات).
+useEffect(()=>{
+if(!branchList.length)return
+if(branchOptions.length===1){setSvcBranch(branchOptions[0].id);setBranchConfirmed(true);return}
+setSvcBranch(prev=>prev||(presetBranch&&branchOptions.some(b=>b.id===presetBranch)?presetBranch:null))
+// eslint-disable-next-line react-hooks/exhaustive-deps
+},[branchList])
 // Services with no client party — step 2 opens directly on worker selection. The client is the
 // worker themselves, so only the four CLIENT_SERVICES keep the dedicated client step.
 const skipClientStep=!!selSvc&&!CLIENT_SERVICES.has(selSvc)
@@ -586,18 +615,22 @@ const skipClientStep=!!selSvc&&!CLIENT_SERVICES.has(selSvc)
 const isFreeSvc=!!selSvc&&(selSvc==='documents'||!isServiceBillable(selSvc))
 // All STEPS + الوسيط (if applicable) - merged field - (free svc skips 2 steps)
 // تجديد الإقامة يحذف خطوة العميل، فينقص عدد الخطوات بواحد.
-const totalSteps=STEPS.length+(hasBrokerStep?1:0)-(hasMergedField?1:0)-(isFreeSvc?2:0)-(selSvc==='iqama_renewal'?1:0)-((selSvc==='medical_insurance'||selSvc==='name_translation')?1:0)
+const totalSteps=STEPS.length+(hasBrokerStep?1:0)-(hasMergedField?1:0)-(isFreeSvc?2:0)-(selSvc==='iqama_renewal'?1:0)-((selSvc==='medical_insurance'||selSvc==='name_translation')?1:0)+(needBranch?1:0)
 const displayStep=(()=>{
+if(onBranchScreen)return 1
+const branchOffset=needBranch?1:0
 let d=hasMergedField&&step>=4?step-1:(hasMergedField&&step===3?2:step)
 // تجديد الإقامة: لا خطوة عميل (3)، فكل خطوة بعد التفاصيل تُزاح مؤشّرها بواحد.
 if(selSvc==='iqama_renewal'&&step>=4)d=step-1
 // التأمين الطبي / تعديل الراتب: لا خطوة تسعيرة (4)، فالدفع وما بعده يُزاح مؤشّره بواحد.
 if((selSvc==='medical_insurance'||selSvc==='name_translation')&&step>=5)d=step-1
 // Note sub-screen sits right before the summary (always the second-to-last step)
-if(step===5&&showBrokerNoteScreen)d=totalSteps-1
+// Note/Summary use absolute positions (already include the branch step via totalSteps).
+let absolute=false
+if(step===5&&showBrokerNoteScreen){d=totalSteps-1;absolute=true}
 // Summary is the last step (7 with broker, 6 without; minus 1 if merged field)
-if(step===5&&showSummaryScreen)d=totalSteps
-return d
+if(step===5&&showSummaryScreen){d=totalSteps;absolute=true}
+return absolute?d:d+branchOffset
 })()
 
 // Client search (name AR / EN, phone, ID)
@@ -825,7 +858,7 @@ return d
 const SVC_WITH_PRICING=new Set(['ajeer_contract','exit_reentry_visa','final_exit_visa','profession_change','passport_update','name_translation','iqama_print','medical_insurance','chamber_certification','documents','custom'])
 const otherServiceAutoCalc=useMemo(()=>{
 if(!SVC_WITH_PRICING.has(selSvc))return null
-const cfg=getServicesConfig(user?.primary_branch_id||branchId||null)
+const cfg=getServicesConfig(svcBranch||user?.primary_branch_id||branchId||null)
 if(selSvc==='ajeer_contract'){
   const months=parseInt(fields.contract_months)||0
   const{baseFee,baseMonths,perMonthAfter,saudizationEnabled,saudizationThreshold,saudizationPerWorker}=cfg.ajeer
@@ -912,7 +945,7 @@ if(selSvc==='custom'){
   return{lines:[{label:customName.trim()||'خدمة عامة',amount:0}]}
 }
 return null
-},[selSvc,fields,selWorker,customName,ajeerWorkerCount,user,branchId])
+},[selSvc,fields,selWorker,customName,ajeerWorkerCount,user,branchId,svcBranch])
 
 // ── Other services: editable pricing state + lines ──
 const[otherServicePricing,setOtherServicePricing]=useState({overrides:{},extras:[],absherBalance:'',discount:''})
@@ -1421,6 +1454,8 @@ return true
 const getStepError=()=>{const cap={v:''};errCaptureRef.current=cap;try{canNext()}finally{errCaptureRef.current=null}return cap.v}
 
 const goNext=async()=>{
+// خطوة المكتب (قبل الخدمة): تأكيد المكتب المختار ثم المتابعة للخدمة.
+if(onBranchScreen){if(svcBranch){setBranchConfirmed(true);setErr('')}return}
 if(!canNext())return
 // Step 1 → 2: pick the step-2 sub-mode. Client-less services (supplier payroll) open directly on
 // worker selection — clear any stale client link so submit records no client_id.
@@ -1508,6 +1543,8 @@ setStep(s=>Math.min(s+1,5))
 }
 const goBack=()=>{
 setErr('')
+// من خطوة الخدمة رجوعاً إلى خطوة اختيار المكتب.
+if(step===1&&needBranch&&branchConfirmed){setBranchConfirmed(false);return}
 if(step===2&&step2Mode==='worker'){if(skipClientStep){setStep(1);return}setStep2Mode('client');return}
 // Step 3 kafala sub-flow: removed — quote search is the entire step now
 // Step 3 passport sub-flow: new passport fields → current data+type
@@ -1539,8 +1576,8 @@ setStep(s=>Math.max(s-1,1))
 const handleSubmit=async()=>{
 if(saving)return
 // Branch on every write follows the user's primary branch — falling back to the dashboard filter if absent.
-const userBranchId=user?.primary_branch_id||branchId||null
-if(!userBranchId){setErr(T('لا يوجد مكتب مرتبط بحسابك — تواصل مع مدير النظام لتعيين مكتبك','No office linked to your account — contact the system admin to assign your office'));return}
+const userBranchId=svcBranch||user?.primary_branch_id||branchId||null
+if(!userBranchId){setErr(needBranch?T('يرجى اختيار المكتب في الخطوة الأولى','Please select the office in the first step'):T('لا يوجد مكتب مرتبط بحسابك — تواصل مع مدير النظام لتعيين مكتبك','No office linked to your account — contact the system admin to assign your office'));return}
 
 // ─── Hard pricing validation — enforce Service Admin minimums BEFORE any DB writes ───
 // The visa flow lets the user override the total and per-installment amounts. Block save
@@ -1999,6 +2036,7 @@ return<FKModal open onClose={closeSuccess} variant="create" width={680}
 return (()=>{
 const titles=[T('الخدمة','Service'),T('العميل','Client'),T('التفاصيل','Details'),T('الفاتورة','Invoice'),T('الدفع','Payment')]
 let curTitle=step===2&&step2Mode==='worker'?T('العامل','Worker'):(titles[step-1]||'')
+if(onBranchScreen)curTitle=T('المكتب','Office')
 // Kafala transfer reorders steps 2↔3: quote (التفاصيل) first, then the client (العميل) party step.
 if(QUOTE_SVCS.has(selSvc)){if(step===2)curTitle=T('التفاصيل','Details');else if(step===3)curTitle=T('العميل','Client')}
 if(step===5&&showSummaryScreen)curTitle=T('الملخص','Summary')
@@ -2059,8 +2097,26 @@ input[type=number]{-moz-appearance:textfield}
 
 {/* الترويسة + شريط التقدّم + عنوان الخطوة + التذييل: كلها من FormKit Modal الآن */}
 
+{/* ═══ Step 0: Choose Office (before service) — GM / multi-office users ═══ */}
+{onBranchScreen&&<div style={{flex:1,display:'flex',flexDirection:'column',minHeight:0}}>
+<ModalSection flex Icon={Building2} label={T('اختر المكتب','Select office')} hint={T('المكتب الذي ستُصدر منه الفاتورة','The office this invoice is issued from')} style={{marginTop:0}}>
+<div className="sr-scroll" style={{position:'relative',flex:1,minHeight:260,overflowY:'auto',overflowX:'hidden',paddingLeft:4}}>
+{branchOptions.length===0&&<Spinner label={T('جارٍ تحميل المكاتب...','Loading offices...')}/>}
+<div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,gridAutoRows:'1fr'}}>
+{branchOptions.map(b=>{const sel=svcBranch===b.id;return(
+<div key={b.id} className={`bento-card${sel?' selected':''}`} onClick={()=>setSvcBranch(b.id)}>
+{sel&&<div className="bento-check"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>}
+<div className="bento-icon"><Building2 size={22} color={C.bentoGold} strokeWidth={1.5}/></div>
+<div className="bento-label">{b.name_ar||b.branch_code}</div>
+{b.branch_code&&<div className="bento-sub">{b.branch_code}</div>}
+</div>)})}
+</div>
+</div>
+</ModalSection>
+</div>}
+
 {/* ═══ Step 1: Choose Service (Bento Grid) ═══ */}
-{step===1&&<div style={{flex:1,display:'flex',flexDirection:'column',minHeight:0}}>
+{step===1&&!onBranchScreen&&<div style={{flex:1,display:'flex',flexDirection:'column',minHeight:0}}>
 <style>{`
 .bento-card{padding:12px 10px;border-radius:12px;cursor:pointer;transition:all .2s;background:var(--card-grad2);border:1px solid var(--bd);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;position:relative;min-height:86px;box-shadow:var(--shadow-sm)}
 .bento-card:hover{background:rgba(176,125,0,.09);border-color:rgba(176,125,0,.3)}
@@ -2108,7 +2164,7 @@ input[type=number]{-moz-appearance:textfield}
 {/* ─── Main Bento Grid View ─── */}
 <div style={{position:'absolute',inset:0,opacity:showOthers?0:1,transform:showOthers?'translateX(20px)':'translateX(0)',transition:'opacity .3s, transform .3s',pointerEvents:showOthers?'none':'auto'}}>
 <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,height:'100%',gridAutoRows:'1fr'}}>
-{MAIN_SERVICES.map(s=>{const I=s.Icon;const sel=selSvc===s.id;const active=isServiceActive(s.id);const billable=isServiceBillable(s.id)
+{MAIN_SERVICES.map(s=>{const I=s.Icon;const sel=selSvc===s.id;const active=gm?true:isServiceActive(s.id);const billable=isServiceBillable(s.id)
 return<div key={s.id} className={`bento-card${sel?' selected':''}${!active?' disabled-card':''}`} onClick={()=>{if(active)setSelSvc(s.id)}} style={!active?{opacity:.45,cursor:'not-allowed',filter:'grayscale(.6)'}:{}}>
 {!active&&<div className="bill-dot" style={{borderColor:'rgba(192,57,43,.6)',color:'#e66659'}} data-tip={T('معطّلة','Disabled')}>{T('معطّلة','Disabled')}</div>}
 <div className="bento-icon"><I size={22} color={C.bentoGold} strokeWidth={1.5}/></div>
@@ -2130,7 +2186,7 @@ return<div key={s.id} className={`bento-card${sel?' selected':''}${!active?' dis
 <div className="bento-icon"><ArrowRight size={22} color="var(--accent)" strokeWidth={1.5}/></div>
 <div className="bento-label">{T('الرئيسية','Main')}</div>
 </div>
-{OTHER_SERVICES.map(s=>{const I=s.Icon;const sel=selSvc===s.id;const active=isServiceActive(s.id);const billable=isServiceBillable(s.id)
+{OTHER_SERVICES.map(s=>{const I=s.Icon;const sel=selSvc===s.id;const active=gm?true:isServiceActive(s.id);const billable=isServiceBillable(s.id)
 return<div key={s.id} className={`bento-card${sel?' selected':''}${!active?' disabled-card':''}`} onClick={()=>{if(active)setSelSvc(s.id)}} style={!active?{opacity:.45,cursor:'not-allowed',filter:'grayscale(.6)'}:{}}>
 {!active&&<div className="bill-dot" style={{borderColor:'rgba(192,57,43,.6)',color:'#e66659'}} data-tip={T('معطّلة','Disabled')}>{T('معطّلة','Disabled')}</div>}
 <div className="bento-icon"><I size={22} color={C.bentoGold} strokeWidth={1.5}/></div>
@@ -4455,7 +4511,7 @@ onMouseLeave={e=>{e.currentTarget.style.background='rgba(176,125,0,.02)'}}>
 )
 // صفحة واحدة لكل خطوة معروضة — المحتوى نفسه (الحالة الداخلية تحدد ما يُرسم)
 // زر «التالي» يُعطَّل حتى تكتمل حقول/اختيارات الخطوة الحالية (getStepError يُرجع '' عند الاكتمال).
-const stepValid=!getStepError()
+const stepValid=onBranchScreen?!!svcBranch:!getStepError()
 // إشعار استباقي في البوتوم بار: في تغيير المهنة، إن لم تكن مهنة العامل الحالية مسجّلة يظهر السبب فور
 // عرض خطوة العامل — لأن زر «التالي» معطّل أصلاً فلا يمكن إظهار الرسالة بالنقر عليه.
 const professionBlockNote=(selSvc==='profession_change'&&step===2&&step2Mode==='worker'&&selWorker&&!selWorker?.occupation?.value_ar)?T('بيانات مهنة العامل غير موجودة الرجاء التواصل مع الموظف المختص','Worker occupation data is missing — please contact the responsible employee'):''
