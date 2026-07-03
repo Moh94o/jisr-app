@@ -770,14 +770,16 @@ function StatsCards({ T, periodStats, svcToday, mode = 'real' }) {
           <span style={{ fontSize: 24, color: 'var(--tx)', fontWeight: 600, letterSpacing: '.2px' }}>{T('نقدًا', 'Cash')}</span>
           <div style={{ direction: 'ltr', textAlign: 'right' }}>
             <span style={{ fontSize: 46, fontWeight: 600, color: C.gold, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{num(cashSum)}</span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <span style={{ fontSize: 12.5, color: 'var(--tx3)', fontWeight: 600 }}>{T('عدد العمليات', 'Receipts')} <span style={{ color: C.gold, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(cashCnt)}</span></span>
             {/* الصافي النقدي — النقد بعد خصم المرتجعة/الملغاة */}
-            <div style={{ direction: 'rtl', marginTop: 8, display: 'flex', alignItems: 'baseline', gap: 6 }}>
+            <div style={{ direction: 'rtl', display: 'flex', alignItems: 'baseline', gap: 6 }}>
               <span style={{ fontSize: 12.5, color: 'var(--tx3)', fontWeight: 600 }}>{T('الصافي النقدي', 'Net Cash')}</span>
               <span style={{ fontSize: 17, fontWeight: 600, color: netCash < 0 ? C.red : '#27a046', direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(netCash)}</span>
               <span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>{T('ريال', 'SAR')}</span>
             </div>
           </div>
-          <span style={{ fontSize: 12.5, color: 'var(--tx3)', fontWeight: 600 }}>{T('عدد العمليات', 'Receipts')} <span style={{ color: C.gold, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(cashCnt)}</span></span>
         </div>
         <div style={{ position: 'relative', width: 72, background: `linear-gradient(180deg, ${C.gold}1a, ${C.gold}08)`, borderInlineStart: '1px solid var(--bd)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           <Wallet size={30} color={C.gold} />
