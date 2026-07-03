@@ -273,6 +273,16 @@ export const isInvoiceIssuer = (user) => {
   return user?.role?.name_ar === INVOICE_ISSUER_ROLE_AR
 }
 
+const ACCOUNTANT_ROLE_AR = 'محاسب'
+export const isAccountant = (user) => {
+  if (isGM(user)) return false
+  if (Array.isArray(user?.roleNames) && user.roleNames.length) return user.roleNames.includes(ACCOUNTANT_ROLE_AR)
+  return user?.role?.name_ar === ACCOUNTANT_ROLE_AR
+}
+
+// Roles that land on (and refresh into) the invoices page instead of the home dashboard.
+export const landsOnInvoices = (user) => isInvoiceIssuer(user) || isAccountant(user)
+
 // The concrete list of office ids a user may operate in for a tab. GM ⇒ null
 // (meaning "no restriction — all offices"). For non-GM: 'all' ⇒ null,
 // 'specific' ⇒ the chosen ids, 'inherit' ⇒ the account's own offices.
