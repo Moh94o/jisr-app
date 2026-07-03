@@ -1378,7 +1378,6 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
         // An invoice "belongs" to the day as a new invoice only if it was created that day.
         const createdThisDay = (r) => businessDayKey(r.created_at) === dayKey
         const newRows = dayRows.filter(createdThisDay)
-        const dayTotal = newRows.reduce((s, r) => s + Number(r.total_amount || 0), 0)
         // المُحصّل = الدفعات الموجبة الصحيحة في هذا اليوم فقط (لا تُخصم منها المستردات — تظهر مستقلة بالأحمر).
         const dayPaid  = dayRows.reduce((s, r) => s + dayPaymentsOf(r).filter(p => Number(p.amount) > 0).reduce((a, p) => a + Number(p.amount || 0), 0), 0)
         const dayPmtCount = dayRows.reduce((s, r) => s + (createdThisDay(r) ? 0 : dayPaymentsOf(r).length), 0)
@@ -1390,6 +1389,8 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
               .reduce((a, p) => a + (!p.is_valid ? Math.abs(Number(p.amount) || 0) : (Number(p.amount) < 0 ? -Number(p.amount) : 0)), 0), 0)
         const dayCancelled = dayRows.reduce((s, r) => s + (r.status?.code === 'cancelled' ? Number(r.paid_amount || 0) : 0), 0)
         const dayVoid = dayRefunded + dayCancelled
+        // الصافي اليومي = المُحصّل − المُعاد للعميل (المرتجع + الملغى). قد يكون سالباً في يوم كثُرت فيه الإلغاءات.
+        const dayNet = dayPaid - dayVoid
         return (
           <div key={dayKey} style={{ marginBottom: 28 }}>
             <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12, paddingBottom: 10, borderBottom: '1px solid var(--bd)' }}>
@@ -1400,7 +1401,7 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
               <div style={{ fontSize: 11, color: 'var(--tx3)', display: 'flex', gap: 16, fontWeight: 600 }}>
                 <span>{num(newRows.length)} {T('فاتورة','invoices')}</span>
                 {dayPmtCount > 0 && <span style={{ color: C.blue, fontVariantNumeric: 'tabular-nums' }}>{num(dayPmtCount)} {dayPmtCount === 1 ? T('دفعة','pmt') : T('مدفوعات','pmts')}</span>}
-                <span style={{ color: C.gold, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(dayTotal)}</span>
+                <span title={T('الصافي اليومي','Daily net')} style={{ color: dayNet >= 0 ? C.ok : C.red, direction: 'ltr', fontVariantNumeric: 'tabular-nums', fontWeight: 700 }}>{dayNet < 0 ? '− ' : ''}{num(Math.abs(dayNet))}</span>
                 <span style={{ color: C.ok, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>+ {num(dayPaid)}</span>
                 {dayVoid > 0 && <span style={{ color: C.red, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }} title={T('الملغى والمسترد','Cancelled & refunded')}>− {num(dayVoid)}</span>}
               </div>
