@@ -540,9 +540,9 @@ function InvCard({ d, row, sb, T, isAr, toast, onClick }) {
   const dataSide = (
     <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
       {/* ١) صف الرأس — شبكة ٣ أعمدة ليبقى وسط الشرائح حقيقياً */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: 12, padding: '9px 20px 5px' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 3, justifySelf: 'start', minWidth: 0 }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 9, minWidth: 0 }}><Name /><Flag s={21} /></span>
+      <div className="inv-card-head" style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: 12, padding: '9px 20px 5px' }}>
+        <div className="inv-head-name" style={{ display: 'flex', flexDirection: 'column', gap: 3, justifySelf: 'start', minWidth: 0, maxWidth: '100%', overflow: 'hidden' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 9, minWidth: 0, maxWidth: '100%' }}><Name /><Flag s={21} /></span>
           {(d.partyId || d.branchCode) && (
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 10.5, color: 'var(--tx3)', fontWeight: 600, lineHeight: 1 }}>
               {d.partyId && <span title={d.partyIdLabel} style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums', fontFamily: 'monospace' }}>{d.partyId}</span>}
@@ -1364,7 +1364,7 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
             <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx2)', marginTop: 12, lineHeight: 1.6 }}>{T('إدارة الفواتير والطلبات والمعاملات وحالات السداد ومتابعة المدفوعات','Manage invoices, requests, transactions, payment status and payments')}</div>
             <div style={{ fontSize: 12, fontWeight: 500, color: statFilters.active ? C.gold : 'var(--tx3)', marginTop: 6, lineHeight: 1.6, opacity: .8 }}>{statFilters.active ? T('كروت الإحصاء تعكس التصفية الحالية', 'The stat cards reflect the active filter') : T('كروت الإحصاء والفواتير والطلبات تعرض حركة اليوم وتبدأ من الساعة 5:00 فجراً بتوقيت الرياض', 'The stats, invoices and requests cards show today’s activity, starting at 5:00 AM Riyadh time')}</div>
           </div>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+          <div className="page-cta-row" style={{ display: 'inline-flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
             {/* زر واتساب — نفس أيقونة كرت الفاتورة لكن للملخص الشامل: ينسخ حركة اليوم كاملة (5 فجراً → 5 فجراً) */}
             <button title={statFilters.active ? T('نسخ ملخص التصفية الحالية (واتساب)', 'Copy current-filter summary (WhatsApp)') : T('نسخ ملخص اليوم (واتساب)', 'Copy day summary (WhatsApp)')} onClick={copyDaySummary} disabled={waSumBusy}
               style={{ width: 42, height: 42, borderRadius: 11, border: '1px solid var(--bd)', background: 'var(--inputBg)', color: waSumCopied ? C.ok : '#25D366', cursor: waSumBusy ? 'default' : 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', transition: '.15s', flexShrink: 0, opacity: waSumBusy ? .5 : 1, padding: 0, boxShadow: '0 2px 7px rgba(0,0,0,.12), inset 0 1px 0 rgba(176,125,0,.10)' }}

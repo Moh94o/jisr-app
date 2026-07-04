@@ -374,7 +374,7 @@ const CalendarPopup = ({ value, onPick, onClose, anchor, min, max }) => {
   for (let d = 1; d <= daysInMonth; d++) cells.push(d)
   const isToday = (y, m, d) => today.getFullYear() === y && today.getMonth() === m && today.getDate() === d
   const navBtn = { width: 28, height: 28, borderRadius: 7, border: '1px solid var(--bd)', background: 'var(--bd2)', color: ac, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, transition: '.15s' }
-  const POPUP_H = 320, POPUP_W = Math.max(392, anchor.width)
+  const POPUP_H = 320, POPUP_W = Math.min(Math.max(392, anchor.width), window.innerWidth - 16)
   const flipUp = (window.innerHeight - anchor.bottom) < POPUP_H + 10
   const top = flipUp ? Math.max(8, anchor.top - POPUP_H - 6) : anchor.bottom + 6
   const left = Math.max(8, Math.min(window.innerWidth - POPUP_W - 8, anchor.left + anchor.width / 2 - POPUP_W / 2))
@@ -1031,6 +1031,16 @@ export const ScrollBox = ({ children, maxHeight = 300, fill = false, style }) =>
 // اللون الأساسي للنافذة حسب نوعها: إنشاء=ذهبي · تعديل=سماوي · حذف=أحمر · إضافة=أخضر
 export const VARIANT_COLORS = { create: C.gold, edit: '#36a8e6', delete: C.red, add: C.ok }
 
+// على الجوال تتحول كل النوافذ إلى Bottom Sheet بعرض الشاشة (مقبض سحب + انزلاق من الأسفل)
+// حتى تعطي إحساس تطبيق جوال حقيقي. شاشة النجاح المربعة تبقى موسَّطة.
+const SHEET_CSS = `
+@media(max-width:640px){
+  .fk-modal-ovl:not(.fk-ovl-center){padding:0!important;align-items:flex-end!important}
+  .fk-modal-box{width:100%!important;max-width:100%!important;border-radius:22px 22px 0 0!important;max-height:calc(100dvh - 20px)!important;box-shadow:0 -18px 60px var(--shadowClr)!important;animation:fk-sheet .32s cubic-bezier(.32,.72,0,1);padding-bottom:max(env(safe-area-inset-bottom),2px)}
+  .fk-modal-box::before{content:'';position:absolute;top:7px;left:50%;transform:translateX(-50%);width:42px;height:4px;border-radius:99px;background:var(--tx6);z-index:5}
+}
+@keyframes fk-sheet{from{transform:translateY(46px);opacity:.5}to{transform:none;opacity:1}}`
+
 export function Modal({ open, onClose, title, subtitle, Icon, width = 720, children, footer, footerStart, errorMsg,
   closeOnOverlay = false, headerExtra, variant = 'create', accent, scroll = false,
   hideHeader = false, hideClose = false, height, success,
@@ -1086,8 +1096,9 @@ export function Modal({ open, onClose, title, subtitle, Icon, width = 720, child
   if (success) {
     return ReactDOM.createPortal(
       <AccentContext.Provider value={AC}>
-      <div onClick={() => closeOnOverlay && onClose?.()}
+      <div className="fk-modal-ovl fk-ovl-center" onClick={() => closeOnOverlay && onClose?.()}
         style={{ position: 'fixed', inset: 0, background: 'var(--overlayBg)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
+        <style>{SHEET_CSS}</style>
         <div onClick={e => e.stopPropagation()}
           style={{ background: C.modal, borderRadius: 18, width: 'min(300px, 90vw)', aspectRatio: '1 / 1', maxHeight: '95vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 24px 60px var(--shadowClr)', border: `1px solid ${AC}24`, position: 'relative' }}>
           <button onClick={() => onClose?.()}
@@ -1107,10 +1118,11 @@ export function Modal({ open, onClose, title, subtitle, Icon, width = 720, child
 
   return ReactDOM.createPortal(
     <AccentContext.Provider value={AC}>
-    <div onClick={() => closeOnOverlay && onClose?.()}
+    <div className="fk-modal-ovl" onClick={() => closeOnOverlay && onClose?.()}
       style={{ position: 'fixed', inset: 0, background: 'var(--overlayBg)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
-      <div onClick={e => e.stopPropagation()}
-        style={{ background: C.modal, borderRadius: 18, width, maxWidth: '95vw', height: boxHeight, maxHeight: '95vh', display: 'flex', flexDirection: 'column', overflow: 'visible', boxShadow: '0 24px 60px var(--shadowClr)', border: `1px solid ${AC}24` }}>
+      <style>{SHEET_CSS}</style>
+      <div className="fk-modal-box" onClick={e => e.stopPropagation()}
+        style={{ position: 'relative', background: C.modal, borderRadius: 18, width, maxWidth: '95vw', height: boxHeight, maxHeight: '95vh', display: 'flex', flexDirection: 'column', overflow: 'visible', boxShadow: '0 24px 60px var(--shadowClr)', border: `1px solid ${AC}24` }}>
         <div dir={dir} style={{ fontFamily: F, color: C.tx2, display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
 
           {/* الترويسة — تُخفى عبر hideHeader عند تضمين مكوّن له ترويسته الخاصة */}

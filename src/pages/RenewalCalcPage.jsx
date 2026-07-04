@@ -95,7 +95,7 @@ function RnwSkeleton({ listRows = 6 }) {
       </div>
     </div>
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      {Array.from({ length: listRows }).map((_, i) => <div key={i} style={{ borderRadius: 18, background: 'var(--card-grad2)', border: '1px solid var(--bd)', boxShadow: 'var(--shadow-md)', padding: '18px 22px 22px', display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 22, alignItems: 'center' }}>
+      {Array.from({ length: listRows }).map((_, i) => <div key={i} className='calc-list-card' style={{ borderRadius: 18, background: 'var(--card-grad2)', border: '1px solid var(--bd)', boxShadow: 'var(--shadow-md)', padding: '18px 22px 22px', display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 22, alignItems: 'center' }}>
         <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 9 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>{bar('30%', 14)}{bar(24, 16, 3)}</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '9px 16px' }}>
@@ -1510,7 +1510,7 @@ ${noticeBlk}
             const isExpired = showValidity && remainingMs <= 0
             const isInvoiced = r.status === 'invoiced' || r.status === 'completed'
             const isCancelled = r.status === 'cancelled'
-            return <div key={r.id} onClick={() => setDetailsRow(r)} style={{ background: 'var(--card-grad2)', borderRadius: 18, overflow: 'hidden', transition: 'all .15s', border: '1px solid ' + (isExpired ? 'rgba(192,57,43,.35)' : 'var(--bd)'), position: 'relative', cursor: 'pointer', padding: '18px 22px 22px', display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 22, alignItems: 'center', opacity: isExpired ? .7 : 1, boxShadow: 'var(--shadow-md)' }}
+            return <div key={r.id} className='calc-list-card' onClick={() => setDetailsRow(r)} style={{ background: 'var(--card-grad2)', borderRadius: 18, overflow: 'hidden', transition: 'all .15s', border: '1px solid ' + (isExpired ? 'rgba(192,57,43,.35)' : 'var(--bd)'), position: 'relative', cursor: 'pointer', padding: '18px 22px 22px', display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 22, alignItems: 'center', opacity: isExpired ? .7 : 1, boxShadow: 'var(--shadow-md)' }}
               onMouseEnter={e => { e.currentTarget.style.borderColor = sc + '55' }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = isExpired ? 'rgba(192,57,43,.35)' : 'var(--bd)' }}>
               {/* مؤشّر الصلاحية (5 أيام) */}
@@ -1534,7 +1534,7 @@ ${noticeBlk}
                   <span style={{ fontSize: 14.5, fontWeight: 600, color: 'var(--tx)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, direction: 'ltr', letterSpacing: '-.2px' }}>{r.worker_name || T('عامل', 'Worker')}</span>
                   {natFlag && <img src={natFlag} alt="" style={{ width: 24, height: 17, objectFit: 'cover', flexShrink: 0, borderRadius: 3 }} />}
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '9px 16px' }}>
+                <div className='calc-info-grid' style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '9px 16px' }}>
                   {gcell(idIco, T('رقم الإقامة', 'Iqama No'), r.iqama_number ? <span style={{ fontSize: 11.5, color: 'var(--tx2)', fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums', fontFamily: 'monospace' }}>{r.iqama_number}</span> : null)}
                   {gcell(phIco, T('الجوال', 'Phone'), phoneVal ? <span style={{ fontSize: 11.5, color: 'var(--tx2)', fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums', fontFamily: 'monospace' }}>{phoneVal}</span> : null)}
                   {gcell(brIco, T('المكتب', 'Branch'), branchCode ? <span style={{ fontSize: 11.5, color: 'var(--tx2)', fontWeight: 600, direction: 'ltr' }}>{branchCode}</span> : null)}
@@ -1544,14 +1544,14 @@ ${noticeBlk}
               </div>
 
               {/* القسم 2: الختم الرسمي — آخر مرحلة فقط */}
-              {(() => { const s = stamps[stamps.length - 1]; return s ? <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, padding: '0 6px' }}>
+              {(() => { const s = stamps[stamps.length - 1]; return s ? <div className='calc-stamp-cell' style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, padding: '0 6px' }}>
                 <div style={{ transform: 'scale(0.85)', transformOrigin: 'center' }}>
                   <OfficialStampBadge status={s.label} employeeName={s.name} branchCode={s.branch} date={s.date} color={s.color} rotate={-5} variant="double" />
                 </div>
               </div> : null })()}
 
               {/* القسم 3: الإجمالي */}
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, flexShrink: 0, borderInlineStart: '1px dashed var(--bd)', paddingInlineStart: 24, paddingInlineEnd: 6, paddingTop: 18, minWidth: 120 }}>
+              <div className='calc-total-cell' style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, flexShrink: 0, borderInlineStart: '1px dashed var(--bd)', paddingInlineStart: 24, paddingInlineEnd: 6, paddingTop: 18, minWidth: 120 }}>
                 <div style={{ lineHeight: 1, fontVariantNumeric: 'tabular-nums', textAlign: 'center' }}><bdi style={{ fontSize: 38, fontWeight: 600, color: C.gold, letterSpacing: '-.5px' }}>{nm(Math.round(cc))}</bdi></div>
               </div>
               <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 5, background: 'var(--bd2)' }}><div style={{ height: '100%', width: '100%', background: sc, opacity: .7 }} /></div>
