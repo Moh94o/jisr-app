@@ -434,12 +434,12 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
     const natObjP = { flag_url: tcParty.nationality_flag, name_ar: tcParty.nationality, name_en: tcParty.nationality }
     workerPartyCard = `<div class="card full"><h4>${lab('workerData')}${natBadge(natObjP)}</h4>${kvRow(lab('name'), esc(tcParty.worker_name), true)}${tcParty.iqama_number ? kvRow(lab('iqama'), num2(tcParty.iqama_number)) : ''}${tcParty.iqama_expiry_gregorian ? kvRow(lab('iqamaExpiry'), num2(fmtD(tcParty.iqama_expiry_gregorian))) : ''}${tcParty.dob ? kvRow(lab('birthDate'), `<span style="display:inline-flex;align-items:baseline;gap:5px;direction:ltr">${num2(fmtD(tcParty.dob))}${ageP != null ? ` <span style="color:var(--ink-soft)">(${num2(ageP)})</span>` : ''}</span>`) : ''}${wPhoneP ? kvRow(lab('phone'), num2(wPhoneP)) : ''}</div>`
   }
-  const clientCard = `<div class="card${agent ? '' : ' full'}"><h4>${lab(clientHdr)}${natBadge(client && client.nationality)}</h4>${nameBoth(client)}${clientId ? kvRow(isWorker ? lab('iqama') : lab('id'), num2(clientId)) : ''}${clientPhone ? kvRow(lab('phone'), num2(fmtPhone(clientPhone))) : ''}</div>`
-  let agentCard = ''
-  if (agent) {
-    agentCard = `<div class="card"><h4>${lab('agentData')}${natBadge(agent.nationality)}</h4>${kvRow(lab('name'), esc(personName(agent)), true)}${agent.id_number ? kvRow(lab('id'), num2(agent.id_number)) : ''}${agent.phone ? kvRow(lab('phone'), num2(fmtPhone(agent.phone))) : ''}</div>`
-  }
-  const partiesBlk = secTitle('parties') + `<div class="cards">${clientCard}${agentCard}${workerPartyCard}</div>`
+  // الوسيط لا يُعرض كطرف في كرت — هو مرجع داخلي لصاحب المكتب فقط (من جلب العميل)،
+  // فيظهر اسمه فقط بشكل خافت في تذييل الصفحة (agentFoot أدناه) بدل بطاقة الأطراف.
+  const clientCard = `<div class="card full"><h4>${lab(clientHdr)}${natBadge(client && client.nationality)}</h4>${nameBoth(client)}${clientId ? kvRow(isWorker ? lab('iqama') : lab('id'), num2(clientId)) : ''}${clientPhone ? kvRow(lab('phone'), num2(fmtPhone(clientPhone))) : ''}</div>`
+  const partiesBlk = secTitle('parties') + `<div class="cards">${clientCard}${workerPartyCard}</div>`
+  // سطر خافت للوسيط في التذييل — الاسم فقط، بلا هوية/جوال.
+  const agentFoot = agent ? `<span class="agent-foot">${lab('agent')}: ${esc(personName(agent))}</span>` : ''
 
   let workerCard = ''
   if (distinctWorker) {
@@ -1006,7 +1006,7 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
     ${txnBlk}
     ${noteBlk}
   </div>
-  <div class="page-foot"><div class="footer-bar"><span class="kufi">تأشيرة البناء والإنشاء — VISA ALBINA &amp; ALINSHA</span><span>${lab('invoice')} <span class="num">${esc(invoiceNo)}</span> · ${lab('page')} <span class="num">1 / 1</span></span></div></div>
+  <div class="page-foot"><div class="footer-bar"><span class="kufi">تأشيرة البناء والإنشاء — VISA ALBINA &amp; ALINSHA</span>${agentFoot}<span>${lab('invoice')} <span class="num">${esc(invoiceNo)}</span> · ${lab('page')} <span class="num">1 / 1</span></span></div></div>
 </div>`
   const twoPageBody = `
 <div class="page">
@@ -1018,7 +1018,7 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
     ${instTbl}
     ${payTbl}
   </div>
-  <div class="page-foot"><div class="footer-bar"><span class="kufi">تأشيرة البناء والإنشاء — VISA ALBINA &amp; ALINSHA</span><span>${lab('invoice')} <span class="num">${esc(invoiceNo)}</span> · ${lab('page')} <span class="num">1 / 2</span></span></div></div>
+  <div class="page-foot"><div class="footer-bar"><span class="kufi">تأشيرة البناء والإنشاء — VISA ALBINA &amp; ALINSHA</span>${agentFoot}<span>${lab('invoice')} <span class="num">${esc(invoiceNo)}</span> · ${lab('page')} <span class="num">1 / 2</span></span></div></div>
 </div>
 <div class="page page2">
   ${wm2}
@@ -1223,6 +1223,7 @@ td .amt{font-weight:600}
 .notice .en{font-size:9.5px;line-height:1.5;color:#9b937e;direction:ltr;text-align:left;margin-top:4px;border-top:1px solid rgba(255,255,255,.08);padding-top:4px}
 .footer-bar{display:flex;justify-content:space-between;align-items:center;padding:4mm 0;font-size:10px;color:#8a826b}
 .footer-bar .kufi{color:var(--gold-deep);letter-spacing:1px}
+.footer-bar .agent-foot{color:#a89f88;font-size:9px;opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60mm}
 .footer-bar .signs{display:flex;gap:12mm}
 .footer-bar .sign{text-align:center}
 .footer-bar .sign .ln2{width:38mm;border-top:1px solid var(--hair);margin-bottom:3px}

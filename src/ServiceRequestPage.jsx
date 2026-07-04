@@ -588,8 +588,9 @@ const svcInputs=useMemo(()=>(selectedService?.inputs?.length?selectedService.inp
 const svcSingleField=useMemo(()=>(selSvc&&!CLIENT_SERVICES.has(selSvc))?null:((!VISA_SERVICES.has(selSvc)&&selSvc!=='iqama_renewal'&&selSvc!=='profession_change'&&selSvc!=='final_exit_visa'&&selSvc!=='exit_reentry_visa'&&selSvc!=='custom'&&selSvc!=='iqama_print'&&svcInputs.length===1)?svcInputs[0]:null),[selSvc,svcInputs])
 const hasMergedField=!!svcSingleField
 // The note sub-step now appears for every service (a dedicated step before the summary).
-// The broker (الوسيط) field inside it is only relevant for permanent work visa and kafala transfer.
-const showBroker=selSvc==='work_visa_permanent'||selSvc==='kafala_transfer'
+// The broker (الوسيط) field inside it is offered for every service — an optional agent can be
+// attached to any invoice, exactly like permanent work visa and kafala transfer.
+const showBroker=!!selSvc
 const hasBrokerStep=!!selSvc
 // ── خطوة اختيار المكتب ──────────────────────────────────────────────────────
 // المدير العام يختار من كل المكاتب؛ غيره من مكاتبه فقط. تظهر الخطوة عند وجود أكثر من خيار.
@@ -4321,7 +4322,7 @@ return<div style={{flex:1,minHeight:0,display:'flex',flexDirection:'column',gap:
 </div>
 {/* الخدمات ذات الدفعة الواحدة: المبلغ المدفوع = الإجمالي دائماً، فيُعرض كقيمة لا كحقل إدخال */}
 {(VISA_SERVICES.has(selSvc)||selSvc==='kafala_transfer'||selSvc==='iqama_renewal')
-?<><FKCurrency full value={paidAmount} placeholder="0.00"
+?<><FKCurrency full big value={paidAmount} placeholder="0.00"
 onChange={v=>{if(v===''){setPaidAmount('');return}let n=Number(v);if(isNaN(n))return;if(n<0)n=0;const cap=(VISA_SERVICES.has(selSvc)&&totalOverride!==null)?totalOverride:pricing.total;if(n>cap)n=cap;setPaidAmount(String(n))}}/>
 {(()=>{const eff=(VISA_SERVICES.has(selSvc)&&totalOverride!==null)?totalOverride:pricing.total;const p=Number(paidAmount)||0;
 if(p<eff&&eff>0)return<div style={{fontSize:11,fontWeight:600,color:C.red,fontFamily:F,direction:dir,textAlign:isAr?'left':'right'}}>{T('المتبقي','Remaining')} <span style={{direction:'ltr',display:'inline-block'}}>{fmtAmt((eff-p).toFixed(2))}</span> {T('ريال','SAR')}</div>

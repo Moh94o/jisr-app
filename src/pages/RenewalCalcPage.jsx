@@ -4,7 +4,7 @@ import { C, F, EmptyState, Modal as FKModal, ModalSection, TextArea, TextField, 
 import { can as canPerm, cardVisible, canCardBtn, tabOffices, fieldVisible, fieldEditable, modalAllowed, isGM } from '../lib/permissions.js'
 import { noDash } from '../lib/utils.js'
 import { navSetHere } from '../lib/navStack.js'
-import { swrGet, swrSet, useLiveRefresh } from '../lib/liveData.js'
+import { swrGet, swrSet, useLiveRefresh, getTestBranchIds, excludeTestBranchesOr } from '../lib/liveData.js'
 import { getIqamaRenewalPricingConfig } from '../lib/kafalaPricing.js'
 import { computeRenewalDerived } from '../lib/renewalDerived.js'
 import OfficialStampBadge from '../components/ui/OfficialStampBadge.jsx'
@@ -201,6 +201,7 @@ export default function RenewalCalcPage({ sb, toast, user, lang, emptyIcon, onNe
     let calcQ = sb.from('iqama_renewal_calculation').select('*').is('deleted_at', null).order('created_at', { ascending: false }).limit(500)
     // المستخدم المقيّد بمكتب يرى حسبات مكاتبه فقط — الحسبات بلا فرع (اليتيمة) تُستبعد (يراها المدير العام فقط)، مطابقةً للـRLS.
     if (officeScope) calcQ = calcQ.or(`branch_id.in.(${officeScope.join(',')})`)
+    else { const testIds = await getTestBranchIds(sb); if (testIds.length) calcQ = calcQ.or(excludeTestBranchesOr(testIds)) }  // «كل المكاتب»: استبعد المكاتب التجريبية
     const res = await Promise.all([
       calcQ,
       sb.from('users').select(USER_SELECT).is('deleted_at', null),
@@ -1202,12 +1203,12 @@ ${noticeBlk}
               {(showApprove || showCancel) && <div style={{ display: 'flex', gap: 8 }}>
               {showApprove && <button onClick={() => { if (expired) { toast(T('انتهت صلاحية التسعيرة — لا يمكن التصديق', 'Quote expired')); return } setApproveSaved(false); const _rc = getIqamaRenewalPricingConfig(r.branch_id || null); setApproveForm({ _id: r.id, _workerName: r.worker_name, _quoteNo: r.quote_no, _total: Number(r.total_amount || 0), _officeFee: Number(r.office_fee || 0), _renewalMonths: Number(r.renewal_months || 0), discValue: '', floorMode: _rc.iqamaOfficeDiscountEnabled === false ? 'none' : 'daily', floorFixed: '', floorDaily: String(_rc.officeDailyRate || cfg.officeDailyRate || ''), approval_note: '' }) }} disabled={expired}
                 onMouseEnter={e => { if (!expired) e.currentTarget.style.filter = 'brightness(.93)' }} onMouseLeave={e => { e.currentTarget.style.filter = 'none' }}
-                style={{ flex: 1, height: 44, padding: '0 14px', borderRadius: 9, background: C.blue, border: '1px solid ' + C.blue, boxShadow: '0 3px 7px rgba(0,0,0,.2)', color: '#fff', cursor: expired ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7, fontFamily: F, fontSize: 12.5, fontWeight: 600, opacity: expired ? .55 : 1, whiteSpace: 'nowrap', transition: 'filter .15s ease' }}>
+                style={{ flex: 1, height: 38, padding: '0 14px', borderRadius: 9, background: C.blue, border: '1px solid ' + C.blue, boxShadow: '0 2px 7px rgba(0,0,0,.12), inset 0 1px 0 rgba(176,125,0,.1)', color: '#fff', cursor: expired ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7, fontFamily: F, fontSize: 12.5, fontWeight: 600, opacity: expired ? .55 : 1, whiteSpace: 'nowrap', transition: 'filter .15s ease' }}>
                 <span>{T('تصديق الحسبة', 'Approve Quote')}</span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
               </button>}
               {showCancel && <button onClick={() => { setCancelSaved(false); setCancelForm({ _id: r.id, _workerName: r.worker_name, _quoteNo: r.quote_no, reason: '' }) }}
                 onMouseEnter={e => { e.currentTarget.style.filter = 'brightness(.93)' }} onMouseLeave={e => { e.currentTarget.style.filter = 'none' }}
-                style={{ flex: 1, height: 44, padding: '0 14px', borderRadius: 9, background: C.red, border: '1px solid ' + C.red, boxShadow: '0 3px 7px rgba(0,0,0,.2)', color: '#fff', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7, fontFamily: F, fontSize: 12.5, fontWeight: 600, whiteSpace: 'nowrap', transition: 'filter .15s ease' }}>
+                style={{ flex: 1, height: 38, padding: '0 14px', borderRadius: 9, background: C.red, border: '1px solid ' + C.red, boxShadow: '0 2px 7px rgba(0,0,0,.12), inset 0 1px 0 rgba(176,125,0,.1)', color: '#fff', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7, fontFamily: F, fontSize: 12.5, fontWeight: 600, whiteSpace: 'nowrap', transition: 'filter .15s ease' }}>
                 <span>{T('إلغاء الحسبة', 'Cancel Quote')}</span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" /></svg>
               </button>}
               </div>}
@@ -1219,7 +1220,7 @@ ${noticeBlk}
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                 {[{ k: 'ar', l: 'عربي', cc: 'sa' }, { k: 'en', l: 'English', cc: 'gb' }, { k: 'hi', l: 'हिन्दी', cc: 'in' }, { k: 'ur', l: 'اردو', cc: 'pk' }, { k: 'bn', l: 'বাংলা', cc: 'bd' }].map(o => (
-                  <button key={o.k} onClick={() => printRenewalDoc(r, o.k)} title={T('طباعة بـ ', 'Print in ') + o.l} style={{ height: 40, padding: '0 10px', borderRadius: 10, background: 'rgba(176,125,0,.06)', border: '1px solid rgba(176,125,0,.22)', color: C.gold, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: F, fontSize: 12, fontWeight: 600, transition: '.15s' }} onMouseEnter={e => { e.currentTarget.style.background = 'rgba(176,125,0,.14)'; e.currentTarget.style.borderColor = 'rgba(176,125,0,.45)' }} onMouseLeave={e => { e.currentTarget.style.background = 'rgba(176,125,0,.06)'; e.currentTarget.style.borderColor = 'rgba(176,125,0,.22)' }}>
+                  <button key={o.k} onClick={() => printRenewalDoc(r, o.k)} title={T('طباعة بـ ', 'Print in ') + o.l} style={{ height: 38, padding: '0 10px', borderRadius: 10, background: 'rgba(176,125,0,.06)', border: '1px solid rgba(176,125,0,.22)', color: C.gold, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: F, fontSize: 12, fontWeight: 600, boxShadow: '0 2px 7px rgba(0,0,0,.12), inset 0 1px 0 rgba(176,125,0,.1)', transition: '.15s' }} onMouseEnter={e => { e.currentTarget.style.background = 'rgba(176,125,0,.14)'; e.currentTarget.style.borderColor = 'rgba(176,125,0,.45)' }} onMouseLeave={e => { e.currentTarget.style.background = 'rgba(176,125,0,.06)'; e.currentTarget.style.borderColor = 'rgba(176,125,0,.22)' }}>
                     <img src={`https://flagcdn.com/w40/${o.cc}.png`} alt="" width="18" height="13" style={{ display: 'block', borderRadius: 2, objectFit: 'cover', flexShrink: 0 }} />
                     <span>{o.l}</span>
                   </button>

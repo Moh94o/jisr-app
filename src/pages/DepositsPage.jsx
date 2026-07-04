@@ -6,6 +6,7 @@ import BackButton from '../components/BackButton'
 import { SkeletonTable, StatStripSkeleton } from '../components/ui/Skeleton.jsx'
 import { can as canPerm, cardVisible, canCardBtn } from '../lib/permissions.js'
 import { noDash } from '../lib/utils.js'
+import { getTestBranchIds, excludeTestBranchesOr } from '../lib/liveData.js'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = { gold: '#B07D00', ok: '#2ecc71', blue: '#5dade2', red: '#e87265', gray: '#95a5a6' }
@@ -80,6 +81,7 @@ export default function DepositsPage({ sb, lang, user, branchId, toast, emptyIco
         deposit_payments(deposit:deposit_id(id,status,kind,deposited_by,verified_by,verified_at,deposited_at,depositor:deposited_by(person:persons!users_person_id_fkey(name_ar,name_en))))
       `).is('deleted_at', null).order('payment_date', { ascending: false, nullsFirst: false }).limit(2000)
       if (scopeBranchId) query = query.eq('branch_id', scopeBranchId)
+      else { const testIds = await getTestBranchIds(sb); if (testIds.length) query = query.or(excludeTestBranchesOr(testIds)) }  // استبعد المكاتب التجريبية من «كل المكاتب»
       const { data, error } = await query
       if (!alive) return
       if (error) { setErr(error.message); setAll([]) } else { setAll(data || []) }
@@ -114,6 +116,7 @@ export default function DepositsPage({ sb, lang, user, branchId, toast, emptyIco
         bank:bank_account_id(bank_name,account_name,account_number,iban)
       `).eq('kind', 'cash').is('deleted_at', null).order('deposit_date', { ascending: false, nullsFirst: false }).limit(2000)
       if (scopeBranchId) dq = dq.eq('branch_id', scopeBranchId)
+      else { const testIds = await getTestBranchIds(sb); if (testIds.length) dq = dq.or(excludeTestBranchesOr(testIds)) }  // استبعد المكاتب التجريبية من «كل المكاتب»
       const { data } = await dq
       if (alive) setCashDeps(data || [])
     })()

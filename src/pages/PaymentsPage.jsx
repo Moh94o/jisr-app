@@ -5,6 +5,7 @@ import { noDash } from '../lib/utils.js'
 import { Modal as FKModal, ModalSection as FKSection, Select as FKSelect, TextField, FileField, SuccessView, InfoRow, InfoGrid, GRID, ConfirmDialog, EmptyState } from '../components/ui/FormKit.jsx'
 import { StatStripSkeleton, SkeletonTable } from '../components/ui/Skeleton.jsx'
 import { can, cardVisible, canCardBtn } from '../lib/permissions.js'
+import { getTestBranchIds } from '../lib/liveData.js'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = {
@@ -102,7 +103,14 @@ export default function PaymentsPage({ sb, lang, user, branchId, toast, emptyIco
       // Restrict to fees explicitly sent via the "تأكيد وسداد" flow (marker or known label),
       // matching the main list filter so stats and rows stay in sync.
       const explicit = (qb) => qb.or('notes.eq.manual_pay_request,fee_label_ar.eq.اشتراك قوى')
-      const scope = (qb) => { let q2 = explicit(qb); return scopeBranchId ? q2.eq('service_request.branch_id', scopeBranchId) : q2 }
+      // «كل المكاتب»: استبعد رسوم المكاتب التجريبية (تظهر فقط عند اختيار المكتب صراحةً)
+      const testIds = scopeBranchId ? [] : await getTestBranchIds(sb)
+      const scope = (qb) => {
+        let q2 = explicit(qb)
+        if (scopeBranchId) return q2.eq('service_request.branch_id', scopeBranchId)
+        if (testIds.length) q2 = q2.not('service_request.branch_id', 'in', `(${testIds.join(',')})`)
+        return q2
+      }
       const baseSel = 'service_request:service_request_id!inner(branch_id)'
       const [pendingHead, pendingSum, paidHead, paidSum, todayPaid, weekPaid, breakdown] = await Promise.all([
         scope(sb.from('transaction_fees').select('id,'+baseSel, { count: 'exact', head: true }).is('deleted_at', null).eq('status', 'pending')),
@@ -164,6 +172,7 @@ export default function PaymentsPage({ sb, lang, user, branchId, toast, emptyIco
       if (from) qb = qb.gte('created_at', from)
       if (to) qb = qb.lte('created_at', to + 'T23:59:59')
       if (scopeBranchId) qb = qb.eq('service_request.branch_id', scopeBranchId)
+      else { const testIds = await getTestBranchIds(sb); if (testIds.length) qb = qb.not('service_request.branch_id', 'in', `(${testIds.join(',')})`) }  // استبعد المكاتب التجريبية من «كل المكاتب»
       if (q && q.trim()) qb = qb.or(`sadad_no.ilike.%${q.trim()}%,reference_no.ilike.%${q.trim()}%,bank_reference.ilike.%${q.trim()}%`)
       qb = qb.order('created_at', { ascending: false }).range(page * PAGE, page * PAGE + PAGE - 1)
 

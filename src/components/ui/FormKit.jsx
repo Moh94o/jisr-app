@@ -471,15 +471,17 @@ export const NumberField = ({ label, req, error, hint, value, onChange, placehol
 // مبلغ بالريال — الرقم و"ريال" مجموعة واحدة في منتصف الحقل.
 // big: نسخة بارزة للحقل الأساسي (مثل المبلغ المدفوع) — أطول وأكبر خطّاً مع إبقاء شكل الإدخال
 // العادي (خلفية غامقة) كي يبان كحقل إدخال لا كعرض؛ البروز من الحجم لا من التلوين.
-export const CurrencyField = ({ label, req, error, hint, value, onChange, placeholder = '0.00', unit, full, padX, big, disabled }) => {
+export const CurrencyField = ({ label, req, error, hint, value, onChange, placeholder = '0.00', unit, full, padX, big, height, disabled }) => {
   const { T } = useFKLang()
   unit = unit ?? T('ريال', 'SAR')
   const ac = useContext(AccentContext)
   const display = fmtThousands(value)
   const widthCh = Math.max(4, (display || placeholder).length) + 1
+  // height: تكبير ارتفاع الحقل فقط (بدون تغيير حجم الخط) — يتجاوز الارتفاع الافتراضي 42/58.
+  const boxH = height || (big ? 58 : 42)
   return (
     <Field label={label} req={req} error={error} hint={hint} full={full} style={padX ? { paddingLeft: padX, paddingRight: padX } : undefined}>
-      <div style={{ display: 'flex', direction: 'ltr', alignItems: 'center', justifyContent: 'center', gap: big ? 8 : 6, border: '1px solid transparent', borderRadius: big ? 12 : 9, background: C.inputBg, boxShadow: errRing(error), height: big ? 58 : 42, ...(disabled ? { opacity: .5 } : {}) }}>
+      <div style={{ display: 'flex', direction: 'ltr', alignItems: 'center', justifyContent: 'center', gap: big ? 8 : 6, border: '1px solid transparent', borderRadius: big ? 12 : 9, background: C.inputBg, boxShadow: errRing(error), height: boxH, ...(disabled ? { opacity: .5 } : {}) }}>
         <span style={{ fontSize: big ? 16 : 14, fontWeight: 600, color: ac, flexShrink: 0 }}>{unit}</span>
         <input value={display} inputMode="decimal" disabled={disabled}
           onChange={e => { let v = e.target.value.replace(/,/g, '').replace(RE_DECIMAL, ''); const p = v.split('.'); if (p.length > 2) v = p[0] + '.' + p.slice(1).join(''); onChange(v) }}

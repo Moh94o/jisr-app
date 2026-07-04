@@ -23,6 +23,27 @@ export const swrClear = (prefix = '') => {
   for (const k of [...cache.keys()]) if (!prefix || String(k).startsWith(prefix)) cache.delete(k)
 }
 
+// ── المكاتب التجريبية (branches.is_test) ──
+// مكتب تجريبي/تعليمي: بياناته (فواتير/حسبات/مدفوعات وهمية) لا تدخل أي إجمالي أو
+// إحصائية على مستوى «كل المكاتب»، ولا القوائم الافتراضية — تظهر فقط عند اختيار
+// المكتب صراحةً. طبقة قاعدة البيانات تتكفّل بإحصاءات الفواتير وملخص الواتساب؛
+// هذا المساعد يجلب معرّفات المكاتب التجريبية مرة واحدة (كاش الجلسة) لاستثنائها
+// في استعلامات «كل المكاتب» على مستوى التطبيق (المدفوعات/الإيداعات/الحسبات…).
+let _testBranchIdsP = null
+export function getTestBranchIds(sb) {
+  if (!_testBranchIdsP) {
+    const c = sb || getSupabase()
+    _testBranchIdsP = c.from('branches').select('id').eq('is_test', true).is('deleted_at', null)
+      .then(r => (r.data || []).map(x => x.id))
+      .catch(() => [])
+  }
+  return _testBranchIdsP
+}
+// فلتر PostgREST لاستبعاد المكاتب التجريبية مع الإبقاء على الصفوف بلا فرع (اليتيمة):
+//   query.or(excludeTestBranchesOr(ids, 'branch_id'))
+export const excludeTestBranchesOr = (ids, col = 'branch_id') =>
+  `${col}.is.null,${col}.not.in.(${(ids || []).join(',')})`
+
 // ── ناقل أحداث محلي: تأمين فوري بعد عمليات هذا الجهاز (لا ينتظر رحلة Realtime) ──
 const BUS_EVENT = 'app-data-changed'
 export const emitDataChanged = (...tables) => {

@@ -3,6 +3,7 @@ import { Modal, TextField, Select, EmptyState, ConfirmDialog, GRID } from '../co
 import { StatStripSkeleton, SkeletonTable } from '../components/ui/Skeleton.jsx'
 import { can, cardVisible } from '../lib/permissions.js'
 import { branchLabel } from '../lib/utils.js'
+import { getTestBranchIds, excludeTestBranchesOr } from '../lib/liveData.js'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = {
@@ -46,6 +47,7 @@ export default function ExternalPaymentsPage({ sb, user, toast, lang = 'ar', bra
         .select('id,due_date,amount,status,paid_date,beneficiary_name,bank_name,iban,branch_id,branch:branch_id(branch_code)')
         .is('deleted_at', null).order('due_date', { ascending: false })
       if (branchId) { oq = oq.eq('branch_id', branchId); sq = sq.eq('branch_id', branchId) }
+      else { const testIds = await getTestBranchIds(sb); if (testIds.length) { const ex = excludeTestBranchesOr(testIds); oq = oq.or(ex); sq = sq.or(ex) } }  // استبعد المكاتب التجريبية من «كل المكاتب»
       const [{ data: od }, { data: sd }] = await Promise.all([oq, sq])
       if (!alive) return
       setObligRows((od || []).map(r => ({

@@ -218,24 +218,22 @@ html[data-theme=dark] .inv-sk{--sk-base:rgba(255,255,255,.05);--sk-hi:rgba(255,2
       {/* صفوف الفواتير — بنفس حجم وتخطيط كرت الفاتورة الحقيقي */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {Array.from({ length: listRows }).map((_, i) => (
-          <div key={i} style={{ borderRadius: 18, background: 'var(--card-grad2)', border: '1px solid var(--bd)', boxShadow: 'var(--shadow-lg)', padding: '12px 18px' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: `1fr 1px ${CARD_S.amountW}px`, gap: 16, alignItems: 'center' }}>
-              {/* العمود اليمين — اسم + شبكة الحقول */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>{bar('34%', 14)}{bar(24, 16, 3)}</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '9px 16px' }}>
-                  {Array.from({ length: 5 }).map((_, j) => (
-                    <div key={j} style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>{bar('45%', 8)}{bar('72%', 11)}</div>
-                  ))}
+          <div key={i} style={{ borderRadius: 16, background: 'var(--card-grad2)', border: '1px solid var(--bd)', boxShadow: 'var(--shadow-lg)', overflow: 'hidden' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 210px', alignItems: 'stretch' }}>
+              {/* جانب البيانات — ثلاثة صفوف بأسلوب التذكرة */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 7, padding: '10px 20px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 5, width: '34%' }}>{bar('80%', 13)}{bar('55%', 9)}</div>
+                  {bar('18%', 12)}{bar('22%', 12)}
                 </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>{bar('38%', 12)}{bar('28%', 12)}</div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>{bar('18%', 10)}{bar('14%', 10)}</div>
               </div>
-              {/* فاصل */}
-              <div style={{ width: 1, alignSelf: 'stretch', background: 'var(--bd)', minHeight: 60 }} />
-              {/* كتلة المبلغ */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>{bar('40%', 11)}{bar('30%', 20)}</div>
-                {bar('100%', 6, 999)}
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>{bar('35%', 9)}{bar('35%', 9)}</div>
+              {/* الكعب المالي */}
+              <div style={{ borderInlineStart: '2px dashed var(--bd)', padding: '10px 16px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 6 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>{bar('40%', 18)}{bar('35%', 12)}</div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>{bar('30%', 9)}{bar('30%', 9)}</div>
+                {bar('100%', 5, 999)}
               </div>
             </div>
           </div>
@@ -320,9 +318,10 @@ function InvCard({ d, row, sb, T, isAr, toast, onClick }) {
   const dayIn = dm.cancelledToday ? 0 : Number(dm.received || 0)
   const dayOut = Number(dm.refunded || 0) + Number(dm.cancelledAmt || 0)
   // شريحة حركة اليوم: سهم صاعد أخضر (مستلم) أو نازل أحمر (مُعاد) + المبلغ فقط — بدون خلفية.
-  const moneyChip = (amount, color, up, title) => (
-    <span title={title} onClick={e => e.stopPropagation()} style={{ height: 26, padding: '0 4px', color, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 3, fontSize: 11, fontWeight: 700, fontVariantNumeric: 'tabular-nums', direction: 'ltr', flexShrink: 0, boxSizing: 'border-box', cursor: 'default' }}>
-      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+  // big: نسخة أكبر تُعرض في منتصف رأس كرت التذكرة.
+  const moneyChip = (amount, color, up, title, big) => (
+    <span title={title} onClick={e => e.stopPropagation()} style={{ height: 26, padding: '0 4px', color, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: big ? 4 : 3, fontSize: big ? 13.5 : 11, fontWeight: 600, fontVariantNumeric: 'tabular-nums', direction: 'ltr', flexShrink: 0, boxSizing: 'border-box', cursor: 'default' }}>
+      <svg width={big ? 14 : 11} height={big ? 14 : 11} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
         {up ? <><line x1="12" y1="19" x2="12" y2="5" /><polyline points="5 12 12 5 19 12" /></> : <><line x1="12" y1="5" x2="12" y2="19" /><polyline points="19 12 12 19 5 12" /></>}
       </svg>
       <span>{num(amount)}</span>
@@ -330,21 +329,19 @@ function InvCard({ d, row, sb, T, isAr, toast, onClick }) {
   )
   const dayChips = (dayIn > 0 || dayOut > 0) ? (
     <>
-      {dayIn > 0 && moneyChip(dayIn, C.ok, true, T('المستلم على الفاتورة في هذا اليوم', 'Received on this invoice that day'))}
-      {dayOut > 0 && moneyChip(dayOut, C.red, false, T('المُعاد للعميل في هذا اليوم (إلغاء/استرجاع)', 'Returned to customer that day (cancel/refund)'))}
+      {dayIn > 0 && moneyChip(dayIn, C.ok, true, T('المستلم على الفاتورة في هذا اليوم', 'Received on this invoice that day'), true)}
+      {dayOut > 0 && moneyChip(dayOut, C.red, false, T('المُعاد للعميل في هذا اليوم (إلغاء/استرجاع)', 'Returned to customer that day (cancel/refund)'), true)}
     </>
   ) : null
-  const cardActions = (vertical) => (
-    <div style={{ display: 'inline-flex', flexDirection: vertical ? 'column' : 'row', alignItems: 'center', gap: 7, flexShrink: 0 }}>
-      {dayChips}
-      {d.isToday && <>
+  // أزرار الواتساب/الطباعة فقط (اليوم فقط) — شرائح الحركة تُعرض في منتصف رأس الكرت.
+  const actionBtns = d.isToday ? (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, flexShrink: 0 }}>
       <ActBtn title={T('نسخ رسالة الواتساب', 'Copy WhatsApp message')} onClick={copyWa} color={waCopied ? C.ok : '#25D366'}>
         {waCopied ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg> : WaIco}
       </ActBtn>
       <ActBtn title={T('طباعة الفاتورة', 'Print invoice')} onClick={doPrint} color={C.gold} busy={printing}>{PrintIco}</ActBtn>
-      </>}
-    </div>
-  )
+    </span>
+  ) : null
   // ── حالة المعاملة الموحَّدة — مصدر واحد يقود تاق الكرت + لون الحدود عند المرور + البوتوم بار ──
   // (تشمل الحالات الوسطى للموافقة على النقل الخارجي: انتظار/موافقة/رفض المحاسب)
   const reqCode = d.reqStatusCode
@@ -363,7 +360,6 @@ function InvCard({ d, row, sb, T, isAr, toast, onClick }) {
   // الخدمات الصفرية (بلا عمود مالي): لون الكرت = لون حالة المعاملة، فيُطابق التاق في الـ hover والبوتوم بار.
   // غيرها: لون حالة السداد (أو أحمر إن ملغاة).
   const statusColor = isSP ? STAGE_C[reqStage] : (d.cancelled ? C.red : d.payT.c)
-  const stopClick = e => e.stopPropagation()
 
   // ── Cancelled / refund corner ribbons — distinct colors so a glance tells them apart: cancelled = red, refund = orange ──
   const REFUND_COLOR = C.orange
@@ -376,24 +372,25 @@ function InvCard({ d, row, sb, T, isAr, toast, onClick }) {
   const statusList = []
   if (isCancelled) statusList.push({ color: C.red, label: T('ملغاة', 'VOID'), amount: d.paid })
   if (isRefund) statusList.push({ color: REFUND_COLOR, label: T('مسترد', 'REFUND'), amount: d.refundedAmt })
-  if (isPaid) statusList.push({ color: C.ok, label: T('مدفوعة بالكامل', 'PAID IN FULL'), amount: d.paid })
-  const statusTab = (st, i) => (
-    <div key={i} style={{ position: 'absolute', top: 0, bottom: 0, insetInlineEnd: i * 32, width: 30, background: st.color + '1f', borderInlineStart: '1px solid ' + st.color + '59', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3, pointerEvents: 'none' }}>
-      <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', color: st.color, fontSize: 10.5, fontWeight: 600, letterSpacing: '.5px', display: 'inline-flex', alignItems: 'center', gap: 9, whiteSpace: 'nowrap' }}>
-        <span>{st.label}</span>
-        <span style={{ fontWeight: 600 }}>{num(st.amount)}</span>
-      </span>
-    </div>
+  // «مدفوعة بالكامل»: بلا مبلغ — مبلغها = الإجمالي المعروض بجانبها مباشرة فيكون تكراراً.
+  if (isPaid) statusList.push({ color: C.ok, label: T('مدفوعة بالكامل', 'PAID IN FULL') })
+  // شارة الحالة داخل الكعب المالي — ختم صغير مائل بجانب الإجمالي (ملغاة/مسترد/مسدّدة) مع مبلغها.
+  const statusBadge = (st, i) => (
+    <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: st.color, fontSize: 9.5, fontWeight: 600, border: '1.5px solid ' + st.color + '80', borderRadius: 7, padding: '1px 8px', transform: 'rotate(-3deg)', whiteSpace: 'nowrap' }}>
+      <span>{st.label}</span>
+      {st.amount != null && <span style={{ fontVariantNumeric: 'tabular-nums', direction: 'ltr' }}>{num(st.amount)}</span>}
+    </span>
   )
 
   const Flag = ({ s = S.flag }) => d.flagUrl
     ? <img src={d.flagUrl} alt={d.flagAlt} title={d.flagAlt} style={{ width: s, height: Math.round(s * 0.7), objectFit: 'cover', flexShrink: 0, borderRadius: 3 }} />
     : (d.flagEmojiChar ? <span title={d.flagAlt} style={{ fontSize: Math.round(s * 0.6), lineHeight: 1, flexShrink: 0 }}>{d.flagEmojiChar}</span> : null)
 
-  const InvNo = ({ color = C.gold, size = S.inv }) => (
-    <span style={{ fontSize: size, color, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-      {/* number on the right, copy icon on the left — matches the invoice-details copy (hover gold / click green, no toast). */}
-      <span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums', fontFamily: 'monospace', fontWeight: 600 }}>{noDash(d.invoiceNo)}</span>
+  // رقم الفاتورة بأسلوب التذكرة: لابل صغير + رقم monospace بارز + زر نسخ (hover ذهبي / نقر أخضر).
+  const InvNo = () => (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+      <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600, letterSpacing: '.5px' }}>{T('رقم الفاتورة', 'Invoice no')}</span>
+      <span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums', fontFamily: 'monospace', fontWeight: 600, fontSize: 15, color: C.gold, letterSpacing: '2.5px' }}>{noDash(d.invoiceNo)}</span>
       <CopyBtn text={noDash(d.invoiceNo)} />
     </span>
   )
@@ -403,7 +400,7 @@ function InvCard({ d, row, sb, T, isAr, toast, onClick }) {
   )
 
   const wrap = (extra) => ({
-    position: 'relative', cursor: 'pointer', borderRadius: 18, overflow: 'hidden',
+    position: 'relative', cursor: 'pointer', borderRadius: 16, overflow: 'hidden',
     opacity: d.cancelled ? .72 : 1, transition: 'all .15s',
     ...extra,
   })
@@ -414,23 +411,6 @@ function InvCard({ d, row, sb, T, isAr, toast, onClick }) {
 
   const baseBorder = d.cancelled ? 'rgba(232,114,101,.28)' : 'var(--bd)'
 
-  // ── Field-label icons — sit next to the label, not the value ──
-  const ICON = {
-    id: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M15 8h2M15 12h2M7 16h10"/></svg>,
-    phone: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>,
-    branch: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/></svg>,
-    invoice: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8M16 17H8M10 9H8"/></svg>,
-    date: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>,
-  }
-
-  // ── Right-side client column — name + invoice on top, then labelled fields ──
-  const valStyle = { fontSize: S.valSize, color: S.valColor, fontWeight: S.valWeight }
-  const gcell = (icon, label, value) => value ? (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: S.cell, minWidth: 0, alignItems: 'flex-start' }}>
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: S.lblSize, color: S.lblColor, fontWeight: 600, letterSpacing: S.lblSpace, textTransform: S.lblUpper }}>{icon}{label}</span>
-      <span style={{ display: 'inline-flex', minWidth: 0, maxWidth: '100%' }}>{value}</span>
-    </div>
-  ) : null
   // ── أيقونة إنجاز المعاملة بجانب الاسم — أخضر «منجز» / أزرق «قيد التنفيذ» ──
   // (لا تظهر للمعاملات الملغاة لأن لسان «ملغاة» يكفي، ولا للفواتير بدون معاملة مرتبطة)
   // تظهر لأي فاتورة لها معاملة مرتبطة — حتى الملغاة. (reqStage/STAGE_C محسوبة أعلى الكرت.)
@@ -542,73 +522,79 @@ function InvCard({ d, row, sb, T, isAr, toast, onClick }) {
     <span style={{ marginInlineStart: 'auto', display: 'inline-flex' }}><StatusTag stage={reqStage} tip={(d.isVisaCard && Array.isArray(d.visaStageTips) && d.visaStageTips.length === 1) ? d.visaStageTips[0] : { title: d.fullLabel, stages: [{ label: T('المعاملة', 'Transaction'), state: reqStage === 'done' || reqStage === 'acct_approved' ? 'done' : (reqStage === 'cancelled' || reqStage === 'acct_rejected') ? 'cancelled' : 'awaiting' }] }} /></span>
   ) : null
 
-  const rightCol = (
-    <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: S.stack }}>
-      {/* name + flag on top (flag after the name). تاق الحالة ينتقل لأعلى كتلة المبلغ للفواتير ذات العمود المالي؛
-          أما الفواتير الصفرية (بلا عمود مالي) فيبقى التاق هنا بجانب الاسم. */}
-      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', paddingInlineEnd: isSP ? 0 : (62 + (dayIn > 0 ? 78 : 0) + (dayOut > 0 ? 78 : 0)) }}>
-        <Name /><Flag />
-        {/* أزرار الإجراء (واتساب/طباعة) في صدر الكرت أعلى عمود «المكتب». الفواتير ذات العمود المالي: خارج التدفّق
-            (absolute) فلا يتغيّر ارتفاع الكرت. الفواتير الصفرية (رواتب سبلاير/المستندات/الموافقات): بلا عمود مالي،
-            فتُوضع الأزرار قبل تاق حالة المعاملة في نفس الصف. شرائح حركة اليوم تظهر لكل الأيام؛ الأزرار لليوم فقط. */}
-        {isSP
-          ? <span style={{ marginInlineStart: 'auto', display: 'inline-flex', alignItems: 'center', gap: 8 }}>{(d.isToday || dayChips) && cardActions(false)}{reqTag}</span>
-          : ((d.isToday || dayChips) && <div style={{ position: 'absolute', insetInlineEnd: 0, top: '50%', transform: 'translateY(-50%)' }}>{cardActions(false)}</div>)
-        }
+  // ── تصميم «التذكرة المقصوصة» (4ج): جانب البيانات + كعب مالي مفصول بخط مثقّب ودوائر قص ──
+  // جانب البيانات ثلاثة صفوف: (١) الاسم + الهوية/المكتب تحته · شرائح الحركة وسطاً · تاقات المعاملة يساراً
+  //                          (٢) سطر الخدمة بتدرج ذهبي + رقم الفاتورة   (٣) تاريخ الإصدار + أزرار واتساب/طباعة.
+  const dataSide = (
+    <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+      {/* ١) صف الرأس — شبكة ٣ أعمدة ليبقى وسط الشرائح حقيقياً */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: 12, padding: '9px 20px 5px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 3, justifySelf: 'start', minWidth: 0 }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 9, minWidth: 0 }}><Name /><Flag s={21} /></span>
+          {(d.partyId || d.branchCode) && (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 10.5, color: 'var(--tx3)', fontWeight: 600, lineHeight: 1 }}>
+              {d.partyId && <span title={d.partyIdLabel} style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums', fontFamily: 'monospace' }}>{d.partyId}</span>}
+              {d.partyId && d.branchCode && <span style={{ width: 3, height: 3, borderRadius: '50%', background: 'var(--tx4)', flexShrink: 0 }} />}
+              {d.branchCode && <span title={T('المكتب', 'Branch')}>{d.branchCode}</span>}
+            </span>
+          )}
+        </div>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>{dayChips}</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', justifySelf: 'end', minWidth: 0 }}>{reqTag}</span>
       </div>
-      {/* row 1: ID · phone · branch  ·  row 2: service · invoice no */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: `${S.gRow}px ${S.gCol}px` }}>
-        {gcell(ICON.id, d.partyIdLabel, d.partyId && <span style={{ ...valStyle, direction: 'ltr', fontVariantNumeric: 'tabular-nums', fontFamily: 'monospace' }}>{d.partyId}</span>)}
-        {gcell(ICON.phone, T('الجوال', 'Phone'), d.phone && <a href={`tel:${d.phone}`} onClick={stopClick} title={d.phone} style={{ ...valStyle, direction: 'ltr', textDecoration: 'none' }}>{d.phoneDisplay}</a>)}
-        {gcell(ICON.branch, T('المكتب', 'Branch'), d.branchCode && <span style={valStyle}>{d.branchCode}</span>)}
-        {/* «الإصدار» (تاريخ الفاتورة) قبل الخدمة — لكل الخدمات. */}
-        {gcell(ICON.date, T('الإصدار', 'Issued'), <span style={{ ...valStyle, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{d.shortDate}</span>)}
-        {gcell(d.svcIcon, T('الخدمة', 'Service'), <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: C.gold, fontSize: S.valSize, fontWeight: 600 }}>{d.showQty && <span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>×{d.qty}</span>}<span>{d.fullLabel}</span></span>)}
-        {gcell(ICON.invoice, T('رقم الفاتورة', 'Invoice no'), <InvNo />)}
+      {/* ٢) سطر الخدمة — تدرج ذهبي خفيف يبدأ من اليمين، ورقم الفاتورة في الطرف */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '5px 20px', background: `linear-gradient(${isAr ? '270deg' : '90deg'}, rgba(176,125,0,.06), transparent)` }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, color: C.gold, fontSize: 14, fontWeight: 600, minWidth: 0 }}>
+          {d.showQty && <span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>×{d.qty}</span>}
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.fullLabel}</span>
+        </span>
+        <span style={{ marginInlineStart: 'auto' }}><InvNo /></span>
+      </div>
+      {/* ٣) الصف السفلي — تاريخ الإصدار يميناً وأزرار الإجراء (اليوم فقط) يساراً */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '5px 20px 8px', fontSize: 12, color: 'var(--tx2)', fontWeight: 600, minHeight: 34 }}>
+        <span title={T('الإصدار', 'Issued')} style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{d.shortDate}</span>
+        {actionBtns && <span style={{ marginInlineStart: 'auto' }}>{actionBtns}</span>}
+      </div>
+      {/* الفواتير الصفرية: بلا كعب مالي — شريط الحالة أسفل جانب البيانات */}
+      {isSP && <div style={{ height: 4, background: statusColor, marginTop: 'auto' }} />}
+    </div>
+  )
+
+  // ── الكعب المالي المثقّب: الإجمالي + أختام الحالة + المدفوع/المتبقي + شريط تقدم ──
+  const moneyStub = (
+    <div style={{ position: 'relative', borderInlineStart: '2px dashed rgba(176,125,0,.35)', background: 'rgba(176,125,0,.045)', padding: '9px 16px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 4 }}>
+      {/* دائرتا القصّ على حافة الخط المثقّب */}
+      <span style={{ position: 'absolute', top: -9, insetInlineStart: -10, width: 18, height: 18, borderRadius: '50%', background: 'var(--bg)', border: '1px solid var(--bd)' }} />
+      <span style={{ position: 'absolute', bottom: -9, insetInlineStart: -10, width: 18, height: 18, borderRadius: '50%', background: 'var(--bg)', border: '1px solid var(--bd)' }} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        {statusList.length > 0 && (
+          <span style={{ display: 'inline-flex', flexDirection: 'column', gap: 3, alignItems: 'flex-start', flexShrink: 0 }}>{statusList.map((st, i) => statusBadge(st, i))}</span>
+        )}
+        <span style={{ flex: 1, textAlign: 'left', fontSize: 21, fontWeight: 600, color: C.gold, fontVariantNumeric: 'tabular-nums', direction: 'ltr', letterSpacing: '-.5px', lineHeight: 1.2 }}>{num(d.total)}</span>
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 10.5 }}>
+        <span style={{ color: 'var(--tx3)', fontWeight: 600 }}>{T('المدفوع', 'Paid')}</span>
+        <span style={{ color: d.paid > 0 ? C.ok : 'var(--tx)', fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{d.paid > 0 ? '+ ' + num(d.paid) : num(0)}</span>
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 10.5 }}>
+        <span style={{ color: 'var(--tx3)', fontWeight: 600 }}>{T('المتبقي', 'Remaining')}</span>
+        <span style={{ color: d.remaining > 0 ? C.red : 'var(--tx)', fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{d.remaining > 0 ? '− ' + num(d.remaining) : num(0)}</span>
+      </div>
+      <div style={{ height: 4, borderRadius: 99, overflow: 'hidden', background: 'rgba(0,0,0,.05)' }}>
+        <div style={{ height: '100%', width: d.cancelled ? '100%' : `${d.pct}%`, background: statusColor, transition: 'width .3s' }} />
       </div>
     </div>
   )
 
-  // ── Fixed classic frame: right column · divider · amount block · progress strip ──
+  // ── إطار التذكرة: جانب البيانات + الكعب المالي (يُخفى للخدمات الصفرية) ──
   return (
     <div onClick={onClick} className="inv-card" onMouseEnter={hoverOn} onMouseLeave={hoverOff(baseBorder)} style={wrap({
       background: 'var(--card-grad2)',
       border: '1px solid ' + baseBorder, boxShadow: 'var(--shadow-md)',
+      display: 'grid', gridTemplateColumns: isSP ? '1fr' : '1fr 210px',
     })}>
-
-      {/* شارة الحالة — لسان عمودي بحالة الفاتورة ومبلغها */}
-      {statusList.map((st, i) => statusTab(st, i))}
-
-      <div style={{ padding: S.pad, ...(statusList.length ? { paddingInlineEnd: 28 + statusList.length * 32 } : {}) }}>
-        <div style={{ display: 'grid', gridTemplateColumns: isSP ? '1fr' : `1fr 1px ${S.amountW}px`, gap: S.colGap, alignItems: 'center' }}>
-          {rightCol}
-          {/* الخدمات الصفرية (رواتب سبلاير/المستندات): فاتورة صفرية — نُخفي العمود المالي (الإجمالي/المسدّد/المتبقي). */}
-          {!isSP && (<>
-          <div style={{ width: 1.5, alignSelf: 'stretch', background: 'linear-gradient(to bottom, transparent, rgba(176,125,0,.45), transparent)', minHeight: 60 }} />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {/* تاقات حالة المعاملة أعلى كتلة المبلغ. */}
-            {reqTag && <div style={{ display: 'flex', justifyContent: 'flex-end', minHeight: 24, alignItems: 'center' }}>{reqTag}</div>}
-            {/* «الإجمالي» والمبلغ في صفّ واحد. */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'baseline', gap: 8 }}>
-              <span style={{ fontSize: S.total, fontWeight: 600, color: C.gold, fontVariantNumeric: 'tabular-nums', direction: 'ltr', letterSpacing: '-.5px', lineHeight: 1 }}>{num(d.total)}</span>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, paddingTop: 6, borderTop: '1px solid var(--bd)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: S.pay }}>
-                <span style={{ color: 'var(--tx2)', fontWeight: 600 }}>{T('المدفوع', 'Paid')}</span>
-                <span style={{ color: d.paid > 0 ? C.ok : 'var(--tx)', fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{d.paid > 0 ? '+ ' + num(d.paid) : num(0)}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: S.pay }}>
-                <span style={{ color: 'var(--tx2)', fontWeight: 600 }}>{T('المتبقي', 'Remaining')}</span>
-                <span style={{ color: d.remaining > 0 ? C.red : 'var(--tx)', fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{d.remaining > 0 ? '− ' + num(d.remaining) : num(0)}</span>
-              </div>
-            </div>
-          </div>
-          </>)}
-        </div>
-      </div>
-      <div style={{ height: 5, background: 'rgba(255,255,255,.05)' }}>
-        <div style={{ height: '100%', width: (d.cancelled || isSP) ? '100%' : `${d.pct}%`, background: statusColor, transition: 'width .3s' }} />
-      </div>
+      {dataSide}
+      {!isSP && moneyStub}
     </div>
   )
 }
@@ -934,7 +920,7 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
     const cached = swrGet(ck)
     if (cached) applyLookups(cached)
     Promise.all([
-      sb.from('branches').select('id,branch_code,name_ar').order('branch_code'),
+      sb.from('branches').select('id,branch_code,name_ar,is_test').order('branch_code'),
       sb.from('lookup_items').select('id,code,value_ar,value_en,category:lookup_categories!inner(category_key)').eq('category.category_key', 'service_type'),
       sb.from('lookup_items').select('id,code,category:lookup_categories!inner(category_key)').eq('category.category_key', 'invoice_status').eq('code', 'cancelled').limit(1),
       sb.from('agents').select('id,name_ar,name_en').order('name_ar'),
@@ -1394,7 +1380,8 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
 
       {/* Filter row — بحث ذكي شامل + اختيار حقل محدد */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 18, alignItems: 'center', flexWrap: 'wrap' }}>
-        <div style={{ flex: '1 1 280px', position: 'relative' }}>
+        {/* الظل على الحاوية (لا على الحقل) كي لا يُلغيه :focus عبر قاعدة input:focus{box-shadow:none} العامة */}
+        <div style={{ flex: '1 1 280px', position: 'relative', borderRadius: 12, boxShadow: '0 2px 7px rgba(0,0,0,.12), inset 0 1px 0 rgba(176,125,0,.1)' }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', top: '50%', left: 14, transform: 'translateY(-50%)', color: 'var(--tx4)' }}><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
           <input
             placeholder={T('ابحث برقم الفاتورة، رقم الطلب، الاسم، الإقامة، الهوية، أو الجوال…', 'Search by invoice no, request no, name, iqama, ID, or phone…')}
@@ -1480,10 +1467,13 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
                 <div style={fLbl}>{T('حالة السداد','Pay Status')}</div>
                 <FKDropdown multi selectedKeys={payFilter} onChange={arr => { setPayFilter(arr); setPage(0) }} placeholder={T('الكل','All')} getKey={o => o.v} getLabel={o => o.l} options={[{ v: 'paid', l: T('مدفوعة بالكامل','Fully Paid') }, { v: 'partial', l: T('مدفوعة جزئياً','Partially Paid') }, { v: 'refunded', l: T('مستردة','Refunded') }, { v: 'cancelled', l: T('ملغاة','Cancelled') }]} />
               </div>
+              {/* فلتر الوسيط — يظهر للمدير العام فقط */}
+              {isGM(user) && (
               <div>
                 <div style={fLbl}>{T('الوسيط','Agent')}</div>
                 <FKDropdown value={agentFilter} onChange={v => { setAgentFilter(v); setPage(0) }} placeholder={T('الكل','All')} getKey={o => o.v} getLabel={o => o.l} options={[{ v: '', l: T('الكل','All') }, ...agents.map(a => ({ v: a.id, l: isAr ? (a.name_ar || a.name_en) : (a.name_en || a.name_ar) }))]} />
               </div>
+              )}
             </div>
           </div>
         )
@@ -4302,7 +4292,7 @@ const cardSub    = { fontSize: 11, color: 'var(--tx4)', fontWeight: 600 }
 
 const ActionToolbar = ({ T, onRecordPayment, onRefund, onCancelInv, onPrint }) => {
   const btn = (color, bgLight, bdLight) => ({
-    height: 40, padding: '0 16px', borderRadius: 11, background: bgLight, border: '1px solid ' + bdLight, color, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, fontFamily: F, fontSize: 13, fontWeight: 600, transition: '.18s', boxShadow: 'var(--shadow-sm)'
+    height: 38, padding: '0 16px', borderRadius: 11, background: bgLight, border: '1px solid ' + bdLight, color, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, fontFamily: F, fontSize: 13, fontWeight: 600, transition: '.18s', boxShadow: '0 2px 7px rgba(0,0,0,.12), inset 0 1px 0 rgba(176,125,0,.1)'
   })
   return (
     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -6124,7 +6114,7 @@ function ServiceEditModal({ sb, toast, T, isAr, srId, invId, svcName, svcCode, c
   const [err, setErr] = useState('')
   // قائمة المكاتب — نفس مصدر فلتر الفواتير (الجدول يحمل branch_code فقط، بلا أسماء).
   useEffect(() => {
-    sb.from('branches').select('id,branch_code,name_ar').order('branch_code')
+    sb.from('branches').select('id,branch_code,name_ar,is_test').order('branch_code')
       .then(({ data }) => setBranches(data || []))
   }, [])
   // زر الحفظ يُفعَّل فقط عند وجود تعديل فعلي.
@@ -6273,7 +6263,7 @@ function OfficeEditModal({ sb, toast, T, srId, invId, currentBranchId, editorId,
   const [err, setErr] = useState('')
   // قائمة المكاتب — نفس مصدر فلتر الفواتير (الجدول يحمل branch_code فقط، بلا أسماء).
   useEffect(() => {
-    sb.from('branches').select('id,branch_code,name_ar').order('branch_code')
+    sb.from('branches').select('id,branch_code,name_ar,is_test').order('branch_code')
       .then(({ data }) => setBranches(data || []))
   }, [])
   const branchChanged = String(branchId || '') !== String(currentBranchId || '')
@@ -6822,7 +6812,7 @@ const StageRow = ({ label, onClick, disabled = false, done = false, title, color
   <button onClick={onClick} disabled={disabled} title={title}
     onMouseEnter={e => { if (!disabled) e.currentTarget.style.filter = 'brightness(.93)' }}
     onMouseLeave={e => { if (!disabled) e.currentTarget.style.filter = 'none' }}
-    style={{ flex: 1, minWidth: 120, height: 36, padding: '0 12px', borderRadius: 8, background: disabled ? 'transparent' : 'linear-gradient(160deg,#23201a,#141210)', border: `1px solid ${disabled ? 'var(--bd)' : 'rgba(176,125,0,.5)'}`, color: disabled ? 'var(--tx4)' : '#F0CB6A', cursor: disabled ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontFamily: F, fontSize: 12, fontWeight: 600, boxShadow: disabled ? 'none' : '0 5px 16px rgba(0,0,0,.26), inset 0 1px 0 rgba(176,125,0,.18)', transition: 'filter .15s ease' }}>
+    style={{ flex: 1, minWidth: 120, height: 38, padding: '0 12px', borderRadius: 8, background: disabled ? 'transparent' : 'linear-gradient(160deg,#23201a,#141210)', border: `1px solid ${disabled ? 'var(--bd)' : 'rgba(176,125,0,.5)'}`, color: disabled ? 'var(--tx4)' : '#F0CB6A', cursor: disabled ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontFamily: F, fontSize: 12, fontWeight: 600, boxShadow: disabled ? 'none' : '0 2px 7px rgba(0,0,0,.12), inset 0 1px 0 rgba(176,125,0,.1)', transition: 'filter .15s ease' }}>
     <span>{label}</span>
     {icon || <CheckBadgeIco />}
   </button>
@@ -7529,7 +7519,7 @@ function PermanentVisaEditModal({ sb, toast, T, isAr, inv, data, editorId, edito
     let alive = true
     ;(async () => {
       const [brRes, occRes, natRes, emRes, vaRes, instRes] = await Promise.all([
-        sb.from('branches').select('id,branch_code,name_ar').order('branch_code'),
+        sb.from('branches').select('id,branch_code,name_ar,is_test').order('branch_code'),
         sb.from('occupations').select('id,name_ar,code').is('is_active', true).order('name_ar').limit(2000),
         sb.from('nationalities').select('id,name_ar,code,country_name_ar,flag_url').is('is_active', true).order('name_ar'),
         sb.from('embassies').select('id,name_ar,name_en,nationality_id').is('is_active', true).order('name_ar'),
@@ -9241,7 +9231,7 @@ const ElapsedCounter = ({ at, to, accent = C.gold, T }) => {
 // Single print-language button: office flag + native language name, triggers printInvoice in that language.
 const PrintLangButton = ({ o, T, onPrint }) => (
   <button onClick={onPrint} title={T('طباعة بـ ','Print in ') + o.l}
-    style={{ height: 40, padding: '0 10px', borderRadius: 10, background: 'rgba(176,125,0,.06)', border: '1px solid rgba(176,125,0,.22)', color: C.gold, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: F, fontSize: 12, fontWeight: 600, transition: '.15s' }}
+    style={{ height: 38, padding: '0 10px', borderRadius: 10, background: 'rgba(176,125,0,.06)', border: '1px solid rgba(176,125,0,.22)', color: C.gold, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: F, fontSize: 12, fontWeight: 600, boxShadow: '0 2px 7px rgba(0,0,0,.12), inset 0 1px 0 rgba(176,125,0,.1)', transition: '.15s' }}
     onMouseEnter={e => { e.currentTarget.style.background = 'rgba(176,125,0,.14)'; e.currentTarget.style.borderColor = 'rgba(176,125,0,.45)' }}
     onMouseLeave={e => { e.currentTarget.style.background = 'rgba(176,125,0,.06)'; e.currentTarget.style.borderColor = 'rgba(176,125,0,.22)' }}>
     <img src={`https://flagcdn.com/w40/${o.cc}.png`} alt="" width="18" height="13" style={{ display: 'block', borderRadius: 2, objectFit: 'cover', flexShrink: 0 }} />
@@ -9255,7 +9245,7 @@ const ActionGridButton = ({ onClick, color, label, children }) => (
     onClick={onClick}
     onMouseEnter={e => { e.currentTarget.style.filter = 'brightness(.93)' }}
     onMouseLeave={e => { e.currentTarget.style.filter = 'none' }}
-    style={{ height: 44, padding: '0 14px', borderRadius: 9, background: color, border: '1px solid ' + color, color: '#fff', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7, fontFamily: F, fontSize: 12.5, fontWeight: 600, boxShadow: '0 3px 7px rgba(0,0,0,.2)', transition: 'filter .15s ease' }}
+    style={{ height: 38, padding: '0 14px', borderRadius: 9, background: color, border: '1px solid ' + color, color: '#fff', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7, fontFamily: F, fontSize: 12.5, fontWeight: 600, boxShadow: `0 4px 12px ${color}5c, inset 0 1px 0 rgba(255,255,255,.18)`, transition: 'filter .15s ease' }}
   >
     <span>{label}</span>
     {children}
@@ -9321,5 +9311,5 @@ const BorderRow = ({ T, borderNo, visaUsed, visaNo }) => (
 )
 
 const selS = { padding: '9px 12px', background: 'rgba(255,255,255,.04)', border: '1px solid var(--bd)', borderRadius: 10, color: 'var(--tx1)', fontSize: 13, fontFamily: F, minWidth: 130 }
-const btnFilter = (active) => ({ height: 44, padding: '0 16px', borderRadius: 12, background: active ? 'var(--accent-soft)' : 'var(--search-bg)', border: '1px solid ' + (active ? 'var(--accent-bd)' : 'transparent'), color: active ? 'var(--accent)' : 'var(--tx2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 8, boxSizing: 'border-box', boxShadow: active ? 'var(--shadow-sm)' : 'none' })
+const btnFilter = (active) => ({ height: 44, padding: '0 16px', borderRadius: 12, background: active ? 'var(--accent-soft)' : 'var(--search-bg)', border: '1px solid ' + (active ? 'var(--accent-bd)' : 'transparent'), color: active ? 'var(--accent)' : 'var(--tx2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 8, boxSizing: 'border-box', boxShadow: '0 2px 7px rgba(0,0,0,.12), inset 0 1px 0 rgba(176,125,0,.1)' })
 const btnPg = (disabled) => ({ padding: '8px 16px', background: disabled ? 'rgba(255,255,255,.03)' : 'rgba(176,125,0,.12)', border: '1px solid ' + (disabled ? 'rgba(255,255,255,.06)' : 'rgba(176,125,0,.3)'), borderRadius: 10, color: disabled ? 'var(--tx4)' : C.gold, fontSize: 12, fontWeight: 600, cursor: disabled ? 'not-allowed' : 'pointer', fontFamily: F })

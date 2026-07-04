@@ -10,7 +10,9 @@ export const branchLabel = (b) => {
   if (!b) return '—';
   const nick = String(b.name_ar || b.nickname || '').trim();
   const code = String(b.branch_code || '').trim();
-  return nick && code ? `${nick} — ${code}` : (nick || code || String(b.id || '—'));
+  const base = nick && code ? `${nick} — ${code}` : (nick || code || String(b.id || '—'));
+  // مكتب تجريبي/تعليمي: وسم واضح حيثما توفّرت الراية (لا أثر لها إن لم تُجلب).
+  return b.is_test ? `${base} — تجريبي` : base;
 };
 
 // ═══ UI-9: تصدير Excel ═══
