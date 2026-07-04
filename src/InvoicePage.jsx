@@ -442,8 +442,20 @@ function InvCard({ d, row, sb, T, isAr, toast, onClick }) {
   const StatusTag = ({ stage, n, compact, tip }) => {
     const m = STAGE_META[stage] || STAGE_META.new
     const [pos, setPos] = useState(null)
-    const onEnter = e => { if (!tip) return; const r = e.currentTarget.getBoundingClientRect(); const W = 196; setPos({ top: Math.round(r.bottom + 6), left: Math.round(Math.max(8, Math.min(r.right - W, window.innerWidth - W - 8))) }) }
-    const onLeave = () => setPos(null)
+    const tagRef = useRef(null)
+    // على اللمس لا يوجد hover: نقرة على تاق الحالة تعرض/تخفي بطاقة مراحل المعاملة
+    // وتمنع فتح الفاتورة، بدل ما تفتحها مباشرة. نميّز نوع المؤشر لحظة التفاعل.
+    const lastPointer = useRef('mouse')
+    const computePos = el => { const r = el.getBoundingClientRect(); const W = 196; return { top: Math.round(r.bottom + 6), left: Math.round(Math.max(8, Math.min(r.right - W, window.innerWidth - W - 8))) } }
+    const onEnter = e => { if (!tip || lastPointer.current === 'touch') return; setPos(computePos(e.currentTarget)) }
+    const onLeave = () => { if (lastPointer.current === 'touch') return; setPos(null) }
+    const onClick = e => { if (!tip || (lastPointer.current !== 'touch' && lastPointer.current !== 'pen')) return; e.stopPropagation(); e.preventDefault(); const el = e.currentTarget; setPos(p => p ? null : computePos(el)) }
+    useEffect(() => {
+      if (!pos) return
+      const close = ev => { if (tagRef.current && !tagRef.current.contains(ev.target)) setPos(null) }
+      document.addEventListener('pointerdown', close, true)
+      return () => document.removeEventListener('pointerdown', close, true)
+    }, [pos])
     const fallbackTitle = tip ? undefined : (n != null ? `${T('تأشيرة', 'Visa')} ${n} — ${m.title}` : m.title)
     const inner = compact
       ? <>{n != null && <span style={{ fontWeight: 600, opacity: .8, fontSize: 10.5, fontVariantNumeric: 'tabular-nums' }}>{n}</span>}{stageIcon(stage, m.c, 11)}</>
@@ -452,7 +464,7 @@ function InvCard({ d, row, sb, T, isAr, toast, onClick }) {
       ? { display: 'inline-flex', alignItems: 'center', gap: 3, borderInlineStart: '3px solid ' + m.c, background: m.c + '10', padding: '3px 6px', color: m.c, fontSize: 10, fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0 }
       : { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderInlineStart: '3px solid ' + m.c, background: m.c + '10', padding: '5px 11px', color: m.c, flexShrink: 0 }
     return (
-      <span title={fallbackTitle} onMouseEnter={onEnter} onMouseLeave={onLeave} style={baseStyle}>
+      <span ref={tagRef} title={fallbackTitle} onPointerDown={e => { lastPointer.current = e.pointerType || 'mouse' }} onMouseEnter={onEnter} onMouseLeave={onLeave} onClick={onClick} style={{ ...baseStyle, cursor: 'pointer' }}>
         {inner}
         {pos && tip && createPortal(
           <div style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 99999, pointerEvents: 'none' }}>
