@@ -352,7 +352,7 @@ function FacilityPicker({ facilities, value, onChange, T }) {
 function WorkforceSkeleton() {
   const shimmer = {
     display: 'inline-block', borderRadius: 6,
-    background: 'linear-gradient(90deg, rgba(255,255,255,.04) 25%, rgba(255,255,255,.11) 37%, rgba(255,255,255,.04) 63%)',
+    background: 'linear-gradient(90deg, var(--bd2) 25%, var(--bd) 37%, var(--bd2) 63%)',
     backgroundSize: '400% 100%', animation: 'wf-shimmer 1.4s ease infinite',
   }
   const bar = (w, h = 11) => <span style={{ ...shimmer, width: w, height: h }} />
@@ -369,7 +369,7 @@ function WorkforceSkeleton() {
         ))}
       </div>
       {/* هيكل الجدول — ٨ صفوف */}
-      <div style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid var(--bd)', background: '#161616' }}>
+      <div style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid var(--bd)', background: 'var(--card-grad2)' }}>
         {Array.from({ length: 8 }).map((_, i) => (
           <div key={i} style={{ display: 'grid', gridTemplateColumns: cols.join(' '), alignItems: 'center', gap: 8, padding: '13px 12px', borderBottom: i < 7 ? '1px solid var(--bd2)' : 'none' }}>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>{bar('72%')}{bar('45%', 8)}</div>
@@ -1236,13 +1236,13 @@ export default function TempWorkforcePage({ sb, toast, lang, user, onTabChange }
       ) : (
         <>
           <style>{`
-            .wf-tbl{width:100%;table-layout:fixed;border-collapse:separate;border-spacing:0;font-family:${F};background:#161616;border-radius:10px;border:1px solid rgba(255,255,255,.06)}
-            .wf-tbl thead th{position:sticky;top:0;background:#161616;color:rgba(255,255,255,.92);font-size:14px;font-weight:600;text-align:center;padding:14px 4px 11px;box-shadow:inset 0 -2px 0 rgba(176,125,0,.55);white-space:nowrap;z-index:2;letter-spacing:.2px}
+            .wf-tbl{width:100%;table-layout:fixed;border-collapse:separate;border-spacing:0;font-family:${F};background:var(--card-grad2);border-radius:10px;border:1px solid var(--bd)}
+            .wf-tbl thead th{position:sticky;top:0;background:var(--hd);color:var(--hdtx);font-size:14px;font-weight:600;text-align:center;padding:14px 4px 11px;box-shadow:inset 0 -2px 0 rgba(176,125,0,.55);white-space:nowrap;z-index:2;letter-spacing:.2px}
             .wf-tbl thead .hd-icon{color:${C.gold};display:inline-flex;align-items:center;justify-content:center;margin-inline-end:6px;vertical-align:middle}
             .wf-tbl thead .hd-icon svg{width:14px;height:14px;display:block}
-            .wf-tbl tbody td{padding:10px 4px;font-size:11.5px;color:#fff;text-align:center;vertical-align:middle;overflow:hidden;border-bottom:1px solid rgba(255,255,255,.02)}
+            .wf-tbl tbody td{padding:10px 4px;font-size:11.5px;color:var(--tx);text-align:center;vertical-align:middle;overflow:hidden;border-bottom:1px solid var(--bd2)}
             .wf-tbl tbody tr{cursor:pointer;transition:background .12s}
-            .wf-tbl tbody tr:nth-child(even) td{background:rgba(255,255,255,.02)}
+            .wf-tbl tbody tr:nth-child(even) td{background:var(--bd2)}
             .wf-tbl tbody tr:hover td{background:rgba(176,125,0,.06)}
             .wf-tbl tbody tr:last-child td:first-child{border-bottom-right-radius:9px}
             .wf-tbl tbody tr:last-child td:last-child{border-bottom-left-radius:9px}

@@ -844,7 +844,7 @@ function FacilitiesSkeleton({ T }) {
         ))}
       </div>
       {/* Table placeholder */}
-      <div style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid var(--bd)', background: '#161616' }}>
+      <div style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid var(--bd)', background: 'var(--card-grad2)' }}>
         {Array.from({ length: 8 }).map((_, i) => (
           <div key={i} style={{ display: 'grid', gridTemplateColumns: cols.join(' '), alignItems: 'center', gap: 8, padding: '13px 12px', borderBottom: i < 7 ? '1px solid var(--bd2)' : 'none' }}>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>{bar('72%')}{bar('45%', 8)}</div>
