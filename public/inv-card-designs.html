@@ -1,0 +1,427 @@
+<!doctype html>
+<html lang="ar" dir="rtl" data-theme="light">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>معرض تصاميم كرت الفاتورة — 10 تصاميم</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=Reem+Kufi:wght@400;500;600;700&display=swap');
+:root{
+  --bg:#f2ece0;--sf:#faf8f3;--card-grad2:linear-gradient(180deg,#ffffff 0%,#f3f0e8 100%);
+  --tx:rgba(40,32,18,.9);--tx2:rgba(50,42,25,.74);--tx3:rgba(90,75,50,.56);--tx4:rgba(110,95,65,.46);
+  --bd:rgba(120,100,60,.16);--bd2:rgba(120,100,60,.08);--inputBg:rgba(176,125,0,.06);
+  --shadow-md:0 4px 14px rgba(90,70,30,.10);--shadow-lg:0 14px 34px rgba(90,70,30,.13);
+  --gold:#B07D00;--ok:#2ecc71;--okD:#27a046;--blue:#5dade2;--red:#e87265;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);font-family:'Cairo',sans-serif;color:var(--tx);padding:34px 26px 90px;overflow-x:hidden}
+.hero{max-width:1180px;margin:0 auto 30px;display:flex;flex-direction:column;gap:6px}
+.hero h1{font-size:22px;font-weight:600;color:var(--tx)}
+.hero p{font-size:12.5px;color:var(--tx3);font-weight:600}
+.sec{max-width:1180px;margin:0 auto 44px}
+.sec-h{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.sec-h .n{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,rgba(176,125,0,.92),rgba(176,125,0,.55));color:#fff;font-weight:600;font-size:15px;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 9px rgba(176,125,0,.3)}
+.sec-h .t{font-size:15.5px;font-weight:600;color:var(--tx)}
+.sec-h .d{font-size:11.5px;color:var(--tx3);font-weight:600}
+.num{font-variant-numeric:tabular-nums;direction:ltr;unicode-bidi:embed}
+b,strong{font-weight:600}
+.mono{font-family:monospace;font-weight:600;letter-spacing:.3px}
+svg{flex-shrink:0}
+/* shared bits */
+.chip-up{display:inline-flex;align-items:center;gap:3px;color:var(--ok);font-size:11px;font-weight:600;direction:ltr}
+.act{width:26px;height:26px;border-radius:7px;border:1px solid var(--bd);background:var(--inputBg);display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+.visa-tag{display:inline-flex;align-items:center;gap:3px;border-left:none;border-right:3px solid var(--blue);background:rgba(93,173,226,.08);padding:3px 6px;color:var(--blue);font-size:10px;font-weight:600;white-space:nowrap}
+.copy{opacity:.55;cursor:pointer}
+.pbar{height:5px;background:rgba(0,0,0,.05)}.pbar>div{height:100%;background:var(--ok)}
+</style>
+</head>
+<body>
+<div class="hero">
+  <h1>معرض تصاميم كرت الفاتورة</h1>
+  <p>10 تصاميم متنوعة — نفس البيانات كاملة في كل تصميم. اختر رقم التصميم الأنسب.</p>
+</div>
+<div id="root"></div>
+<script>
+/* ─── البيانات الموحّدة ─── */
+const D={name:'ابو الحسن',flag:'https://flagcdn.com/w320/bd.png',nat:'بنجلادشي',dayIn:'12,000',
+id:'2542437856',branch:'KHB1',issued:'2026-01-17',svc:'تأشيرة وإقامة دائمة',qty:4,
+inv:'5849755035',total:'28,000',paid:'28,000',rem:'0'};
+
+/* ─── أيقونات ─── */
+const I={
+id:'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M15 8h2M15 12h2M7 16h10"/></svg>',
+phone:'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>',
+branch:'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/></svg>',
+invoice:'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8M16 17H8M10 9H8"/></svg>',
+date:'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>',
+svc:'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7h20v14H2z" opacity="0"/><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>',
+up:'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#2ecc71" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>',
+clock:c=>'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="'+c+'" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>',
+check:(c,s)=>'<svg width="'+s+'" height="'+s+'" viewBox="0 0 24 24" fill="none" stroke="'+c+'" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+copy:'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
+wa:'<svg width="14" height="14" viewBox="0 0 24 24" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.71.306 1.263.489 1.694.625.712.227 1.36.195 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.885-9.885 9.885M20.52 3.449C18.24 1.245 15.24 0 12.045 0 5.463 0 .104 5.358.101 11.892c0 2.096.549 4.142 1.595 5.945L0 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.582 0 11.943-5.358 11.945-11.893a11.821 11.821 0 00-3.418-8.45"/></svg>',
+print:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#B07D00" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>'
+};
+const flag=(w=24)=>'<img src="'+D.flag+'" title="'+D.nat+'" style="width:'+w+'px;height:'+Math.round(w*.7)+'px;object-fit:cover;border-radius:3px;flex-shrink:0"/>';
+const dayChip='<span class="chip-up num">'+I.up+'<span>'+D.dayIn+'</span></span>';
+const acts='<span style="display:inline-flex;gap:7px"><span class="act">'+I.wa+'</span><span class="act">'+I.print+'</span></span>';
+const visaTags=(dir)=>'<span style="display:inline-flex;gap:4px;flex-direction:'+(dir||'row')+'">'+[4,3,2,1].map(n=>'<span class="visa-tag"><span class="num" style="font-size:10.5px;opacity:.8">'+n+'</span>'+I.clock('#5dade2')+'</span>').join('')+'</span>';
+const invNo=(sz=12)=>'<span style="display:inline-flex;align-items:center;gap:5px;color:var(--gold);font-size:'+sz+'px"><span class="num mono">'+D.inv+'</span><span class="copy">'+I.copy+'</span></span>';
+
+/* خلية حقل: أيقونة + عنوان فوق، قيمة تحت */
+const cell=(ic,lbl,val,alignC)=>'<div style="display:flex;flex-direction:column;gap:4px;min-width:0;align-items:'+(alignC?'center':'flex-start')+'">'+
+'<span style="display:inline-flex;align-items:center;gap:5px;font-size:10.5px;color:var(--tx4);font-weight:600">'+ic+lbl+'</span>'+
+'<span style="display:inline-flex;min-width:0;max-width:100%">'+val+'</span></div>';
+const v=(t,extra)=>'<span style="font-size:12px;color:var(--tx2);font-weight:600;'+(extra||'')+'">'+t+'</span>';
+/* خلية بلا اسم حقل: أيقونة + قيمة في صف واحد */
+const cellV=(ic,val,alignC)=>'<div style="display:flex;align-items:center;gap:6px;min-width:0;justify-content:'+(alignC?'center':'flex-start')+'"><span style="display:inline-flex;color:var(--tx4)">'+ic+'</span><span style="display:inline-flex;min-width:0;max-width:100%">'+val+'</span></div>';
+
+const root=document.getElementById('root');
+const add=(n,title,desc,html)=>{root.insertAdjacentHTML('beforeend',
+'<div class="sec"><div class="sec-h"><span class="n num">'+n+'</span><div><div class="t">'+title+'</div><div class="d">'+desc+'</div></div></div>'+html+'</div>')};
+
+/* ═══════════ 1) الكلاسيكي المشدود ═══════════ */
+add(1,'الكلاسيكي المشدود','نفس البنية الحالية بمساحات أضيق وارتفاع أقل — العمود المالي أنحف والحقول أقرب',`
+<div style="position:relative;border-radius:16px;overflow:hidden;background:var(--card-grad2);border:1px solid var(--bd);box-shadow:var(--shadow-md)">
+ <div style="position:absolute;top:0;bottom:0;left:0;width:30px;background:rgba(46,204,113,.12);border-right:1px solid rgba(46,204,113,.35);display:flex;align-items:center;justify-content:center;z-index:2">
+  <span style="writing-mode:vertical-rl;transform:rotate(180deg);color:var(--okD);font-size:10px;font-weight:600;display:inline-flex;gap:8px;align-items:center"><span>مدفوعة بالكامل</span><span class="num">${D.paid}</span></span></div>
+ <div style="padding:13px 24px 13px 52px">
+  <div style="display:grid;grid-template-columns:1fr 1px 150px;gap:14px;align-items:center">
+   <div style="min-width:0;display:flex;flex-direction:column;gap:7px">
+    <div style="display:flex;align-items:center;gap:9px">
+      <span style="font-size:14px;font-weight:600;color:var(--tx)">${D.name}</span>${flag(22)}${dayChip}
+      <span style="margin-inline-start:auto">${acts}</span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px 14px">
+      ${cellV(I.id,v('<span class="num mono">'+D.id+'</span>'))}
+      ${cellV(I.branch,v(D.branch))}
+      ${cellV(I.date,v('<span class="num">'+D.issued+'</span>'))}
+      ${cell(I.svc,'الخدمة',v('<span style="color:var(--gold)"><span class="num">×'+D.qty+'</span> '+D.svc+'</span>'))}
+      ${cell(I.invoice,'رقم الفاتورة',invNo())}
+    </div>
+   </div>
+   <div style="width:1.5px;align-self:stretch;background:linear-gradient(to bottom,transparent,rgba(176,125,0,.45),transparent)"></div>
+   <div style="display:flex;flex-direction:column;gap:6px">
+    <div style="display:flex;justify-content:flex-end">${visaTags()}</div>
+    <div style="text-align:left;font-size:24px;font-weight:600;color:var(--gold)" class="num">${D.total}</div>
+    <div style="border-top:1px solid var(--bd);padding-top:5px;display:flex;flex-direction:column;gap:2px;font-size:11px">
+      <div style="display:flex;justify-content:space-between"><span style="color:var(--tx3);font-weight:600">المدفوع</span><span class="num" style="color:var(--ok);font-weight:600">+ ${D.paid}</span></div>
+      <div style="display:flex;justify-content:space-between"><span style="color:var(--tx3);font-weight:600">المتبقي</span><span class="num" style="color:var(--tx2);font-weight:600">${D.rem}</span></div>
+    </div>
+   </div>
+  </div>
+ </div>
+ <div class="pbar"><div style="width:100%"></div></div>
+</div>`);
+
+/* ═══════════ 2) الصف الواحد ═══════════ */
+add(2,'الصف الواحد','كرت نحيف جداً — كل البيانات في سطر أفقي واحد، مناسب لعرض أكبر عدد من الفواتير',`
+<div style="position:relative;border-radius:13px;overflow:hidden;background:var(--card-grad2);border:1px solid var(--bd);box-shadow:var(--shadow-md)">
+ <div style="display:flex;align-items:center;gap:18px;padding:12px 18px;overflow-x:auto">
+  <span style="width:4px;align-self:stretch;border-radius:4px;background:var(--ok);flex-shrink:0"></span>
+  <div style="display:flex;flex-direction:column;gap:3px;min-width:130px">
+    <span style="display:inline-flex;align-items:center;gap:7px"><span style="font-size:13.5px;font-weight:600">${D.name}</span>${flag(20)}</span>
+    <span style="display:inline-flex;align-items:center;gap:6px">${dayChip}<span style="font-size:10px;color:var(--okD);font-weight:600;background:rgba(46,204,113,.12);padding:1px 7px;border-radius:99px">مدفوعة بالكامل</span></span>
+  </div>
+  ${cellV(I.id,v('<span class="num mono">'+D.id+'</span>'))}
+  ${cellV(I.branch,v(D.branch))}
+  ${cellV(I.date,v('<span class="num">'+D.issued+'</span>'))}
+  ${cell(I.svc,'الخدمة',v('<span style="color:var(--gold)"><span class="num">×'+D.qty+'</span> '+D.svc+'</span>'))}
+  ${cell(I.invoice,'رقم الفاتورة',invNo())}
+  <div style="display:flex;flex-direction:column;gap:3px;align-items:center">${visaTags()}<span style="font-size:9.5px;color:var(--tx4);font-weight:600">التأشيرات</span></div>
+  <div style="margin-inline-start:auto;display:flex;align-items:center;gap:16px">
+    <div style="text-align:center"><div class="num" style="font-size:19px;font-weight:600;color:var(--gold)">${D.total}</div><div style="font-size:9.5px;color:var(--tx4);font-weight:600">الإجمالي</div></div>
+    <div style="text-align:center"><div class="num" style="font-size:13px;font-weight:600;color:var(--ok)">+ ${D.paid}</div><div style="font-size:9.5px;color:var(--tx4);font-weight:600">المدفوع</div></div>
+    <div style="text-align:center"><div class="num" style="font-size:13px;font-weight:600;color:var(--tx2)">${D.rem}</div><div style="font-size:9.5px;color:var(--tx4);font-weight:600">المتبقي</div></div>
+    ${acts}
+  </div>
+ </div>
+ <div class="pbar"><div style="width:100%"></div></div>
+</div>`);
+
+/* ═══════════ 3) الرأس الملوّن ═══════════ */
+add(3,'الرأس الملوّن','شريط علوي بلون الحالة يحمل الاسم والحالة والأزرار — الجسم شبكة حقول نظيفة والمالية في سطر سفلي',`
+<div style="border-radius:16px;overflow:hidden;background:var(--card-grad2);border:1px solid var(--bd);box-shadow:var(--shadow-md)">
+ <div style="display:flex;align-items:center;gap:11px;padding:11px 20px;background:linear-gradient(90deg,rgba(46,204,113,.14),rgba(46,204,113,.03));border-bottom:1px solid rgba(46,204,113,.25)">
+   ${flag(24)}<span style="font-size:14.5px;font-weight:600">${D.name}</span>
+   <span style="display:inline-flex;align-items:center;gap:4px;background:rgba(46,204,113,.15);color:var(--okD);font-size:10.5px;font-weight:600;padding:3px 10px;border-radius:99px">${I.check('#27a046',11)} مدفوعة بالكامل</span>
+   ${dayChip}
+   <span style="margin-inline-start:auto;display:inline-flex;align-items:center;gap:8px">${visaTags()}${acts}</span>
+ </div>
+ <div style="padding:14px 20px;display:grid;grid-template-columns:repeat(5,1fr);gap:12px;align-items:center">
+   ${cellV(I.id,v('<span class="num mono">'+D.id+'</span>'))}
+   ${cellV(I.branch,v(D.branch))}
+   ${cellV(I.date,v('<span class="num">'+D.issued+'</span>'))}
+   ${cell(I.svc,'الخدمة',v('<span style="color:var(--gold)"><span class="num">×'+D.qty+'</span> '+D.svc+'</span>'))}
+   ${cell(I.invoice,'رقم الفاتورة',invNo())}
+ </div>
+ <div style="display:flex;align-items:center;gap:26px;padding:9px 20px;border-top:1px dashed var(--bd);background:rgba(176,125,0,.03)">
+   <span style="font-size:11px;color:var(--tx3);font-weight:600">الإجمالي <b class="num" style="color:var(--gold);font-size:16px;margin-inline-start:5px">${D.total}</b></span>
+   <span style="font-size:11px;color:var(--tx3);font-weight:600">المدفوع <b class="num" style="color:var(--ok);font-size:13px;margin-inline-start:5px">+ ${D.paid}</b></span>
+   <span style="font-size:11px;color:var(--tx3);font-weight:600">المتبقي <b class="num" style="color:var(--tx2);font-size:13px;margin-inline-start:5px">${D.rem}</b></span>
+   <span style="margin-inline-start:auto;flex:1;max-width:220px;height:5px;border-radius:99px;background:rgba(0,0,0,.06);overflow:hidden"><span style="display:block;height:100%;width:100%;background:var(--ok)"></span></span>
+ </div>
+</div>`);
+
+/* ═══════════ 4) التذكرة — الكعب المالي المشترك ═══════════ */
+const stub4=`
+ <div style="position:relative;border-inline-start:2px dashed rgba(176,125,0,.35);background:rgba(176,125,0,.045);padding:9px 16px;display:flex;flex-direction:column;justify-content:center;gap:4px">
+   <span style="position:absolute;top:-9px;inset-inline-start:-10px;width:18px;height:18px;border-radius:50%;background:var(--bg);border:1px solid var(--bd)"></span>
+   <span style="position:absolute;bottom:-9px;inset-inline-start:-10px;width:18px;height:18px;border-radius:50%;background:var(--bg);border:1px solid var(--bd)"></span>
+   <div style="display:flex;align-items:center;justify-content:space-between;gap:6px">
+     <div class="num" style="font-size:21px;font-weight:600;color:var(--gold)">${D.total}</div>
+     <span style="display:inline-flex;align-items:center;gap:4px;color:var(--okD);font-size:9.5px;font-weight:600;border:1.5px solid rgba(46,204,113,.5);border-radius:7px;padding:1px 8px;transform:rotate(-3deg)">${I.check('#27a046',10)} مدفوعة بالكامل</span>
+   </div>
+   <div style="display:flex;justify-content:space-between;font-size:10.5px"><span style="color:var(--tx3);font-weight:600">المدفوع</span><span class="num" style="color:var(--ok);font-weight:600">+ ${D.paid}</span></div>
+   <div style="display:flex;justify-content:space-between;font-size:10.5px"><span style="color:var(--tx3);font-weight:600">المتبقي</span><span class="num" style="color:var(--tx2);font-weight:600">${D.rem}</span></div>
+   <div class="pbar" style="border-radius:99px;overflow:hidden;height:4px"><div style="width:100%"></div></div>
+ </div>`;
+const tik=(inner)=>'<div style="position:relative;border-radius:16px;overflow:hidden;background:var(--card-grad2);border:1px solid var(--bd);box-shadow:var(--shadow-md);display:grid;grid-template-columns:1fr 210px">'+inner+stub4+'</div>';
+
+/* ═══════════ 4أ) الشريط الموحّد ═══════════ */
+add('4أ','التذكرة — الشريط الموحّد','بيانات العميل في شريط واحد بفواصل رأسية، والخدمة مع حالات التأشيرات في سطر بارز، ورقم الفاتورة كعب سفلي',tik(`
+ <div style="padding:9px 20px;display:flex;flex-direction:column;gap:7px">
+   <!-- ١) صف الهوية: من هو العميل + حركة اليوم + الإجراءات -->
+   <div style="display:flex;align-items:center;gap:10px">
+     <span style="font-size:14.5px;font-weight:600">${D.name}</span>${flag(22)}${dayChip}
+     <span style="margin-inline-start:auto">${acts}</span>
+   </div>
+   <!-- ٢) صف الموضوع: الخدمة (موضوع الفاتورة) وحالة تأشيراتها جنباً إلى جنب -->
+   <div style="display:flex;align-items:center;gap:12px">
+     <span style="display:inline-flex;align-items:center;gap:7px;background:rgba(176,125,0,.08);border:1px solid rgba(176,125,0,.28);border-radius:8px;padding:3px 12px;color:var(--gold);font-size:12.5px;font-weight:600"><span class="num">×${D.qty}</span> ${D.svc}</span>
+     <span style="width:1px;height:16px;background:var(--bd)"></span>
+     ${visaTags()}
+   </div>
+   <!-- ٣) شريط المراجع: كل الأرقام في مكان واحد — هوية · مكتب · إصدار · رقم الفاتورة -->
+   <div style="display:flex;align-items:center;background:var(--inputBg);border:1px solid var(--bd2);border-radius:10px;padding:5px 4px">
+     ${[[I.id,'<span class="num mono">'+D.id+'</span>'],['',D.branch],['','<span class="num">'+D.issued+'</span>']].map((x,i)=>
+     '<span style="flex:1;display:inline-flex;align-items:center;justify-content:center;gap:6px;'+(i?'border-inline-start:1px solid var(--bd);':'')+'"><span style="display:inline-flex;color:var(--gold);opacity:.65">'+x[0]+'</span><span style="font-size:12px;font-weight:600;color:var(--tx2)">'+x[1]+'</span></span>').join('')}
+     <span style="flex:1.2;display:inline-flex;align-items:center;justify-content:center;gap:6px;border-inline-start:1px solid var(--bd)">
+       <span style="display:inline-flex;color:var(--gold);opacity:.65">${I.invoice}</span>
+       <span class="num mono" style="font-size:12px;color:var(--gold);letter-spacing:1.5px">${D.inv}</span><span class="copy" style="color:var(--gold)">${I.copy}</span>
+     </span>
+   </div>
+ </div>`));
+
+/* ═══════════ 4ب) اللوحة الداخلية ═══════════ */
+add('4ب','التذكرة — اللوحة الداخلية','الخدمة بطلة الجانب داخل لوحة ذهبية خفيفة وحالات التأشيرات تحتها، وبيانات العميل عمود أنيق يمينها',tik(`
+ <div style="padding:9px 20px;display:flex;flex-direction:column;gap:6px">
+   <div style="display:flex;align-items:center;gap:10px">
+     <div style="display:flex;flex-direction:column;gap:2px">
+       <span style="display:inline-flex;align-items:center;gap:9px"><span style="font-size:14.5px;font-weight:600">${D.name}</span>${flag(22)}</span>
+       <span style="display:inline-flex;align-items:center;gap:6px"><span style="display:inline-flex;color:var(--gold);opacity:.6">${I.id}</span><span class="num mono" style="font-size:12px;font-weight:600;color:var(--tx3)">${D.id}</span></span>
+     </div>
+     ${dayChip}
+     <span style="margin-inline-start:auto">${acts}</span>
+   </div>
+   <div style="display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:stretch">
+     <div style="display:flex;flex-direction:column;justify-content:center;gap:4px;padding-inline-end:14px;border-inline-end:1px solid var(--bd2)">
+       <span style="display:inline-flex;align-items:center;gap:7px"><span style="font-size:12.5px;font-weight:600;color:var(--tx2)">${D.branch}</span> <span class="num" style="color:var(--tx3);font-size:11px;font-weight:600">${D.issued}</span></span>
+       <span style="display:inline-flex;align-items:center;gap:6px"><span style="display:inline-flex;color:var(--gold);opacity:.6">${I.invoice}</span><span class="num mono" style="font-size:12.5px;color:var(--gold);font-weight:600;letter-spacing:1px">${D.inv}</span><span class="copy" style="color:var(--gold)">${I.copy}</span></span>
+     </div>
+     <div style="background:linear-gradient(135deg,rgba(176,125,0,.09),rgba(176,125,0,.03));border:1px solid rgba(176,125,0,.22);border-radius:10px;padding:6px 13px;display:flex;flex-direction:column;justify-content:center;gap:4px">
+       <span style="display:inline-flex;align-items:center;gap:7px;color:var(--gold);font-size:13px;font-weight:600"><span class="num">×${D.qty}</span> ${D.svc}</span>
+       <div style="display:flex;align-items:center;gap:6px">
+         <span style="font-size:10px;color:var(--tx4);font-weight:600">حالة التأشيرات</span>${visaTags()}
+       </div>
+     </div>
+   </div>
+ </div>`));
+
+/* ═══════════ 4ج) بطاقة الصعود ═══════════ */
+add('4ج','التذكرة — بطاقة الصعود','بروح Boarding Pass: الخدمة سطر كبير في الوسط وحالاتها بجانبه، وبيانات العميل سطر سفلي خفيف بفواصل نقطية',tik(`
+ <div style="display:flex;flex-direction:column">
+   <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px;padding:9px 20px 5px">
+     <div style="display:flex;flex-direction:column;gap:3px;justify-self:start">
+       <span style="display:inline-flex;align-items:center;gap:9px"><span style="font-size:14.5px;font-weight:600;line-height:1.2">${D.name}</span>${flag(21)}</span>
+       <span style="display:inline-flex;align-items:center;gap:8px;font-size:10.5px;color:var(--tx3);font-weight:600;line-height:1">
+         <span class="num mono">${D.id}</span>
+         <span style="width:3px;height:3px;border-radius:50%;background:var(--tx4)"></span>
+         <span>${D.branch}</span>
+       </span>
+     </div>
+     <span class="num" style="display:inline-flex;align-items:center;gap:4px;color:var(--ok);font-size:14px;font-weight:600;direction:ltr">
+       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2ecc71" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+       <span>${D.dayIn}</span>
+     </span>
+     <span style="display:inline-flex;align-items:center;justify-self:end">${visaTags()}</span>
+   </div>
+   <div style="display:flex;align-items:center;gap:14px;padding:5px 20px;background:linear-gradient(270deg,rgba(176,125,0,.06),transparent)">
+     <span style="display:inline-flex;align-items:center;gap:8px;color:var(--gold);font-size:14px;font-weight:600"><span class="num">×${D.qty}</span> ${D.svc}</span>
+     <span style="margin-inline-start:auto;display:inline-flex;align-items:center;gap:6px">
+       <span style="font-size:9.5px;color:var(--tx4);font-weight:600;letter-spacing:.5px">رقم الفاتورة</span>
+       <span class="num mono" style="font-size:15px;color:var(--gold);letter-spacing:2.5px;font-weight:600">${D.inv}</span><span class="copy" style="color:var(--gold)">${I.copy}</span>
+     </span>
+   </div>
+   <div style="display:flex;align-items:center;gap:9px;padding:5px 20px 8px;font-size:12px;color:var(--tx2);font-weight:600;flex-wrap:wrap">
+     <span class="num">${D.issued}</span>
+     <span style="margin-inline-start:auto">${acts}</span>
+   </div>
+ </div>`));
+
+/* ═══════════ 5) اللوحتان ═══════════ */
+add(5,'اللوحتان المتقابلتان','لوحة بيانات بيضاء + لوحة مالية داكنة فاخرة داخل نفس الكرت — تباين واضح بين الهوية والمال',`
+<div style="border-radius:18px;overflow:hidden;background:var(--card-grad2);border:1px solid var(--bd);box-shadow:var(--shadow-md);display:grid;grid-template-columns:1fr 230px">
+ <div style="padding:17px 24px;display:flex;flex-direction:column;gap:12px">
+   <div style="display:flex;align-items:center;gap:10px">
+     ${flag(26)}
+     <div style="display:flex;flex-direction:column">
+       <span style="font-size:15px;font-weight:600">${D.name}</span>
+       <span style="font-size:10.5px;color:var(--gold);font-weight:600"><span class="num">×${D.qty}</span> ${D.svc}</span>
+     </div>
+     ${dayChip}
+     <span style="margin-inline-start:auto;display:inline-flex;gap:8px;align-items:center">${visaTags()}${acts}</span>
+   </div>
+   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px 14px;border-top:1px solid var(--bd2);padding-top:11px;align-items:center">
+     ${cellV(I.id,v('<span class="num mono">'+D.id+'</span>'))}
+     ${cellV(I.branch,v(D.branch))}
+     ${cellV(I.date,v('<span class="num">'+D.issued+'</span>'))}
+   </div>
+   <div style="display:flex;align-items:center;gap:6px">${cell(I.invoice,'رقم الفاتورة',invNo(12.5))}</div>
+ </div>
+ <div style="background:linear-gradient(160deg,#23201a,#141210);padding:16px 20px;display:flex;flex-direction:column;justify-content:center;gap:9px">
+   <span style="display:inline-flex;align-items:center;gap:5px;color:#7ee2a8;font-size:10.5px;font-weight:600">${I.check('#7ee2a8',11)} مدفوعة بالكامل</span>
+   <div class="num" style="font-size:27px;font-weight:600;color:#F0CB6A;letter-spacing:-.5px">${D.total}</div>
+   <div style="border-top:1px solid rgba(240,203,106,.2);padding-top:8px;display:flex;flex-direction:column;gap:4px;font-size:11px">
+     <div style="display:flex;justify-content:space-between"><span style="color:rgba(255,255,255,.55);font-weight:600">المدفوع</span><span class="num" style="color:#7ee2a8;font-weight:600">+ ${D.paid}</span></div>
+     <div style="display:flex;justify-content:space-between"><span style="color:rgba(255,255,255,.55);font-weight:600">المتبقي</span><span class="num" style="color:rgba(255,255,255,.8);font-weight:600">${D.rem}</span></div>
+   </div>
+   <div style="height:4px;border-radius:99px;background:rgba(255,255,255,.12);overflow:hidden"><div style="height:100%;width:100%;background:linear-gradient(90deg,#7ee2a8,#2ecc71)"></div></div>
+ </div>
+</div>`);
+
+/* ═══════════ 6) السطري الهادئ ═══════════ */
+add(6,'السطري الهادئ','أسلوب مينيمال — بلا شبكات ولا صناديق: اسم كبير وسطر معلومات واحد بفواصل نقطية وشريط تقدم علوي رفيع',`
+<div style="position:relative;border-radius:15px;overflow:hidden;background:var(--card-grad2);border:1px solid var(--bd);box-shadow:var(--shadow-md)">
+ <div style="height:3px;background:rgba(0,0,0,.05)"><div style="height:100%;width:100%;background:var(--ok)"></div></div>
+ <div style="padding:16px 26px 15px;display:flex;flex-direction:column;gap:10px">
+  <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap">
+    <span style="display:inline-flex;align-items:center;gap:9px"><span style="font-size:17px;font-weight:600">${D.name}</span>${flag(24)}</span>
+    <span style="font-size:12px;color:var(--gold);font-weight:600"><span class="num">×${D.qty}</span> ${D.svc}</span>
+    ${dayChip}
+    <span style="display:inline-flex;align-items:center;gap:4px;color:var(--okD);font-size:11px;font-weight:600">${I.check('#27a046',12)} مدفوعة بالكامل</span>
+    <span style="margin-inline-start:auto;display:inline-flex;align-items:center;gap:8px">${visaTags()}${acts}</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;font-size:11.5px;color:var(--tx3);font-weight:600">
+    <span style="display:inline-flex;align-items:center;gap:5px">${I.id} <b class="num mono" style="color:var(--tx2)">${D.id}</b></span><span style="color:var(--bd);font-weight:600">•</span>
+    <span style="display:inline-flex;align-items:center;gap:5px">${I.branch} <b style="color:var(--tx2)">${D.branch}</b></span><span style="color:var(--bd);font-weight:600">•</span>
+    <span style="display:inline-flex;align-items:center;gap:5px">${I.date} <b class="num" style="color:var(--tx2)">${D.issued}</b></span><span style="color:var(--bd);font-weight:600">•</span>
+    <span style="display:inline-flex;align-items:center;gap:5px">${I.invoice} ${invNo(11.5)}</span>
+    <span style="margin-inline-start:auto;display:inline-flex;align-items:baseline;gap:14px">
+      <span class="num" style="font-size:20px;font-weight:600;color:var(--gold)">${D.total}</span>
+      <span style="font-size:11px">المدفوع <b class="num" style="color:var(--ok)">+ ${D.paid}</b></span>
+      <span style="font-size:11px">المتبقي <b class="num" style="color:var(--tx2)">${D.rem}</b></span>
+    </span>
+  </div>
+ </div>
+</div>`);
+
+/* ═══════════ 7) الأسود الملكي ═══════════ */
+add(7,'الأسود الملكي','كرت داكن فاخر بذهبي لامع على صفحة فاتحة — بنفس روح الفاتورة المطبوعة Royal Black & Gold',`
+<div style="position:relative;border-radius:18px;overflow:hidden;background:linear-gradient(160deg,#23201a,#131110);border:1px solid rgba(176,125,0,.4);box-shadow:0 10px 30px rgba(40,30,5,.25)">
+ <div style="position:absolute;top:0;inset-inline:0;height:2px;background:linear-gradient(90deg,transparent,#F0CB6A,transparent)"></div>
+ <div style="padding:18px 26px;display:grid;grid-template-columns:1fr 1px 175px;gap:18px;align-items:center">
+  <div style="display:flex;flex-direction:column;gap:11px;min-width:0">
+    <div style="display:flex;align-items:center;gap:10px">
+      <span style="font-size:15.5px;font-weight:600;color:#f5eeda">${D.name}</span>${flag(23)}${dayChip}
+      <span style="margin-inline-start:auto;display:inline-flex;gap:7px">
+        <span class="act" style="background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.14)">${I.wa}</span>
+        <span class="act" style="background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.14)">${I.print}</span>
+      </span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:9px 16px">
+      ${[[I.id,'','<span class="num mono">'+D.id+'</span>'],[I.branch,'',D.branch],[I.date,'','<span class="num">'+D.issued+'</span>'],[I.svc,'الخدمة','<span style="color:#F0CB6A"><span class="num">×'+D.qty+'</span> '+D.svc+'</span>'],[I.invoice,'رقم الفاتورة','<span style="display:inline-flex;align-items:center;gap:5px;color:#F0CB6A"><span class="num mono">'+D.inv+'</span><span class="copy">'+I.copy+'</span></span>']].map(x=>x[1]
+      ? '<div style="display:flex;flex-direction:column;gap:4px;min-width:0"><span style="display:inline-flex;align-items:center;gap:5px;font-size:10px;color:rgba(240,203,106,.55);font-weight:600">'+x[0]+x[1]+'</span><span style="font-size:12px;color:rgba(255,255,255,.85);font-weight:600">'+x[2]+'</span></div>'
+      : '<div style="display:flex;align-items:center;gap:6px;min-width:0"><span style="display:inline-flex;color:rgba(240,203,106,.55)">'+x[0]+'</span><span style="font-size:12px;color:rgba(255,255,255,.85);font-weight:600">'+x[2]+'</span></div>').join('')}
+    </div>
+  </div>
+  <div style="width:1px;align-self:stretch;background:linear-gradient(to bottom,transparent,rgba(240,203,106,.5),transparent)"></div>
+  <div style="display:flex;flex-direction:column;gap:7px">
+    <div style="display:flex;justify-content:flex-end;gap:4px">${[4,3,2,1].map(n=>'<span style="display:inline-flex;align-items:center;gap:3px;border-right:3px solid #5dade2;background:rgba(93,173,226,.12);padding:3px 6px;color:#8cc6ec;font-size:10px;font-weight:600"><span class="num">'+n+'</span>'+I.clock('#8cc6ec')+'</span>').join('')}</div>
+    <div class="num" style="text-align:left;font-size:26px;font-weight:600;background:linear-gradient(90deg,#F0CB6A,#b8932c);-webkit-background-clip:text;background-clip:text;color:transparent">${D.total}</div>
+    <div style="border-top:1px solid rgba(240,203,106,.18);padding-top:6px;display:flex;flex-direction:column;gap:3px;font-size:11px">
+      <div style="display:flex;justify-content:space-between"><span style="color:rgba(255,255,255,.5);font-weight:600">المدفوع</span><span class="num" style="color:#7ee2a8;font-weight:600">+ ${D.paid}</span></div>
+      <div style="display:flex;justify-content:space-between"><span style="color:rgba(255,255,255,.5);font-weight:600">المتبقي</span><span class="num" style="color:rgba(255,255,255,.8);font-weight:600">${D.rem}</span></div>
+    </div>
+    <span style="align-self:flex-start;display:inline-flex;align-items:center;gap:4px;color:#7ee2a8;font-size:10px;font-weight:600;background:rgba(126,226,168,.1);border:1px solid rgba(126,226,168,.3);padding:2px 9px;border-radius:99px">${I.check('#7ee2a8',10)} مدفوعة بالكامل</span>
+  </div>
+ </div>
+ <div style="height:5px;background:rgba(255,255,255,.06)"><div style="height:100%;width:100%;background:linear-gradient(90deg,#27a046,#2ecc71)"></div></div>
+</div>`);
+
+/* ═══════════ 8) الشرائح ═══════════ */
+add(8,'شرائح الكبسولات','كل حقل كبسولة مستقلة قابلة للف — مرن جداً مع اختلاف عدد الحقول بين الخدمات',`
+<div style="position:relative;border-radius:16px;overflow:hidden;background:var(--card-grad2);border:1px solid var(--bd);box-shadow:var(--shadow-md)">
+ <div style="padding:15px 22px;display:flex;flex-direction:column;gap:11px">
+  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+    ${flag(24)}<span style="font-size:15px;font-weight:600">${D.name}</span>
+    <span style="display:inline-flex;align-items:center;gap:4px;background:rgba(46,204,113,.13);color:var(--okD);font-size:10.5px;font-weight:600;padding:3px 11px;border-radius:99px">${I.check('#27a046',11)} مدفوعة بالكامل <b class="num">${D.paid}</b></span>
+    ${dayChip}
+    <span style="margin-inline-start:auto;display:inline-flex;gap:8px;align-items:center">${visaTags()}${acts}</span>
+  </div>
+  <div style="display:flex;flex-wrap:wrap;gap:7px">
+    ${[[I.id,'','<span class="num mono">'+D.id+'</span>',''],[I.branch,'',D.branch,''],[I.date,'','<span class="num">'+D.issued+'</span>',''],[I.svc,'الخدمة','<span class="num">×'+D.qty+'</span> '+D.svc,'color:var(--gold)'],[I.invoice,'الفاتورة','<span class="num mono">'+D.inv+'</span> <span class="copy">'+I.copy+'</span>','color:var(--gold)']].map(x=>
+    '<span style="display:inline-flex;align-items:center;gap:7px;background:var(--inputBg);border:1px solid var(--bd);border-radius:99px;padding:5px 13px"><span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;color:var(--tx4);font-weight:600">'+x[0]+x[1]+'</span><span style="font-size:11.5px;font-weight:600;color:var(--tx2);'+x[3]+'">'+x[2]+'</span></span>').join('')}
+  </div>
+  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+    <span style="display:inline-flex;align-items:baseline;gap:7px;background:rgba(176,125,0,.08);border:1px solid rgba(176,125,0,.3);border-radius:12px;padding:6px 16px"><span style="font-size:10px;color:var(--tx4);font-weight:600">الإجمالي</span><span class="num" style="font-size:19px;font-weight:600;color:var(--gold)">${D.total}</span></span>
+    <span style="display:inline-flex;align-items:baseline;gap:7px;background:rgba(46,204,113,.08);border:1px solid rgba(46,204,113,.3);border-radius:12px;padding:6px 16px"><span style="font-size:10px;color:var(--tx4);font-weight:600">المدفوع</span><span class="num" style="font-size:14px;font-weight:600;color:var(--ok)">+ ${D.paid}</span></span>
+    <span style="display:inline-flex;align-items:baseline;gap:7px;background:var(--inputBg);border:1px solid var(--bd);border-radius:12px;padding:6px 16px"><span style="font-size:10px;color:var(--tx4);font-weight:600">المتبقي</span><span class="num" style="font-size:14px;font-weight:600;color:var(--tx2)">${D.rem}</span></span>
+  </div>
+ </div>
+ <div class="pbar"><div style="width:100%"></div></div>
+</div>`);
+
+/* ═══════════ 9) الأعمدة المفصولة ═══════════ */
+add(9,'الأعمدة المفصولة','هوية العميل يمين ثم أعمدة متساوية بفواصل رأسية — قراءة عمودية سريعة كالجداول لكن بروح الكرت',`
+<div style="position:relative;border-radius:16px;overflow:hidden;background:var(--card-grad2);border:1px solid var(--bd);box-shadow:var(--shadow-md)">
+ <div style="display:grid;grid-template-columns:200px repeat(3,1fr) 190px;align-items:stretch">
+  <div style="padding:15px 20px;display:flex;flex-direction:column;justify-content:center;gap:7px;background:rgba(176,125,0,.05);border-inline-end:1px solid var(--bd)">
+    <div style="display:flex;align-items:center;gap:8px">${flag(22)}<span style="font-size:14px;font-weight:600">${D.name}</span></div>
+    <span style="font-size:10.5px;color:var(--gold);font-weight:600"><span class="num">×${D.qty}</span> ${D.svc}</span>
+    <div style="display:flex;align-items:center;gap:7px">${dayChip}${acts}</div>
+  </div>
+  ${[[I.id,'','<span class="num mono">'+D.id+'</span>'],[I.branch,'',D.branch+' <span style="color:var(--tx4)">·</span> <span class="num" style="color:var(--tx3)">'+D.issued+'</span>'],[I.invoice,'رقم الفاتورة','<span style="display:inline-flex;align-items:center;gap:5px;color:var(--gold)"><span class="num mono">'+D.inv+'</span><span class="copy">'+I.copy+'</span></span>']].map((x,i)=>x[1]
+  ? '<div style="padding:15px 12px;display:flex;flex-direction:column;justify-content:center;gap:5px;align-items:center;border-inline-end:1px solid var(--bd2)"><span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;color:var(--tx4);font-weight:600">'+x[0]+x[1]+'</span><span style="font-size:12px;font-weight:600;color:var(--tx2)">'+x[2]+'</span></div>'
+  : '<div style="padding:15px 12px;display:flex;align-items:center;justify-content:center;gap:6px;border-inline-end:1px solid var(--bd2)"><span style="display:inline-flex;color:var(--tx4)">'+x[0]+'</span><span style="font-size:12px;font-weight:600;color:var(--tx2)">'+x[2]+'</span></div>').join('')}
+  <div style="padding:12px 16px;display:flex;flex-direction:column;justify-content:center;gap:5px;background:rgba(46,204,113,.06);border-inline-start:1px solid rgba(46,204,113,.25)">
+    <div style="display:flex;justify-content:center">${visaTags()}</div>
+    <div style="display:flex;align-items:baseline;justify-content:space-between"><span style="font-size:10px;color:var(--tx4);font-weight:600">الإجمالي</span><span class="num" style="font-size:20px;font-weight:600;color:var(--gold)">${D.total}</span></div>
+    <div style="display:flex;justify-content:space-between;font-size:10.5px"><span style="color:var(--tx4);font-weight:600">المدفوع</span><span class="num" style="color:var(--ok);font-weight:600">+ ${D.paid}</span></div>
+    <div style="display:flex;justify-content:space-between;font-size:10.5px"><span style="color:var(--tx4);font-weight:600">المتبقي</span><span class="num" style="color:var(--tx2);font-weight:600">${D.rem}</span></div>
+    <span style="display:inline-flex;align-items:center;gap:4px;color:var(--okD);font-size:9.5px;font-weight:600;justify-content:center">${I.check('#27a046',10)} مدفوعة بالكامل</span>
+  </div>
+ </div>
+ <div class="pbar"><div style="width:100%"></div></div>
+</div>`);
+
+/* ═══════════ 10) البطاقة المزدوجة الطوابق ═══════════ */
+add(10,'الطابقان','طابق علوي للهوية والحقول، وطابق سفلي مالي بعرض الكرت كله — المبلغ في الوسط كبطل الكرت',`
+<div style="position:relative;border-radius:18px;overflow:hidden;background:var(--card-grad2);border:1px solid var(--bd);box-shadow:var(--shadow-md)">
+ <span style="position:absolute;top:14px;inset-inline-start:-34px;transform:rotate(45deg) scaleX(-1);background:linear-gradient(90deg,#27a046,#2ecc71);color:#fff;font-size:9.5px;font-weight:600;padding:4px 40px;z-index:3;box-shadow:0 2px 8px rgba(39,160,70,.4)"><span style="display:inline-block;transform:scaleX(-1)">مدفوعة بالكامل</span></span>
+ <div style="padding:16px 24px 13px;display:flex;flex-direction:column;gap:12px">
+  <div style="display:flex;align-items:center;gap:10px;padding-inline-start:44px">
+    <span style="font-size:15.5px;font-weight:600">${D.name}</span>${flag(24)}${dayChip}
+    <span style="margin-inline-start:auto;display:inline-flex;align-items:center;gap:8px">${visaTags()}${acts}</span>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;padding-inline-start:44px;align-items:center">
+    ${cellV(I.id,v('<span class="num mono">'+D.id+'</span>'),1)}
+    ${cellV(I.branch,v(D.branch),1)}
+    ${cellV(I.date,v('<span class="num">'+D.issued+'</span>'),1)}
+    ${cell(I.svc,'الخدمة',v('<span style="color:var(--gold)"><span class="num">×'+D.qty+'</span> '+D.svc+'</span>'),1)}
+    ${cell(I.invoice,'رقم الفاتورة',invNo(),1)}
+  </div>
+ </div>
+ <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:20px;padding:11px 26px;background:linear-gradient(180deg,rgba(176,125,0,.06),rgba(176,125,0,.02));border-top:1px solid var(--bd)">
+   <div style="display:flex;justify-content:flex-end;align-items:baseline;gap:8px"><span style="font-size:11px;color:var(--tx3);font-weight:600">المدفوع</span><span class="num" style="font-size:15px;font-weight:600;color:var(--ok)">+ ${D.paid}</span></div>
+   <div style="display:flex;flex-direction:column;align-items:center;gap:1px;padding:0 26px;border-inline:1px solid var(--bd)">
+     <span style="font-size:9.5px;color:var(--tx4);font-weight:600;letter-spacing:1px">الإجمالي</span>
+     <span class="num" style="font-size:24px;font-weight:600;color:var(--gold);line-height:1.15">${D.total}</span>
+   </div>
+   <div style="display:flex;justify-content:flex-start;align-items:baseline;gap:8px"><span style="font-size:11px;color:var(--tx3);font-weight:600">المتبقي</span><span class="num" style="font-size:15px;font-weight:600;color:var(--tx2)">${D.rem}</span></div>
+ </div>
+ <div class="pbar"><div style="width:100%"></div></div>
+</div>`);
+</script>
+</body>
+</html>

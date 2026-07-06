@@ -1477,7 +1477,16 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
               </div>
               <div>
                 <div style={fLbl}>{T('حالة السداد','Pay Status')}</div>
-                <FKDropdown multi selectedKeys={payFilter} onChange={arr => { setPayFilter(arr); setPage(0) }} placeholder={T('الكل','All')} getKey={o => o.v} getLabel={o => o.l} options={[{ v: 'paid', l: T('مدفوعة بالكامل','Fully Paid') }, { v: 'partial', l: T('مدفوعة جزئياً','Partially Paid') }, { v: 'refunded', l: T('مستردة','Refunded') }, { v: 'cancelled', l: T('ملغاة','Cancelled') }]} />
+                <FKDropdown multi selectedKeys={payFilter} onChange={arr => { setPayFilter(arr); setPage(0) }} placeholder={T('الكل','All')} getKey={o => o.v} getLabel={o => o.l} options={[
+                  { v: 'paid_active',       l: T('مدفوعة بالكامل — غير ملغاة','Fully Paid — Active') },
+                  { v: 'partial_active',    l: T('مدفوعة جزئياً — غير ملغاة','Partially Paid — Active') },
+                  { v: 'unpaid_active',     l: T('غير مدفوعة — غير ملغاة','Unpaid — Active') },
+                  { v: 'paid_cancelled',    l: T('ملغاة — مدفوعة بالكامل','Cancelled — Fully Paid') },
+                  { v: 'partial_cancelled', l: T('ملغاة — مدفوعة جزئياً','Cancelled — Partially Paid') },
+                  { v: 'unpaid_cancelled',  l: T('ملغاة — غير مدفوعة','Cancelled — Unpaid') },
+                  { v: 'refunded_active',   l: T('مستردة — غير ملغاة','Refunded — Active') },
+                  { v: 'refunded_cancelled', l: T('مستردة — ملغاة','Refunded — Cancelled') },
+                ]} />
               </div>
               {/* فلتر الوسيط — يظهر للمدير العام فقط */}
               {isGM(user) && (
