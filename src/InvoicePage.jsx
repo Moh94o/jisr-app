@@ -7,7 +7,7 @@ import { noDash, clientEditChanges, branchLabel } from './lib/utils.js'
 import { navSetHere } from './lib/navStack.js'
 import { OFFICE_LOGO_SVG } from './lib/officeBrand.js'
 import { Modal, SuccessView, EmptyState, ModalSection, InfoRow, InfoGrid, GRID, FULL, CurrencyField, Segmented, TextField, TextArea, IdField, PhoneField, DateField, Select as FKSelect, Dropdown as FKDropdown, FileField, Checkbox, C as FKC, useFKLang } from './components/ui/FormKit.jsx'
-import { Plus, RotateCcw, Ban, Printer, Info, Wallet, FileText, Landmark, Building2, User, Search, CheckCircle2, Circle, CreditCard, Briefcase, Calendar, CalendarRange, BadgeCheck, Hash, Phone, Globe, Link2, MessageSquare, Paperclip } from 'lucide-react'
+import { Plus, RotateCcw, Ban, Printer, Info, Wallet, FileText, Landmark, Building2, User, Search, CheckCircle2, Circle, CreditCard, Briefcase, Calendar, CalendarRange, BadgeCheck, Hash, Phone, Globe, Link2, MessageSquare, Paperclip, Percent } from 'lucide-react'
 import { Stepper as FKStepper } from './components/ui/FormKit.jsx'
 import { Shimmer } from './components/ui/Skeleton.jsx'
 import { TXN_SERVICES } from './pages/txnServices.js'
@@ -1784,6 +1784,7 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user, onO
   const [agentModal, setAgentModal] = useState(false)
   const [noteModal, setNoteModal] = useState(false)
   const [pricingModal, setPricingModal] = useState(false)
+  const [discountModal, setDiscountModal] = useState(false)
   const [visaEditModal, setVisaEditModal] = useState(false)
   const [borderModal, setBorderModal] = useState(false)
   const [iqamaModal, setIqamaModal] = useState(false)
@@ -2320,7 +2321,7 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user, onO
       })()}
 
       {data.loading ? <InvoiceDetailSkeleton /> : (
-      <InvoiceDetailLayout user={user} inv={inv} data={data} isAr={isAr} T={T} svc={svc} payT={payT} total={total} paid={paid} remaining={remaining} pct={pct} stageStatus={[]} sb={sb} toast={toast} onRecordPayment={onRecordPayment} onRefund={onRefund} onCancelInv={onCancelInv} onPrint={onPrint} onEditWorker={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_worker_pick') ? undefined : () => setWorkerModal(true)} onEditService={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_service_edit') ? undefined : () => setSvcModal(true)} onEditOffice={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_service_edit') ? undefined : () => setOfficeModal(true)} onEditVisa={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_permanent_visa_edit') ? undefined : () => setVisaEditModal(true)} onEditBorders={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_border_numbers') ? undefined : () => setBorderModal(true)} onEditClient={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_client_edit') ? undefined : () => setClientModal(true)} onEditAgent={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_agent_edit') ? undefined : () => setAgentModal(true)} onEditNote={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_note_edit') ? undefined : () => setNoteModal(true)} onEditPricing={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_pricing_edit') ? undefined : () => setPricingModal(true)} onEditPayment={cancelledRO || !canPerm(user, 'invoices.record_payment') || !modalAllowed(user, 'invoices', 'inv_payment_edit') ? undefined : setPayEdit} canPayPerm={canPerm(user, 'invoices.record_payment')} canRefundPerm={canPerm(user, 'invoices.refund') && !gmLock} canCancelPerm={canPerm(user, 'invoices.cancel') && !gmLock} gmLock={gmLock} onOpenService={onOpenService} />
+      <InvoiceDetailLayout user={user} inv={inv} data={data} isAr={isAr} T={T} svc={svc} payT={payT} total={total} paid={paid} remaining={remaining} pct={pct} stageStatus={[]} sb={sb} toast={toast} onRecordPayment={onRecordPayment} onRefund={onRefund} onCancelInv={onCancelInv} onPrint={onPrint} onEditWorker={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_worker_pick') ? undefined : () => setWorkerModal(true)} onEditService={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_service_edit') ? undefined : () => setSvcModal(true)} onEditOffice={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_service_edit') ? undefined : () => setOfficeModal(true)} onEditVisa={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_permanent_visa_edit') ? undefined : () => setVisaEditModal(true)} onEditBorders={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_border_numbers') ? undefined : () => setBorderModal(true)} onEditClient={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_client_edit') ? undefined : () => setClientModal(true)} onEditAgent={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_agent_edit') ? undefined : () => setAgentModal(true)} onEditNote={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_note_edit') ? undefined : () => setNoteModal(true)} onEditPricing={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_pricing_edit') ? undefined : () => setPricingModal(true)} onDiscount={cancelledRO || !isGM(user) ? undefined : () => setDiscountModal(true)} onEditPayment={cancelledRO || !canPerm(user, 'invoices.record_payment') || !modalAllowed(user, 'invoices', 'inv_payment_edit') ? undefined : setPayEdit} canPayPerm={canPerm(user, 'invoices.record_payment')} canRefundPerm={canPerm(user, 'invoices.refund') && !gmLock} canCancelPerm={canPerm(user, 'invoices.cancel') && !gmLock} gmLock={gmLock} onOpenService={onOpenService} />
       )}
 
       {actionModal && <ActionModal type={actionModal} stage={doneStage} onClose={() => { setActionModal(null); setDoneStage(null) }} sb={sb} T={T} isAr={isAr} inv={inv} total={total} paid={paid} remaining={remaining} toast={toast} user={user} onSaved={() => setRefreshTick(t => t + 1)} visaDet={data?.det || []} svcCode={data?.code} insts={data?.insts || []} />}
@@ -2406,6 +2407,13 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user, onO
       {pricingModal && (
         <PricingEditModal sb={sb} toast={toast} T={T} isAr={isAr} inv={inv} paid={paid} user={user}
           onClose={() => setPricingModal(false)}
+          onSaved={reloadInvoiceFull} />
+      )}
+
+      {discountModal && (
+        <DiscountModal sb={sb} toast={toast} T={T} isAr={isAr} inv={inv} total={total} paid={paid} remaining={remaining}
+          insts={data?.insts || []} pays={data?.pays || []} user={user}
+          onClose={() => setDiscountModal(false)}
           onSaved={reloadInvoiceFull} />
       )}
 
@@ -5432,6 +5440,8 @@ const PricingCard = ({ breakdown, total = 0, paid = 0, remaining = 0, absher = 0
           const officeFeeV = Number(tc.office_fee || 0)
           const subtotalV = Number(tc.subtotal || 0)
           const totalV = Number(tc.total_amount || 0)
+          // خصم إضافي طبّقه المدير العام على الفاتورة بعد الحسبة = إجمالي الحسبة − إجمالي الفاتورة الفعلي.
+          const gmExtra = Math.max(0, Math.round((totalV - Number(total || 0)) * 100) / 100)
           const lineItems = [
             Number(tc.transfer_fee || 0) > 0 ? [T('رسوم نقل الكفالة', 'Sponsorship Transfer Fee'), tc.transfer_fee, null] : null,
             Number(tc.iqama_renewal_fee || 0) > 0 ? [T('تجديد الإقامة', 'Iqama Renewal') + renIqamaSuffix, tc.iqama_renewal_fee, null] : null,
@@ -5449,8 +5459,9 @@ const PricingCard = ({ breakdown, total = 0, paid = 0, remaining = 0, absher = 0
                 {visBreakdown && <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0' }}><span style={{ fontSize: 13, color: C.gold, fontWeight: 600 }}>{T('الإجمالي الابتدائي', 'Subtotal')}</span><span style={{ fontSize: 14, color: C.gold, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{nmSar(subtotalV)}</span></div>}
                 {Number(tc.absher_discount || 0) > 0 && visAbsher && <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0' }}><span style={{ fontSize: 13, color: '#27a046', fontWeight: 600 }}>{T('خصم أبشر', 'Absher Discount')}</span><span style={{ fontSize: 14, color: '#27a046', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{nmSar(Number(tc.absher_discount || 0))}</span></div>}
                 {Number(tc.manual_discount || 0) > 0 && visOfficeDisc && <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0' }}><span style={{ fontSize: 13, color: '#27a046', fontWeight: 600 }}>{T('خصم المكتب', 'Office Discount')}</span><span style={{ fontSize: 14, color: '#27a046', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{nmSar(Number(tc.manual_discount || 0))}</span></div>}
+                {gmExtra > 0.005 && visOfficeDisc && <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0' }}><span style={{ fontSize: 13, color: '#27a046', fontWeight: 600 }}>{T('خصم إضافي', 'Extra Discount')}</span><span style={{ fontSize: 14, color: '#27a046', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{nmSar(gmExtra)}</span></div>}
               </div>
-              {visTotal && <div style={{ margin: '10px 0 4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', background: 'var(--inputBg)', borderRadius: 12, border: '1px solid var(--bd)' }}><span style={{ color: C.gold, fontWeight: 600, fontSize: 14.5 }}>{T('الإجمالي النهائي', 'Final Total')}</span><span style={{ color: C.gold, fontWeight: 600, fontSize: 24, fontVariantNumeric: 'tabular-nums' }}>{num(totalV)} <span style={{ fontSize: 12, fontWeight: 600 }}>{T('ريال', 'SAR')}</span></span></div>}
+              {visTotal && <div style={{ margin: '10px 0 4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', background: 'var(--inputBg)', borderRadius: 12, border: '1px solid var(--bd)' }}><span style={{ color: C.gold, fontWeight: 600, fontSize: 14.5 }}>{T('الإجمالي النهائي', 'Final Total')}</span><span style={{ color: C.gold, fontWeight: 600, fontSize: 24, fontVariantNumeric: 'tabular-nums' }}>{num(total)} <span style={{ fontSize: 12, fontWeight: 600 }}>{T('ريال', 'SAR')}</span></span></div>}
             </>
           )
         }
@@ -5466,6 +5477,8 @@ const PricingCard = ({ breakdown, total = 0, paid = 0, remaining = 0, absher = 0
           const extras = (Array.isArray(tc.extras) ? tc.extras : []).filter(e => Number(e?.amount) > 0)
           const cover = tc.office_cover != null ? Number(tc.office_cover) : Math.max(0, Number(tc.iqama_renewal_fee || 0) + Number(tc.work_permit_fee || 0) + Number(tc.medical_fee || 0) - Number(tc.gov_excess || 0))
           const officeFeeV = Number(tc.office_fee || 0); const totalV = Number(tc.total_amount || 0)
+          // خصم إضافي طبّقه المدير العام على الفاتورة بعد الحسبة = إجمالي الحسبة − إجمالي الفاتورة الفعلي.
+          const gmExtra = Math.max(0, Math.round((totalV - Number(total || 0)) * 100) / 100)
           const lineItems = [
             Number(tc.iqama_renewal_fee || 0) > 0 ? [T('تجديد الإقامة', 'Iqama Renewal') + renIqamaSuffix, tc.iqama_renewal_fee, null] : null,
             Number(tc.late_fine_amount || 0) > 0 ? [T('غرامة تأخير التجديد', 'Renewal Late Fine'), tc.late_fine_amount, '#e5867a'] : null,
@@ -5483,14 +5496,18 @@ const PricingCard = ({ breakdown, total = 0, paid = 0, remaining = 0, absher = 0
                 {Number(tc.absher_discount || 0) > 0 && visAbsher && <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: 13, color: '#27a046', fontWeight: 600 }}>{T('خصم أبشر', 'Absher Discount')}</span><span style={{ fontSize: 14, color: '#27a046', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{nmSar(Number(tc.absher_discount || 0))}</span></div>}
                 {Number(tc.manual_discount || 0) > 0 && visOfficeDisc && <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: 13, color: '#27a046', fontWeight: 600 }}>{T('خصم المكتب', 'Office Discount')}</span><span style={{ fontSize: 14, color: '#27a046', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{nmSar(Number(tc.manual_discount || 0))}</span></div>}
               </div>}
-              {visTotal && <div style={{ marginTop: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', background: 'var(--inputBg)', borderRadius: 10, border: '1px solid var(--bd)' }}><span style={{ fontSize: 14.5, color: C.gold, fontWeight: 600 }}>{T('الإجمالي النهائي', 'Final Total')}</span><span style={{ fontSize: 18, color: C.gold, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(totalV)}</span></div>}
+              {gmExtra > 0.005 && visOfficeDisc && <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', minHeight: 26 }}><span style={{ fontSize: 13, color: '#27a046', fontWeight: 600 }}>{T('خصم إضافي', 'Extra Discount')}</span><span style={{ fontSize: 14, color: '#27a046', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{nmSar(gmExtra)}</span></div>}
+              {visTotal && <div style={{ marginTop: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', background: 'var(--inputBg)', borderRadius: 10, border: '1px solid var(--bd)' }}><span style={{ fontSize: 14.5, color: C.gold, fontWeight: 600 }}>{T('الإجمالي النهائي', 'Final Total')}</span><span style={{ fontSize: 18, color: C.gold, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(total)}</span></div>}
             </div>
           )
         }
         return (Array.isArray(breakdown) && breakdown.length > 0) ? (() => {
-        // الخصم = مجموع البنود − الإجمالي النهائي. نعرض «الإجمالي الابتدائي» و«خصم المكتب» و«الإجمالي النهائي»
+        // الخصم = مجموع بنود الرسوم − الإجمالي النهائي. نعرض «الإجمالي الابتدائي» و«خصم المكتب» و«الإجمالي النهائي»
         // تماماً كبطاقة تسعيرة حسبة التنازل — وإلا (بلا خصم) نكتفي بسطر «الإجمالي».
-        const lineSum = breakdown.reduce((s, l) => s + (Number(l.amount) || 0), 0)
+        // نستبعد أسطر الخصم (بعلم discount أو عنوانها) من قائمة الرسوم والمجموع كي لا تظهر كبند موجب.
+        const isDiscL = l => l && (l.discount === true || ['خصم', 'الخصم', 'Discount'].includes(String(l.label || '').trim()))
+        const feeLines = breakdown.filter(l => !isDiscL(l))
+        const lineSum = feeLines.reduce((s, l) => s + (Number(l.amount) || 0), 0)
         const disc = Math.max(0, lineSum - (Number(total) || 0))
         // الخصم الكلي يشمل خصم أبشر (المجلوب من الحسبة) + خصم المكتب — نفصلهما عند توفّر مبلغ أبشر.
         const absherDisc = Math.min(Math.max(0, Number(absher) || 0), disc)
@@ -5521,7 +5538,7 @@ const PricingCard = ({ breakdown, total = 0, paid = 0, remaining = 0, absher = 0
         }
         return (
         <div style={{ borderRadius: 12, border: '1px solid var(--bd)', background: 'var(--inputBg)', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 9 }}>
-          {visBreakdown && breakdown.map((l, i) => (
+          {visBreakdown && feeLines.map((l, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, fontSize: 14 }}>
               <span style={{ color: 'var(--tx2)', fontWeight: 600, fontSize: 12.5 }}>{((l.label === 'رسوم عقد أجير' || l.label === 'رسوم أساسية') ? T('رسوم العقد', 'Contract Fee') : fmtLineLabel(l.label, T)) + monthSuffix(l.label)}</span>
               <span style={{ color: 'var(--tx1)', fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(l.amount)}</span>
@@ -7394,6 +7411,148 @@ function PricingEditModal({ sb, toast, T, inv, paid = 0, onClose, onSaved, user 
   )
 }
 
+// يطبّق تغيير تسعير على الفاتورة ويحافظ على اتساق كل الأجزاء المرتبطة بالإجمالي:
+// يحدّث الإجمالي/البنود + سجلّ التسعير، يعيد اشتقاق حالة السداد، ويعيد توزيع جدول
+// الدفعات ليطابق الإجمالي الجديد (remaining_amount عمود محسوب فيتحدّث تلقائياً).
+async function applyInvoicePricing(sb, inv, { newTotal, newLines, logEntry }) {
+  const nowIso = new Date().toISOString()
+  const r2 = n => Math.round((Number(n) || 0) * 100) / 100
+  const { data: invFresh } = await sb.from('invoices').select('paid_amount, pricing_log, status:status_id(code)').eq('id', inv.id).maybeSingle()
+  const curPaid = Number(invFresh?.paid_amount) || 0
+  const patch = { total_amount: newTotal, last_activity_at: nowIso }
+  if (newLines) patch.pricing_breakdown = newLines
+  if (logEntry) {
+    const log = Array.isArray(invFresh?.pricing_log) ? invFresh.pricing_log : []
+    patch.pricing_log = [...log, { at: nowIso, ...logEntry }]
+  }
+  const stPatch = await invoiceStatusPatch(sb, invFresh?.status?.code, curPaid, newTotal)
+  const { error } = await sb.from('invoices').update({ ...patch, ...stPatch }).eq('id', inv.id)
+  if (error) throw error
+  // مزامنة جدول الدفعات مع الإجمالي الجديد — نفس منطق نافذة تعديل التسعير.
+  const { data: insRows } = await sb.from('installments').select('id,total_amount,paid_amount,installment_order').eq('invoice_id', inv.id).is('deleted_at', null).order('installment_order')
+  if (Array.isArray(insRows) && insRows.length) {
+    const sumT = insRows.reduce((s, r) => s + (Number(r.total_amount) || 0), 0)
+    const delta = r2(newTotal - sumT)
+    if (Math.abs(delta) > 0.005) {
+      if (insRows.length === 1) {
+        const only = insRows[0]
+        if (newTotal >= Number(only.paid_amount) - 0.005) await sb.from('installments').update({ total_amount: newTotal }).eq('id', only.id)
+      } else {
+        const rows = insRows.slice().sort((a, b) => (Number(a.installment_order) || 0) - (Number(b.installment_order) || 0))
+        const paidArr = rows.map(r => r2(Number(r.paid_amount) || 0))
+        const floorSum = r2(paidArr.reduce((s, v) => s + v, 0))
+        let extra = r2(newTotal - floorSum); if (extra < 0) extra = 0
+        const remArr = rows.map((r, i) => Math.max(0, r2((Number(r.total_amount) || 0) - paidArr[i])))
+        const remSum = r2(remArr.reduce((s, v) => s + v, 0))
+        const weights = remSum > 0.005 ? remArr.map(v => v / remSum) : rows.map((_, i) => i === rows.length - 1 ? 1 : 0)
+        const newTotals = paidArr.slice()
+        let acc = 0
+        for (let i = 0; i < rows.length; i++) {
+          const add = i === rows.length - 1 ? r2(extra - acc) : r2(extra * weights[i])
+          acc = r2(acc + add)
+          newTotals[i] = r2(newTotals[i] + add)
+        }
+        for (let i = 0; i < rows.length; i++) {
+          if (r2(newTotals[i]) !== r2(Number(rows[i].total_amount) || 0)) await sb.from('installments').update({ total_amount: r2(newTotals[i]) }).eq('id', rows[i].id)
+        }
+      }
+    }
+  }
+}
+
+// نافذة الخصم — للمدير العام فقط: تعرض التسعيرة والدفعات والإجمالي/المدفوع/المتبقي،
+// ويُدخل المدير قيمة الخصم فيُضاف بند «خصم» (سالب) للتسعيرة ويُخفَّض الإجمالي — فينعكس
+// على المتبقي وحالة السداد وجدول الدفعات والطباعة والإحصاء عبر applyInvoicePricing.
+function DiscountModal({ sb, toast, T, isAr, inv, total = 0, paid = 0, remaining = 0, insts = [], pays = [], user, onClose, onSaved }) {
+  const r2 = n => Math.round((Number(n) || 0) * 100) / 100
+  const DISC = T('خصم', 'Discount')
+  // نكتشف سطر الخصم بعلم discount (نفس علم قالب الطباعة) أو بعنوانه — كي تُستبعَد من بنود الرسوم.
+  const isDiscLine = l => l && (l.discount === true || l._discount === true || l.label === 'خصم' || l.label === 'الخصم' || l.label === 'Discount' || l.label === DISC)
+  const hasBreakdown = Array.isArray(inv.pricing_breakdown) && inv.pricing_breakdown.length > 0
+  const curLines = hasBreakdown ? inv.pricing_breakdown : []
+  const curDiscount = r2(curLines.filter(isDiscLine).reduce((s, l) => s + Math.abs(Number(l.amount) || 0), 0))
+  const [disc, setDisc] = useState('')
+  const [reason, setReason] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [done, setDone] = useState(false)
+  const [err, setErr] = useState('')
+  const d = r2(disc)
+  const newTotal = r2(Number(total) - d)
+  const newRemaining = Math.max(0, r2(newTotal - paid))
+  const valid = d > 0 && newTotal >= r2(paid) - 0.005 && newTotal >= 0
+  const save = async () => {
+    if (saving || !inv?.id) return
+    if (!(d > 0)) { setErr(T('أدخل قيمة خصم أكبر من صفر', 'Enter a discount greater than zero')); return }
+    if (newTotal < r2(paid) - 0.005) { setErr(T('الخصم يجعل الإجمالي أقل من المبلغ المدفوع', 'Discount makes the total less than the amount paid')); return }
+    setErr(''); setSaving(true)
+    try {
+      // الخصم يُخصَم من الإجمالي الحالي الفعلي — لا من مجموع البنود (قد يختلف عن الإجمالي في فواتير
+      // الحسبة حيث الإجمالي معتمَد على الحسبة لا على البنود). بند «خصم» يمتصّ الفارق كي يبقى مجموع
+      // البنود = الإجمالي النهائي دائماً.
+      const newTotal = r2(Number(total) - d)
+      let newLines
+      if (hasBreakdown) {
+        const grossLines = inv.pricing_breakdown
+          .map(l => ({ ...l, label: l.label || '', amount: Number(l.amount) || 0 }))
+          .filter(l => !isDiscLine(l))
+        const grossSum = r2(grossLines.reduce((s, l) => s + (Number(l.amount) || 0), 0))
+        const discAmt = r2(newTotal - grossSum)
+        newLines = discAmt < -0.005 ? [...grossLines, { label: DISC, amount: discAmt, discount: true }] : grossLines
+      } else {
+        newLines = [
+          { label: (isAr ? inv.service_type?.value_ar : (inv.service_type?.value_en || inv.service_type?.value_ar)) || T('قيمة الخدمة', 'Service amount'), amount: r2(Number(total)) },
+          { label: DISC, amount: -d, discount: true },
+        ]
+      }
+      await applyInvoicePricing(sb, inv, {
+        newTotal, newLines,
+        logEntry: { by: user?.id || null, by_name: user?.person?.name_ar || user?.person?.name_en || null, discount: d, reason: reason.trim() || null, total: { from: r2(total), to: newTotal }, changes: [{ field: 'discount', from: '', to: String(d) }] },
+      })
+      onSaved?.(); setDone(true)
+    } catch { setErr(T('تعذّر تطبيق الخصم', 'Could not apply the discount')) }
+    finally { setSaving(false) }
+  }
+  const chip = (label, value, color) => (
+    <div style={{ flex: 1, minWidth: 0, padding: '10px 12px', borderRadius: 10, background: 'var(--inputBg)', border: '1px solid var(--bd)', display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center' }}>
+      <span style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 600 }}>{label}</span>
+      <span style={{ fontSize: 15, color: color || 'var(--tx)', fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(value)}</span>
+    </div>
+  )
+  const content = (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontFamily: F }}>
+      <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+        {chip(T('الإجمالي', 'Total'), total, C.gold)}
+        {chip(T('المدفوع', 'Paid'), paid, C.ok)}
+        {chip(T('المتبقي', 'Remaining'), remaining, remaining > 0.005 ? C.red : C.ok)}
+      </div>
+
+      <ModalSection Icon={Percent} label={T('تطبيق خصم', 'Apply discount')}>
+        {curDiscount > 0.005 && (
+          <div style={{ fontSize: 11.5, color: 'var(--tx4)', fontWeight: 600, marginBottom: 8 }}>
+            {T('خصم حالي', 'Current discount')}: <span style={{ color: C.red, direction: 'ltr' }}>{num(curDiscount)}</span>
+          </div>
+        )}
+        <div style={GRID}>
+          <CurrencyField full label={T('قيمة الخصم', 'Discount amount')} value={disc} onChange={v => { setErr(''); setDisc(v) }} unit={T('ريال', 'SAR')} />
+          <TextField full label={T('سبب الخصم (اختياري)', 'Reason (optional)')} value={reason} onChange={setReason} placeholder={T('مثال: عميل مميز', 'e.g. loyal customer')} />
+        </div>
+        {d > 0 && (
+          <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+            {chip(T('الإجمالي بعد الخصم', 'Total after'), newTotal, C.gold)}
+            {chip(T('المتبقي بعد الخصم', 'Remaining after'), newRemaining, newRemaining > 0.005 ? C.red : C.ok)}
+          </div>
+        )}
+      </ModalSection>
+    </div>
+  )
+  return (
+    <Modal open onClose={onClose} title={T('خصم على الفاتورة', 'Invoice discount')} Icon={Percent} width={560} height="min(640px, 92vh)" accent={C.gold}
+      success={done ? <SuccessView title={T('تم تطبيق الخصم', 'Discount applied')} /> : undefined}
+      pages={[{ valid, error: err || undefined, content }]}
+      onSubmit={save} submitting={saving} submitIcon={CheckCircle2} submitLabel={T('تطبيق الخصم', 'Apply discount')} />
+  )
+}
+
 // سجلّ تغييرات موحّد — يُعرض أسفل البطاقات (العميل/العامل/الخدمة/الملاحظة) بنمط واحد:
 // أيقونة تاريخ + عنوان، ثم بطاقة لكل تعديل (الأحدث أولاً) فيها «تم… بواسطة فلان» + الوقت + التفاصيل.
 const ChangeLog = ({ T, title, entries, actionLabel, renderDetail }) => {
@@ -8210,7 +8369,7 @@ function InvoiceCommentModal({ sb, T, toast, srId, user, onClose, onSaved }) {
   )
 }
 
-const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid, remaining, pct, stageStatus, sb, toast, onRecordPayment, onRefund, onCancelInv, onPrint, onEditWorker, onEditService, onEditOffice, onEditVisa, onEditBorders, onEditClient, onEditAgent, onEditNote, onEditPricing, onEditPayment, onOpenService, canPayPerm = true, canRefundPerm = true, canCancelPerm = true, gmLock = false }) => (
+const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid, remaining, pct, stageStatus, sb, toast, onRecordPayment, onRefund, onCancelInv, onPrint, onEditWorker, onEditService, onEditOffice, onEditVisa, onEditBorders, onEditClient, onEditAgent, onEditNote, onEditPricing, onDiscount, onEditPayment, onOpenService, canPayPerm = true, canRefundPerm = true, canCancelPerm = true, gmLock = false }) => (
   <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 14, alignItems: 'flex-start' }}>
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       {/* كرت العميل يظهر فقط للخدمات التي تتطلب عميلاً (تأشيرات العمل، نقل الكفالة، تجديد الإقامة،
@@ -8527,6 +8686,57 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
                     renderDetail={c => <FieldChanges T={T} changes={c.changes} LBL={LBL} showVal={showVal} />} />
                 )
               })()}
+            </div>
+          </div>
+        )
+      })()}
+      {(() => {
+        // كرت الخصم — يظهر أسفل كرت الوسيط عند وجود خصم على الفاتورة (من زر «خصم» للمدير العام).
+        const discLog = (Array.isArray(inv.pricing_log) ? inv.pricing_log : []).filter(e => Number(e?.discount) > 0)
+        const bd = Array.isArray(inv.pricing_breakdown) ? inv.pricing_breakdown : []
+        const isDisc = l => l && (l.discount === true || ['خصم', 'الخصم', 'Discount'].includes(String(l.label || '').trim()))
+        const lineDisc = bd.filter(isDisc).reduce((s, l) => s + Math.abs(Number(l.amount) || 0), 0)
+        const logDisc = discLog.reduce((s, e) => s + (Number(e.discount) || 0), 0)
+        // نُظهر خصم المدير العام المُطبَّق (من السجل) — لا الخصم الكلي الذي قد يشمل خصم الحسبة.
+        const discountAmt = logDisc > 0.005 ? logDisc : lineDisc
+        if (discountAmt <= 0.005) return null
+        const gross = Math.round((Number(total) + discountAmt) * 100) / 100
+        const cell = (label, value, color) => (
+          <div style={{ flex: 1, minWidth: 0, padding: '10px 12px', borderRadius: 10, background: 'var(--inputBg)', border: '1px solid var(--bd)', display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center' }}>
+            <span style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 600 }}>{label}</span>
+            <span style={{ fontSize: 15, color: color || 'var(--tx)', fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(value)}</span>
+          </div>
+        )
+        return (
+          <div style={cardChrome}>
+            <div style={cardHeader}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#27a046' }} />
+              <span style={{ ...cardTitle, color: '#27a046' }}>{T('الخصم', 'Discount')}</span>
+              {!!onDiscount && (
+                <button onClick={onDiscount} title={T('تطبيق خصم', 'Apply discount')}
+                  style={{ marginInlineStart: 'auto', height: 32, padding: '0 14px', borderRadius: 9, background: 'rgba(176,125,0,.06)', border: '1px dashed var(--accent-bd)', color: 'var(--accent)', fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+                  <span>{T('خصم إضافي', 'Add discount')}</span>
+                  <Percent size={13} />
+                </button>
+              )}
+            </div>
+            <div style={{ padding: '16px 22px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {cell(T('قبل الخصم', 'Before'), gross, C.gold)}
+                {cell(T('الخصم', 'Discount'), discountAmt, '#27a046')}
+                {cell(T('بعد الخصم', 'After'), total, C.gold)}
+              </div>
+              {discLog.length > 0 && (
+                <ChangeLog T={T} title={T('سجل الخصم', 'Discount log')} entries={discLog}
+                  actionLabel={T('تم تطبيق خصم', 'Discount applied')}
+                  renderDetail={c => (
+                    <div style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      <span>{T('القيمة', 'Amount')}:</span>
+                      <span style={{ color: '#27a046', direction: 'ltr' }}>{num(c.discount)}</span>
+                      {c.reason && <span style={{ color: 'var(--tx5)' }}>· {c.reason}</span>}
+                    </div>
+                  )} />
+              )}
             </div>
           </div>
         )
@@ -9169,7 +9379,10 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
         const canRefund = !cancelled && invBranchCan && paid > 0.005 && canRefundPerm && modalAllowed(user, 'invoices', 'inv_action_refund')
         // رواتب سبلاير: لا يُعرض زر إلغاء الفاتورة (تُدار حالة الطلب من زر «تأكيد الإنجاز» فقط).
         const canCancel = !cancelled && invBranchCan && canCancelPerm && !isZeroSvc(inv.service_type?.code) && modalAllowed(user, 'invoices', 'inv_action_cancel')
-        if (!canPay && !canRefund && !canCancel) return null
+        // خصم — للمدير العام فقط (onDiscount يُمرَّر مضبوطاً حسب صلاحية GM من InvoiceDetailPage).
+        // يظهر فقط عند وجود متبقٍّ يُخصَم منه — الفاتورة المسدّدة بالكامل تحتاج استرجاعاً لا خصماً.
+        const canDiscount = !cancelled && invBranchCan && !!onDiscount && Number(remaining) > 0.005
+        if (!canPay && !canRefund && !canCancel && !canDiscount) return null
         return (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             {canPay && (
@@ -9190,6 +9403,13 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
               <div style={{ gridColumn: 'span 2', display: 'grid' }}>
                 <ActionGridButton onClick={onCancelInv} color={C.red} label={T('إلغاء','Cancel')}>
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M4.93 4.93l14.14 14.14"/></svg>
+                </ActionGridButton>
+              </div>
+            )}
+            {canDiscount && (
+              <div style={{ gridColumn: 'span 2', display: 'grid' }}>
+                <ActionGridButton onClick={onDiscount} color={C.gold} label={T('خصم','Discount')}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>
                 </ActionGridButton>
               </div>
             )}
