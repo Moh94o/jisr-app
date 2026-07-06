@@ -888,6 +888,8 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
   const [agentFilter, setAgentFilter] = useState('')
   const [natFilter, setNatFilter] = useState('')
   const [overdue, setOverdue] = useState('')         // '' | '1' (عليها أقساط متأخرة)
+  // ترتيب الكروت: activity_desc = الافتراضي (الأحدث نشاطاً) · created_desc/created_asc = حسب تاريخ الإصدار
+  const [sortMode, setSortMode] = useState('activity_desc')
   const [advOpen, setAdvOpen] = useState(false)
 
   // تهدئة البحث: لا نُطلق الاستعلام مع كل ضغطة، بل بعد توقف الكتابة ~300ms.
@@ -1124,7 +1126,7 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
     const { active, ...f } = statFilters
     // كاش الجلسة: نفس الصفحة + نفس التصفية تُرسم فوراً من آخر نتيجة (بلا سكيلتون)
     // بينما يجري جلبٌ صامت يحدّثها — تبديل التبويبات والرجوع من التفاصيل صار لحظياً.
-    const ck = 'inv:list:' + page + ':' + JSON.stringify(f)
+    const ck = 'inv:list:' + page + ':' + sortMode + ':' + JSON.stringify(f)
     const cached = swrGet(ck)
     if (cached) { setRows(cached.rows); setTotal(cached.total); setLoading(false) }
     else setLoading(true)
@@ -1137,20 +1139,28 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
       // رحلة واحدة بدل رحلتين: search_invoices_page تعيد صفوف الفواتير نفسها فيُنفَّذ
       // البحث + جلب التضمينات في طلب واحد، والعدّ الكلي يجري بالتوازي لا بالتسلسل.
       const [listRes, cntRes] = await Promise.all([
-        sb.rpc('search_invoices_page', { ...f, p_limit: PAGE, p_offset: page * PAGE }).select(INVOICE_SELECT),
-        sb.rpc('search_invoice_ids', { ...f, p_limit: 1, p_offset: 0 }),
+        sb.rpc('search_invoices_page', { ...f, p_sort: sortMode, p_limit: PAGE, p_offset: page * PAGE }).select(INVOICE_SELECT),
+        sb.rpc('search_invoice_ids', { ...f, p_sort: sortMode, p_limit: 1, p_offset: 0 }),
       ])
       if (!alive) return
       if (!listRes.error) {
         const ts = v => (v ? new Date(v).getTime() : -Infinity)
-        const sorted = (listRes.data || []).slice().sort((a, b) => (ts(b.last_activity_at) - ts(a.last_activity_at)) || (ts(b.created_at) - ts(a.created_at)))
+        // ترتيب العميل يطابق ترتيب الـ RPC (كي تبقى حدود الصفحة صحيحة عبر التصفح)
+        const cmp = sortMode === 'created_asc'
+          ? (a, b) => (ts(a.created_at) - ts(b.created_at)) || (a.id > b.id ? 1 : -1)
+          : sortMode === 'created_desc'
+            ? (a, b) => (ts(b.created_at) - ts(a.created_at)) || (a.id > b.id ? 1 : -1)
+            : sortMode === 'activity_asc'
+              ? (a, b) => (ts(a.last_activity_at) - ts(b.last_activity_at)) || (ts(a.created_at) - ts(b.created_at))
+              : (a, b) => (ts(b.last_activity_at) - ts(a.last_activity_at)) || (ts(b.created_at) - ts(a.created_at))
+        const sorted = (listRes.data || []).slice().sort(cmp)
         const totalCount = !cntRes.error && cntRes.data?.length ? Number(cntRes.data[0].total) : page * PAGE + sorted.length
         done(sorted, totalCount)
         return
       }
       // احتياط (نسخة مخطط قديمة بلا الدالة الجديدة): المسار السابق برحلتين متعاقبتين.
       console.warn('[invoices] search_invoices_page failed — fallback to two-step', listRes.error)
-      const { data: idRows, error: e1 } = await sb.rpc('search_invoice_ids', { ...f, p_limit: PAGE, p_offset: page * PAGE })
+      const { data: idRows, error: e1 } = await sb.rpc('search_invoice_ids', { ...f, p_sort: sortMode, p_limit: PAGE, p_offset: page * PAGE })
       if (!alive) return
       if (e1) { console.warn('[invoices] list load failed', e1); fail(); return }
       const ids = (idRows || []).map(r => r.id)
@@ -1163,7 +1173,7 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
       done((data || []).slice().sort((a, b) => (pos.get(a.id) ?? 0) - (pos.get(b.id) ?? 0)), totalCount)
     })()
     return () => { alive = false }
-  }, [sb, page, statFilters, refreshTick])
+  }, [sb, page, statFilters, sortMode, refreshTick])
 
   const stats = useMemo(() => {
     const total = statsTotalCount
@@ -1192,14 +1202,17 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
     return new Date(d.getTime() - 2 * 3600 * 1000).toISOString().slice(0, 10)
   }
   const grouped = useMemo(() => {
+    // عند الترتيب حسب تاريخ الإصدار نجمّع الكروت بيوم الإصدار (لا يوم آخر نشاط) كي تطابق
+    // عناوين الأيام ترتيب الفرز وتتصاعد/تتنازل بحسبه.
+    const byCreated = sortMode === 'created_asc' || sortMode === 'created_desc'
     const days = {}; const order = []
     rows.forEach(r => {
-      const k = businessDayKey(r.last_activity_at || r.created_at) || T('بدون', 'No date')
+      const k = businessDayKey(byCreated ? r.created_at : (r.last_activity_at || r.created_at)) || T('بدون', 'No date')
       if (!days[k]) { days[k] = []; order.push(k) }
       days[k].push(r)
     })
     return { days, order }
-  }, [rows])
+  }, [rows, sortMode])
   const todayStr = riyadhDayStart().toISOString().slice(0, 10)
 
   // ── نسخ ملخص حركة اليوم (زر الواتساب بجانب «فاتورة جديدة») ──
@@ -1486,6 +1499,15 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
                   { v: 'unpaid_cancelled',  l: T('ملغاة — غير مدفوعة','Cancelled — Unpaid') },
                   { v: 'refunded_active',   l: T('مستردة — غير ملغاة','Refunded — Active') },
                   { v: 'refunded_cancelled', l: T('مستردة — ملغاة','Refunded — Cancelled') },
+                ]} />
+              </div>
+              <div>
+                <div style={fLbl}>{T('الترتيب','Sort')}</div>
+                <FKDropdown value={sortMode} onChange={v => { setSortMode(v || 'activity_desc'); setPage(0) }} placeholder={T('الأحدث نشاطاً','Latest activity')} getKey={o => o.v} getLabel={o => o.l} options={[
+                  { v: 'activity_desc', l: T('الأحدث نشاطاً','Latest activity') },
+                  { v: 'activity_asc',  l: T('الأقدم نشاطاً','Oldest activity') },
+                  { v: 'created_desc',  l: T('تاريخ الإصدار — الأحدث أولاً','Issue date — Newest first') },
+                  { v: 'created_asc',   l: T('تاريخ الإصدار — الأقدم أولاً','Issue date — Oldest first') },
                 ]} />
               </div>
               {/* فلتر الوسيط — يظهر للمدير العام فقط */}
