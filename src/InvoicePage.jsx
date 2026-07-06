@@ -6340,6 +6340,12 @@ function OfficeEditModal({ sb, toast, T, srId, invId, currentBranchId, editorId,
       const entry = { at: nowIso, by: editorId || null, by_name: editorName || null, changes: [{ field: 'office', from: codeOf(currentBranchId), to: codeOf(bid) }] }
       const { error: e1 } = await sb.from('invoices').update({ branch_id: bid, service_log: [...log, entry] }).eq('id', invId); if (e1) throw e1
       const { error: e2 } = await sb.from('service_requests').update({ branch_id: bid }).eq('id', srId); if (e2) throw e2
+      // نقل كل مرتبطات الفاتورة إلى المكتب الجديد كي لا تبقى في المكتب القديم:
+      // حسبة نقل الكفالة/تجديد الإقامة + جدول الدفعات + المدفوعات — كلها مرتبطة بالفاتورة عبر invoice_id.
+      for (const tbl of ['transfer_calculation', 'iqama_renewal_calculation', 'installments', 'payments']) {
+        const { error } = await sb.from(tbl).update({ branch_id: bid }).eq('invoice_id', invId)
+        if (error) throw error
+      }
       onSaved?.(); setDone(true)
     } catch { setErr(T('تعذر الحفظ','Save failed')) }
     finally { setSaving(false) }
