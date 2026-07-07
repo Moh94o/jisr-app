@@ -807,9 +807,10 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
       if (sObj.status === 'skipped') return statusTag(lab('stSkippedShort'), TY, 'rgba(184,134,11,.10)', phaseLbl, true)
       return statusTag(lab('stCompletedShort'), TG, 'rgba(39,160,70,.10)', phaseLbl, true)
     }
-    const ins = sd.insurance, iq = sd.iqama
+    const ins = sd.insurance, wp = sd.work_permit, iq = sd.iqama
     const tags = [
       `<div>${stageTag(lab('stgInsurance'), ins)}</div>`,
+      `<div style="margin-top:2mm">${stageTag(lab('stgWorkPermit'), wp)}</div>`,
       `<div style="margin-top:2mm">${stageTag(lab('iqama'), iq)}</div>`,
     ].join('')
     // بيانات الإقامة المُدخلة (عند الإنجاز): تاريخ الانتهاء + المهنة — نفس نقل الكفالة (بلا تفاصيل التأمين).

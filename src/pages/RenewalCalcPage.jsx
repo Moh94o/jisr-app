@@ -7,6 +7,7 @@ import { navSetHere } from '../lib/navStack.js'
 import { swrGet, swrSet, useLiveRefresh, getTestBranchIds, excludeTestBranchesOr } from '../lib/liveData.js'
 import { getIqamaRenewalPricingConfig } from '../lib/kafalaPricing.js'
 import { computeRenewalDerived } from '../lib/renewalDerived.js'
+import { syncInvoicePricing } from '../lib/invoicePricingSync.js'
 import OfficialStampBadge from '../components/ui/OfficialStampBadge.jsx'
 import BackButton from '../components/BackButton'
 
@@ -406,6 +407,20 @@ export default function RenewalCalcPage({ sb, toast, user, lang, emptyIcon, onNe
       if (error) throw error
       const { error: aErr } = await sb.from('iqama_renewal_calculation_audit').insert(auditRows)
       if (aErr) throw aErr
+      // تعديل تسعيرة الحسبة المرتبطة بفاتورة → زامِن إجمالي الفاتورة (والمدفوع/المتبقي/الدفعات/الحالة)،
+      // مع إبقاء «الخصم الإضافي» (فرق إجمالي الحسبة عن إجمالي الفاتورة) ثابتاً عبر التعديل.
+      if (card === 'pricing' && r.invoice_id && 'total_amount' in patch) {
+        try {
+          const oldQuoteTotal = Number(r.total_amount) || 0, newQuoteTotal = Number(patch.total_amount) || 0
+          const { data: invRow } = await sb.from('invoices').select('total_amount').eq('id', r.invoice_id).maybeSingle()
+          const oldInvTotal = Number(invRow?.total_amount) || 0
+          const extra = Math.max(0, Math.round((oldQuoteTotal - oldInvTotal) * 100) / 100)
+          const newInvTotal = Math.max(0, Math.round((newQuoteTotal - extra) * 100) / 100)
+          if (Math.round(newInvTotal * 100) !== Math.round(oldInvTotal * 100)) {
+            await syncInvoicePricing(sb, r.invoice_id, newInvTotal, { logEntry: { by: user?.id || null, by_name: user?.person?.name_ar || user?.person?.name_en || null, total: { from: oldInvTotal, to: newInvTotal }, changes: [] } })
+          }
+        } catch (_) { /* لا نُفشل حفظ الحسبة إن تعذّرت مزامنة الفاتورة */ }
+      }
       setDetailsRow(prev => ({ ...prev, ...patch }))
       await loadDetailAudit()
       load()

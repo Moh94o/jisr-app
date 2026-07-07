@@ -121,6 +121,16 @@ function invoiceDiscount(inv) {
   return amt > 0.005 ? Math.round(amt * 100) / 100 : 0
 }
 
+// تعديل التسعير بعد الإصدار — إن حمل pricing_log قيداً غيّر الإجمالي (وليس خصماً؛ الخصم يظهر أصلاً
+// كسطر «الخصم»)، نُظهر سطراً يُنبّه القروب أن سعر الفاتورة عُدِّل، مع الإجمالي قبل أول تعديل.
+function pricingEditLine(inv) {
+  const log = Array.isArray(inv.pricing_log) ? inv.pricing_log : []
+  const edits = log.filter(e => e && !(Number(e?.discount) > 0) && e.total && Number(e.total.from) !== Number(e.total.to))
+  if (!edits.length) return []
+  const orig = Number(edits[0].total.from) || 0
+  return [orig > 0 ? `✏️ تم تعديل التسعير (الإجمالي السابق: ${num(orig)} ${M.currency})` : '✏️ تم تعديل التسعير']
+}
+
 // خدمات ذات حقل «السبب» (خروج نهائي، الموافقة للنقل الخارجي، طباعة الإقامة): نصّ السبب
 // المُدخل في الطلب (other_applications.details) يظهر سطراً مستقلاً أسفل الأرصدة في رسالة الواتساب.
 const REASON_KEY = { final_exit_visa: 'reason', external_transfer_approval: 'reason', iqama_print: 'print_reason' }
@@ -255,7 +265,7 @@ export function buildInvoiceWaMessage(inv, day = null) {
     money = paid > 0 ? [`💵 *${M.amount_paid}: ${num(paid)} ${cur}*`, DIV_DOT, ...bal] : bal
   }
 
-  const extra = calcExtra(inv)
+  const extra = [...pricingEditLine(inv), ...calcExtra(inv)]
   const reason = reasonLine(inv)
   const issueDate = inv.created_at ? String(inv.created_at).slice(0, 10) : ''
   // نقل الكفالة يعرض العامل → نسبق سطر الطرف بـ «اسم العامل:» فقط حين يوجد عامل فعلي (لا عند السقوط للعميل).

@@ -636,7 +636,7 @@ export const TAB_MODALS = {
     // أزرار مراحل المعاملة — مفتاح مستقل لكل خدمة/مرحلة كما تظهر في صفحة الفاتورة.
     M('inv_stage_transfer', 'نقل الكفالة · النقل'), M('inv_stage_transfer_insurance', 'نقل الكفالة · التأمين'),
     M('inv_stage_transfer_workpermit', 'نقل الكفالة · رخصة العمل'), M('inv_stage_transfer_iqama', 'نقل الكفالة · الإقامة'),
-    M('inv_stage_renewal_insurance', 'تجديد الإقامة · التأمين'), M('inv_stage_renewal_iqama', 'تجديد الإقامة · الإقامة'),
+    M('inv_stage_renewal_insurance', 'تجديد الإقامة · التأمين'), M('inv_stage_renewal_workpermit', 'تجديد الإقامة · رخصة العمل'), M('inv_stage_renewal_iqama', 'تجديد الإقامة · الإقامة'),
     M('inv_stage_status', 'حالة المعاملة'),
     M('inv_action_salary_return', 'إرجاع الراتب'),
     M('inv_worker_pick', 'تغيير العامل'), M('inv_client_edit', 'تعديل بيانات العميل'),

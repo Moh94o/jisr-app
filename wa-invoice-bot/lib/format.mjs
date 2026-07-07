@@ -125,12 +125,23 @@ function calcExtra(inv, lang) {
   if (officeNet > 0) out.push(` الفائدة: ${num(officeNet)} ريال`)
   return out
 }
+// تعديل التسعير بعد الإصدار — إن حمل pricing_log قيداً غيّر الإجمالي (وليس خصماً)، نُظهر سطراً
+// يُنبّه القروب أن سعر الفاتورة عُدِّل، مع الإجمالي قبل أول تعديل. (عربي فقط — نفس أسطر المدة/الفائدة.)
+function pricingEditLine(inv, lang) {
+  if (lang !== 'ar') return []
+  const log = Array.isArray(inv.pricing_log) ? inv.pricing_log : []
+  const edits = log.filter(e => e && !(Number(e?.discount) > 0) && e.total && Number(e.total.from) !== Number(e.total.to))
+  if (!edits.length) return []
+  const orig = Number(edits[0].total.from) || 0
+  return [orig > 0 ? `✏️ تم تعديل التسعير (الإجمالي السابق: ${num(orig)} ريال)` : '✏️ تم تعديل التسعير']
+}
 // الهيكل المشترك للبطاقة المزخرفة (رأس + خدمة + عميل + أسطر المبالغ + تذييل).
 function decoCard(inv, lang, titleKey, moneyLines) {
   const M = MSG[lang] || MSG.ar
   const { name, phone } = party(inv)
   const bPhone = localPhone(inv.branch?.phone)
-  const extra = calcExtra(inv, lang)
+  // تعديل التسعير يظهر أولاً ضمن الأسطر الإضافية (إلا على بطاقة الإلغاء).
+  const extra = [...(titleKey === 'cancel_title' ? [] : pricingEditLine(inv, lang)), ...calcExtra(inv, lang)]
   // السبب لا يُعرض على بطاقة الإلغاء (سطر السبب هناك = سبب الإلغاء، لا سبب الخدمة).
   const reason = titleKey === 'cancel_title' ? [] : reasonLine(inv, lang)
   const issueDate = (lang === 'ar' && inv.created_at) ? ` ${String(inv.created_at).slice(0, 10)}` : ''

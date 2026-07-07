@@ -15,6 +15,8 @@ import { buildInvoiceDoc } from './lib/invoicePrint.js'
 import { buildInvoiceWaMessage, buildDaySummaryWaMessage, fetchInvoicePrintData } from './lib/invoiceWa.js'
 import { DONE_INPUTS, SALARY_RETURN_INPUTS, SELF_PARTY_DONE_SVCS, DONE_FILE_NOTES, doneInputsFor } from './lib/doneInputs.js'
 import { swrGet, swrSet, useLiveRefresh, emitDataChanged } from './lib/liveData.js'
+import { syncInvoicePricing } from './lib/invoicePricingSync.js'
+import { computeRenewalDerived } from './lib/renewalDerived.js'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = {
@@ -1693,6 +1695,7 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
                   const stTitle = (full, st) => `${full} — ${st === 'done' ? T('منجز', 'Completed') : st === 'cancelled' ? T('ملغاة', 'Cancelled') : st === 'skipped' ? T('لا يحتاج', 'Not needed') : T('بالانتظار', 'Pending')}`
                   const arr = [
                     { key: 'insurance', short: T('تأمين', 'Ins'), stage: stOf(sd.insurance), full: T('التأمين', 'Insurance') },
+                    { key: 'workpermit', short: T('رخصة', 'WP'), stage: stOf(sd.work_permit), full: T('رخصة العمل', 'Work Permit') },
                     { key: 'iqama', short: T('إقامة', 'Iqama'), stage: stOf(sd.iqama), full: T('الإقامة', 'Iqama') },
                   ]
                   return arr.map(s => ({ ...s, title: stTitle(s.full, s.stage) }))
@@ -1964,12 +1967,12 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user, onO
       if ((isTransfer || isRenewalSvc) && srId) {
         const { data: trAtts } = await sb.from('attachments')
           .select('file_name,file_url,notes,created_at')
-          .eq('entity_type', 'service_request').in('notes', ['muqeem_file', 'tr_ins_file', 'tr_wp_file', 'ren_ins_file', 'ren_muqeem_file'])
+          .eq('entity_type', 'service_request').in('notes', ['muqeem_file', 'tr_ins_file', 'tr_wp_file', 'ren_ins_file', 'ren_wp_file', 'ren_muqeem_file'])
           .eq('entity_id', srId).is('deleted_at', null).order('created_at', { ascending: false })
         for (const a of (trAtts || [])) {
           if (a.notes === 'muqeem_file' || a.notes === 'ren_muqeem_file') { if (!muqeemFile) muqeemFile = a }
           else if (a.notes === 'tr_ins_file' || a.notes === 'ren_ins_file') { if (!insFileAtt) insFileAtt = a }
-          else if (a.notes === 'tr_wp_file') { if (!wpFileAtt) wpFileAtt = a }
+          else if (a.notes === 'tr_wp_file' || a.notes === 'ren_wp_file') { if (!wpFileAtt) wpFileAtt = a }
         }
       }
       // المستندات: مرفق ملف المستند المُدخل عند الإنجاز (entity_type=service_request, notes=document_file).
@@ -2189,14 +2192,19 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user, onO
       const tc = data?.tc || {}
       const sd = (tc.stage_data && typeof tc.stage_data === 'object') ? tc.stage_data : {}
       const insDone = !!sd.insurance
+      const wpDone = !!sd.work_permit
       const iqamaDone = !!sd.iqama
       const insCancelled = sd.insurance?.status === 'cancelled'
       const insSkipped = sd.insurance?.status === 'skipped'
+      const wpCancelled = sd.work_permit?.status === 'cancelled'
+      const wpSkipped = sd.work_permit?.status === 'skipped'
       const before = stageActions.length
       if (!insDone) { if (stageModalOk('inv_stage_renewal_insurance')) stageActions.push(<StageRow key="mark" color={C.gold} label={T('التأمين','Insurance')} icon={<RenewalDataIco />} onClick={() => openTransferStage('insurance')} />) }
+      else if (!wpDone) { if (stageModalOk('inv_stage_renewal_workpermit')) stageActions.push(<StageRow key="mark" color={C.gold} label={T('رخصة العمل','Work Permit')} icon={<RenewalDataIco />} onClick={() => openTransferStage('workpermit')} />) }
       else if (!iqamaDone) { if (stageModalOk('inv_stage_renewal_iqama')) stageActions.push(<StageRow key="mark" color={C.gold} label={T('الإقامة','Iqama')} icon={<RenewalDataIco />} onClick={() => openTransferStage('iqama')} />) }
       const hasPending = stageActions.length > before
       if (reqDone && !hasPending) stageStatus.push(doneBadge)
+      else if (wpDone) stageStatus.push(<StageRow key="st-wp" done color={wpCancelled ? C.red : wpSkipped ? C.gold : C.ok} icon={<DoneCheckIco />} label={wpCancelled ? T('رخصة العمل — ملغاة','Work permit — cancelled') : wpSkipped ? T('رخصة العمل — لا يحتاج','Work permit — not needed') : T('تم إدخال بيانات رخصة العمل','Work permit saved')} />)
       else if (insDone) stageStatus.push(<StageRow key="st-ins" done color={insCancelled ? C.red : insSkipped ? C.gold : C.ok} icon={<DoneCheckIco />} label={insCancelled ? T('التأمين — ملغاة','Insurance — cancelled') : insSkipped ? T('التأمين — لا يحتاج','Insurance — not needed') : T('تم إدخال بيانات التأمين','Insurance saved')} />)
     } else if (reqDone) {
       // خدمات ذات خطوة واحدة (مستندات/رواتب سبلاير/نقل خارجي/ترجمة اسم…): «منجز» حالة نهائية بلا بيانات مرحلية ناقصة.
@@ -2419,6 +2427,7 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user, onO
 
       {pricingModal && (
         <PricingEditModal sb={sb} toast={toast} T={T} isAr={isAr} inv={inv} paid={paid} user={user}
+          tc={data?.tc || null} svcCode={data?.code || inv.service_type?.code}
           onClose={() => setPricingModal(false)}
           onSaved={reloadInvoiceFull} />
       )}
@@ -2929,7 +2938,7 @@ const ActionModal = ({ type, stage = null, onClose, sb, T, isAr, inv, total, pai
       // التجديد يقرأ من iqama_renewal_calculation (بلا عمود transfer_only)؛ النقل من transfer_calculation.
       const _renewal = baseSvcCode(svcCode) === 'iqama_renewal'
       const _tbl = _renewal ? 'iqama_renewal_calculation' : 'transfer_calculation'
-      const _sel = _renewal ? 'id, occupation_id, occupation_name_ar, expected_expiry_date, stage_data' : 'id, occupation_id, occupation_name_ar, expected_expiry_date, transfer_only, stage_data'
+      const _sel = _renewal ? 'id, occupation_id, occupation_name_ar, expected_expiry_date, work_permit_expiry, stage_data' : 'id, occupation_id, occupation_name_ar, expected_expiry_date, transfer_only, stage_data'
       const { data } = await sb.from(_tbl).select(_sel)
         .eq('invoice_id', inv.id).is('deleted_at', null).maybeSingle()
       if (alive && data) {
@@ -2941,6 +2950,8 @@ const ActionModal = ({ type, stage = null, onClose, sb, T, isAr, inv, total, pai
         const sd = (data.stage_data && typeof data.stage_data === 'object') ? data.stage_data : {}
         if (sd.insurance) { setInsCompany(sd.insurance.company || ''); setInsPolicyNo(sd.insurance.policy_no || ''); setInsExpiry(sd.insurance.expiry ? String(sd.insurance.expiry).slice(0, 10) : ''); setInsAmount(sd.insurance.amount != null ? String(sd.insurance.amount) : '') }
         if (sd.work_permit) { setWpDuration(sd.work_permit.duration_months != null ? String(sd.work_permit.duration_months) : ''); setWpExpiry(sd.work_permit.expiry ? String(sd.work_permit.expiry).slice(0, 10) : ''); setWpAmount(sd.work_permit.amount != null ? String(sd.work_permit.amount) : '') }
+        // تجديد الإقامة: مرحلة رخصة العمل الجديدة تُعبّأ تلقائياً بتاريخ انتهاء رخصة العمل من بيانات العامل (حسبة التجديد).
+        else if (_renewal && data.work_permit_expiry) setWpExpiry(String(data.work_permit_expiry).slice(0, 10))
         if (sd.muqeem && sd.muqeem.via_contact != null) setMuqViaContact(!!sd.muqeem.via_contact)
         // مرحلة الإقامة للتجديد (إعادة فتح للعرض): المهنة + تاريخ الانتهاء
         if (sd.iqama) { if (sd.iqama.occupation_id) setRenewOccupationId(sd.iqama.occupation_id); if (sd.iqama.occupation_name_ar) setRenewOccupation(sd.iqama.occupation_name_ar); if (sd.iqama.iqama_expiry) setRenewIqamaExpiry(String(sd.iqama.iqama_expiry).slice(0, 10)) }
@@ -3182,7 +3193,7 @@ const ActionModal = ({ type, stage = null, onClose, sb, T, isAr, inv, total, pai
       submit: T('طباعة', 'Print'),
     },
     done: {
-      title: isStagedDone ? (isRenewalDone ? (stage === 'insurance' ? T('التأمين', 'Insurance') : T('الإقامة', 'Iqama')) : (stage === 'transfer' ? T('النقل', 'Transfer') : stage === 'insurance' ? T('التأمين', 'Insurance') : stage === 'workpermit' ? T('رخصة العمل', 'Work Permit') : T('الإقامة', 'Iqama'))) : acctPending ? T('موافقة المحاسب', 'Accountant Approval') : T('حالة المعاملة', 'Transaction Status'),
+      title: isStagedDone ? (isRenewalDone ? (stage === 'insurance' ? T('التأمين', 'Insurance') : stage === 'workpermit' ? T('رخصة العمل', 'Work Permit') : T('الإقامة', 'Iqama')) : (stage === 'transfer' ? T('النقل', 'Transfer') : stage === 'insurance' ? T('التأمين', 'Insurance') : stage === 'workpermit' ? T('رخصة العمل', 'Work Permit') : T('الإقامة', 'Iqama'))) : acctPending ? T('موافقة المحاسب', 'Accountant Approval') : T('حالة المعاملة', 'Transaction Status'),
       color: C.gold,
       Icon: isStagedDone ? RotateCcw : CheckCircle2,
       submit: isStagedDone ? (doneChoice === 'cancel' ? T('تأكيد الإلغاء', 'Confirm Cancel') : doneChoice === 'skip' ? T('تأكيد عدم الحاجة', 'Confirm Not Needed') : T('حفظ', 'Save'))
@@ -3678,7 +3689,7 @@ const ActionModal = ({ type, stage = null, onClose, sb, T, isAr, inv, total, pai
           } else {
             sd.work_permit = { status: 'done', duration_months: wpDuration ? Number(wpDuration) : null, expiry: wpExpiry || null, amount: String(wpAmount).trim() === '' ? null : Number(wpAmount), at: nowIso, by: user?.id || null, by_name: byName }
             patch.work_permit_expiry = wpExpiry || null
-            noteKey = 'tr_wp_file'; file = wpFile; doneTitle = T('تم حفظ بيانات رخصة العمل', 'Work permit saved')
+            noteKey = isRenewalDone ? 'ren_wp_file' : 'tr_wp_file'; file = wpFile; doneTitle = T('تم حفظ بيانات رخصة العمل', 'Work permit saved')
           }
           patch.stage_data = sd
           const { error: eSt } = await sb.from(stageCalcTable).update(patch).eq('id', tcId)
@@ -3949,8 +3960,8 @@ const ActionModal = ({ type, stage = null, onClose, sb, T, isAr, inv, total, pai
 
   // ─── تأكيد الإنجاز — نقل الكفالة يجمع بيانات التجديد؛ بقية الخدمات تأكيدٌ مباشر بلا حقول ───────
   const trStageLabel = stage === 'transfer' ? T('النقل', 'Transfer') : stage === 'insurance' ? T('بيانات التأمين', 'Insurance') : stage === 'workpermit' ? T('رخصة العمل', 'Work Permit') : T('الإقامة', 'Iqama')
-  // التجديد: زر «لا يحتاج» (تخطّي) يظهر في مرحلة التأمين فقط — بين «تم الإنجاز» و«ملغاة».
-  const showSkipChoice = isRenewalDone && stage === 'insurance'
+  // التجديد: زر «لا يحتاج» (تخطّي) يظهر في مرحلتي التأمين ورخصة العمل — بين «تم الإنجاز» و«ملغاة».
+  const showSkipChoice = isRenewalDone && (stage === 'insurance' || stage === 'workpermit')
   const doneConfirm = isStagedDone ? (
     <ModalSection Icon={RotateCcw} label={trStageLabel}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: '4px 2px' }}>
@@ -3970,7 +3981,7 @@ const ActionModal = ({ type, stage = null, onClose, sb, T, isAr, inv, total, pai
         {doneChoice === 'cancel' ? (
           <TextArea grow full req label={T('السبب', 'Reason')} value={doneNote} onChange={setDoneNote} placeholder={T('اكتب سبب الإلغاء…', 'Explain the cancellation reason…')} />
         ) : doneChoice === 'skip' ? (
-          <div style={{ fontSize: 12.5, color: FKC.tx3, fontFamily: F, lineHeight: 1.8, padding: '2px 2px' }}>{T('سيتم تعليم مرحلة التأمين كغير مطلوبة (التأمين ساري) والانتقال إلى مرحلة الإقامة.', 'The insurance stage will be marked as not needed (insurance still valid) and you can proceed to the Iqama stage.')}</div>
+          <div style={{ fontSize: 12.5, color: FKC.tx3, fontFamily: F, lineHeight: 1.8, padding: '2px 2px' }}>{stage === 'workpermit' ? T('سيتم تعليم مرحلة رخصة العمل كغير مطلوبة (الرخصة سارية) والانتقال إلى المرحلة التالية.', 'The work permit stage will be marked as not needed (permit still valid) and you can proceed to the next stage.') : T('سيتم تعليم مرحلة التأمين كغير مطلوبة (التأمين ساري) والانتقال إلى مرحلة الإقامة.', 'The insurance stage will be marked as not needed (insurance still valid) and you can proceed to the Iqama stage.')}</div>
         ) : stage === 'transfer' ? null : stage === 'insurance' ? (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
             <TextField req label={T('اسم الشركة', 'Company')} value={insCompany} onChange={setInsCompany} />
@@ -3980,6 +3991,7 @@ const ActionModal = ({ type, stage = null, onClose, sb, T, isAr, inv, total, pai
             <FileField full req label={T('ملف بوليصة التأمين', 'Policy File')} value={insFile} onChange={setInsFile} />
           </div>
         ) : stage === 'workpermit' ? (
+          // نفس حقول رخصة العمل في نقل الكفالة (المدة · تاريخ الانتهاء · المبلغ · الملف) — التجديد يُعبّئ الانتهاء تلقائياً من بيانات العامل.
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
             <FKSelect req label={T('المدة', 'Duration')} placeholder={T('اختر المدة…', 'Select duration…')}
               options={[3, 6, 9, 12].map(n => ({ n }))} getKey={o => String(o.n)} getLabel={o => `${o.n} ${T('أشهر', 'months')}`}
@@ -7299,9 +7311,252 @@ function PaymentEditModal({ sb, toast, T, isAr, inv, payment, onClose, onSaved, 
   )
 }
 
+// تعديل تسعير فاتورة نقل الكفالة (مرتبطة بحسبة تنازل) — كرت التسعير مبنيّ من أعمدة الحسبة (tc)،
+// فيعرض المحرّر كل بنود الحسبة قابلةً للتعديل (الرسوم، رسوم المكتب، خصم أبشر/المكتب) + «خصم إضافي»
+// على مستوى الفاتورة. عند الحفظ: تُكتب الرسوم/الخصومات للحسبة عبر update-quotation (adjust_fees) —
+// فينعكس على الكرت وصفحة الحسبة والطباعة — ثم يُزامَن إجمالي الفاتورة = إجمالي الحسبة − الخصم الإضافي
+// مع المدفوع/المتبقي/الحالة وجدول الدفعات عبر syncInvoicePricing.
+function TcPricingEditModal({ sb, toast, T, inv, paid = 0, tc, onClose, onSaved, user }) {
+  const r2 = n => Math.round((Number(n) || 0) * 100) / 100
+  // الرسوم القابلة للتعديل (نفس مجموعة adjust_fees في update-quotation). البنود تُعرَض إن كان لها قيمة
+  // ابتدائية موجبة (كما في الكرت)، مع إبقاء رسوم المكتب وخصم المكتب والخصم الإضافي ظاهرة دائماً.
+  const FEE_FIELDS = [
+    { key: 'transfer_fee', label: T('رسوم نقل الكفالة', 'Sponsorship Transfer Fee') },
+    { key: 'iqama_renewal_fee', label: T('تجديد الإقامة', 'Iqama Renewal') },
+    { key: 'late_fine_amount', label: T('غرامة تأخير التجديد', 'Renewal Late Fine') },
+    { key: 'work_permit_fee', label: T('رخصة العمل', 'Work Permit') },
+    { key: 'prof_change_fee', label: T('تغيير المهنة', 'Change Occupation') },
+    { key: 'medical_fee', label: T('التأمين الطبي', 'Medical Insurance') },
+    { key: 'office_fee', label: T('رسوم المكتب', 'Office Fees') },
+  ]
+  const FEE_KEYS = FEE_FIELDS.map(f => f.key)
+  const initFees = Object.fromEntries(FEE_KEYS.map(k => [k, String(Number(tc?.[k]) || 0)]))
+  const initExtras = (Array.isArray(tc?.extras) ? tc.extras : []).map(e => ({ name: e?.name || '', amount: String(Number(e?.amount) || 0) }))
+  const initAbsher = String(Number(tc?.absher_discount) || 0)
+  const initManual = String(Number(tc?.manual_discount) || 0)
+  const quoteTotal0 = Number(tc?.total_amount) || 0
+  const invTotal0 = Number(inv?.total_amount) || 0
+  const initExtra = String(Math.max(0, r2(quoteTotal0 - invTotal0)))
+  const [fees, setFees] = useState(initFees)
+  const [extras, setExtras] = useState(initExtras)
+  const [absher, setAbsher] = useState(initAbsher)
+  const [manual, setManual] = useState(initManual)
+  const [extraDisc, setExtraDisc] = useState(initExtra)
+  const [saving, setSaving] = useState(false)
+  const [done, setDone] = useState(false)
+  const [err, setErr] = useState('')
+  const setFee = (k, v) => { setErr(''); setFees(p => ({ ...p, [k]: v })) }
+  const setExtraAmt = (i, v) => { setErr(''); setExtras(p => p.map((e, j) => j === i ? { ...e, amount: v } : e)) }
+  // بند يُعرَض إن كان له قيمة ابتدائية موجبة، ورسوم المكتب تُعرَض دائماً.
+  const showFee = k => k === 'office_fee' ? true : (Number(initFees[k]) || 0) > 0
+  const showAbsher = (Number(initAbsher) || 0) > 0
+  const feeSum = FEE_KEYS.reduce((s, k) => s + (Number(fees[k]) || 0), 0)
+  const extrasSum = extras.reduce((s, e) => s + (Number(e.amount) || 0), 0)
+  const subtotal = r2(feeSum + extrasSum)
+  const absherV = Math.min(Number(absher) || 0, subtotal)
+  const manualV = Math.min(Number(manual) || 0, Math.max(0, subtotal - absherV))
+  const quoteTotal = Math.max(0, r2(subtotal - absherV - manualV))
+  const extraV = Math.max(0, Number(extraDisc) || 0)
+  const finalTotal = Math.max(0, r2(quoteTotal - extraV))
+  const valid = finalTotal >= 0 && finalTotal >= paid - 0.005
+  const nm = v => num(v)
+  const save = async () => {
+    if (saving || !inv?.id || !tc?.id) return
+    if (finalTotal < paid - 0.005) { setErr(T('الإجمالي أقل من المبلغ المدفوع', 'Total is less than the paid amount')); return }
+    setErr(''); setSaving(true)
+    try {
+      const invoke = async (body) => {
+        const { data, error } = await sb.functions.invoke('update-quotation', { body })
+        let res = data
+        if (error) { try { res = await error.context.json() } catch { /* تجاهل قراءة جسم الخطأ */ } }
+        if (!res?.ok) throw new Error(res?.detail || res?.error || 'update_failed')
+        return res
+      }
+      // 1) البنود الإضافية (إن تغيّرت) — تُكتب أولاً كي يعيد adjust_fees الحساب على قيمها الجديدة.
+      const extrasChanged = JSON.stringify(initExtras.map(e => ({ name: e.name, amount: Number(e.amount) || 0 })))
+        !== JSON.stringify(extras.map(e => ({ name: e.name, amount: Number(e.amount) || 0 })))
+      if (extrasChanged) {
+        await invoke({ action: 'update_extras', id: tc.id, extras: extras.map(e => ({ name: e.name, amount: Number(e.amount) || 0 })) })
+      }
+      // 2) الرسوم + الخصومات → الحسبة (والخادم يعيد حساب الإجمالي ويكتب سجل التغيير).
+      const feePayload = Object.fromEntries(FEE_KEYS.map(k => [k, Number(fees[k]) || 0]))
+      feePayload.absher_discount = Number(absher) || 0
+      feePayload.manual_discount = Number(manual) || 0
+      const adj = await invoke({ action: 'adjust_fees', id: tc.id, fees: feePayload })
+      const newQuoteTotal = Number(adj?.row?.total_amount) || 0
+      const newFinal = Math.max(0, r2(newQuoteTotal - extraV))
+      if (newFinal < paid - 0.005) { setErr(T('الإجمالي أقل من المبلغ المدفوع', 'Total is less than the paid amount')); setSaving(false); return }
+      // 3) مزامنة الفاتورة: إجمالي جديد + حالة السداد + إعادة توزيع الدفعات + سجلّ التسعير.
+      const changes = []
+      const push = (label, from, to) => { if (r2(from) !== r2(to)) changes.push({ label, from: Number(from) || 0, to: Number(to) || 0 }) }
+      FEE_FIELDS.forEach(f => push(f.label, Number(initFees[f.key]) || 0, Number(feePayload[f.key]) || 0))
+      initExtras.forEach((e, i) => push(e.name || T('بند إضافي', 'Extra'), Number(e.amount) || 0, Number(extras[i]?.amount) || 0))
+      push(T('خصم أبشر', 'Absher Discount'), Number(initAbsher) || 0, Number(absher) || 0)
+      push(T('خصم المكتب', 'Office Discount'), Number(initManual) || 0, Number(manual) || 0)
+      push(T('خصم إضافي', 'Extra Discount'), Number(initExtra) || 0, extraV)
+      const logEntry = {
+        by: user?.id || null, by_name: user?.person?.name_ar || user?.person?.name_en || null,
+        total: { from: invTotal0, to: newFinal }, changes,
+      }
+      await syncInvoicePricing(sb, inv.id, newFinal, { logEntry })
+      onSaved?.(); setDone(true)
+    } catch (e) { setErr((String(e?.message || '') === 'quote_expired') ? T('انتهت صلاحية الحسبة', 'Quote expired') : T('تعذر الحفظ', 'Save failed')) }
+    finally { setSaving(false) }
+  }
+  const feeRow = (label, value, onChange, key, accent) => (
+    <div key={key} style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'space-between' }}>
+      <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, color: accent || 'var(--tx3)', fontWeight: 600 }}>{label}</span>
+      <div style={{ width: 150, flexShrink: 0 }}><CurrencyField value={value} onChange={onChange} unit={T('ريال', 'SAR')} /></div>
+    </div>
+  )
+  const content = (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontFamily: F }}>
+      <ModalSection Icon={Wallet} label={T('الرسوم', 'Fees')} style={{ marginTop: 6 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {FEE_FIELDS.filter(f => showFee(f.key)).map(f => feeRow(f.label, fees[f.key], v => setFee(f.key, v), f.key))}
+          {extras.map((e, i) => feeRow(e.name || T('بند إضافي', 'Extra'), e.amount, v => setExtraAmt(i, v), 'ex' + i))}
+        </div>
+      </ModalSection>
+      <ModalSection Icon={Percent} label={T('الخصومات', 'Discounts')}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {showAbsher && feeRow(T('خصم أبشر', 'Absher Discount'), absher, v => { setErr(''); setAbsher(v) }, 'absher', '#27a046')}
+          {feeRow(T('خصم المكتب', 'Office Discount'), manual, v => { setErr(''); setManual(v) }, 'manual', '#27a046')}
+          {feeRow(T('خصم إضافي', 'Extra Discount'), extraDisc, v => { setErr(''); setExtraDisc(v) }, 'extra', '#27a046')}
+        </div>
+      </ModalSection>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '12px 14px', background: 'var(--inputBg)', borderRadius: 12, border: '1px solid var(--bd)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: 12.5, color: C.gold, fontWeight: 600 }}>{T('الإجمالي الابتدائي', 'Subtotal')}</span><span style={{ fontSize: 13, color: C.gold, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{nm(subtotal)}</span></div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, paddingTop: 8, borderTop: '1px solid var(--bd)' }}><span style={{ fontSize: 14.5, color: C.gold, fontWeight: 600 }}>{T('الإجمالي النهائي', 'Final Total')}</span><span style={{ fontSize: 18, color: C.gold, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{nm(finalTotal)}</span></div>
+      </div>
+    </div>
+  )
+  return (
+    <Modal open onClose={onClose} title={T('تعديل التسعير', 'Edit pricing')} Icon={Wallet} width={560} height="min(640px, 92vh)" accent={C.gold}
+      success={done ? <SuccessView title={T('تم حفظ التعديلات', 'Changes saved')} /> : undefined}
+      pages={[{ valid, error: err || undefined, content }]}
+      onSubmit={save} submitting={saving} submitIcon={CheckCircle2} submitLabel={T('حفظ التسعير', 'Save pricing')} />
+  )
+}
+
+// تعديل تسعير فاتورة تجديد الإقامة (مرتبطة بحسبة تجديد) — الكرت مبنيّ من أعمدة الحسبة (tc).
+// نموذج التجديد يختلف عن التنازل: الإجمالي = رسوم المكتب + الزائد الحكومي + الغرامة + تغيير المهنة
+// + الإضافات − خصم أبشر − خصم المكتب (رسوم الإقامة/الرخصة/التأمين ممثَّلة ضمن الزائد/التغطية، لا تُجمع
+// مرّتين). لا توجد edge function للتجديد — الحسبة تُحدَّث مباشرةً (RLS مفتوحة) ثم تُعاد الأعمدة المشتقّة
+// عبر computeRenewalDerived، ويُزامَن إجمالي الفاتورة = إجمالي الحسبة − الخصم الإضافي عبر syncInvoicePricing.
+function RenewalPricingEditModal({ sb, toast, T, inv, paid = 0, tc, onClose, onSaved, user }) {
+  const r2 = n => Math.round((Number(n) || 0) * 100) / 100
+  // نفس مجموعة كرت تسعير حسبة التجديد (CARD_FIELDS.pricing في RenewalCalcPage).
+  const FEE_FIELDS = [
+    { key: 'iqama_renewal_fee', label: T('تجديد الإقامة', 'Iqama Renewal') },
+    { key: 'late_fine_amount', label: T('غرامة تأخير التجديد', 'Renewal Late Fine') },
+    { key: 'work_permit_fee', label: T('رخصة العمل', 'Work Permit') },
+    { key: 'prof_change_fee', label: T('تغيير المهنة', 'Change Occupation') },
+    { key: 'medical_fee', label: T('التأمين الطبي', 'Medical Insurance') },
+    { key: 'office_fee', label: T('رسوم المكتب', 'Office Fees') },
+    { key: 'gov_excess', label: T('الزائد عن الحدود الحكومية', 'Gov Excess') },
+  ]
+  const FEE_KEYS = FEE_FIELDS.map(f => f.key)
+  const initFees = Object.fromEntries(FEE_KEYS.map(k => [k, String(Number(tc?.[k]) || 0)]))
+  const extrasSum = (Array.isArray(tc?.extras) ? tc.extras : []).reduce((s, e) => s + (Number(e?.amount) || 0), 0)
+  const initAbsher = String(Number(tc?.absher_discount) || 0)
+  const initManual = String(Number(tc?.manual_discount) || 0)
+  const quoteTotal0 = Number(tc?.total_amount) || 0
+  const invTotal0 = Number(inv?.total_amount) || 0
+  const initExtra = String(Math.max(0, r2(quoteTotal0 - invTotal0)))
+  const [fees, setFees] = useState(initFees)
+  const [absher, setAbsher] = useState(initAbsher)
+  const [manual, setManual] = useState(initManual)
+  const [extraDisc, setExtraDisc] = useState(initExtra)
+  const [saving, setSaving] = useState(false)
+  const [done, setDone] = useState(false)
+  const [err, setErr] = useState('')
+  const setFee = (k, v) => { setErr(''); setFees(p => ({ ...p, [k]: v })) }
+  const showFee = k => k === 'office_fee' ? true : (Number(initFees[k]) || 0) > 0
+  const showAbsher = (Number(initAbsher) || 0) > 0
+  // الإجمالي: رسوم المكتب + الزائد الحكومي + الغرامة + تغيير المهنة + الإضافات − الخصومات (لا تُجمع الإقامة/الرخصة/التأمين).
+  const subtotal = r2((Number(fees.office_fee) || 0) + (Number(fees.gov_excess) || 0) + (Number(fees.late_fine_amount) || 0) + (Number(fees.prof_change_fee) || 0) + extrasSum)
+  const absherV = Math.min(Number(absher) || 0, subtotal)
+  const manualV = Math.min(Number(manual) || 0, Math.max(0, subtotal - absherV))
+  const quoteTotal = Math.max(0, r2(subtotal - absherV - manualV))
+  const extraV = Math.max(0, Number(extraDisc) || 0)
+  const finalTotal = Math.max(0, r2(quoteTotal - extraV))
+  const valid = finalTotal >= 0 && finalTotal >= paid - 0.005
+  const save = async () => {
+    if (saving || !inv?.id || !tc?.id) return
+    if (finalTotal < paid - 0.005) { setErr(T('الإجمالي أقل من المبلغ المدفوع', 'Total is less than the paid amount')); return }
+    setErr(''); setSaving(true)
+    try {
+      const now = new Date().toISOString()
+      const patch = {}, auditRows = []
+      const setPatch = (k, newV) => {
+        const oldV = (tc[k] === undefined ? null : tc[k])
+        if (JSON.stringify(oldV) !== JSON.stringify(newV)) { patch[k] = newV; auditRows.push({ quotation_id: tc.id, field_name: k, old_value: oldV, new_value: newV, source: 'employee', changed_by: user?.id || null, changed_at: now }) }
+      }
+      FEE_KEYS.forEach(k => setPatch(k, Number(fees[k]) || 0))
+      setPatch('absher_discount', Number(absher) || 0)
+      setPatch('manual_discount', Number(manual) || 0)
+      patch.subtotal = subtotal
+      patch.total_amount = quoteTotal
+      Object.assign(patch, computeRenewalDerived({ ...tc, ...patch }))
+      patch.updated_at = now; patch.updated_by = user?.id || null
+      const { error } = await sb.from('iqama_renewal_calculation').update(patch).eq('id', tc.id).is('deleted_at', null)
+      if (error) throw error
+      if (auditRows.length) await sb.from('iqama_renewal_calculation_audit').insert(auditRows)
+      const newFinal = Math.max(0, r2((Number(patch.total_amount) || 0) - extraV))
+      if (newFinal < paid - 0.005) { setErr(T('الإجمالي أقل من المبلغ المدفوع', 'Total is less than the paid amount')); setSaving(false); return }
+      const changes = []
+      const push = (label, from, to) => { if (r2(from) !== r2(to)) changes.push({ label, from: Number(from) || 0, to: Number(to) || 0 }) }
+      FEE_FIELDS.forEach(f => push(f.label, Number(initFees[f.key]) || 0, Number(fees[f.key]) || 0))
+      push(T('خصم أبشر', 'Absher Discount'), Number(initAbsher) || 0, Number(absher) || 0)
+      push(T('خصم المكتب', 'Office Discount'), Number(initManual) || 0, Number(manual) || 0)
+      push(T('خصم إضافي', 'Extra Discount'), Number(initExtra) || 0, extraV)
+      await syncInvoicePricing(sb, inv.id, newFinal, { logEntry: { by: user?.id || null, by_name: user?.person?.name_ar || user?.person?.name_en || null, total: { from: invTotal0, to: newFinal }, changes } })
+      onSaved?.(); setDone(true)
+    } catch { setErr(T('تعذر الحفظ', 'Save failed')) }
+    finally { setSaving(false) }
+  }
+  const feeRow = (label, value, onChange, key, accent) => (
+    <div key={key} style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'space-between' }}>
+      <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, color: accent || 'var(--tx3)', fontWeight: 600 }}>{label}</span>
+      <div style={{ width: 150, flexShrink: 0 }}><CurrencyField value={value} onChange={onChange} unit={T('ريال', 'SAR')} /></div>
+    </div>
+  )
+  const content = (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontFamily: F }}>
+      <ModalSection Icon={Wallet} label={T('الرسوم', 'Fees')} style={{ marginTop: 6 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {FEE_FIELDS.filter(f => showFee(f.key)).map(f => feeRow(f.label, fees[f.key], v => setFee(f.key, v), f.key))}
+        </div>
+      </ModalSection>
+      <ModalSection Icon={Percent} label={T('الخصومات', 'Discounts')}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {showAbsher && feeRow(T('خصم أبشر', 'Absher Discount'), absher, v => { setErr(''); setAbsher(v) }, 'absher', '#27a046')}
+          {feeRow(T('خصم المكتب', 'Office Discount'), manual, v => { setErr(''); setManual(v) }, 'manual', '#27a046')}
+          {feeRow(T('خصم إضافي', 'Extra Discount'), extraDisc, v => { setErr(''); setExtraDisc(v) }, 'extra', '#27a046')}
+        </div>
+      </ModalSection>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '12px 14px', background: 'var(--inputBg)', borderRadius: 12, border: '1px solid var(--bd)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: 12.5, color: C.gold, fontWeight: 600 }}>{T('الإجمالي الابتدائي', 'Subtotal')}</span><span style={{ fontSize: 13, color: C.gold, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(subtotal)}</span></div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, paddingTop: 8, borderTop: '1px solid var(--bd)' }}><span style={{ fontSize: 14.5, color: C.gold, fontWeight: 600 }}>{T('الإجمالي النهائي', 'Final Total')}</span><span style={{ fontSize: 18, color: C.gold, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(finalTotal)}</span></div>
+      </div>
+    </div>
+  )
+  return (
+    <Modal open onClose={onClose} title={T('تعديل التسعير', 'Edit pricing')} Icon={Wallet} width={560} height="min(640px, 92vh)" accent={C.gold}
+      success={done ? <SuccessView title={T('تم حفظ التعديلات', 'Changes saved')} /> : undefined}
+      pages={[{ valid, error: err || undefined, content }]}
+      onSubmit={save} submitting={saving} submitIcon={CheckCircle2} submitLabel={T('حفظ التسعير', 'Save pricing')} />
+  )
+}
+
 // تعديل تسعير الفاتورة — بنود التسعيرة (اسم + مبلغ) والإجمالي. يحدّث total_amount و
 // pricing_breakdown ويعيد ضبط الحالة. لا يعيد توزيع جدول الدفعات (يُدار من مكانه).
-function PricingEditModal({ sb, toast, T, inv, paid = 0, onClose, onSaved, user }) {
+function PricingEditModal({ sb, toast, T, inv, paid = 0, tc = null, svcCode = null, onClose, onSaved, user }) {
+  // فاتورة نقل الكفالة/تجديد الإقامة المرتبطة بحسبة: محرّر مخصّص يعرض كل بنود الحسبة قابلة للتعديل.
+  const isTransferQuote = !!(tc && tc.id && svcCode === 'transfer')
+  if (isTransferQuote) return <TcPricingEditModal sb={sb} toast={toast} T={T} inv={inv} paid={paid} tc={tc} user={user} onClose={onClose} onSaved={onSaved} />
+  const isRenewalQuote = !!(tc && tc.id && svcCode === 'iqama_renewal')
+  if (isRenewalQuote) return <RenewalPricingEditModal sb={sb} toast={toast} T={T} inv={inv} paid={paid} tc={tc} user={user} onClose={onClose} onSaved={onSaved} />
   const hasBreakdown = Array.isArray(inv.pricing_breakdown) && inv.pricing_breakdown.length > 0
   const [lines, setLines] = useState(hasBreakdown ? inv.pricing_breakdown.map(l => ({ label: l.label || '', amount: String(l.amount ?? '') })) : [])
   const [flatTotal, setFlatTotal] = useState(String(Number(inv.total_amount) || ''))
@@ -9293,7 +9548,7 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
                       // تجديد الإقامة: «حالة المعاملة» على مرحلتين — التأمين (مع «لا يحتاج») ثم الإقامة. كلٌّ لها تاق وعدّاد ومَن نفّذ وملف.
                       const tc = data?.tc || {}
                       const sd = (tc.stage_data && typeof tc.stage_data === 'object') ? tc.stage_data : {}
-                      const ins = sd.insurance, iq = sd.iqama
+                      const ins = sd.insurance, wp = sd.work_permit, iq = sd.iqama
                       // المدة الفعلية للإقامة = من يوم التسعير حتى تاريخ انتهاء الإقامة الفعلي — لتُقارن بالمدة المتوقعة.
                       const iqActualDur = (() => {
                         if (!iq || iq.status === 'cancelled' || !iq.iqama_expiry) return null
@@ -9331,7 +9586,12 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
                           [T('تاريخ انتهاء التأمين', 'Insurance Expiry'), ins.expiry ? fmtGreg(ins.expiry, isAr) : '—', false],
                           [T('المبلغ', 'Amount'), ins.amount != null ? `${num(ins.amount)} ${T('ريال', 'SAR')}` : '—', false],
                         ] : [])}
-                        {stageBar('iqama', T('الإقامة', 'Iqama'), iq, ins?.at || inv.created_at, data?.muqeemFile, iq ? [
+                        {stageBar('workpermit', T('رخصة العمل', 'Work Permit'), wp, ins?.at || inv.created_at, data?.wpFileAtt, wp ? [
+                          [T('المدة', 'Duration'), wp.duration_months != null ? `${wp.duration_months} ${T('أشهر', 'months')}` : '—', false],
+                          [T('تاريخ انتهاء رخصة العمل', 'Work Permit Expiry'), wp.expiry ? fmtGreg(wp.expiry, isAr) : '—', false, C.gold],
+                          [T('المبلغ', 'Amount'), wp.amount != null ? `${num(wp.amount)} ${T('ريال', 'SAR')}` : '—', false],
+                        ] : [])}
+                        {stageBar('iqama', T('الإقامة', 'Iqama'), iq, wp?.at || ins?.at || inv.created_at, data?.muqeemFile, iq ? [
                           [T('التجديد عبر تواصل', 'Renewal via contact'), iq.via_contact ? T('نعم', 'Yes') : T('لا', 'No'), false],
                           [T('تاريخ انتهاء الإقامة', 'Iqama Expiry'), iq.iqama_expiry ? fmtGreg(iq.iqama_expiry, isAr) : '—', false, C.gold],
                           [T('المدة الفعلية', 'Actual Duration'), iqActualDur || '—', false, C.gold],
