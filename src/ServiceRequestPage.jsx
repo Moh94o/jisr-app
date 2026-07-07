@@ -657,14 +657,42 @@ return()=>{cancelled=true}
 
 // عميل جديد + «العامل هو نفسه العميل»: لا يُنشأ عامل جديد — يُبحث عن عامل مسجّل بنفس رقم الهوية/الإقامة
 // فيُربط تلقائياً (أو يبقى فارغاً فيظهر تنبيه «لا يوجد عامل بهذه البيانات»). يبقى selWorker متزامناً مع الرقم المُدخل.
+// ── ربط العامل الذكي: العامل المطابق آلياً لرقم هوية العميل الفعّال (جديد أو موجود) ──
+// المصفوفة المحمّلة محلياً (workers) أول 50 عاملاً أبجدياً فقط، فالمطابقة المحلية وحدها كانت تُظهر
+// «لا يوجد عامل» زوراً لأي عامل خارج أول 50. نطابق محلياً (سريع) ثم نستعلم من القاعدة برقم الإقامة (دائم + مؤقت).
+const[autoWorker,setAutoWorker]=useState(null)
+const autoDecidedRef=useRef(null)
 useEffect(()=>{
-if(clientMode!=='new'||!workerIsClient)return
-const validId=newClient.id_number&&newClient.id_number.length===10
-const m=validId?(workers.find(w=>w.iqama_number===newClient.id_number)||null):null
-setSelWorker(m)
-// الاسم والجنسية مخفيان في هذا الوضع — نملؤهما تلقائياً من سجل العامل المطابق ليُحفظ العميل بهما.
-if(m)setNewClient(p=>({...p,name_ar:m.name_ar||'',name_en:m.name_en||'',nationality_id:m.nationality_id||p.nationality_id||null}))
-},[clientMode,workerIsClient,newClient.id_number,workers])
+const isExisting=clientMode==='existing'
+const idn=isExisting?(selClient?.id_number||''):(newClient.id_number||'')
+if(!idn||idn.length!==10){setAutoWorker(null);if(isExisting)autoDecidedRef.current=null;return}
+let cancelled=false
+;(async()=>{
+let m=workers.find(w=>w.iqama_number===idn)||null
+if(!m){
+const mapMin=(x,type)=>({id:x.id,name:x.name_ar||x.name_en,name_ar:x.name_ar,name_en:x.name_en,phone:x.phone,iqama_number:x.iqama_number,iqama_expiry_date:x.iqama_expiry_date||null,birth_date:x.birth_date,passport_number:x.passport_number||null,passport_expiry:x.passport_expiry||null,nationality_id:x.nationality?.id||null,nationality:x.nationality?.name_ar||x.nationality_ar||null,occupation:x.current_occupation?{value_ar:x.current_occupation.name_ar}:(x.occupation_ar?{value_ar:x.occupation_ar}:null),facility:x.current_facility?{id:x.current_facility.id,name_ar:x.current_facility.name_ar,unified_national_number:x.current_facility.unified_number,hrsd_number:x.current_facility.hrsd_number||null,gosi_file_number:x.current_facility.gosi_number||null}:null,worker_type:type})
+const[wp,wt]=await Promise.all([
+sb.from('workers').select(WORKER_SELECT).is('deleted_at',null).eq('iqama_number',idn).limit(1),
+sb.from('temproryworkers').select(WORKER_SELECT).is('deleted_at',null).eq('iqama_number',idn).limit(1),
+])
+const hit=(wp.data&&wp.data[0])?{r:wp.data[0],t:'permanent'}:((wt.data&&wt.data[0])?{r:wt.data[0],t:'temporary'}:null)
+m=hit?mapMin(hit.r,hit.t):null
+}
+if(cancelled)return
+setAutoWorker(m)
+// عميل موجود: قرّر «هو نفسه العميل / شخص مختلف» تلقائياً مرة واحدة لكل عميل (التبديل اليدوي بعدها يبقى).
+// (لا يُطبَّق على خدمات التسعيرة QUOTE_SVCS لأنها تربط العميل/العامل بمنطقها الخاص.)
+if(isExisting&&!QUOTE_SVCS.has(selSvc)&&autoDecidedRef.current!==idn){autoDecidedRef.current=idn;setWorkerIsClient(!!m);setSelWorker(m||null)}
+})()
+return()=>{cancelled=true}
+},[clientMode,selClient?.id_number,newClient.id_number,workers,sb,selSvc])
+
+// «هو نفسه العميل»: يبقى selWorker متزامناً مع العامل المطابق آلياً، ويُملأ اسم/جنسية العميل الجديد منه.
+useEffect(()=>{
+if(!workerIsClient||QUOTE_SVCS.has(selSvc))return
+setSelWorker(autoWorker||null)
+if(autoWorker&&clientMode==='new')setNewClient(p=>({...p,name_ar:autoWorker.name_ar||'',name_en:autoWorker.name_en||'',nationality_id:autoWorker.nationality_id||p.nationality_id||null}))
+},[workerIsClient,autoWorker,clientMode,selSvc])
 
 // تجديد الإقامة: العامل هو نفسه العميل دائماً — لا خطوة عميل. عند اختيار حسبة التجديد نربط/ننشئ العميل
 // من بيانات العامل تلقائياً (نفس منطق «العميل هو نفس العامل») ليُحفظ client_id عند الإصدار.
@@ -2280,7 +2308,7 @@ const natLabel=country?.nationality_ar||'—'
 const G={base:'linear-gradient(135deg,rgba(176,125,0,.07),rgba(255,255,255,.015))',baseB:'rgba(176,125,0,.22)',hover:'linear-gradient(135deg,rgba(176,125,0,.12),rgba(255,255,255,.02))',hoverB:'rgba(176,125,0,.32)',sel:'linear-gradient(135deg,rgba(176,125,0,.16),rgba(255,255,255,.02))',selB:'rgba(176,125,0,.45)'}
 const onEnter=e=>{if(!sel){e.currentTarget.style.background=G.hover;e.currentTarget.style.borderColor=G.hoverB}}
 const onLeave=e=>{if(!sel){e.currentTarget.style.background=G.base;e.currentTarget.style.borderColor=G.baseB}}
-const handleClick=()=>{const mw=workers.find(w=>w.iqama_number===c.id_number);setSelClient(c);setClientMode('existing');if(mw){setSelWorker(mw);setWorkerIsClient(true)}else{setSelWorker(null);setWorkerIsClient(false)}}
+const handleClick=()=>{setSelClient(c);setClientMode('existing')}// اختيار العميل فقط — الربط الذكي للعامل يتكفّل به المُحلِّل (autoWorker) بحثاً في القاعدة (دائم+مؤقت)
 const deselect=e=>{if(e)e.stopPropagation();setSelClient(null);setWorkerIsClient(false);setSelWorker(null)}
 const infoBox=(Icon,label,val)=><div style={{display:'flex',alignItems:'center',gap:8,padding:'7px 12px',borderRadius:9,background:'var(--fk-input-bg)',border:'1px solid rgba(176,125,0,.18)',minWidth:132}}><Icon size={13} color={C.bentoGold} strokeWidth={1.8}/><div style={{display:'flex',flexDirection:'column',gap:2,minWidth:0}}><span style={{fontSize:9,color:'var(--tx4)',fontWeight:600}}>{label}</span><span style={{fontSize:13,color:'var(--tx)',fontWeight:600,direction:'ltr',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{val}</span></div></div>
 const flagEl=size=><div title={natLabel} style={{width:size,height:size,borderRadius:12,background:'rgba(0,0,0,.25)',border:sel?'1.5px solid rgba(176,125,0,.4)':'1px solid rgba(255,255,255,.08)',flexShrink:0,transition:'.25s',boxShadow:sel?'0 2px 8px rgba(176,125,0,.15)':'none',position:'relative',overflow:'hidden'}}>{flagUrl?<img src={flagUrl} alt={natLabel} loading="lazy" style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>:<div style={{width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center'}}><Globe size={Math.round(size*.42)} strokeWidth={1.6} color="rgba(255,255,255,.35)"/></div>}</div>
@@ -2317,7 +2345,7 @@ style={{cursor:'pointer',position:'relative',border:`1px solid ${G.baseB}`,backg
 
 {/* ─── العامل (ربط ذكي) — يظهر بعد اختيار العميل للخدمات التي تتطلب عاملاً ─── */}
 {selClient&&clientMode==='existing'&&!VISA_SERVICES.has(selSvc)&&!QUOTE_SVCS.has(selSvc)&&(()=>{
-const matched=workers.find(w=>w.iqama_number===selClient.id_number)
+const matched=autoWorker
 const setSame=(val)=>{setWorkerIsClient(val);if(val){setSelWorker(matched||null);setClientMode('existing')}else{setSelWorker(null)}}
 return<div style={{marginTop:12,display:'flex',flexDirection:'column',gap:8}}>
 <span style={{fontSize:11,fontWeight:600,color:C.gold,fontFamily:F}}>{T('العامل','Worker')}</span>
@@ -2383,7 +2411,7 @@ return <div style={{marginTop:6,background:'linear-gradient(135deg,rgba(176,125,
 {/* العامل لعميل جديد — نفس منطق العميل المسجّل: يبحث عن عامل مسجّل بنفس رقم الهوية/الإقامة (لا يُنشئ عاملاً جديداً) */}
 {clientMode==='new'&&!VISA_SERVICES.has(selSvc)&&!QUOTE_SVCS.has(selSvc)&&(()=>{
 const validId=newClient.id_number&&newClient.id_number.length===10
-const matched=validId?workers.find(w=>w.iqama_number===newClient.id_number):null
+const matched=validId?autoWorker:null
 const setSame=(val)=>{setWorkerIsClient(val);if(val){setSelWorker(matched||null)}else{setSelWorker(null)}}
 return<div style={{marginTop:12,display:'flex',flexDirection:'column',gap:8}}>
 <span style={{fontSize:11,fontWeight:600,color:C.gold,fontFamily:F}}>{T('العامل','Worker')}</span>
