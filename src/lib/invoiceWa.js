@@ -16,6 +16,7 @@ const pickWorker = rel => (Array.isArray(rel) ? rel[0]?.worker : rel?.worker)
 const M = {
   new_invoice: 'فاتورة جديدة', payment_title: 'دفعة مستلمة', refund_title: 'استرجاع مبلغ', cancel_title: 'إلغاء فاتورة',
   total: 'الإجمالي', paid: 'المدفوع', remaining: 'المتبقي',
+  discount: 'الخصم', total_before: 'الإجمالي قبل الخصم', total_after: 'الإجمالي بعد الخصم',
   amount_paid: 'دفعة مستلمة', amount_received: 'المبالغ المستلمة اليوم', amount_refunded: 'المبلغ المسترد', amount_void: 'المبلغ الملغى',
   pay_method: 'طريقة الدفع', refund_method: 'طريقة الاسترجاع', currency: 'ريال',
 }
@@ -108,6 +109,18 @@ const svcLabel = inv => {
   return inv.service_type?.value_ar || inv.service_type?.value_en || 'خدمة'
 }
 
+// الخصم المطبَّق على الفاتورة — خصم المدير العام من pricing_log، أو أسطر الخصم في بنود التسعير.
+// نفس اشتقاق كرت «الخصم» في صفحة الفاتورة، كي تُبيّن رسالة الواتساب أن الفاتورة نالت خصماً.
+function invoiceDiscount(inv) {
+  const log = (Array.isArray(inv.pricing_log) ? inv.pricing_log : []).filter(e => Number(e?.discount) > 0)
+  const bd = Array.isArray(inv.pricing_breakdown) ? inv.pricing_breakdown : []
+  const isDisc = l => l && (l.discount === true || ['خصم', 'الخصم', 'Discount'].includes(String(l.label || '').trim()))
+  const lineDisc = bd.filter(isDisc).reduce((s, l) => s + Math.abs(Number(l.amount) || 0), 0)
+  const logDisc = log.reduce((s, e) => s + (Number(e.discount) || 0), 0)
+  const amt = logDisc > 0.005 ? logDisc : lineDisc
+  return amt > 0.005 ? Math.round(amt * 100) / 100 : 0
+}
+
 // خدمات ذات حقل «السبب» (خروج نهائي، الموافقة للنقل الخارجي، طباعة الإقامة): نصّ السبب
 // المُدخل في الطلب (other_applications.details) يظهر سطراً مستقلاً أسفل الأرصدة في رسالة الواتساب.
 const REASON_KEY = { final_exit_visa: 'reason', external_transfer_approval: 'reason', iqama_print: 'print_reason' }
@@ -157,9 +170,16 @@ export function buildInvoiceWaMessage(inv, day = null) {
   const cur = M.currency
   // الخدمات الصفرية: نستبدل الأرصدة (إجمالي/مدفوع/متبقٍّ) ببنود الطلب (رواتب سبلاير: إجمالي الرواتب + المدة).
   const isZero = ZERO_INVOICE_SVCS.has(inv.service_type?.code)
+  // فاتورة نالت خصماً: نُظهر «الإجمالي قبل الخصم» + «الخصم» + «الإجمالي بعد الخصم» بدل سطر الإجمالي الواحد،
+  // كي يتّضح للقارئ أن السعر الأصلي أعلى وأن خصماً طُبِّق. بلا خصم يبقى سطر الإجمالي كما هو.
+  const disc = isZero ? 0 : invoiceDiscount(inv)
+  const gross = Math.round((total + disc) * 100) / 100
+  const totalLines = disc > 0
+    ? [`🟡 ${M.total_before}: ${num(gross)} ${cur}`, `🏷️ ${M.discount}: ${num(disc)} ${cur}`, `🟡 ${M.total_after}: ${num(total)} ${cur}`]
+    : [`🟡 ${M.total}: ${num(total)} ${cur}`]
   const bal = isZero
     ? zeroSvcLines(inv)
-    : [`🟡 ${M.total}: ${num(total)} ${cur}`, `🟢 ${M.paid}: ${num(paid)} ${cur}`, `🔴 ${M.remaining}: ${num(rem)} ${cur}`]
+    : [...totalLines, `🟢 ${M.paid}: ${num(paid)} ${cur}`, `🔴 ${M.remaining}: ${num(rem)} ${cur}`]
   const methods = arr => (Array.isArray(arr) ? arr.filter(Boolean) : []).join('، ')
   const updateDate = (inv.last_activity_at || inv.created_at) ? String(inv.last_activity_at || inv.created_at).slice(0, 10) : ''
   const updateLine = updateDate ? ` ${updateDate}` : ''

@@ -597,33 +597,25 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
     if (rows) svcExtra += `<div class="est-grid" style="margin-top:2.5mm">${rows}</div>`
   }
   if (isVisa && det.length === 1 && d0) {
+    // بيانات التأشيرة (الموحّد/التأشيرة/الحدود/المهنة/السفارة) تُعرض الآن ببطاقة التأشيرة أدناه — نُبقي هنا سياق المنشأة والوكالة فقط.
     const rows = [
       d0.main_facility && d0.main_facility.name_ar ? kvRow(lab('facility'), esc(d0.main_facility.name_ar)) : '',
-      // ترتيب الطباعة: الرقم الموحّد ← رقم التأشيرة ← رقم الحدود.
-      (d0.main_facility && d0.main_facility.unified_number && !d0.unified_number) ? kvRow(lab('unifiedNo'), num2(d0.main_facility.unified_number)) : '',
-      // الرقم الموحد للمنشأة (المُدخَل على التأشيرة) قبل رقم التأشيرة ورقم الحدود.
-      (d0.file_number == null && d0.unified_number) ? kvRow(lab('unifiedNo'), num2(d0.unified_number)) : '',
-      // رقم التأشيرة يظهر داخل بطاقة توزيع الملفات عند وجود ملف — لا نكرّره هنا.
-      (d0.file_number == null && d0.visa_number) ? kvRow(lab('visaNo'), num2(d0.visa_number)) : '',
-      // رقم الحدود يظهر تحت وصف التأشيرة في بطاقة توزيع الملفات عند وجود ملف — لا نكرّره كحقل هنا.
-      (d0.file_number == null && d0.border_number) ? kvRow(lab('borderNo'), num2(d0.border_number)) : '',
       d0.wakalah_number ? kvRow(lab('wakalahNo'), num2(d0.wakalah_number)) : '',
-      // المهنة والسفارة تظهران داخل بطاقة توزيع الملفات أدناه — لا نكرّرهما هنا عند وجود ملف.
-      (d0.file_number == null && d0.occupation) ? kvRow(lab('occupation'), esc(localize(d0.occupation) || '')) : '',
-      (d0.file_number == null && d0.embassy) ? kvRow(lab('embassy'), esc(localize(d0.embassy) || '')) : '',
     ].filter(Boolean).join('')
     if (rows) svcExtra += `<div class="est-grid" style="margin-top:2.5mm">${rows}</div>`
   }
   let fileDistBlk = ''
   if (isVisa) {
-    const visaRows2 = det.filter(r => r && r.file_number != null)
+    // كل التأشيرات تُعرض كبطاقات (نفس تصميم الشاشة) — سواء وُزّعت على ملفات أم لا. غير الموزّعة تُجمَّع بلا عنوان ملف.
+    const visaRows2 = det.filter(r => r && r.id)
+    const hasRealFiles = det.some(r => r && r.file_number != null)
     if (visaRows2.length) {
       const byFile2 = {}
-      visaRows2.forEach(r => { (byFile2[r.file_number] = byFile2[r.file_number] || []).push(r) })
+      visaRows2.forEach(r => { const fk = r.file_number != null ? r.file_number : 0; (byFile2[fk] = byFile2[fk] || []).push(r) })
       const fileNos2 = Object.keys(byFile2).map(Number).sort((a, b) => a - b)
       const filesHtml2 = fileNos2.map((fn, idx) => {
         const items = byFile2[fn]
-        const fileLbl = fileNos2.length === 1 ? lab('oneFile') : (lab('file') + ' ' + (idx + 1))
+        const fileLbl = !hasRealFiles ? '' : (fileNos2.length === 1 ? lab('oneFile') : (lab('file') + ' ' + (idx + 1)))
         // كرت لكل تأشيرة (تصميم: تاق جانبي + شبكة حقول معنونة): رأس (الجنسية + السفارة/المهنة/الجنس) مع تاق الحالة،
         // ثم اسم العامل، ثم خانات معنونة لكل رقم متوفّر (الحدود/الإقامة/انتهاء الإقامة) — مطابق لتصميم الموقع.
         const entriesHtml = items.map(r => {
@@ -646,7 +638,7 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
           const gridHtml = cells.length ? `<div class="fd-grid" style="grid-template-columns:repeat(${cells.length},1fr)">${cells.map(c => `<div class="fd-cell"><div class="fd-cell-k">${esc(c.k)}</div><div class="fd-cell-v">${c.v}</div></div>`).join('')}</div>` : ''
           return `<div class="fd-v"><div class="fd-vhead"><span class="fd-vname">${esc(nat)}${sub ? ` <span class="fd-vsub">· ${esc(sub)}</span>` : ''}</span>${tag}</div>${r.worker_name ? `<div class="fd-worker"><span class="fd-dot"></span>${esc(r.worker_name)}</div>` : ''}${gridHtml}</div>`
         }).join('')
-        return `<div class="fd-file"><div class="fd-flabel">${esc(fileLbl)} <span class="fd-count">${num2(items.length)} ${lab('visas')}</span></div>${entriesHtml}</div>`
+        return `<div class="fd-file">${fileLbl ? `<div class="fd-flabel">${esc(fileLbl)} <span class="fd-count">${num2(items.length)} ${lab('visas')}</span></div>` : ''}${entriesHtml}</div>`
       }).join('')
       fileDistBlk = `<div class="fd">${filesHtml2}</div>`
     }

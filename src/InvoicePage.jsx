@@ -1019,7 +1019,7 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
     p_branch_ids: officeScope,
     p_branch_exact_ids: branchSel.length ? branchSel : null,
     p_service_type_ids: serviceType.length ? serviceType : null,
-    p_pay_statuses: payFilter.length ? payFilter : null,
+    p_pay_statuses: payFilter.length ? [...new Set(payFilter.flatMap(v => v === 'not_cancelled' ? ['paid_active', 'partial_active', 'unpaid_active', 'refunded_active'] : [v]))] : null,
     p_from: from || null,
     p_to: to || null,
     p_amount_min: amountMin !== '' ? Number(amountMin) : null,
@@ -1491,6 +1491,7 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
               <div>
                 <div style={fLbl}>{T('حالة السداد','Pay Status')}</div>
                 <FKDropdown multi selectedKeys={payFilter} onChange={arr => { setPayFilter(arr); setPage(0) }} placeholder={T('الكل','All')} getKey={o => o.v} getLabel={o => o.l} options={[
+                  { v: 'not_cancelled',     l: T('غير ملغاة','Not Cancelled') },
                   { v: 'paid_active',       l: T('مدفوعة بالكامل — غير ملغاة','Fully Paid — Active') },
                   { v: 'partial_active',    l: T('مدفوعة جزئياً — غير ملغاة','Partially Paid — Active') },
                   { v: 'unpaid_active',     l: T('غير مدفوعة — غير ملغاة','Unpaid — Active') },
@@ -1832,7 +1833,7 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user, onO
           visa_order_kind:visa_order_kind_id(value_ar,value_en),
           wakalah_status:wakalah_status_id(value_ar,value_en),
           editor:updated_by(person:person_id(name_ar,name_en))`,
-        transfer: `id,reference_number,total_price_initial,total_price_final,discount,office_cost,iqama_expiry_date,transfer_qiwa_status,transfer_muqeem_status,
+        transfer: `id,reference_number,unified_number,total_price_initial,total_price_final,discount,office_cost,iqama_expiry_date,transfer_qiwa_status,transfer_muqeem_status,
           worker:worker_id(name_ar,name_en,iqama_number,phone),
           main_facility:main_facility_id(name_ar,unified_number,gosi_number,qiwa_prefix,qiwa_number),
           new_occupation:new_occupation_id(name_ar,name_en),
@@ -2147,7 +2148,58 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user, onO
     // invoices.edit. لا ينطبق بعد الاعتماد — بقية المراحل تبقى لأصحاب التعديل/المنشئ.
     const canAcctApprove = needsAcctApproval(_c) && inv.service_request?.accountant_status !== 'approved'
       && !isCreator && canPerm(user, 'invoices.accountant_approve')
-    if (reqDone) {
+    const isTransferStage = baseSvcCode(_c) === 'transfer'
+    const isRenewalStage = baseSvcCode(_c) === 'iqama_renewal'
+    // بوابة تحرير المراحل — لا تُقيَّد بحالة «منجز». المعاملات متعددة المراحل (نقل/تجديد) قد تُعلَّم
+    // «منجز» (استيراد تاريخي أو إنجاز مبكر) وبياناتها المرحلية ناقصة؛ فنُبقي زر المرحلة التالية ظاهراً
+    // حتى تُملأ كل المراحل المطلوبة — تمامًا كما تُحسب مراحل التأشيرة من اكتمال البيانات لا من «منجز».
+    const stageEditable = !cancelledRO && !reqCancelled && !acctRejected && (canStagePerm || canAcctApprove)
+    const doneBadge = <StageRow key="done" done icon={<DoneCheckIco />} label={T('المعاملة منجزة','Transaction completed')} />
+    if (isTransferStage && stageEditable) {
+      // نقل الكفالة: «حالة المعاملة» على 3 مراحل متتابعة — التأمين ← رخصة العمل (تُتخطّى عند «نقل فقط») ← بيانات مقيم.
+      const tc = data?.tc || {}
+      const sd = (tc.stage_data && typeof tc.stage_data === 'object') ? tc.stage_data : {}
+      const transferOnly = !!tc.transfer_only
+      const transferDone = !!sd.transfer
+      const insDone = !!sd.insurance
+      const wpDone = !!sd.work_permit
+      // مكتملة فقط بعد إدخال المرحلة فعلاً — لا من أعمدة الحسبة (المهنة/الانتهاء المتوقع) الموجودة سلفاً.
+      const muqeemDone = !!sd.muqeem
+      // شارات الحالة للمراحل المُنجَزة/الملغاة (تظهر أثناء التقدّم قبل اكتمال المعاملة).
+      const transferCancelled = sd.transfer?.status === 'cancelled'
+      const insCancelled = sd.insurance?.status === 'cancelled'
+      const wpCancelled = sd.work_permit?.status === 'cancelled'
+      // المرحلة القابلة للإجراء التالية (بالتتابع) — النقل أولاً ثم التأمين ثم رخصة العمل ثم الإقامة.
+      // تُحسب من بيانات المراحل لا من «منجز»، فتظهر ما دامت هناك مرحلة ناقصة ولو كانت الفاتورة «منجزة».
+      const before = stageActions.length
+      if (!transferDone) { if (stageModalOk('inv_stage_transfer')) stageActions.push(<StageRow key="mark" color={C.gold} label={T('النقل','Transfer')} icon={<TransferStageIco />} onClick={() => openTransferStage('transfer')} />) }
+      else if (!insDone) { if (stageModalOk('inv_stage_transfer_insurance')) stageActions.push(<StageRow key="mark" color={C.gold} label={T('التأمين','Insurance')} icon={<RenewalDataIco />} onClick={() => openTransferStage('insurance')} />) }
+      else if (!transferOnly && !wpDone) { if (stageModalOk('inv_stage_transfer_workpermit')) stageActions.push(<StageRow key="mark" color={C.gold} label={T('رخصة العمل','Work Permit')} icon={<RenewalDataIco />} onClick={() => openTransferStage('workpermit')} />) }
+      else if (!muqeemDone) { if (stageModalOk('inv_stage_transfer_iqama')) stageActions.push(<StageRow key="mark" color={C.gold} label={T('الإقامة','Iqama')} icon={<RenewalDataIco />} onClick={() => openTransferStage('muqeem')} />) }
+      const hasPending = stageActions.length > before
+      // كل المراحل مكتملة والفاتورة «منجزة» → شارة الإنجاز الإجمالية (كما كان). وإلا نعرض شارات المراحل المنجزة.
+      if (reqDone && !hasPending) stageStatus.push(doneBadge)
+      else {
+        if (transferDone) stageStatus.push(<StageRow key="st-tr" done color={transferCancelled ? C.red : C.ok} icon={<DoneCheckIco />} label={transferCancelled ? T('النقل — ملغاة','Transfer — cancelled') : T('تم النقل','Transfer done')} />)
+        if (insDone) stageStatus.push(<StageRow key="st-ins" done color={insCancelled ? C.red : C.ok} icon={<DoneCheckIco />} label={insCancelled ? T('التأمين — ملغاة','Insurance — cancelled') : T('تم إدخال بيانات التأمين','Insurance saved')} />)
+        if (!transferOnly && wpDone) stageStatus.push(<StageRow key="st-wp" done color={wpCancelled ? C.red : C.ok} icon={<DoneCheckIco />} label={wpCancelled ? T('رخصة العمل — ملغاة','Work permit — cancelled') : T('تم إدخال رخصة العمل','Work permit saved')} />)
+      }
+    } else if (isRenewalStage && stageEditable) {
+      // تجديد الإقامة: «حالة المعاملة» على مرحلتين متتابعتين — التأمين (مع خيار «لا يحتاج») ثم الإقامة.
+      const tc = data?.tc || {}
+      const sd = (tc.stage_data && typeof tc.stage_data === 'object') ? tc.stage_data : {}
+      const insDone = !!sd.insurance
+      const iqamaDone = !!sd.iqama
+      const insCancelled = sd.insurance?.status === 'cancelled'
+      const insSkipped = sd.insurance?.status === 'skipped'
+      const before = stageActions.length
+      if (!insDone) { if (stageModalOk('inv_stage_renewal_insurance')) stageActions.push(<StageRow key="mark" color={C.gold} label={T('التأمين','Insurance')} icon={<RenewalDataIco />} onClick={() => openTransferStage('insurance')} />) }
+      else if (!iqamaDone) { if (stageModalOk('inv_stage_renewal_iqama')) stageActions.push(<StageRow key="mark" color={C.gold} label={T('الإقامة','Iqama')} icon={<RenewalDataIco />} onClick={() => openTransferStage('iqama')} />) }
+      const hasPending = stageActions.length > before
+      if (reqDone && !hasPending) stageStatus.push(doneBadge)
+      else if (insDone) stageStatus.push(<StageRow key="st-ins" done color={insCancelled ? C.red : insSkipped ? C.gold : C.ok} icon={<DoneCheckIco />} label={insCancelled ? T('التأمين — ملغاة','Insurance — cancelled') : insSkipped ? T('التأمين — لا يحتاج','Insurance — not needed') : T('تم إدخال بيانات التأمين','Insurance saved')} />)
+    } else if (reqDone) {
+      // خدمات ذات خطوة واحدة (مستندات/رواتب سبلاير/نقل خارجي/ترجمة اسم…): «منجز» حالة نهائية بلا بيانات مرحلية ناقصة.
       // تعديل الراتب: المعاملة منجزة لكنها «بانتظار إرجاع الراتب الأساسي» — نعرض زر «إرجاع الراتب».
       const salaryPhase = (Array.isArray(data?.det) ? data.det[0] : null)?.details?.salary_phase
       if (baseSvcCode(_c) === 'name_translation' && salaryPhase === 'awaiting_return') {
@@ -2156,56 +2208,17 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user, onO
           stageActions.push(<StageRow key="salreturn" color={C.gold} label={T('إرجاع الراتب','Salary Return')} icon={<RenewalDataIco />} onClick={onReturnSalary} />)
         }
       } else {
-        stageStatus.push(<StageRow key="done" done icon={<DoneCheckIco />} label={T('المعاملة منجزة','Transaction completed')} />)
+        stageStatus.push(doneBadge)
       }
-    } else if (!cancelledRO && !reqCancelled && !acctRejected && (canStagePerm || canAcctApprove)) {
-      // زر المرحلة يخصّ كل خدمة: نقل الكفالة يفتح «بيانات التجديد» (مهنة + انتهاء الإقامة + ملف مقيم)،
-      // وبقية الخدمات (رواتب سبلاير/المستندات/النقل الخارجي) تفتح نافذة «حالة المعاملة».
-      const isTransferStage = baseSvcCode(_c) === 'transfer'
-      const isRenewalStage = baseSvcCode(_c) === 'iqama_renewal'
-      if (isTransferStage) {
-        // نقل الكفالة: «حالة المعاملة» على 3 مراحل متتابعة — التأمين ← رخصة العمل (تُتخطّى عند «نقل فقط») ← بيانات مقيم.
-        const tc = data?.tc || {}
-        const sd = (tc.stage_data && typeof tc.stage_data === 'object') ? tc.stage_data : {}
-        const transferOnly = !!tc.transfer_only
-        const transferDone = !!sd.transfer
-        const insDone = !!sd.insurance
-        const wpDone = !!sd.work_permit
-        // مكتملة فقط بعد إدخال المرحلة فعلاً — لا من أعمدة الحسبة (المهنة/الانتهاء المتوقع) الموجودة سلفاً.
-        const muqeemDone = !!sd.muqeem
-        // شارات الحالة للمراحل المُنجَزة/الملغاة (تظهر أثناء التقدّم قبل اكتمال المعاملة).
-        const transferCancelled = sd.transfer?.status === 'cancelled'
-        const insCancelled = sd.insurance?.status === 'cancelled'
-        const wpCancelled = sd.work_permit?.status === 'cancelled'
-        if (transferDone) stageStatus.push(<StageRow key="st-tr" done color={transferCancelled ? C.red : C.ok} icon={<DoneCheckIco />} label={transferCancelled ? T('النقل — ملغاة','Transfer — cancelled') : T('تم النقل','Transfer done')} />)
-        if (insDone) stageStatus.push(<StageRow key="st-ins" done color={insCancelled ? C.red : C.ok} icon={<DoneCheckIco />} label={insCancelled ? T('التأمين — ملغاة','Insurance — cancelled') : T('تم إدخال بيانات التأمين','Insurance saved')} />)
-        if (!transferOnly && wpDone) stageStatus.push(<StageRow key="st-wp" done color={wpCancelled ? C.red : C.ok} icon={<DoneCheckIco />} label={wpCancelled ? T('رخصة العمل — ملغاة','Work permit — cancelled') : T('تم إدخال رخصة العمل','Work permit saved')} />)
-        // المرحلة القابلة للإجراء التالية (بالتتابع) — النقل أولاً ثم التأمين ثم رخصة العمل ثم الإقامة.
-        if (!transferDone) { if (stageModalOk('inv_stage_transfer')) stageActions.push(<StageRow key="mark" color={C.gold} label={T('النقل','Transfer')} icon={<TransferStageIco />} onClick={() => openTransferStage('transfer')} />) }
-        else if (!insDone) { if (stageModalOk('inv_stage_transfer_insurance')) stageActions.push(<StageRow key="mark" color={C.gold} label={T('التأمين','Insurance')} icon={<RenewalDataIco />} onClick={() => openTransferStage('insurance')} />) }
-        else if (!transferOnly && !wpDone) { if (stageModalOk('inv_stage_transfer_workpermit')) stageActions.push(<StageRow key="mark" color={C.gold} label={T('رخصة العمل','Work Permit')} icon={<RenewalDataIco />} onClick={() => openTransferStage('workpermit')} />) }
-        else if (!muqeemDone) { if (stageModalOk('inv_stage_transfer_iqama')) stageActions.push(<StageRow key="mark" color={C.gold} label={T('الإقامة','Iqama')} icon={<RenewalDataIco />} onClick={() => openTransferStage('muqeem')} />) }
-      } else if (isRenewalStage) {
-        // تجديد الإقامة: «حالة المعاملة» على مرحلتين متتابعتين — التأمين (مع خيار «لا يحتاج») ثم الإقامة.
-        const tc = data?.tc || {}
-        const sd = (tc.stage_data && typeof tc.stage_data === 'object') ? tc.stage_data : {}
-        const insDone = !!sd.insurance
-        const iqamaDone = !!sd.iqama
-        const insCancelled = sd.insurance?.status === 'cancelled'
-        const insSkipped = sd.insurance?.status === 'skipped'
-        if (insDone) stageStatus.push(<StageRow key="st-ins" done color={insCancelled ? C.red : insSkipped ? C.gold : C.ok} icon={<DoneCheckIco />} label={insCancelled ? T('التأمين — ملغاة','Insurance — cancelled') : insSkipped ? T('التأمين — لا يحتاج','Insurance — not needed') : T('تم إدخال بيانات التأمين','Insurance saved')} />)
-        if (!insDone) { if (stageModalOk('inv_stage_renewal_insurance')) stageActions.push(<StageRow key="mark" color={C.gold} label={T('التأمين','Insurance')} icon={<RenewalDataIco />} onClick={() => openTransferStage('insurance')} />) }
-        else if (!iqamaDone) { if (stageModalOk('inv_stage_renewal_iqama')) stageActions.push(<StageRow key="mark" color={C.gold} label={T('الإقامة','Iqama')} icon={<RenewalDataIco />} onClick={() => openTransferStage('iqama')} />) }
-      } else {
-        // خدمات موافقة المحاسب قبل الموافقة: الزر يفتح مرحلة «موافقة المحاسب» — فنسمّيه بها وأيقونتها.
-        const acctApprovalStage = needsAcctApproval(_c) && inv.service_request?.accountant_status !== 'approved'
-        if (acctApprovalStage) {
-          // فصل المهام: تتطلّب صلاحية «موافقة المحاسب» (invoices.accountant_approve) صراحةً، ولا يعتمدها
-          // منشئ الفاتورة على طلبه (canAcctApprove يشترط !isCreator) — لا تجاوز منشئ هنا بخلاف بقية المراحل.
-          if (canAcctApprove) stageActions.push(<StageRow key="mark" color={C.gold} label={T('موافقة المحاسب','Accountant Approval')} icon={<AcctApprovalIco />} onClick={onMarkDone} />)
-        } else if (stageModalOk('inv_stage_status')) {
-          stageActions.push(<StageRow key="mark" color={C.gold} label={T('حالة المعاملة','Transaction Status')} icon={<TxnStatusIco />} onClick={onMarkDone} />)
-        }
+    } else if (stageEditable) {
+      // خدمات ذات خطوة واحدة غير منجزة — موافقة المحاسب (إن لزمت) ثم «حالة المعاملة».
+      const acctApprovalStage = needsAcctApproval(_c) && inv.service_request?.accountant_status !== 'approved'
+      if (acctApprovalStage) {
+        // فصل المهام: تتطلّب صلاحية «موافقة المحاسب» (invoices.accountant_approve) صراحةً، ولا يعتمدها
+        // منشئ الفاتورة على طلبه (canAcctApprove يشترط !isCreator) — لا تجاوز منشئ هنا بخلاف بقية المراحل.
+        if (canAcctApprove) stageActions.push(<StageRow key="mark" color={C.gold} label={T('موافقة المحاسب','Accountant Approval')} icon={<AcctApprovalIco />} onClick={onMarkDone} />)
+      } else if (stageModalOk('inv_stage_status')) {
+        stageActions.push(<StageRow key="mark" color={C.gold} label={T('حالة المعاملة','Transaction Status')} icon={<TxnStatusIco />} onClick={onMarkDone} />)
       }
     }
   }
@@ -4578,7 +4591,8 @@ const VisaInfoRows = ({ inv, isAr, T, svc, data, user }) => {
       r.unified_number && fieldVisible(user, 'invoices', 'visa_unified_number') && { label: T('الرقم الموحد', 'Unified no.'), value: r.unified_number },
       r.visa_number && fieldVisible(user, 'invoices', 'visa_number') && { label: T('رقم التأشيرة', 'Visa no.'), value: r.visa_number },
       border && fieldVisible(user, 'invoices', 'visa_border_number') && { label: T('رقم الحدود', 'Border'), value: border },
-      iqNum && { label: T('رقم الإقامة', 'Iqama'), value: iqNum, span: 2 },
+      name && { label: T('الاسم', 'Name'), value: name, text: true },
+      iqNum && { label: T('رقم الإقامة', 'Iqama'), value: iqNum },
       iqExp && { label: T('انتهاء الإقامة', 'Iqama expiry'), value: fmtIntlDate(iqExp) },
     ].filter(Boolean)
     return (
@@ -4589,18 +4603,17 @@ const VisaInfoRows = ({ inv, isAr, T, svc, data, user }) => {
             <div style={{ fontSize: 13, color: 'var(--tx2)', fontWeight: 600 }}>{compVis ? natOf(r) : ''}</div>
             {compVis && sub && <div style={{ fontSize: 11.5, color: 'var(--tx3)', fontWeight: 600, marginTop: 2 }}>{sub}</div>}
           </div>
-          {name && <span style={{ fontSize: 12.5, color: 'var(--tx2)', fontWeight: 600 }}>{name}</span>}
         </div>
         {tiles.length > 0 && (
           <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(tiles.length, 3)},1fr)`, gap: 8 }}>
             {tiles.map((t, i) => (
               <div key={i} style={{ background: 'rgba(255,255,255,.04)', borderRadius: 8, padding: '8px 10px', gridColumn: t.span ? `span ${t.span}` : 'auto' }}>
                 <div style={{ fontSize: 9.5, color: 'var(--tx4)', marginBottom: 4 }}>{t.label}</div>
-                {/* القيمة تبدأ من اليمين (ترتيب RTL) مع زر نسخ على اليسار */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-                  <span style={{ fontSize: 13, color: 'var(--tx2)', direction: 'ltr', fontWeight: 600, fontVariantNumeric: 'tabular-nums', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.value}</span>
+                {/* زر النسخ ملاصق للقيمة (نفس نمط بقية البطاقات: flex-end) */}
+                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, direction: 'ltr' }}>
                   <CopyBtn text={String(t.value)} />
-                </div>
+                  <span style={{ minWidth: 0, fontSize: 13, color: 'var(--tx2)', direction: t.text ? (/[؀-ۿ]/.test(String(t.value)) ? 'rtl' : 'ltr') : 'ltr', fontWeight: 600, ...(t.text ? {} : { fontVariantNumeric: 'tabular-nums' }), overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.value}</span>
+                </span>
               </div>
             ))}
           </div>
@@ -4769,13 +4782,19 @@ const VisaExecutionRows = ({ inv, isAr, T, data }) => {
         const passports = (data?.det || [])
           .map(v => ({ borderNo: v.border_number, att: data?.passports?.[v.id]?.[0] || null }))
           .filter(x => x.att)
+        // بيانات الإقامة مصدرها صف «إصدار الإقامة» للتأشيرة الأولى (iqamaByVisa)، مع رجوع لاسم التأشيرة ثم سجل العامل.
+        const iq0 = data?.iqamaByVisa?.[d?.id] || null
+        const iqName = iq0?.worker_name_at_entry || d?.worker_name || w?.name_ar || w?.name_en || null
+        const iqNo = iq0?.iqama_number || w?.iqama_number || null
+        const iqExp = iq0?.iqama_expiry || w?.iqama_expiry_date || null
+        const showIqama = hasIqama || !!(iqNo || iqExp || iqName)
         return (
           <>
-            {hasIqama ? (
+            {showIqama ? (
               <>
-                <Row label={T('اسم العامل','Worker Name')} value={w?.name_ar || w?.name_en} />
-                <Row label={T('رقم الإقامة','Iqama No')} value={w?.iqama_number} mono copy />
-                <Row label={T('تاريخ انتهاء الإقامة','Iqama Expiry')} value={date(w?.iqama_expiry_date)} mono />
+                <Row label={T('اسم العامل','Worker Name')} value={iqName} />
+                <Row label={T('رقم الإقامة','Iqama No')} value={iqNo} mono copy />
+                <Row label={T('تاريخ انتهاء الإقامة','Iqama Expiry')} value={date(iqExp)} mono />
               </>
             ) : (!passports.length && emptyNote('لم يتم إصدار الإقامة بعد','Iqama not issued yet'))}
             {passports.map((p, i) => <PassportRow key={i} T={T} att={p.att} borderNo={p.borderNo} />)}
@@ -4822,6 +4841,9 @@ const TransactionRows = ({ inv, isAr, T, svc, payT, data, user }) => {
   if (isTransfer && data?.tc) {
     const tc = data.tc
     // تُدمج داخل كرت اسم الخدمة (مثل عقد أجير) بدل كروت مستقلة.
+    // الرقم الموحّد للمنشأة المنقول إليها: من المنشأة المرتبطة إن وُجدت، وإلا من الحقل المخزَّن على المعاملة.
+    const trUnified = d?.main_facility?.unified_number || d?.unified_number
+    if (trUnified) splCells.push({ label: T('الرقم الموحد','Unified No'), value: trUnified, mono: true })
     if (workerIqama && workerIqama !== '—') splCells.push({ label: T('رقم الإقامة','Iqama No'), value: workerIqama, mono: true })
     if (tc.iqama_expiry_gregorian) splCells.push({ label: T('تاريخ انتهاء الإقامة','Iqama Expiry'), value: date(tc.iqama_expiry_gregorian), mono: true })
     // «نقل فقط»: العلَم transfer_only/renew_iqama يحسم القيمة حتى لو بقيت أشهر تجديد قديمة في renewal_months (نفس منطق كرت الحسبة في App.jsx).

@@ -366,6 +366,9 @@ const FAC_LBL = {
   confirmation_date: ['تاريخ التأكيد السنوي', 'Annual confirmation'],
   saudi_center: ['المركز السعودي', 'Saudi Center'],
   struck_off: ['حالة الشطب', 'Strike status'],
+  commercial_registration: ['السجل التجاري', 'Commercial Registration'],
+  cr_extract: ['مستخرج السجل التجاري', 'CR Extract'],
+  articles_of_incorporation: ['عقد التأسيس', 'Founding Contract'],
 }
 
 // سجل إضافات وتعديلات المنشأة — بطاقة تعرض حدث الإضافة (مَن أنشأ المنشأة ومتى)
@@ -429,7 +432,7 @@ function FacEditLog({ entries, created, T }) {
 // Full-page facility details — same visual language as the invoice details page
 // (back button, gold-titled header, status hero + info cards each with «تعديل»).
 // Opened on row click; «تعديل» buttons hand off to the shared edit modal.
-function FacilityDetailPage({ facility: f, branchInfo, sb, T, lang, onBack, onEdit, onStrikeToggle, onDelete, onDeleted, canEdit, user }) {
+function FacilityDetailPage({ facility: f, branchInfo, sb, T, lang, onBack, onEdit, onStrikeToggle, onDelete, onDeleted, canEdit, user, toast }) {
   const sc = f._basicCode
   const statusColor = sc ? BASIC_STATUS_COLOR[sc] : C.gray
   const statusLabel = sc ? T(BASIC_STATUS_AR[sc], BASIC_STATUS_EN[sc]) : T('غير محدد', 'Undetermined')
@@ -488,6 +491,100 @@ function FacilityDetailPage({ facility: f, branchInfo, sb, T, lang, onBack, onEd
     })()
     return () => { cancelled = true }
   }, [sb, f?.id, f?.created_by])
+  // ─── ملفات المنشأة — السجل التجاري وعقد التأسيس ───
+  // المصدر مزدوج: (1) ملفات المزامنة (SBC) المخزَّنة في bucket «documents» باسم رقم السجل
+  // الوطني للمنشأة المرتبطة، و(2) نسخة يرفعها المستخدم (attachments، entity_type='facility').
+  // المرفوع يعلو على المُزامَن؛ وإن لم يوجد أيّهما يظهر زر «رفع» لإضافة الملف.
+  const CR_STORAGE_BASE = 'https://gcvshzutdslmdkwqwteh.supabase.co/storage/v1/object/public/documents/sbc-cr-certificates'
+  const FILE_SLOTS = [
+    { key: 'commercial_registration', ar: 'السجل التجاري', en: 'Commercial Registration', syncSuffix: 'ar' },
+    { key: 'articles_of_incorporation', ar: 'عقد التأسيس', en: 'Founding Contract', syncSuffix: 'contract' },
+    // مستخرج السجل التجاري — لا مصدر مزامنة مستقل (ملف المزامنة الوحيد للسجل مربوط بخانة «السجل التجاري»)،
+    // فيُدار بالرفع فقط. يُعرض أسفل عقد التأسيس.
+    { key: 'cr_extract', ar: 'مستخرج السجل التجاري', en: 'CR Extract', syncSuffix: null },
+  ]
+  const canFilesEdit = canCardBtn(user, 'facilities', 'facility_files', 'edit')
+  const [facFiles, setFacFiles] = useState({})    // notes → أحدث مرفق مرفوع غير محذوف
+  const [syncFiles, setSyncFiles] = useState({})  // notes → رابط ملف المزامنة (عند توفره فقط)
+  const [attKey, setAttKey] = useState(0)          // مفتاح إعادة الجلب بعد الرفع/الحذف
+  const [fileBusy, setFileBusy] = useState(null)   // مفتاح الخانة الجاري رفعها/حذفها
+  useEffect(() => {
+    if (!sb || !f?.id) { setFacFiles({}); setSyncFiles({}); return }
+    let cancelled = false
+    ;(async () => {
+      // 1) الملفات المرفوعة يدوياً (أحدث نسخة غير محذوفة لكل خانة).
+      const { data: atts } = await sb.from('attachments')
+        .select('id,file_name,file_url,notes,created_at')
+        .eq('entity_type', 'facility').eq('entity_id', f.id)
+        .in('notes', FILE_SLOTS.map(s => s.key)).is('deleted_at', null)
+        .order('created_at', { ascending: false })
+      if (!cancelled) {
+        const upMap = {}
+        for (const r of (atts || [])) if (!upMap[r.notes]) upMap[r.notes] = r
+        setFacFiles(upMap)
+      }
+      // 2) ملفات المزامنة — رقم السجل الوطني من منشأة المزامنة المرتبطة، ثم نتحقق من وجود الملف فعلاً.
+      let crnn = null
+      if (f.sbc_facility_id) {
+        const { data: sbc } = await sb.from('sbc_facilities').select('cr_national_number').eq('id', f.sbc_facility_id).maybeSingle()
+        crnn = sbc?.cr_national_number || null
+      }
+      const syncMap = {}
+      if (crnn) {
+        await Promise.all(FILE_SLOTS.filter(s => s.syncSuffix).map(async s => {
+          const url = `${CR_STORAGE_BASE}/${crnn}-${s.syncSuffix}.pdf`
+          try { const res = await fetch(url, { method: 'HEAD' }); if (res.ok) syncMap[s.key] = url } catch {}
+        }))
+      }
+      if (!cancelled) setSyncFiles(syncMap)
+    })()
+    return () => { cancelled = true }
+  }, [sb, f?.id, f?.sbc_facility_id, attKey])
+
+  // رفع/استبدال ملف خانة — يرفع لـ bucket «attachments»، يسجّل الصف، ويحذف نسخة الخانة السابقة حذفاً ناعماً.
+  const onPickFile = async (slot, file) => {
+    if (!file || !canFilesEdit || fileBusy) return
+    setFileBusy(slot.key)
+    try {
+      const safe = (file.name || `${slot.key}.pdf`).replace(/[^\w.\-]+/g, '_')
+      const path = `facilities/${f.id}/${slot.key}/${Date.now()}_${Math.random().toString(36).slice(2, 6)}_${safe}`
+      const { error: upErr } = await sb.storage.from('attachments').upload(path, file, { cacheControl: '3600', upsert: false })
+      if (upErr) throw new Error(upErr.message)
+      const { data: pub } = sb.storage.from('attachments').getPublicUrl(path)
+      const prev = facFiles[slot.key]
+      const { error: insErr } = await sb.from('attachments').insert({
+        entity_type: 'facility', entity_id: f.id,
+        file_name: file.name, file_url: pub?.publicUrl || path, storage_path: path,
+        mime_type: file.type || null, size_bytes: file.size || null, notes: slot.key, uploaded_by: user?.id || null,
+      })
+      if (insErr) throw new Error(insErr.message)
+      if (prev?.id) await sb.from('attachments').update({ deleted_at: new Date().toISOString() }).eq('id', prev.id)
+      // سجل النشاط — يظهر في كرت «سجل الإضافات والتعديلات».
+      try {
+        const { data: freshRow } = await sb.from('facilities').select('edit_log').eq('id', f.id).maybeSingle()
+        const prevLog = Array.isArray(freshRow?.edit_log) ? freshRow.edit_log : []
+        const entry = { at: new Date().toISOString(), by: user?.id || null, by_name: user?.person?.name_ar || user?.person?.name_en || null, changes: [{ field: slot.key, from: prev?.file_name || null, to: file.name }] }
+        await sb.from('facilities').update({ edit_log: [...prevLog, entry] }).eq('id', f.id)
+      } catch {}
+      toast?.(T(`تم رفع ${slot.ar}`, `${slot.en} uploaded`))
+      setAttKey(k => k + 1)
+    } catch (e) {
+      toast?.(T('تعذّر رفع الملف: ' + (e.message || ''), 'Upload failed: ' + (e.message || '')))
+    } finally { setFileBusy(null) }
+  }
+  // حذف الملف المرفوع لخانة (يعود العرض لملف المزامنة إن وُجد، وإلا يصبح «غير متوفر»).
+  const onDeleteFile = async (slot) => {
+    const prev = facFiles[slot.key]
+    if (!prev?.id || !canFilesEdit) return
+    setFileBusy(slot.key)
+    try {
+      await sb.from('attachments').update({ deleted_at: new Date().toISOString() }).eq('id', prev.id)
+      toast?.(T(`تم حذف ${slot.ar}`, `${slot.en} removed`))
+      setAttKey(k => k + 1)
+    } catch { toast?.(T('تعذّر الحذف', 'Delete failed')) }
+    finally { setFileBusy(null) }
+  }
+
   // إجماليات الفواتير (دون الملغاة) + قوائم الخدمات/الفواتير.
   const invById = {}
   for (const r of (facRows || [])) if (r.invoice_id) invById[r.invoice_id] = r
@@ -639,6 +736,66 @@ function FacilityDetailPage({ facility: f, branchInfo, sb, T, lang, onBack, onEd
           </div>
           )}
 
+          {/* كرت ملفات المنشأة — السجل التجاري + عقد التأسيس. يعرض ملف المزامنة (SBC) إن وُجد،
+              أو نسخة يرفعها المستخدم، أو زر «رفع» لإضافتها عند عدم توفّرها. */}
+          {cardVisible(user, 'facilities', 'facility_files') && (
+          <div style={cardChrome}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '13px 18px', borderBottom: '1px solid var(--bd)' }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
+              <span style={{ fontSize: 16, fontWeight: 600, letterSpacing: '.2px', color: C.gold }}>{T('ملفات المنشأة', 'Facility Files')}</span>
+            </div>
+            <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {FILE_SLOTS.map(slot => {
+                const up = facFiles[slot.key]
+                const syncUrl = syncFiles[slot.key]
+                const url = up?.file_url || syncUrl || null
+                const source = up ? T('مرفوع', 'Uploaded') : (syncUrl ? T('من المزامنة', 'From sync') : null)
+                const busy = fileBusy === slot.key
+                return (
+                  <div key={slot.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '11px 12px', background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                      <span style={{ flexShrink: 0, width: 30, height: 30, borderRadius: 8, background: url ? 'rgba(176,125,0,.12)' : 'rgba(0,0,0,.18)', border: '1px solid ' + (url ? 'rgba(176,125,0,.35)' : 'var(--bd)'), color: url ? C.gold : 'var(--tx5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                      </span>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx1)' }}>{T(slot.ar, slot.en)}</div>
+                        <div style={{ fontSize: 10.5, marginTop: 2, color: url ? C.ok : 'var(--tx4)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 240 }}>
+                          {source || T('غير متوفر', 'Not available')}{up?.file_name ? ` · ${up.file_name}` : ''}
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                      {url && (
+                        <a href={url} target="_blank" rel="noopener noreferrer" title={T('فتح الملف', 'Open file')}
+                          style={{ height: 30, padding: '0 12px', borderRadius: 8, background: 'rgba(176,125,0,.10)', border: '1px dashed rgba(176,125,0,.4)', color: C.gold, textDecoration: 'none', fontSize: 11.5, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                          {T('فتح', 'Open')}
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg>
+                        </a>
+                      )}
+                      {canFilesEdit && (
+                        <>
+                          <label title={up ? T('استبدال الملف المرفوع', 'Replace uploaded file') : T('رفع ملف', 'Upload file')}
+                            style={{ height: 30, padding: '0 12px', borderRadius: 8, background: 'var(--accent-soft)', border: '1px dashed var(--accent-bd)', color: 'var(--accent)', cursor: busy ? 'default' : 'pointer', opacity: busy ? .6 : 1, fontSize: 11.5, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                            {busy ? T('جارٍ الرفع…', 'Uploading…') : (up ? T('استبدال', 'Replace') : T('رفع', 'Upload'))}
+                            {!busy && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>}
+                            <input type="file" accept=".pdf,image/*" disabled={busy} onChange={e => { const file = e.target.files?.[0]; e.target.value = ''; onPickFile(slot, file) }} style={{ display: 'none' }} />
+                          </label>
+                          {up && (
+                            <button onClick={() => onDeleteFile(slot)} disabled={busy} title={T('حذف الملف المرفوع', 'Remove uploaded file')}
+                              style={{ width: 30, height: 30, borderRadius: 8, background: 'transparent', border: '1px dashed ' + C.red + '66', color: C.red, cursor: busy ? 'default' : 'pointer', opacity: busy ? .6 : 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                            </button>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+          )}
+
           {/* كرت العمالة — العمال المرتبطون بالمنشأة (الاسم + الإقامة، نقرة → صفحة العامل). */}
           {cardVisible(user, 'facilities', 'workforce') && (
           <div style={cardChrome}>
@@ -683,9 +840,9 @@ function FacilityDetailPage({ facility: f, branchInfo, sb, T, lang, onBack, onEd
                   { l: T('المدفوع', 'Paid'), v: totals.paid, c: C.ok },
                   { l: T('المتبقي', 'Remaining'), v: totals.rem, c: C.red },
                 ].map((s, i) => (
-                  <div key={i} style={{ background: 'rgba(0,0,0,.22)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 11px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <div key={i} style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 11px', display: 'flex', flexDirection: 'column', gap: 4 }}>
                     <span style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 500 }}>{s.l}</span>
-                    <span style={{ fontSize: 15, fontWeight: 600, color: s.c, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(Math.round(s.v))}</span>
+                    <span style={{ fontSize: 15, fontWeight: 600, color: s.c, direction: 'ltr', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{num(Math.round(s.v))}</span>
                   </div>
                 ))}
               </div>
@@ -4640,6 +4797,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
           onDelete={() => deleteFacility(viewFacility)}
           onDeleted={() => { setViewId(null); load() }}
           user={user}
+          toast={toast}
           canEdit={canPerm(user, 'facilities.create')} />
       )}
       {!viewFacility && !detail && (<>

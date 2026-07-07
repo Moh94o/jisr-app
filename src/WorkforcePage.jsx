@@ -48,6 +48,7 @@ const WORKER_LBL = {
   insurance_policy_number: ['رقم البوليصة', 'Policy no.'],
   insurance_expiry_date: ['تاريخ انتهاء التأمين', 'Insurance expiry'],
   hq_city_id: ['مدينة المقر', 'HQ city'],
+  branch_id: ['الفرع التابع', 'Branch'],
   exit_visa_type: ['نوع تأشيرة الخروج', 'Exit visa type'],
   exit_visa_number: ['رقم التأشيرة', 'Visa no.'],
   exit_visa_expiry: ['تاريخ انتهاء التأشيرة', 'Visa expiry'],
@@ -825,6 +826,7 @@ export default function WorkforcePage({ sb, toast, lang, user, onTabChange }) {
         sb={sb} toast={toast} T={T} isAr={isAr}
         onBack={() => setDetail(null)}
         onEdit={(section) => openWorkerEdit(detail, section)}
+        onSaved={async () => { const { data } = await sb.from('workers').select('*').eq('id', detail.id).is('deleted_at', null).maybeSingle(); if (data) setDetail(data); load() }}
         onDelete={() => deleteWorker(detail)}
         onTransfer={() => transferToTemp(detail)}
         canEdit={canPerm(user, 'workers.edit')}
@@ -1542,11 +1544,53 @@ function WorkerEditLog({ entries, created, fileUrls = {}, T }) {
 }
 
 /* ═══════════════════════ Worker Detail (mirrors Facility detail) ═══════════════════════ */
-function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEdit, onDelete, onTransfer, canEdit, canDelete, user, attKey }) {
+function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEdit, onSaved, onDelete, onTransfer, canEdit, canDelete, user, attKey }) {
   const t = themeForStatus(w.worker_status)
   const iqamaDays = daysUntil(w.iqama_expiry_date)
 
-  const branchLabel = f?.branch ? ((f.branch.branch_code || '—') + (f.branch.city ? ' — ' + T(f.branch.city.name_ar, f.branch.city.name_en || f.branch.city.name_ar) : '')) : null
+  // الفرع التابع للعامل: افتراضياً يتبع فرع منشأته تلقائياً؛ ويمكن تخصيصه يدوياً (workers.branch_id)
+  // لحالة كون المنشأة لفرع والعامل لفرع آخر. المصدر الفعّال = فرع العامل الخاص إن حُدِّد، وإلا فرع المنشأة.
+  const brLabelOf = (b) => b ? ((b.branch_code || '—') + (b.city ? ' — ' + T(b.city.name_ar, b.city.name_en || b.city.name_ar) : '')) : null
+  const [branches, setBranches] = useState([])
+  const [branchOverride, setBranchOverride] = useState(w.branch_id || null)
+  useEffect(() => { setBranchOverride(w.branch_id || null) }, [w.id, w.branch_id])
+  useEffect(() => {
+    if (!sb) return
+    let cancelled = false
+    ;(async () => {
+      const { data } = await sb.from('branches').select('id,branch_code,name_ar,city:cities(name_ar,name_en)').is('deleted_at', null).order('branch_code', { ascending: true })
+      if (!cancelled) setBranches(data || [])
+    })()
+    return () => { cancelled = true }
+  }, [sb])
+  const branchById = useMemo(() => Object.fromEntries((branches || []).map(b => [b.id, b])), [branches])
+  const ownBranch = branchOverride ? (branchById[branchOverride] || null) : null
+  const facBranchLabel = brLabelOf(f?.branch)
+  const branchLabel = ownBranch ? brLabelOf(ownBranch) : facBranchLabel
+  const branchIsOverride = !!ownBranch
+  // نافذة تخصيص فرع العامل — «تلقائي (حسب المنشأة)» يمسح التخصيص (branch_id = null).
+  const [brEdit, setBrEdit] = useState(false)
+  const [brSel, setBrSel] = useState(null)
+  const [brBusy, setBrBusy] = useState(false)
+  const [brDone, setBrDone] = useState(false)
+  const [brErr, setBrErr] = useState(null)
+  const openBranchEdit = () => { setBrSel(branchOverride || null); setBrDone(false); setBrErr(null); setBrEdit(true) }
+  const saveBranch = async () => {
+    setBrBusy(true); setBrErr(null)
+    try {
+      const { data: freshRow } = await sb.from('workers').select('edit_log').eq('id', w.id).maybeSingle()
+      const prevLog = Array.isArray(freshRow?.edit_log) ? freshRow.edit_log : []
+      const fromLabel = brLabelOf(ownBranch) || null
+      const toLabel = brSel ? (brLabelOf(branchById[brSel]) || null) : null
+      const entry = { at: new Date().toISOString(), by: user?.id || null, by_name: user?.person?.name_ar || user?.person?.name_en || null, changes: [{ field: 'branch_id', from: fromLabel, to: toLabel }] }
+      const { error } = await sb.from('workers').update({ branch_id: brSel || null, updated_by: user?.id || null, edit_log: [...prevLog, entry] }).eq('id', w.id)
+      if (error) throw new Error(error.message)
+      setBranchOverride(brSel || null)
+      setBrDone(true)
+      onSaved?.()
+    } catch (e) { setBrErr(T('فشل الحفظ: ' + (e.message || ''), 'Save failed: ' + (e.message || ''))) }
+    finally { setBrBusy(false) }
+  }
   // أرقام جوال الفواتير = جوال العامل نفسه + أي أرقام مخزّنة + كل أرقام عملاء فواتير العامل، منزوعة التكرار.
   const [invPhones, setInvPhones] = useState([])
   const billingList = useMemo(() => {
@@ -1734,11 +1778,11 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
   }
   // بطاقة ملف وثيقة (تصميم مربّع) — عرض الملف إن وُجد، وإلا «لا يوجد» (الرفع يتم من نافذة التعديل).
   const FileTile = ({ label, att }) => (
-    <div style={{ background: 'rgba(0,0,0,.25)', border: att ? '1px solid rgba(176,125,0,.25)' : '1px dashed rgba(255,255,255,.12)', borderRadius: 12, padding: '14px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, textAlign: 'center', minWidth: 0 }}>
+    <div style={{ background: 'var(--inputBg)', border: att ? '1px solid rgba(176,125,0,.25)' : '1px dashed var(--bd)', borderRadius: 12, padding: '14px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, textAlign: 'center', minWidth: 0 }}>
       {att ? (
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="m9 15 2 2 4-4"/></svg>
       ) : (
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#5a5a55" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><line x1="2" y1="2" x2="22" y2="22"/></svg>
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--tx4)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><line x1="2" y1="2" x2="22" y2="22"/></svg>
       )}
       <span style={{ fontSize: 11, color: att ? 'var(--tx2)' : 'var(--tx4)', fontWeight: 600, lineHeight: 1.35, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{label}</span>
       {att ? (
@@ -1964,13 +2008,19 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
             </div>
           </div>
           )}
-          {/* المنشأة والفرع */}
+          {/* المنشأة والفرع — الفرع يتبع المنشأة تلقائياً، مع زر تعديل لتخصيصه يدوياً عند الاختلاف. */}
           {cardVisible(user, 'workers', 'facility_branch') && (
           <div style={cardChrome}>
-            <CardHead>{T('المنشأة والفرع','Facility & Branch')}</CardHead>
+            <CardHead onEdit={openBranchEdit} allowEdit={canCardBtn(user, 'workers', 'facility_branch', 'edit')}>{T('المنشأة والفرع','Facility & Branch')}</CardHead>
             <div style={{ padding: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <Field k={T('المنشأة','Facility')} v={f?.name_ar || f?.name_en} link={f?.id} />
               <Field k={T('الفرع التابع','Branch')} v={branchLabel} />
+              <div style={{ gridColumn: '1 / -1', fontSize: 10.5, fontWeight: 600, color: branchIsOverride ? C.gold : 'var(--tx4)', display: 'flex', alignItems: 'center', gap: 6, paddingInlineStart: 2 }}>
+                <span style={{ width: 5, height: 5, borderRadius: '50%', background: branchIsOverride ? C.gold : 'var(--tx4)', flexShrink: 0 }} />
+                {branchIsOverride
+                  ? T('فرع مخصّص يدويًا (مختلف عن فرع المنشأة)', 'Manually set branch (differs from facility branch)')
+                  : T('يتبع فرع المنشأة تلقائيًا', 'Follows the facility branch automatically')}
+              </div>
             </div>
           </div>
           )}
@@ -1990,9 +2040,9 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
                   { l: T('المدفوع', 'Paid'), v: totals.paid, c: C.ok },
                   { l: T('المتبقي', 'Remaining'), v: totals.rem, c: C.red },
                 ].map((s, i) => (
-                  <div key={i} style={{ background: 'rgba(0,0,0,.22)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 11px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <div key={i} style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 11px', display: 'flex', flexDirection: 'column', gap: 4 }}>
                     <span style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 500 }}>{s.l}</span>
-                    <span style={{ fontSize: 15, fontWeight: 600, color: s.c, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(Math.round(s.v))}</span>
+                    <span style={{ fontSize: 15, fontWeight: 600, color: s.c, direction: 'ltr', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{num(Math.round(s.v))}</span>
                   </div>
                 ))}
               </div>
@@ -2132,14 +2182,47 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
         </FKModal>
       )}
 
+      {/* تعديل فرع العامل — «تلقائي (حسب المنشأة)» يمسح التخصيص فيعود العامل لفرع منشأته. */}
+      {brEdit && (() => {
+        const AUTO = '__auto__'
+        const brOptions = [{ id: AUTO, _auto: true }, ...branches]
+        return (
+          <FKModal open width={480} Icon={MapPin} accent={C.gold}
+            onClose={() => { if (!brBusy) { setBrEdit(false); setBrErr(null); setBrDone(false) } }}
+            title={T('تعديل الفرع التابع', 'Edit branch')}
+            errorMsg={brErr}
+            success={brDone ? <SuccessView title={T('تم حفظ الفرع', 'Branch saved')} /> : undefined}
+            footer={
+              <ActionButton Icon={Check} color={C.gold} disabled={brBusy} onClick={saveBranch}>
+                {brBusy ? T('جارٍ الحفظ…', 'Saving…') : T('حفظ', 'Save')}
+              </ActionButton>
+            }>
+            <ModalSection Icon={MapPin} label={T('الفرع التابع', 'Branch')}>
+              <div style={GRID}>
+                <Select full label={T('الفرع', 'Branch')} placeholder={T('اختر الفرع…', 'Select branch…')}
+                  options={brOptions} getKey={o => o.id}
+                  getLabel={o => o._auto ? T(`تلقائي — حسب المنشأة${facBranchLabel ? ` (${facBranchLabel})` : ''}`, `Automatic — follow facility${facBranchLabel ? ` (${facBranchLabel})` : ''}`) : brLabelOf(o)}
+                  getSub={o => o._auto ? '' : (o.name_ar || '')}
+                  value={brSel || AUTO}
+                  onChange={(id) => setBrSel(id === AUTO ? null : id)} />
+                <div style={{ gridColumn: '1 / -1', fontSize: 11.5, color: 'var(--tx3)', lineHeight: 1.7, paddingInlineStart: 2 }}>
+                  {T('يتبع العامل فرع منشأته تلقائيًا. اختر فرعًا محددًا فقط إذا كان العامل تابعًا لفرع مختلف عن فرع المنشأة.',
+                     'The worker follows the facility branch automatically. Pick a specific branch only if the worker belongs to a different branch than the facility.')}
+                </div>
+              </div>
+            </ModalSection>
+          </FKModal>
+        )
+      })()}
+
       {/* ═══ نافذة استعلام التأمين الطبي (CHI) — كابتشا، مثل تسعيرة تجديد الإقامة ═══ */}
       {chi.phase !== 'idle' && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(5,5,8,.82)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2200, padding: 16, fontFamily: F }} dir={isAr ? 'rtl' : 'ltr'}>
+        <div style={{ position: 'fixed', inset: 0, background: 'var(--overlayBg)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2200, padding: 16, fontFamily: F }} dir={isAr ? 'rtl' : 'ltr'}>
           <style>{`@keyframes rnw-spin{to{transform:rotate(360deg)}}`}</style>
-          <div onClick={e => e.stopPropagation()} style={{ width: 420, maxWidth: '94vw', background: '#141518', borderRadius: 16, border: '1px solid rgba(11,109,61,.4)', padding: 22, boxShadow: '0 28px 70px rgba(0,0,0,.6)', position: 'relative' }}>
-            <button onClick={closeChi} style={{ position: 'absolute', top: 12, [isAr ? 'left' : 'right']: 12, width: 30, height: 30, borderRadius: 8, background: 'rgba(255,255,255,.05)', border: '1px solid var(--bd)', color: 'var(--tx3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={14} /></button>
+          <div onClick={e => e.stopPropagation()} style={{ width: 420, maxWidth: '94vw', background: 'var(--modal-bg)', borderRadius: 16, border: '1px solid rgba(11,109,61,.4)', padding: 22, boxShadow: 'var(--shadow-lg)', position: 'relative' }}>
+            <button onClick={closeChi} style={{ position: 'absolute', top: 12, [isAr ? 'left' : 'right']: 12, width: 30, height: 30, borderRadius: 8, background: 'var(--hoverBg)', border: '1px solid var(--bd)', color: 'var(--tx3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={14} /></button>
             <div style={{ textAlign: isAr ? 'right' : 'left', paddingBottom: 14, marginBottom: 14, borderBottom: '1px solid var(--bd)', [isAr ? 'paddingLeft' : 'paddingRight']: 36 }}>
-              <div style={{ fontSize: 22, fontWeight: 600, color: 'rgba(255,255,255,.94)', display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'flex-start' }}>
+              <div style={{ fontSize: 22, fontWeight: 600, color: 'var(--tx)', display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'flex-start' }}>
                 <HeartPulse size={22} style={{ color: '#3bb27a' }} />
                 <span>{T('التأمين الطبي (CHI)', 'Medical Insurance (CHI)')}</span>
               </div>
@@ -2148,7 +2231,7 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
             {chi.phase === 'loading' && (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: '28px 0' }}>
                 <div style={{ width: 36, height: 36, border: '3px solid rgba(11,109,61,.18)', borderTopColor: '#3bb27a', borderRadius: '50%', animation: 'rnw-spin 0.8s linear infinite' }} />
-                <div style={{ fontSize: 14, color: 'rgba(255,255,255,.65)' }}>{T('جاري الاتصال بمنصة التأمين…', 'Connecting to insurance platform…')}</div>
+                <div style={{ fontSize: 14, color: 'var(--tx3)' }}>{T('جاري الاتصال بمنصة التأمين…', 'Connecting to insurance platform…')}</div>
               </div>
             )}
 
@@ -2161,14 +2244,14 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
                     : <div style={{ width: 38, height: 38, flexShrink: 0 }} aria-hidden="true" />}
                   {chi.captchaImage
                     ? <img src={chi.captchaImage} alt="captcha" style={{ height: 72, borderRadius: 12, background: '#fff', padding: 4 }} />
-                    : <span style={{ fontSize: 14, color: '#888' }}>{T('...جاري التحميل', 'Loading...')}</span>}
+                    : <span style={{ fontSize: 14, color: 'var(--tx4)' }}>{T('...جاري التحميل', 'Loading...')}</span>}
                   <button type="button" onClick={refreshChiCaptcha} title={T('رمز تحقق جديد', 'New captcha')} style={{ width: 38, height: 38, padding: 0, borderRadius: '50%', border: 'none', background: 'rgba(11,109,61,.12)', color: '#3bb27a', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <RefreshCw size={16} strokeWidth={2.2} />
                   </button>
                 </div>
                 <input value={chi.captchaInput} onChange={e => setChi(c => ({ ...c, captchaInput: e.target.value.replace(/\s/g, '').slice(0, 8) }))}
                   onKeyDown={e => { if (e.key === 'Enter') submitChiCaptcha() }} placeholder="______" autoFocus maxLength={8}
-                  style={{ height: 48, width: 240, alignSelf: 'center', padding: '0 18px', border: '1px solid var(--bd)', borderRadius: 12, fontFamily: F, fontSize: 20, fontWeight: 600, color: 'var(--tx)', outline: 'none', background: 'rgba(0,0,0,.25)', textAlign: 'center', letterSpacing: '8px', direction: 'ltr' }} />
+                  style={{ height: 48, width: 240, alignSelf: 'center', padding: '0 18px', border: '1px solid var(--bd)', borderRadius: 12, fontFamily: F, fontSize: 20, fontWeight: 600, color: 'var(--tx)', outline: 'none', background: 'var(--inputBg)', textAlign: 'center', letterSpacing: '8px', direction: 'ltr' }} />
                 {chi.error && <div style={{ fontSize: 12, color: C.red, textAlign: 'center', marginTop: -10, marginBottom: -4 }}>{chi.error}</div>}
                 <button onClick={submitChiCaptcha} disabled={!chi.captchaInput || chi.captchaInput.length < 3} style={{ height: 48, width: 240, alignSelf: 'center', borderRadius: 12, border: '1px solid rgba(59,178,122,.55)', background: 'linear-gradient(180deg,#4ac888 0%,#2d9963 100%)', color: '#fff', fontFamily: F, fontSize: 16, fontWeight: 600, cursor: (!chi.captchaInput || chi.captchaInput.length < 3) ? 'not-allowed' : 'pointer', opacity: (!chi.captchaInput || chi.captchaInput.length < 3) ? 0.45 : 1 }}>{T('استعلام', 'Check')}</button>
               </div>
@@ -2177,7 +2260,7 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
             {chi.phase === 'verifying' && (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: '28px 0' }}>
                 <div style={{ width: 36, height: 36, border: '3px solid rgba(11,109,61,.18)', borderTopColor: '#3bb27a', borderRadius: '50%', animation: 'rnw-spin 0.8s linear infinite' }} />
-                <div style={{ fontSize: 14, color: 'rgba(255,255,255,.65)' }}>{T('جاري الاستعلام…', 'Checking…')}</div>
+                <div style={{ fontSize: 14, color: 'var(--tx3)' }}>{T('جاري الاستعلام…', 'Checking…')}</div>
               </div>
             )}
 
@@ -2191,9 +2274,9 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                       {[[T('شركة التأمين', 'Company'), chi.result.company], [T('رقم البوليصة', 'Policy No.'), chi.result.policy], [T('تاريخ انتهاء التأمين', 'Expiry'), chi.result.end ? fmtDate(chi.result.end) : null]].map(([k, v], i) => (
-                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 8, background: 'rgba(255,255,255,.03)', border: '1px solid var(--bd)' }}>
+                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 8, background: 'var(--inputBg)', border: '1px solid var(--bd)' }}>
                           <span style={{ flex: 1, fontSize: 13, color: 'var(--tx3)', fontWeight: 600 }}>{k}</span>
-                          <span style={{ fontSize: 13.5, fontWeight: 600, color: v ? 'rgba(255,255,255,.92)' : 'rgba(255,255,255,.4)', direction: 'ltr' }}>{v || '—'}</span>
+                          <span style={{ fontSize: 13.5, fontWeight: 600, color: v ? 'var(--tx)' : 'var(--tx4)', direction: 'ltr' }}>{v || '—'}</span>
                         </div>
                       ))}
                     </div>
