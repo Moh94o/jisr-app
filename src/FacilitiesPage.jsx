@@ -5145,10 +5145,10 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                     <td onClick={e => e.stopPropagation()}>
                       <div style={{ display: 'flex', justifyContent: 'center', minWidth: 0, width: '100%' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-                          <NumberRow color={C.gold} tag={T('موحّد','Unified')} label={T('الرقم الموحد','Unified No.')} value={unifiedNo} T={T} />
-                          <NumberRow color={C.blue} tag={T('موارد','HRSD')} label={T('الموارد البشرية','HRSD')} value={molNo} T={T} />
-                          {r.hrsd_number_2 && <NumberRow color={C.purple} tag={T('موارد ٢','HRSD 2')} label={T('الموارد البشرية (إضافي)','HRSD (additional)')} value={r.hrsd_number_2} T={T} />}
-                          <NumberRow color={C.ok} tag={T('تأمينات','GOSI')} label={T('التأمينات الإجتماعية','GOSI')} value={gosiNo} T={T} />
+                          <NumberRow color={C.gold} label={T('الرقم الموحد','Unified No.')} value={unifiedNo} T={T} />
+                          <NumberRow color={C.blue} label={T('الموارد البشرية','HRSD')} value={molNo} T={T} />
+                          {r.hrsd_number_2 && <NumberRow color={C.purple} label={T('الموارد البشرية (إضافي)','HRSD (additional)')} value={r.hrsd_number_2} T={T} />}
+                          <NumberRow color={C.ok} label={T('التأمينات الإجتماعية','GOSI')} value={gosiNo} T={T} />
                         </div>
                       </div>
                     </td>
