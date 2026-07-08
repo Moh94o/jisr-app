@@ -485,7 +485,8 @@ function FacilityRegistryCards({ facility: f, sb, T, lang, user, toast, onEdit, 
   // ملفات المنشأة — السجل التجاري وعقد التأسيس (مزامنة SBC + رفع يدوي).
   const CR_STORAGE_BASE = 'https://gcvshzutdslmdkwqwteh.supabase.co/storage/v1/object/public/documents/sbc-cr-certificates'
   const FILE_SLOTS = [
-    { key: 'commercial_registration', ar: 'السجل التجاري', en: 'Commercial Registration', syncSuffix: 'ar' },
+    { key: 'commercial_registration', ar: 'السجل التجاري بالعربي', en: 'Commercial Registration (AR)', syncSuffix: 'ar' },
+    { key: 'commercial_registration_en', ar: 'السجل التجاري بالإنجليزي', en: 'Commercial Registration (EN)', syncSuffix: 'en' },
     { key: 'articles_of_incorporation', ar: 'عقد التأسيس', en: 'Founding Contract', syncSuffix: 'contract' },
     { key: 'cr_extract', ar: 'مستخرج السجل التجاري', en: 'CR Extract', syncSuffix: null },
   ]
@@ -5658,15 +5659,20 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
         // Merge live (fresh fetch) with cached (from last bulk sync).
         // Live wins when available; otherwise fall back to the denormalized columns.
         const gosiLiveFirst = liveGosi?.establishmentList?.[0] || null
+        // Fallback chain: live SBC fetch → denormalized detail.gosi_* columns (only
+        // present on sbc_facilities sync rows, absent on core facilities rows) →
+        // the gosi_establishments row loaded into gosiEstablishment. The last hop
+        // is what makes the card populate for facilities synced only via GOSI.
+        const _ge = gosiEstablishment || null
         const gosi = {
-          regNo: gosiLiveFirst?.registrationNumber ?? detail.gosi_registration_number,
-          name: gosiLiveFirst?.establishmentNameArb ?? detail.gosi_establishment_name,
-          total: liveGosi?.numberOfContributors != null ? Number(liveGosi.numberOfContributors) : detail.gosi_number_of_contributors,
-          saudi: liveGosi?.numberOfSaudiContributors != null ? Number(liveGosi.numberOfSaudiContributors) : detail.gosi_number_of_saudi_contributors,
-          nonSaudi: liveGosi?.numberOfNonSaudiContributors != null ? Number(liveGosi.numberOfNonSaudiContributors) : detail.gosi_number_of_non_saudi_contributors,
-          contribution: liveGosi?.totalContribution != null ? Number(liveGosi.totalContribution) : detail.gosi_total_contribution,
-          debit: liveGosi?.totalDebit != null ? Number(liveGosi.totalDebit) : detail.gosi_total_debit,
-          penalties: liveGosi?.totalPenalties != null ? Number(liveGosi.totalPenalties) : detail.gosi_total_penalties,
+          regNo: gosiLiveFirst?.registrationNumber ?? detail.gosi_registration_number ?? _ge?.registration_no,
+          name: gosiLiveFirst?.establishmentNameArb ?? detail.gosi_establishment_name ?? _ge?.establishment_name_ar,
+          total: liveGosi?.numberOfContributors != null ? Number(liveGosi.numberOfContributors) : (detail.gosi_number_of_contributors ?? _ge?.contributors_active_count),
+          saudi: liveGosi?.numberOfSaudiContributors != null ? Number(liveGosi.numberOfSaudiContributors) : (detail.gosi_number_of_saudi_contributors ?? _ge?.contributors_saudi_count),
+          nonSaudi: liveGosi?.numberOfNonSaudiContributors != null ? Number(liveGosi.numberOfNonSaudiContributors) : (detail.gosi_number_of_non_saudi_contributors ?? _ge?.contributors_non_saudi_count),
+          contribution: liveGosi?.totalContribution != null ? Number(liveGosi.totalContribution) : (detail.gosi_total_contribution ?? _ge?.account_debit_total_contribution),
+          debit: liveGosi?.totalDebit != null ? Number(liveGosi.totalDebit) : (detail.gosi_total_debit ?? _ge?.account_total_debit_balance ?? _ge?.outstanding_amount),
+          penalties: liveGosi?.totalPenalties != null ? Number(liveGosi.totalPenalties) : (detail.gosi_total_penalties ?? _ge?.account_debit_total_penalty),
         }
         // HRSD raw payload, in priority order: live fetch (needs an SBC
         // session, usually absent) → the raw response captured by the sync
