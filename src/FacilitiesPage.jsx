@@ -41,7 +41,7 @@ const cardHeader = {
 }
 const cardTitle = { fontSize: 12, color: 'var(--tx2)', fontWeight: 600, letterSpacing: '.2px' }
 const btnGold = { height: 40, padding: '0 16px', borderRadius: 11, background: 'linear-gradient(180deg,rgba(176,125,0,.22) 0%,rgba(176,125,0,.10) 100%)', border: '1px solid rgba(176,125,0,.45)', color: '#B07D00', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7, fontFamily: F, fontSize: 12, fontWeight: 600, transition: '.2s', boxShadow: '0 2px 8px rgba(176,125,0,.18), inset 0 1px 0 rgba(176,125,0,.18)' }
-const btnFilter = (active) => ({ height: 44, padding: '0 16px', borderRadius: 12, background: active ? 'var(--accent-soft)' : 'var(--search-bg)', border: '1px solid ' + (active ? 'var(--accent-bd)' : 'transparent'), color: active ? 'var(--accent)' : 'var(--tx2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 8, boxSizing: 'border-box', boxShadow: active ? 'var(--shadow-sm)' : 'none' })
+const btnFilter = (active) => ({ height: 44, padding: '0 16px', borderRadius: 12, background: active ? 'var(--accent-soft)' : 'var(--search-bg)', border: '1px solid ' + (active ? 'var(--accent-bd)' : 'transparent'), color: active ? 'var(--accent)' : 'var(--tx2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 8, boxSizing: 'border-box', boxShadow: '0 2px 7px rgba(0,0,0,.12), inset 0 1px 0 rgba(176,125,0,.1)' })
 
 // Brand colors + short labels per sync source. Used by the provenance strip to
 // signal "this facility's data came from {source} via {operator}".
@@ -429,30 +429,24 @@ function FacEditLog({ entries, created, T }) {
   )
 }
 
-// Full-page facility details — same visual language as the invoice details page
-// (back button, gold-titled header, status hero + info cards each with «تعديل»).
-// Opened on row click; «تعديل» buttons hand off to the shared edit modal.
-function FacilityDetailPage({ facility: f, branchInfo, sb, T, lang, onBack, onEdit, onStrikeToggle, onDelete, onDeleted, canEdit, user, toast }) {
+// ───────────────────────────────────────────────────────────────────────────
+// كروت السجل الأساسي (بيانات/أرقام/ملفات/عمالة/فواتير/سجل/حالة) بتصميم منسدل موحّد
+// يطابق كروت مركز المزامنة. مكوّن مستقل يجلب بياناته بنفسه ويُدرَج أعلى العمود
+// الرئيسي في صفحة التفاصيل — يظهر دائماً حتى لو المنشأة غير مزامَنة (أو موجودة في
+// المركز السعودي فقط دون التأمينات)، فتبقى الصفحة متناسقة لكل الحالات.
+// ───────────────────────────────────────────────────────────────────────────
+// part='top' → بيانات/أرقام/ملفات (أعلى العمود). part='bottom' → عمالة/فواتير/سجل
+// (آخر العمود بعد كروت المزامنة). كل جزء يجلب بياناته الخاصة فقط فلا يتكرر الجلب.
+function FacilityRegistryCards({ facility: f, sb, T, lang, user, toast, onEdit, part = 'top' }) {
   const sc = f._basicCode
   const statusColor = sc ? BASIC_STATUS_COLOR[sc] : C.gray
   const statusLabel = sc ? T(BASIC_STATUS_AR[sc], BASIC_STATUS_EN[sc]) : T('غير محدد', 'Undetermined')
-  const nameAr = f.name_ar || '—'
-  const nameEn = f.name_en || null
+  const nameAr = f.name_ar || f.entity_full_name_ar || '—'
+  const nameEn = f.name_en || f.entity_full_name_en || null
   const typeLabel = f.org_type ? T(f.org_type.value_ar, f.org_type.value_en || f.org_type.value_ar) : '—'
   const confDate = f.confirmation_date ? String(f.confirmation_date).slice(0, 10) : null
-  // Countdown to the next lifecycle transition (days remaining + next-status colour).
   const cd = crNextCountdown(sc, f.confirmation_date)
-  const branchLabel = branchInfo
-    ? (branchInfo.branch_code || '—') + (branchInfo.city ? ' — ' + T(branchInfo.city.name_ar, branchInfo.city.name_en || branchInfo.city.name_ar) : '')
-    : null
-  // شطب / حذف المنشأة — تأكيد قبل التنفيذ. confirm: null | 'strike' | 'delete'
-  const [confirm, setConfirm] = useState(null)
-  const [busy, setBusy] = useState(false)
-  const [done, setDone] = useState(null)       // نجاح الإجراء يُعرض داخل النافذة (SuccessView)
-  const [confErr, setConfErr] = useState(null) // خطأ الإجراء في شريط النافذة السفلي
   const isStruck = !!f.struck_off
-  const AMBER = '#e67e22'
-  // آخر حدث شطب في السجل (مَن/متى) — لعرضه في شريط «مشطوبة» أعلى الصفحة.
   const strikeEntry = (() => {
     if (!isStruck) return null
     const log = Array.isArray(f.edit_log) ? f.edit_log : []
@@ -462,19 +456,15 @@ function FacilityDetailPage({ facility: f, branchInfo, sb, T, lang, onBack, onEd
     }
     return null
   })()
-  // النجاح والخطأ يظهران داخل نافذة التأكيد (SuccessView / شريط الخطأ) بدل التوستر.
-  // الإغلاق بعد النجاح يعيدنا للقائمة في حالة الحذف (onDeleted)، ويبقينا على التفاصيل في حالة الشطب.
-  const doStrike = async () => { setBusy(true); setConfErr(null); const res = await onStrikeToggle?.(!isStruck); setBusy(false); if (res === true) setDone({ title: isStruck ? T('تم إلغاء شطب المنشأة', 'Facility un-struck') : T('تم شطب المنشأة', 'Facility struck off') }); else if (typeof res === 'string') setConfErr(res) }
-  const doDelete = async () => { setBusy(true); setConfErr(null); const res = await onDelete?.(); setBusy(false); if (res === true) setDone({ title: T('تم حذف المنشأة', 'Facility deleted'), kind: 'delete' }); else if (typeof res === 'string') setConfErr(res) }
-  const closeConfirm = () => { if (busy) return; const wasDelete = done?.kind === 'delete'; setDone(null); setConfErr(null); setConfirm(null); if (wasDelete) onDeleted?.() }
+  const branchLabel = f.branch
+    ? (f.branch.branch_code || '—') + (f.branch.city ? ' — ' + T(f.branch.city.name_ar, f.branch.city.name_en || f.branch.city.name_ar) : '')
+    : null
 
-  // العمالة المرتبطة بالمنشأة + فواتيرها وخدماتها (تُحمّل عند فتح الصفحة).
   const [workers, setWorkers] = useState(null)
   const [facRows, setFacRows] = useState(null)
-  // اسم مُنشئ المنشأة — يُحلّ من created_by عبر users→persons (لا يوجد FK مضمَّن، فنجلبه منفصلاً).
   const [creatorName, setCreatorName] = useState(null)
   useEffect(() => {
-    if (!sb || !f?.id) return
+    if (!sb || !f?.id || part !== 'bottom') return
     let cancelled = false
     ;(async () => {
       const [w, inv, cr] = await Promise.all([
@@ -491,28 +481,23 @@ function FacilityDetailPage({ facility: f, branchInfo, sb, T, lang, onBack, onEd
     })()
     return () => { cancelled = true }
   }, [sb, f?.id, f?.created_by])
-  // ─── ملفات المنشأة — السجل التجاري وعقد التأسيس ───
-  // المصدر مزدوج: (1) ملفات المزامنة (SBC) المخزَّنة في bucket «documents» باسم رقم السجل
-  // الوطني للمنشأة المرتبطة، و(2) نسخة يرفعها المستخدم (attachments، entity_type='facility').
-  // المرفوع يعلو على المُزامَن؛ وإن لم يوجد أيّهما يظهر زر «رفع» لإضافة الملف.
+
+  // ملفات المنشأة — السجل التجاري وعقد التأسيس (مزامنة SBC + رفع يدوي).
   const CR_STORAGE_BASE = 'https://gcvshzutdslmdkwqwteh.supabase.co/storage/v1/object/public/documents/sbc-cr-certificates'
   const FILE_SLOTS = [
     { key: 'commercial_registration', ar: 'السجل التجاري', en: 'Commercial Registration', syncSuffix: 'ar' },
     { key: 'articles_of_incorporation', ar: 'عقد التأسيس', en: 'Founding Contract', syncSuffix: 'contract' },
-    // مستخرج السجل التجاري — لا مصدر مزامنة مستقل (ملف المزامنة الوحيد للسجل مربوط بخانة «السجل التجاري»)،
-    // فيُدار بالرفع فقط. يُعرض أسفل عقد التأسيس.
     { key: 'cr_extract', ar: 'مستخرج السجل التجاري', en: 'CR Extract', syncSuffix: null },
   ]
   const canFilesEdit = canCardBtn(user, 'facilities', 'facility_files', 'edit')
-  const [facFiles, setFacFiles] = useState({})    // notes → أحدث مرفق مرفوع غير محذوف
-  const [syncFiles, setSyncFiles] = useState({})  // notes → رابط ملف المزامنة (عند توفره فقط)
-  const [attKey, setAttKey] = useState(0)          // مفتاح إعادة الجلب بعد الرفع/الحذف
-  const [fileBusy, setFileBusy] = useState(null)   // مفتاح الخانة الجاري رفعها/حذفها
+  const [facFiles, setFacFiles] = useState({})
+  const [syncFiles, setSyncFiles] = useState({})
+  const [attKey, setAttKey] = useState(0)
+  const [fileBusy, setFileBusy] = useState(null)
   useEffect(() => {
-    if (!sb || !f?.id) { setFacFiles({}); setSyncFiles({}); return }
+    if (!sb || !f?.id || part !== 'top') { setFacFiles({}); setSyncFiles({}); return }
     let cancelled = false
     ;(async () => {
-      // 1) الملفات المرفوعة يدوياً (أحدث نسخة غير محذوفة لكل خانة).
       const { data: atts } = await sb.from('attachments')
         .select('id,file_name,file_url,notes,created_at')
         .eq('entity_type', 'facility').eq('entity_id', f.id)
@@ -523,12 +508,12 @@ function FacilityDetailPage({ facility: f, branchInfo, sb, T, lang, onBack, onEd
         for (const r of (atts || [])) if (!upMap[r.notes]) upMap[r.notes] = r
         setFacFiles(upMap)
       }
-      // 2) ملفات المزامنة — رقم السجل الوطني من منشأة المزامنة المرتبطة، ثم نتحقق من وجود الملف فعلاً.
       let crnn = null
       if (f.sbc_facility_id) {
         const { data: sbc } = await sb.from('sbc_facilities').select('cr_national_number').eq('id', f.sbc_facility_id).maybeSingle()
         crnn = sbc?.cr_national_number || null
       }
+      if (!crnn) crnn = f.cr_national_number || f.unified_number || null
       const syncMap = {}
       if (crnn) {
         await Promise.all(FILE_SLOTS.filter(s => s.syncSuffix).map(async s => {
@@ -541,7 +526,6 @@ function FacilityDetailPage({ facility: f, branchInfo, sb, T, lang, onBack, onEd
     return () => { cancelled = true }
   }, [sb, f?.id, f?.sbc_facility_id, attKey])
 
-  // رفع/استبدال ملف خانة — يرفع لـ bucket «attachments»، يسجّل الصف، ويحذف نسخة الخانة السابقة حذفاً ناعماً.
   const onPickFile = async (slot, file) => {
     if (!file || !canFilesEdit || fileBusy) return
     setFileBusy(slot.key)
@@ -559,7 +543,6 @@ function FacilityDetailPage({ facility: f, branchInfo, sb, T, lang, onBack, onEd
       })
       if (insErr) throw new Error(insErr.message)
       if (prev?.id) await sb.from('attachments').update({ deleted_at: new Date().toISOString() }).eq('id', prev.id)
-      // سجل النشاط — يظهر في كرت «سجل الإضافات والتعديلات».
       try {
         const { data: freshRow } = await sb.from('facilities').select('edit_log').eq('id', f.id).maybeSingle()
         const prevLog = Array.isArray(freshRow?.edit_log) ? freshRow.edit_log : []
@@ -572,7 +555,6 @@ function FacilityDetailPage({ facility: f, branchInfo, sb, T, lang, onBack, onEd
       toast?.(T('تعذّر رفع الملف: ' + (e.message || ''), 'Upload failed: ' + (e.message || '')))
     } finally { setFileBusy(null) }
   }
-  // حذف الملف المرفوع لخانة (يعود العرض لملف المزامنة إن وُجد، وإلا يصبح «غير متوفر»).
   const onDeleteFile = async (slot) => {
     const prev = facFiles[slot.key]
     if (!prev?.id || !canFilesEdit) return
@@ -585,7 +567,6 @@ function FacilityDetailPage({ facility: f, branchInfo, sb, T, lang, onBack, onEd
     finally { setFileBusy(null) }
   }
 
-  // إجماليات الفواتير (دون الملغاة) + قوائم الخدمات/الفواتير.
   const invById = {}
   for (const r of (facRows || [])) if (r.invoice_id) invById[r.invoice_id] = r
   const invoices = Object.values(invById)
@@ -594,41 +575,23 @@ function FacilityDetailPage({ facility: f, branchInfo, sb, T, lang, onBack, onEd
     a.tot += Number(r.total_amount) || 0; a.paid += Number(r.paid_amount) || 0; a.rem += Number(r.remaining_amount) || 0
     return a
   }, { tot: 0, paid: 0, rem: 0 })
-  // صفوف العرض: خدمة لكل طلب + فاتورتها إن وُجدت (مرتّبة: ذات الفاتورة أولاً).
   const facListRows = [...(facRows || [])].sort((a, b) => (b.invoice_no ? 1 : 0) - (a.invoice_no ? 1 : 0))
   const goWorker = (id) => { try { window.dispatchEvent(new CustomEvent('app-navigate-worker', { detail: { id } })) } catch {} }
   const goInvoice = (id) => { try { window.dispatchEvent(new CustomEvent('app-navigate-invoice', { detail: { id } })) } catch {} }
-  // زر إجراء في الترويسة — نفس تصميم زر «تعديل» (إطار متقطّع) بلون قابل للتمرير.
-  const HeaderBtn = ({ onClick, color, label, children }) => (
-    <button onClick={onClick} title={label}
-      style={{ height: 42, padding: '0 18px', borderRadius: 11, background: 'transparent', border: `1px dashed ${color}80`, color, cursor: 'pointer', fontFamily: F, fontSize: 13, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0, transition: 'background .15s' }}
-      onMouseEnter={e => { e.currentTarget.style.background = `${color}1f` }}
-      onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
-      <span>{label}</span>
-      {children}
-    </button>
-  )
 
-  const cardChrome = { background: 'var(--card-grad2)', border: '1px solid var(--bd)', borderRadius: 16, boxShadow: 'var(--shadow-sm)', overflow: 'hidden' }
-  const dot = <span style={{ width: 3.5, height: 3.5, borderRadius: '50%', background: 'var(--bd)' }} />
-  const StatusPill = ({ big }) => (
-    <span style={{ color: statusColor, background: `${statusColor}1f`, border: `1px solid ${statusColor}55`, padding: big ? '5px 14px' : '3px 10px', borderRadius: 999, fontSize: big ? 13 : 11.5, fontWeight: 600, whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-      <span style={{ width: 6, height: 6, borderRadius: '50%', background: statusColor }} />{statusLabel}
-    </span>
-  )
-  const EditBtn = ({ onClick, cardKey }) => canCardBtn(user, 'facilities', cardKey, 'edit') ? (
-    <button onClick={onClick} title={T('تعديل', 'Edit')}
-      style={{ height: 32, padding: '0 14px', borderRadius: 9, background: 'var(--accent-soft)', border: '1px dashed var(--accent-bd)', color: 'var(--accent)', boxShadow: '0 2px 8px var(--shadowClr)', cursor: 'pointer', fontFamily: F, fontSize: 12, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6, transition: 'background .15s' }}
+  const EditBtn = ({ section, cardKey }) => canCardBtn(user, 'facilities', cardKey, 'edit') ? (
+    <button onClick={onEdit ? () => onEdit(section) : undefined} title={T('تعديل', 'Edit')}
+      style={{ height: 30, padding: '0 13px', borderRadius: 9, background: 'var(--accent-soft)', border: '1px dashed var(--accent-bd)', color: 'var(--accent)', cursor: 'pointer', fontFamily: F, fontSize: 11.5, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6, transition: 'background .15s' }}
       onMouseEnter={e => { e.currentTarget.style.background = 'var(--accent-bg)' }}
       onMouseLeave={e => { e.currentTarget.style.background = 'var(--accent-soft)' }}>
       {T('تعديل', 'Edit')}
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
     </button>
   ) : null
-  const Field = ({ k, v, mono, color, noCopy }) => {
+  const Field = ({ k, v, mono, color, noCopy, full }) => {
     const empty = v == null || v === ''
     return (
-      <div style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+      <div style={{ gridColumn: full ? '1 / -1' : undefined, background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
         <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600, whiteSpace: 'nowrap' }}>{k}</span>
         <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, direction: 'ltr' }}>
           {!empty && !noCopy && <CopyBtn value={v} />}
@@ -637,57 +600,14 @@ function FacilityDetailPage({ facility: f, branchInfo, sb, T, lang, onBack, onEd
       </div>
     )
   }
-  const CardHead = ({ children, onEdit, cardKey }) => (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 18px', borderBottom: '1px solid var(--bd)' }}>
-      <span style={{ fontSize: 16, fontWeight: 600, letterSpacing: '.2px', color: C.gold, display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />{children}
-      </span>
-      <EditBtn onClick={onEdit} cardKey={cardKey} />
-    </div>
-  )
+  const num = (v) => Number(v || 0).toLocaleString('en-US')
 
   return (
-    <div style={{ fontFamily: F, paddingTop: 0, paddingBottom: 80, color: 'var(--tx2)' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, gap: 12, flexWrap: 'wrap' }}>
-        <BackButton onBack={onBack} label={T('رجوع', 'Back')} navKind="facility" navId={f.id} isAr={lang !== 'en'} />
-      </div>
-
-      {/* Header */}
-      <div style={{ marginBottom: 18, marginTop: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 14, flexWrap: 'wrap' }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-              <rect width="16" height="20" x="4" y="2" rx="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01"/><path d="M16 6h.01"/><path d="M12 6h.01"/><path d="M12 10h.01"/><path d="M12 14h.01"/><path d="M16 10h.01"/><path d="M16 14h.01"/><path d="M8 10h.01"/><path d="M8 14h.01"/>
-            </svg>
-            <div style={{ fontSize: 22, fontWeight: 600, color: C.gold, letterSpacing: '-.2px' }}>{T('تفاصيل المنشأة', 'Facility Details')}</div>
-          </div>
-          <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx2)', marginTop: 12, lineHeight: 1.6 }}>
-            {T('بيانات المنشأة الأساسية وأرقامها النظامية وحالتها والفرع التابع لها.',
-               'Core facility data, official numbers, status and its associated branch.')}
-          </div>
-        </div>
-        {(canPerm(user, 'facilities.edit') || canPerm(user, 'facilities.delete')) && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, flexWrap: 'wrap' }}>
-            {canPerm(user, 'facilities.edit') && (
-            <HeaderBtn onClick={() => setConfirm('strike')} color={isStruck ? C.ok : AMBER}
-              label={isStruck ? T('إلغاء الشطب', 'Un-strike') : T('شطب المنشأة', 'Strike off')}>
-              {isStruck
-                ? (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>)
-                : (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg>)}
-            </HeaderBtn>
-            )}
-            {canPerm(user, 'facilities.delete') && (
-            <HeaderBtn onClick={() => setConfirm('delete')} color={C.red} label={T('حذف المنشأة', 'Delete')}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
-            </HeaderBtn>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* شريط الشطب — ختم «مشطوبة» مائل + مَن شطبها ومتى (بعد العنوان مباشرة). */}
+    <>
+      {part === 'top' && (<>
+      {/* شريط «مشطوبة» */}
       {isStruck && (
-        <div style={{ position: 'relative', overflow: 'hidden', marginBottom: 18, borderRadius: 14, background: 'rgba(232,114,101,.07)', border: '1px solid rgba(232,114,101,.28)', padding: '15px 18px' }}>
+        <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 14, background: 'rgba(232,114,101,.07)', border: '1px solid rgba(232,114,101,.28)', padding: '15px 18px' }}>
           <div aria-hidden="true" style={{ position: 'absolute', top: '50%', insetInlineStart: '50%', transform: 'translate(-50%,-50%) rotate(-18deg)', fontSize: 52, fontWeight: 600, color: 'rgba(232,114,101,.10)', border: '3px solid rgba(232,114,101,.13)', borderRadius: 14, padding: '6px 38px', pointerEvents: 'none', whiteSpace: 'nowrap', fontFamily: F }}>
             {T('مشطوبة', 'STRUCK OFF')}
           </div>
@@ -697,7 +617,6 @@ function FacilityDetailPage({ facility: f, branchInfo, sb, T, lang, onBack, onEd
               <div style={{ fontSize: 14, fontWeight: 600, color: C.red, letterSpacing: '.2px' }}>{T('هذه المنشأة مشطوبة', 'This facility is struck off')}</div>
               {strikeEntry && (strikeEntry.by_name || strikeEntry.at) && (
                 <div style={{ marginTop: 7, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, color: 'var(--tx4)' }}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                   <span style={{ fontSize: 11.5, color: 'var(--tx4)', fontWeight: 600 }}>{T('تم الشطب', 'Struck off')}{strikeEntry.by_name ? ` ${T('بواسطة', 'by')} ${strikeEntry.by_name}` : ''}</span>
                   {strikeEntry.at && <span style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 600, direction: 'ltr', flexShrink: 0 }}>{fmtDateTime(strikeEntry.at)}</span>}
                 </div>
@@ -707,211 +626,234 @@ function FacilityDetailPage({ facility: f, branchInfo, sb, T, lang, onBack, onEd
         </div>
       )}
 
-      {/* Two columns: info cards (start) + status hero (end) */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr minmax(280px, 340px)', gap: 16, alignItems: 'start' }}>
-        {/* Info cards */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
-          {cardVisible(user, 'facilities', 'facility_data') && (
-          <div style={cardChrome}>
-            <CardHead cardKey="facility_data" onEdit={() => onEdit('data')}>{T('بيانات المنشأة', 'Facility Data')}</CardHead>
-            <div style={{ padding: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+      {/* بيانات المنشأة */}
+      {cardVisible(user, 'facilities', 'facility_data') && (
+        <CollapsibleCard title={T('بيانات المنشأة', 'Facility Data')} color={C.gold} collapsible={false} action={<EditBtn section="data" cardKey="facility_data" />}>
+          <div style={{ padding: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <Field k={T('الاسم بالعربي', 'Arabic Name')} v={nameAr} />
               <Field k={T('الاسم بالإنجليزي', 'English Name')} v={nameEn} />
               <Field k={T('نوع المنشأة', 'Type')} v={typeLabel} />
-              <Field k={T('الفرع التابع', 'Branch')} v={branchLabel} />
               <Field k={T('تاريخ التأكيد السنوي', 'Annual Confirm')} v={confDate} mono color={statusColor} />
-              <Field k={T('المركز السعودي', 'Saudi Center')} v={f.saudi_center ? T('نعم', 'Yes') : T('لا', 'No')} color={f.saudi_center ? C.ok : 'var(--tx3)'} noCopy />
+              <Field k={T('الفرع التابع', 'Branch')} v={branchLabel} full />
             </div>
           </div>
-          )}
-          {cardVisible(user, 'facilities', 'facility_numbers') && (
-          <div style={cardChrome}>
-            <CardHead cardKey="facility_numbers" onEdit={() => onEdit('numbers')}>{T('أرقام المنشأة', 'Facility Numbers')}</CardHead>
-            <div style={{ padding: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        </CollapsibleCard>
+      )}
+
+      {/* أرقام المنشأة */}
+      {cardVisible(user, 'facilities', 'facility_numbers') && (
+        <CollapsibleCard title={T('أرقام المنشأة', 'Facility Numbers')} color={C.gold} collapsible={false} action={<EditBtn section="numbers" cardKey="facility_numbers" />}>
+          <div style={{ padding: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <Field k={T('الرقم الموحد', 'Unified No.')} v={f.unified_number} mono color={C.gold} />
               <Field k={T('رقم التأمينات', 'GOSI No.')} v={f.gosi_number} mono color={C.ok} />
               <Field k={T('رقم الموارد البشرية', 'HRSD No.')} v={f.hrsd_number} mono color={C.blue} />
               <Field k={T('رقم الموارد البشرية الإضافي', 'HRSD No. 2')} v={f.hrsd_number_2} mono color={C.purple} />
             </div>
           </div>
-          )}
+        </CollapsibleCard>
+      )}
 
-          {/* كرت ملفات المنشأة — السجل التجاري + عقد التأسيس. يعرض ملف المزامنة (SBC) إن وُجد،
-              أو نسخة يرفعها المستخدم، أو زر «رفع» لإضافتها عند عدم توفّرها. */}
-          {cardVisible(user, 'facilities', 'facility_files') && (
-          <div style={cardChrome}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '13px 18px', borderBottom: '1px solid var(--bd)' }}>
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
-              <span style={{ fontSize: 16, fontWeight: 600, letterSpacing: '.2px', color: C.gold }}>{T('ملفات المنشأة', 'Facility Files')}</span>
-            </div>
-            <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {FILE_SLOTS.map(slot => {
-                const up = facFiles[slot.key]
-                const syncUrl = syncFiles[slot.key]
-                const url = up?.file_url || syncUrl || null
-                const source = up ? T('مرفوع', 'Uploaded') : (syncUrl ? T('من المزامنة', 'From sync') : null)
-                const busy = fileBusy === slot.key
-                return (
-                  <div key={slot.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '11px 12px', background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-                      <span style={{ flexShrink: 0, width: 30, height: 30, borderRadius: 8, background: url ? 'rgba(176,125,0,.12)' : 'rgba(0,0,0,.18)', border: '1px solid ' + (url ? 'rgba(176,125,0,.35)' : 'var(--bd)'), color: url ? C.gold : 'var(--tx5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                      </span>
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx1)' }}>{T(slot.ar, slot.en)}</div>
-                        <div style={{ fontSize: 10.5, marginTop: 2, color: url ? C.ok : 'var(--tx4)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 240 }}>
-                          {source || T('غير متوفر', 'Not available')}{up?.file_name ? ` · ${up.file_name}` : ''}
-                        </div>
+      {/* ملفات السجل — معاينة مصغّرة لكل ملف (السجل التجاري/عقد التأسيس/مستخرج
+          السجل التجاري) مع رفع/استبدال/حذف. يظهر دائماً (مزامنة + رفع يدوي). */}
+      {cardVisible(user, 'facilities', 'facility_files') && (
+        <CollapsibleCard title={T('ملفات السجل', 'CR Documents')} color={C.gold}>
+          <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
+            {FILE_SLOTS.map(slot => {
+              const up = facFiles[slot.key]
+              const syncUrl = syncFiles[slot.key]
+              const url = up?.file_url || syncUrl || null
+              const source = up ? T('مرفوع', 'Uploaded') : (syncUrl ? T('من المزامنة', 'From sync') : T('غير متوفر', 'Not available'))
+              const busy = fileBusy === slot.key
+              const A = '#9b59b6'
+              return (
+                <div key={slot.key}
+                  style={{ borderRadius: 10, background: url ? 'rgba(155,89,182,.08)' : 'var(--bd2)', border: '1px solid ' + (url ? 'rgba(155,89,182,.32)' : 'var(--bd)'), overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                  {/* معاينة الملف أو مربّع فارغ */}
+                  <div style={{ position: 'relative', aspectRatio: '3 / 2', background: url ? '#fff' : 'rgba(0,0,0,.18)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {url ? (
+                      <iframe src={`${url}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`} title={T(slot.ar, slot.en)}
+                        style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '200%', border: 0, display: 'block' }} loading="lazy" scrolling="no" />
+                    ) : (
+                      <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="var(--tx5)" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                    )}
+                    {/* أزرار الاستبدال/الحذف فوق المعاينة */}
+                    {canFilesEdit && url && (
+                      <div style={{ position: 'absolute', top: 6, insetInlineEnd: 6, display: 'flex', gap: 5 }}>
+                        <label title={up ? T('استبدال', 'Replace') : T('رفع نسخة', 'Upload copy')}
+                          style={{ width: 26, height: 26, borderRadius: 7, background: 'rgba(0,0,0,.55)', border: '1px solid rgba(255,255,255,.25)', color: '#fff', cursor: busy ? 'default' : 'pointer', opacity: busy ? .6 : 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                          <input type="file" accept=".pdf,image/*" disabled={busy} onChange={e => { const file = e.target.files?.[0]; e.target.value = ''; onPickFile(slot, file) }} style={{ display: 'none' }} />
+                        </label>
+                        {up && (
+                          <button onClick={() => onDeleteFile(slot)} disabled={busy} title={T('حذف الملف المرفوع', 'Remove uploaded file')}
+                            style={{ width: 26, height: 26, borderRadius: 7, background: 'rgba(0,0,0,.55)', border: '1px solid ' + C.red + '99', color: C.red, cursor: busy ? 'default' : 'pointer', opacity: busy ? .6 : 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                          </button>
+                        )}
                       </div>
+                    )}
+                  </div>
+                  {/* التذييل: الاسم + المصدر + فتح/رفع */}
+                  <div style={{ padding: '8px 10px', borderTop: '1px solid ' + (url ? 'rgba(155,89,182,.22)' : 'var(--bd)'), display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--tx1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{T(slot.ar, slot.en)}</div>
+                      <div style={{ fontSize: 9.5, marginTop: 1, color: url ? C.ok : 'var(--tx4)', fontWeight: 600 }}>{source}</div>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-                      {url && (
-                        <a href={url} target="_blank" rel="noopener noreferrer" title={T('فتح الملف', 'Open file')}
-                          style={{ height: 30, padding: '0 12px', borderRadius: 8, background: 'rgba(176,125,0,.10)', border: '1px dashed rgba(176,125,0,.4)', color: C.gold, textDecoration: 'none', fontSize: 11.5, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                          {T('فتح', 'Open')}
+                    {url ? (
+                      <a href={url} target="_blank" rel="noopener noreferrer" title={T('فتح في تاب جديد', 'Open in new tab')}
+                        style={{ height: 28, padding: '0 10px', borderRadius: 8, background: 'rgba(155,89,182,.12)', border: '1px dashed ' + A + '66', color: A, textDecoration: 'none', fontSize: 11, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
+                        {T('فتح', 'Open')}
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg>
+                      </a>
+                    ) : canFilesEdit ? (
+                      <label title={T('رفع ملف', 'Upload file')}
+                        style={{ height: 28, padding: '0 10px', borderRadius: 8, background: 'var(--accent-soft)', border: '1px dashed var(--accent-bd)', color: 'var(--accent)', cursor: busy ? 'default' : 'pointer', opacity: busy ? .6 : 1, fontSize: 11, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
+                        {busy ? T('جارٍ…', '…') : T('رفع', 'Upload')}
+                        {!busy && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>}
+                        <input type="file" accept=".pdf,image/*" disabled={busy} onChange={e => { const file = e.target.files?.[0]; e.target.value = ''; onPickFile(slot, file) }} style={{ display: 'none' }} />
+                      </label>
+                    ) : null}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </CollapsibleCard>
+      )}
+
+      </>)}
+
+      {part === 'bottom' && (<>
+      {/* العمالة */}
+      {cardVisible(user, 'facilities', 'workforce') && (
+        <CollapsibleCard title={T('العمالة', 'Workforce')} color={C.gold} badge={workers ? num(workers.length) : null}>
+          <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {workers === null ? (
+              <div style={{ fontSize: 12, color: 'var(--tx4)', textAlign: 'center', padding: '8px 0' }}>{T('جارٍ التحميل…', 'Loading…')}</div>
+            ) : workers.length === 0 ? (
+              <div style={{ fontSize: 12, color: 'var(--tx4)', textAlign: 'center', padding: '8px 0' }}>{T('لا يوجد عمال مرتبطون بهذه المنشأة', 'No workers linked to this facility')}</div>
+            ) : workers.map(w => (
+              <div key={w.id} onClick={() => goWorker(w.id)} title={T('عرض تفاصيل العامل', 'View worker')}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '10px 12px', background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, cursor: 'pointer', transition: 'border-color .15s' }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(176,125,0,.5)' }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--bd)' }}>
+                <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{w.name_ar || w.name_en || '—'}</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, flexShrink: 0, color: w.iqama_number ? C.gold : 'var(--tx4)', fontFamily: 'ui-monospace, monospace', fontWeight: 600, fontSize: 13, direction: 'ltr' }}>
+                  {w.iqama_number || '—'}
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg>
+                </span>
+              </div>
+            ))}
+          </div>
+        </CollapsibleCard>
+      )}
+
+      {/* الفواتير والخدمات */}
+      {cardVisible(user, 'facilities', 'invoices_services') && (
+        <CollapsibleCard title={T('الفواتير والخدمات', 'Invoices & Services')} color={C.gold} badge={facRows ? num(facListRows.length) : null}>
+          <div style={{ padding: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 12 }}>
+              {[
+                { l: T('الإجمالي', 'Total'), v: totals.tot, c: C.gold },
+                { l: T('المدفوع', 'Paid'), v: totals.paid, c: C.ok },
+                { l: T('المتبقي', 'Remaining'), v: totals.rem, c: C.red },
+              ].map((s, i) => (
+                <div key={i} style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 11px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <span style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 500 }}>{s.l}</span>
+                  <span style={{ fontSize: 15, fontWeight: 600, color: s.c, direction: 'ltr', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{num(Math.round(s.v))}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {facRows === null ? (
+                <div style={{ fontSize: 12, color: 'var(--tx4)', textAlign: 'center', padding: '8px 0' }}>{T('جارٍ التحميل…', 'Loading…')}</div>
+              ) : facListRows.length === 0 ? (
+                <div style={{ fontSize: 12, color: 'var(--tx4)', textAlign: 'center', padding: '8px 0' }}>{T('لا توجد فواتير أو خدمات مرتبطة', 'No invoices or services linked')}</div>
+              ) : facListRows.map((r, i) => {
+                const cancelled = r.invoice_status === 'cancelled'
+                const paidUp = r.invoice_id && Number(r.remaining_amount) <= 0 && !cancelled
+                const stt = cancelled ? { t: T('ملغاة', 'Cancelled'), c: C.red } : paidUp ? { t: T('مدفوعة', 'Paid'), c: C.ok } : r.invoice_id ? { t: `${T('متبقٍ', 'Due')} ${num(Math.round(Number(r.remaining_amount) || 0))}`, c: C.gold } : null
+                return (
+                  <div key={i} onClick={r.invoice_id ? () => goInvoice(r.invoice_id) : undefined} title={r.invoice_id ? T('عرض تفاصيل الفاتورة', 'View invoice') : ''}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '10px 12px', background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, cursor: r.invoice_id ? 'pointer' : 'default', opacity: cancelled ? .65 : 1, transition: 'border-color .15s' }}
+                    onMouseEnter={e => { if (r.invoice_id) e.currentTarget.style.borderColor = 'rgba(176,125,0,.5)' }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--bd)' }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.service_ar || T('خدمة', 'Service')}</div>
+                      <div style={{ fontSize: 10.5, color: 'var(--tx4)', fontFamily: 'ui-monospace, monospace', direction: 'ltr', marginTop: 2 }}>{T('مرجع', 'Ref')}: {r.request_ref_no || '—'}</div>
+                    </div>
+                    <div style={{ textAlign: 'end', flexShrink: 0 }}>
+                      {r.invoice_no ? (
+                        <div style={{ fontSize: 11.5, fontWeight: 600, color: C.gold, direction: 'ltr', display: 'inline-flex', alignItems: 'center', gap: 5, justifyContent: 'flex-end' }}>
+                          {r.invoice_no}
                           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg>
-                        </a>
-                      )}
-                      {canFilesEdit && (
-                        <>
-                          <label title={up ? T('استبدال الملف المرفوع', 'Replace uploaded file') : T('رفع ملف', 'Upload file')}
-                            style={{ height: 30, padding: '0 12px', borderRadius: 8, background: 'var(--accent-soft)', border: '1px dashed var(--accent-bd)', color: 'var(--accent)', cursor: busy ? 'default' : 'pointer', opacity: busy ? .6 : 1, fontSize: 11.5, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                            {busy ? T('جارٍ الرفع…', 'Uploading…') : (up ? T('استبدال', 'Replace') : T('رفع', 'Upload'))}
-                            {!busy && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>}
-                            <input type="file" accept=".pdf,image/*" disabled={busy} onChange={e => { const file = e.target.files?.[0]; e.target.value = ''; onPickFile(slot, file) }} style={{ display: 'none' }} />
-                          </label>
-                          {up && (
-                            <button onClick={() => onDeleteFile(slot)} disabled={busy} title={T('حذف الملف المرفوع', 'Remove uploaded file')}
-                              style={{ width: 30, height: 30, borderRadius: 8, background: 'transparent', border: '1px dashed ' + C.red + '66', color: C.red, cursor: busy ? 'default' : 'pointer', opacity: busy ? .6 : 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
-                            </button>
-                          )}
-                        </>
-                      )}
+                        </div>
+                      ) : <span style={{ fontSize: 11, color: 'var(--tx5)' }}>{T('بدون فاتورة', 'No invoice')}</span>}
+                      {stt && <div style={{ fontSize: 10.5, fontWeight: 600, color: stt.c, marginTop: 2, direction: 'rtl' }}>{stt.t}</div>}
                     </div>
                   </div>
                 )
               })}
             </div>
           </div>
-          )}
+        </CollapsibleCard>
+      )}
 
-          {/* كرت العمالة — العمال المرتبطون بالمنشأة (الاسم + الإقامة، نقرة → صفحة العامل). */}
-          {cardVisible(user, 'facilities', 'workforce') && (
-          <div style={cardChrome}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '13px 18px', borderBottom: '1px solid var(--bd)' }}>
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
-              <span style={{ fontSize: 16, fontWeight: 600, letterSpacing: '.2px', color: C.gold }}>{T('العمالة', 'Workforce')}</span>
-              <span style={{ marginInlineStart: 'auto', fontSize: 11.5, fontWeight: 600, color: 'var(--tx4)' }}>{workers ? `${num(workers.length)} ${T('عامل', 'workers')}` : '—'}</span>
-            </div>
-            <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {workers === null ? (
-                <div style={{ fontSize: 12, color: 'var(--tx4)', textAlign: 'center', padding: '8px 0' }}>{T('جارٍ التحميل…', 'Loading…')}</div>
-              ) : workers.length === 0 ? (
-                <div style={{ fontSize: 12, color: 'var(--tx4)', textAlign: 'center', padding: '8px 0' }}>{T('لا يوجد عمال مرتبطون بهذه المنشأة', 'No workers linked to this facility')}</div>
-              ) : workers.map(w => (
-                <div key={w.id} onClick={() => goWorker(w.id)} title={T('عرض تفاصيل العامل', 'View worker')}
-                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '10px 12px', background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, cursor: 'pointer', transition: 'border-color .15s' }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(176,125,0,.5)' }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--bd)' }}>
-                  <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{w.name_ar || w.name_en || '—'}</span>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, flexShrink: 0, color: w.iqama_number ? C.gold : 'var(--tx4)', fontFamily: 'ui-monospace, monospace', fontWeight: 600, fontSize: 13, direction: 'ltr' }}>
-                    {w.iqama_number || '—'}
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg>
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-          )}
+      {/* سجل الإضافات والتعديلات */}
+      {cardVisible(user, 'facilities', 'activity_log') && (
+        <FacEditLog entries={f.edit_log} created={f.created_at ? { at: f.created_at, by_name: creatorName, label: nameAr } : null} T={T} />
+      )}
+      </>)}
+    </>
+  )
+}
 
-          {/* كرت الفواتير والخدمات — إجماليات + قائمة (نقرة على الفاتورة → تفاصيل الفاتورة). */}
-          {cardVisible(user, 'facilities', 'invoices_services') && (
-          <div style={cardChrome}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '13px 18px', borderBottom: '1px solid var(--bd)' }}>
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
-              <span style={{ fontSize: 16, fontWeight: 600, letterSpacing: '.2px', color: C.gold }}>{T('الفواتير والخدمات', 'Invoices & Services')}</span>
-              <span style={{ marginInlineStart: 'auto', fontSize: 11.5, fontWeight: 600, color: 'var(--tx4)' }}>{facRows ? `${num(facListRows.length)} ${T('طلب', 'requests')}` : '—'}</span>
-            </div>
-            <div style={{ padding: 14 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 12 }}>
-                {[
-                  { l: T('الإجمالي', 'Total'), v: totals.tot, c: C.gold },
-                  { l: T('المدفوع', 'Paid'), v: totals.paid, c: C.ok },
-                  { l: T('المتبقي', 'Remaining'), v: totals.rem, c: C.red },
-                ].map((s, i) => (
-                  <div key={i} style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 11px', display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    <span style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 500 }}>{s.l}</span>
-                    <span style={{ fontSize: 15, fontWeight: 600, color: s.c, direction: 'ltr', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{num(Math.round(s.v))}</span>
-                  </div>
-                ))}
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {facRows === null ? (
-                  <div style={{ fontSize: 12, color: 'var(--tx4)', textAlign: 'center', padding: '8px 0' }}>{T('جارٍ التحميل…', 'Loading…')}</div>
-                ) : facListRows.length === 0 ? (
-                  <div style={{ fontSize: 12, color: 'var(--tx4)', textAlign: 'center', padding: '8px 0' }}>{T('لا توجد فواتير أو خدمات مرتبطة', 'No invoices or services linked')}</div>
-                ) : facListRows.map((r, i) => {
-                  const cancelled = r.invoice_status === 'cancelled'
-                  const paidUp = r.invoice_id && Number(r.remaining_amount) <= 0 && !cancelled
-                  const stt = cancelled ? { t: T('ملغاة', 'Cancelled'), c: C.red } : paidUp ? { t: T('مدفوعة', 'Paid'), c: C.ok } : r.invoice_id ? { t: `${T('متبقٍ', 'Due')} ${num(Math.round(Number(r.remaining_amount) || 0))}`, c: C.gold } : null
-                  return (
-                    <div key={i} onClick={r.invoice_id ? () => goInvoice(r.invoice_id) : undefined} title={r.invoice_id ? T('عرض تفاصيل الفاتورة', 'View invoice') : ''}
-                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '10px 12px', background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, cursor: r.invoice_id ? 'pointer' : 'default', opacity: cancelled ? .65 : 1, transition: 'border-color .15s' }}
-                      onMouseEnter={e => { if (r.invoice_id) e.currentTarget.style.borderColor = 'rgba(176,125,0,.5)' }}
-                      onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--bd)' }}>
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.service_ar || T('خدمة', 'Service')}</div>
-                        <div style={{ fontSize: 10.5, color: 'var(--tx4)', fontFamily: 'ui-monospace, monospace', direction: 'ltr', marginTop: 2 }}>{T('مرجع', 'Ref')}: {r.request_ref_no || '—'}</div>
-                      </div>
-                      <div style={{ textAlign: 'end', flexShrink: 0 }}>
-                        {r.invoice_no ? (
-                          <div style={{ fontSize: 11.5, fontWeight: 600, color: C.gold, direction: 'ltr', display: 'inline-flex', alignItems: 'center', gap: 5, justifyContent: 'flex-end' }}>
-                            {r.invoice_no}
-                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg>
-                          </div>
-                        ) : <span style={{ fontSize: 11, color: 'var(--tx5)' }}>{T('بدون فاتورة', 'No invoice')}</span>}
-                        {stt && <div style={{ fontSize: 10.5, fontWeight: 600, color: stt.c, marginTop: 2, direction: 'rtl' }}>{stt.t}</div>}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          </div>
-          )}
-
-          {cardVisible(user, 'facilities', 'activity_log') && (
-          <FacEditLog entries={f.edit_log} created={f.created_at ? { at: f.created_at, by_name: creatorName, label: nameAr } : null} T={T} />
-          )}
-        </div>
-        {/* Status hero — تصميم «حالة كبيرة»: الحالة كلمة كبيرة بلونها + التأكيد والمتبقّي. */}
-        {cardVisible(user, 'facilities', 'facility_status') && (
-        <div style={cardChrome}>
-          <div style={{ padding: 20, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-            <span style={{ fontSize: 11.5, fontWeight: 500, color: 'var(--tx4)', letterSpacing: '.5px' }}>{T('حالة المنشأة', 'Facility Status')}</span>
-            <div style={{ margin: '10px 0 2px', fontSize: 30, fontWeight: 600, color: statusColor, lineHeight: 1.1 }}>{statusLabel}</div>
-            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'stretch', gap: 20, marginTop: 18 }}>
-              <div>
-                <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--tx4)' }}>{T('التأكيد السنوي', 'Confirmation')}</div>
-                <div style={{ fontSize: 14, fontWeight: 600, marginTop: 4, color: confDate ? statusColor : 'var(--tx4)', direction: 'ltr', fontVariantNumeric: 'tabular-nums', fontFamily: 'ui-monospace, monospace' }}>{confDate || '—'}</div>
-              </div>
-              <div style={{ width: 1, background: 'var(--bd)' }} />
-              <div>
-                <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--tx4)' }}>{cd ? T('للحالة التالية', 'To next status') : T('متبقٍ', 'Remaining')}</div>
-                <div style={{ fontSize: 14, fontWeight: 600, marginTop: 4, color: cd ? cd.nextColor : 'var(--tx4)', direction: 'rtl' }}>{cd ? `${cd.daysToNext} ${T('يوم', 'days')}` : '—'}</div>
-              </div>
-            </div>
-          </div>
-        </div>
+// أزرار الإجراءات (شطب/إلغاء الشطب/حذف) لصفحة تفاصيل المنشأة + نوافذ التأكيد،
+// مستخرجة كي تُدرَج في ترويسة العرض الغني المنسدل.
+function FacilityRegistryActions({ facility: f, T, lang, user, onStrikeToggle, onDelete, onDeleted }) {
+  const [confirm, setConfirm] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const [done, setDone] = useState(null)
+  const [confErr, setConfErr] = useState(null)
+  const isStruck = !!f.struck_off
+  const AMBER = '#e67e22'
+  const nameAr = f.name_ar || f.entity_full_name_ar || '—'
+  const doStrike = async () => { setBusy(true); setConfErr(null); const res = await onStrikeToggle?.(!isStruck); setBusy(false); if (res === true) setDone({ title: isStruck ? T('تم إلغاء شطب المنشأة', 'Facility un-struck') : T('تم شطب المنشأة', 'Facility struck off') }); else if (typeof res === 'string') setConfErr(res) }
+  const doDelete = async () => { setBusy(true); setConfErr(null); const res = await onDelete?.(); setBusy(false); if (res === true) setDone({ title: T('تم حذف المنشأة', 'Facility deleted'), kind: 'delete' }); else if (typeof res === 'string') setConfErr(res) }
+  const closeConfirm = () => { if (busy) return; const wasDelete = done?.kind === 'delete'; setDone(null); setConfErr(null); setConfirm(null); if (wasDelete) onDeleted?.() }
+  const HeaderBtn = ({ onClick, color, label, children }) => (
+    <button onClick={onClick} title={label}
+      style={{ height: 42, padding: '0 18px', borderRadius: 11, background: 'transparent', border: `1px dashed ${color}80`, color, cursor: 'pointer', fontFamily: F, fontSize: 13, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0, transition: 'background .15s' }}
+      onMouseEnter={e => { e.currentTarget.style.background = `${color}1f` }}
+      onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
+      <span>{label}</span>
+      {children}
+    </button>
+  )
+  if (!(canPerm(user, 'facilities.edit') || canPerm(user, 'facilities.delete'))) return null
+  return (
+    <>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, flexWrap: 'wrap' }}>
+        {canPerm(user, 'facilities.edit') && (
+          <HeaderBtn onClick={() => setConfirm('strike')} color={isStruck ? C.ok : AMBER}
+            label={isStruck ? T('إلغاء الشطب', 'Un-strike') : T('شطب المنشأة', 'Strike off')}>
+            {isStruck
+              ? (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>)
+              : (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg>)}
+          </HeaderBtn>
+        )}
+        {canPerm(user, 'facilities.delete') && (
+          <HeaderBtn onClick={() => setConfirm('delete')} color={C.red} label={T('حذف المنشأة', 'Delete')}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+          </HeaderBtn>
         )}
       </div>
 
-      {/* تأكيد شطب المنشأة (تبديل struck_off) */}
       {confirm === 'strike' && (
         <FKModal open variant="delete" width={460} accent={isStruck ? C.ok : AMBER} Icon={Ban}
-          onClose={closeConfirm}
-          errorMsg={confErr}
+          onClose={closeConfirm} errorMsg={confErr}
           success={done ? <SuccessView title={done.title} /> : undefined}
           title={isStruck ? T('إلغاء شطب المنشأة', 'Un-strike facility') : T('شطب المنشأة', 'Strike off facility')}
           footer={
@@ -929,11 +871,9 @@ function FacilityDetailPage({ facility: f, branchInfo, sb, T, lang, onBack, onEd
         </FKModal>
       )}
 
-      {/* تأكيد حذف المنشأة (حذف ناعم — deleted_at) */}
       {confirm === 'delete' && (
         <FKModal open variant="delete" width={460} Icon={Trash2}
-          onClose={closeConfirm}
-          errorMsg={confErr}
+          onClose={closeConfirm} errorMsg={confErr}
           success={done ? <SuccessView title={done.title} /> : undefined}
           title={T('حذف المنشأة', 'Delete facility')}
           footer={
@@ -942,12 +882,12 @@ function FacilityDetailPage({ facility: f, branchInfo, sb, T, lang, onBack, onEd
             </ActionButton>
           }>
           <div style={{ fontSize: 14, color: 'var(--tx2)', lineHeight: 1.8, padding: '2px 2px 6px' }}>
-            {T(`سيتم حذف المنشأة «${nameAr}» وإخفاؤها من قائمة المنشآت${workers?.length ? ` مع حذف العمالة التابعة لها (${workers.length} عامل)` : ' مع حذف العمالة التابعة لها'}. لن تظهر بعد الحذف في الواجهة.`,
-               `The facility “${nameAr}” will be deleted and hidden from the list${workers?.length ? `, along with its ${workers.length} linked worker(s)` : ', along with its linked workers'}.`)}
+            {T(`سيتم حذف المنشأة «${nameAr}» وإخفاؤها من قائمة المنشآت مع حذف العمالة التابعة لها. لن تظهر بعد الحذف في الواجهة.`,
+               `The facility “${nameAr}” will be deleted and hidden from the list, along with its linked workers.`)}
           </div>
         </FKModal>
       )}
-    </div>
+    </>
   )
 }
 
@@ -1106,7 +1046,7 @@ function QiwaVisaRequestsCard({ sb, companyId, T }) {
   return (
     <CollapsibleCard
       title={T('سجل طلبات التأشيرات', 'Visa Requests History')}
-      color="#3b82f6" showQiwaIcon
+      color={C.gold} showQiwaIcon
       badge={rows?.length}>
       <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 8 }}>
         {loading && <div style={{ fontSize: 11, color: 'var(--tx5)' }}>{T('جارٍ التحميل…', 'Loading…')}</div>}
@@ -1117,7 +1057,7 @@ function QiwaVisaRequestsCard({ sb, companyId, T }) {
             <div key={r.id}
               style={{
                 padding: '10px 12px', borderRadius: 8,
-                background: 'var(--bd2)',
+                background: 'var(--inputBg)',
                 border: '1px solid var(--bd)',
                 display: 'grid', gridTemplateColumns: '1fr 1fr', rowGap: 4, columnGap: 16,
                 fontSize: 11.5,
@@ -1162,7 +1102,7 @@ function QiwaWpRequestsCard({ sb, companyId, T }) {
   return (
     <CollapsibleCard
       title={T('سجل طلبات رخص العمل', 'Work Permit Requests')}
-      color="#3b82f6" showQiwaIcon
+      color={C.gold} showQiwaIcon
       badge={rows.length}>
       <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 8 }}>
         {rows.map(r => {
@@ -1172,7 +1112,7 @@ function QiwaWpRequestsCard({ sb, companyId, T }) {
             <div key={r.request_reference_number}
               style={{
                 padding: '10px 12px', borderRadius: 8,
-                background: 'var(--bd2)',
+                background: 'var(--inputBg)',
                 border: '1px solid var(--bd)',
                 display: 'grid', gridTemplateColumns: '1fr 1fr', rowGap: 4, columnGap: 16,
                 fontSize: 11.5,
@@ -1210,7 +1150,7 @@ function LaborerDetailRow({ r, T }) {
   // Tightly packed two-column key/value grid. Hides null/empty rows so the
   // user only sees populated fields per worker.
   const Field = ({ k, v, ltr, mono }) => (v == null || v === '' ? null : (
-    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, padding: '6px 10px', borderRadius: 6, background: 'var(--bd2)', border: '1px solid var(--bd2)' }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, padding: '6px 10px', borderRadius: 6, background: 'var(--inputBg)', border: '1px solid var(--bd2)' }}>
       <span style={{ fontSize: 10.5, color: 'var(--tx3)', fontWeight: 600, whiteSpace: 'nowrap' }}>{k}</span>
       <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx)', textAlign: 'end', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', direction: ltr ? 'ltr' : undefined, fontFamily: mono ? 'ui-monospace, monospace' : undefined }} title={typeof v === 'string' ? v : undefined}>{v}</span>
     </div>
@@ -1355,7 +1295,7 @@ function QiwaWpLaborersCard({ sb, companyId, T }) {
   return (
     <CollapsibleCard
       title={T('العمالة ورخص العمل', 'Laborers & Work Permits')}
-      color="#3b82f6" showQiwaIcon
+      color={C.gold} showQiwaIcon
       badge={rows.length + (expiredCount > 0 ? ` · ${expiredCount} ${T('منتهية', 'expired')}` : '')}>
       <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 6 }}>
         {rows.map(r => <LaborerDetailRow key={r.employee_id} r={r} T={T} />)}
@@ -1377,7 +1317,7 @@ function MuqeemResidentRow({ r, T }) {
   const expiringSoon = daysToExpiry != null && daysToExpiry >= 0 && daysToExpiry <= 30
   const c = expired ? '#ef4444' : (expiringSoon ? '#f59e0b' : '#22c55e')
   const Field = ({ k, v, ltr, mono }) => (v == null || v === '' ? null : (
-    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, padding: '6px 10px', borderRadius: 6, background: 'var(--bd2)', border: '1px solid var(--bd2)' }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, padding: '6px 10px', borderRadius: 6, background: 'var(--inputBg)', border: '1px solid var(--bd2)' }}>
       <span style={{ fontSize: 10.5, color: 'var(--tx3)', fontWeight: 600, whiteSpace: 'nowrap' }}>{k}</span>
       <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx)', textAlign: 'end', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', direction: ltr ? 'ltr' : undefined, fontFamily: mono ? 'ui-monospace, monospace' : undefined }} title={typeof v === 'string' ? v : undefined}>{v}</span>
     </div>
@@ -1487,7 +1427,7 @@ function QiwaTransferRequestsList({ sb, companyId, T }) {
     const isRejected = (r.status || '').includes('REJECT')
     const c = isCompleted ? '#22c55e' : isRejected ? '#ef4444' : '#f59e0b'
     return (
-      <div style={{ padding: '8px 10px', borderRadius: 8, background: 'var(--bd2)', border: '1px solid var(--bd)', fontSize: 11 }}>
+      <div style={{ padding: '8px 10px', borderRadius: 8, background: 'var(--inputBg)', border: '1px solid var(--bd)', fontSize: 11 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
           <span style={{ width: 6, height: 6, borderRadius: '50%', background: c, flexShrink: 0 }} />
           <span style={{ fontWeight: 600, color: 'var(--tx)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.employee_name || r.employee_id || r.request_id}</span>
@@ -1581,7 +1521,7 @@ function QiwaMonthlyReportCard({ sb, companyId, T }) {
   return (
     <CollapsibleCard
       title={T(`التقرير الشهري · ${periodLabel}`, `Monthly Report · ${periodLabel}`)}
-      color="#3b82f6" showQiwaIcon
+      color={C.gold} showQiwaIcon
       badge={row.score_primary != null ? `${Number(row.score_primary).toFixed(0)}%` : null}>
       <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 24 }}>
         {/* Scores column */}
@@ -1637,7 +1577,7 @@ function QiwaContractsCard({ sb, companyId, T }) {
   return (
     <CollapsibleCard
       title={T('سجل العقود', 'Contracts Log')}
-      color="#3b82f6" showQiwaIcon
+      color={C.gold} showQiwaIcon
       badge={rows.length + (errCount > 0 ? ` · ${errCount} GOSI` : '')}>
       <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 8 }}>
         {rows.map(r => {
@@ -1740,13 +1680,17 @@ function MuqeemSourceIcon({ size = 16 }) {
 // Reusable collapsible card — click header to expand/collapse. Used for cards
 // that contain a lot of fields the user usually skips (e.g. WPS compliance).
 // Matches the same chrome + chevron pattern as ActivitiesCard below.
-function CollapsibleCard({ title, color, badge, defaultExpanded = false, children, showSbcIcon = false, showGosiIcon = false, showQiwaIcon = false, showMuqeemIcon = false }) {
+function CollapsibleCard({ title, color, badge, action, collapsible = true, defaultExpanded = false, children, showSbcIcon = false, showGosiIcon = false, showQiwaIcon = false, showMuqeemIcon = false }) {
   const [expanded, setExpanded] = useState(defaultExpanded)
+  // collapsible=false: كرت ثابت دائم الفتح بلا سهم ولا طيّ (للكروت التي يجب أن تبقى مرئية).
+  const open = collapsible ? expanded : true
+  // العنصر الأول المحاذى للطرف يأخذ marginInlineStart:auto ليدفع المجموعة (شارة/إجراء/سهم) لنهاية الصف.
+  const autoFirst = badge != null ? 'badge' : action != null ? 'action' : (collapsible ? 'chevron' : 'none')
   return (
     <div style={cardChrome}>
       <div
-        onClick={() => setExpanded(v => !v)}
-        style={{ ...cardHeader, cursor: 'pointer', userSelect: 'none' }}>
+        onClick={collapsible ? () => setExpanded(v => !v) : undefined}
+        style={{ ...cardHeader, cursor: collapsible ? 'pointer' : 'default', userSelect: 'none' }}>
         <span style={{ width: 6, height: 6, borderRadius: '50%', background: color }} />
         {showSbcIcon && <SbcSourceIcon />}
         {showGosiIcon && <GosiSourceIcon />}
@@ -1756,12 +1700,17 @@ function CollapsibleCard({ title, color, badge, defaultExpanded = false, childre
         {badge != null && (
           <span style={{ marginInlineStart: 'auto', fontSize: 11, color, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: color + '14' }}>{badge}</span>
         )}
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
-          style={{ color: 'var(--tx3)', marginInlineStart: badge != null ? 0 : 'auto', transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform .15s' }}>
-          <polyline points="6 9 12 15 18 9" />
-        </svg>
+        {action != null && (
+          <span onClick={e => e.stopPropagation()} style={{ marginInlineStart: autoFirst === 'action' ? 'auto' : 0, display: 'inline-flex', alignItems: 'center' }}>{action}</span>
+        )}
+        {collapsible && (
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
+            style={{ color: 'var(--tx3)', marginInlineStart: autoFirst === 'chevron' ? 'auto' : 0, transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform .15s' }}>
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        )}
       </div>
-      {expanded && children}
+      {open && children}
     </div>
   )
 }
@@ -1774,10 +1723,10 @@ function ActivitiesCard({ activities, lang, T }) {
       <div
         onClick={() => setExpanded(v => !v)}
         style={{ ...cardHeader, cursor: 'pointer', userSelect: 'none' }}>
-        <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.orange }} />
+        <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
         <SbcSourceIcon />
         <span style={cardTitle}>{T('الأنشطة التجارية', 'Commercial Activities')}</span>
-        <span style={{ marginInlineStart: 'auto', fontSize: 11, color: C.orange, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: C.orange + '14' }}>{num(activities.length)}</span>
+        <span style={{ marginInlineStart: 'auto', fontSize: 11, color: C.gold, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: C.gold + '14' }}>{num(activities.length)}</span>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
           style={{ color: 'var(--tx3)', transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform .15s' }}>
           <polyline points="6 9 12 15 18 9" />
@@ -2000,7 +1949,7 @@ function GosiEstablishmentCard({ data, T, lang }) {
             <div style={{
               gridColumn: '1 / -1',
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              padding: '9px 12px', background: 'var(--bd2)', borderRadius: 8,
+              padding: '9px 12px', background: 'var(--inputBg)', borderRadius: 8,
               border: '1px solid var(--bd)', gap: 10,
             }}>
               <span style={{ color: 'var(--tx3)', fontWeight: 600, fontSize: 11 }}>{T('العنوان الوطني', 'National address')}</span>
@@ -2142,7 +2091,7 @@ const _gosiDateCopy = (greg, hijri) => {
 const _gosiRowBase = {
   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
   padding: '10px 12px', borderRadius: 8, gap: 10, minWidth: 0,
-  background: 'var(--bd2)', border: '1px solid var(--bd)',
+  background: 'var(--inputBg)', border: '1px solid var(--bd)',
 }
 const _gosiRowDanger = { ..._gosiRowBase, background: 'rgba(232,114,101,.06)', border: '1px solid rgba(232,114,101,.22)' }
 const _gosiRowOk = { ..._gosiRowBase, background: 'rgba(46,204,113,.06)', border: '1px solid rgba(46,204,113,.22)' }
@@ -2263,18 +2212,7 @@ function GosiAccountCard({ data, bills, contributors, T, lang }) {
     sinToName[String(c.social_insurance_no)] = nm || c.full_name_en || String(c.social_insurance_no)
   }
   return (
-    <div style={cardChrome}>
-      <div style={cardHeader}>
-        <span style={{ width: 6, height: 6, borderRadius: '50%', background: accent }} />
-        <GosiSourceIcon />
-        <span style={cardTitle}>{T('الحساب والفواتير', 'Account & Bills')}</span>
-        {hasDebt && (
-          <span style={{
-            marginInlineStart: 'auto', fontSize: 11, color: accent, fontWeight: 600,
-            padding: '2px 8px', borderRadius: 6, background: accent + '14', direction: 'ltr',
-          }}>{_gosiMoney(data.outstanding_amount)}</span>
-        )}
-      </div>
+    <CollapsibleCard title={T('الحساب والفواتير', 'Account & Bills')} color={accent} showGosiIcon badge={hasDebt ? _gosiMoney(data.outstanding_amount) : null}>
       <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 10 }}>
         {/* Bills first — they're the most actionable surface: a bill is what
             actually has to be paid. The aggregate balances/payments below
@@ -2468,7 +2406,7 @@ function GosiAccountCard({ data, bills, contributors, T, lang }) {
           )
         })()}
       </div>
-    </div>
+    </CollapsibleCard>
   )
 }
 
@@ -2659,7 +2597,7 @@ function _GosiPersonRow({ name, badge, badgeColor, tags, meta }) {
     // Single column: name row at top (tags + badge inlined on the far end so
     // they stay glued next to the name even when the metadata grows), then
     // optional metadata grid below. Mirrors the SBC PersonRow layout fix.
-    <div style={{ padding: '9px 12px', background: 'var(--bd2)', borderRadius: 8, border: '1px solid var(--bd)' }}>
+    <div style={{ padding: '9px 12px', background: 'var(--inputBg)', borderRadius: 8, border: '1px solid var(--bd)' }}>
       <div style={{ minWidth: 0 }}>
         <div
           onClick={hasDetails ? () => setExpanded(v => !v) : undefined}
@@ -2728,13 +2666,7 @@ function GosiOwnersCard({ owners, T, lang }) {
   if (!owners || !owners.length) return null
   const isAr = (lang || 'ar') !== 'en'
   return (
-    <div style={cardChrome}>
-      <div style={cardHeader}>
-        <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.blue }} />
-        <GosiSourceIcon />
-        <span style={cardTitle}>{T('الملاك والشركاء', 'Owners & Partners')}</span>
-        <_GosiCountBadge n={owners.length} color={C.blue} />
-      </div>
+    <CollapsibleCard title={T('الملاك والشركاء', 'Owners & Partners')} color={C.blue} showGosiIcon badge={num(owners.length)}>
       <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 8 }}>
         {owners.map((o) => {
           const personName = isAr
@@ -2768,7 +2700,7 @@ function GosiOwnersCard({ owners, T, lang }) {
           )
         })}
       </div>
-    </div>
+    </CollapsibleCard>
   )
 }
 
@@ -2788,13 +2720,7 @@ function GosiAdminsCard({ admins, T, lang }) {
   if (!admins || !admins.length) return null
   const isAr = (lang || 'ar') !== 'en'
   return (
-    <div style={cardChrome}>
-      <div style={cardHeader}>
-        <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.purple }} />
-        <GosiSourceIcon />
-        <span style={cardTitle}>{T('المشرفون', 'Admins')}</span>
-        <_GosiCountBadge n={admins.length} color={C.purple} />
-      </div>
+    <CollapsibleCard title={T('المشرفون', 'Admins')} color={C.gold} showGosiIcon badge={num(admins.length)}>
       <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 8 }}>
         {admins.map((a) => {
           const name = isAr
@@ -2824,7 +2750,7 @@ function GosiAdminsCard({ admins, T, lang }) {
           )
         })}
       </div>
-    </div>
+    </CollapsibleCard>
   )
 }
 
@@ -2858,13 +2784,7 @@ function GosiCertificatesCard({ certificates, T }) {
     return (n / (1024 * 1024)).toFixed(1) + ' MB'
   }
   return (
-    <div style={cardChrome}>
-      <div style={cardHeader}>
-        <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.cyan }} />
-        <GosiSourceIcon />
-        <span style={cardTitle}>{T('ملفات التأمينات الاجتماعية', 'GOSI Certificates')}</span>
-        <_GosiCountBadge n={certificates.length} color={C.cyan} />
-      </div>
+    <CollapsibleCard title={T('ملفات التأمينات الاجتماعية', 'GOSI Certificates')} color={C.cyan} showGosiIcon badge={num(certificates.length)}>
       <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 8 }}>
         {order.map((type) => {
           const c = byType[type]
@@ -2925,7 +2845,7 @@ function GosiCertificatesCard({ certificates, T }) {
           )
         })}
       </div>
-    </div>
+    </CollapsibleCard>
   )
 }
 
@@ -2957,7 +2877,7 @@ function _GosiContribRow({ name, wage, statusType, groups, T }) {
   else if (s === 'SUSPENDED') { statusLabel = T('معلق', 'Suspended'); statusColor = C.warn }
   else if (s) { statusLabel = statusType; statusColor = 'var(--tx4)' }
   return (
-    <div style={{ padding: '9px 12px', background: 'var(--bd2)', borderRadius: 8, border: '1px solid var(--bd)' }}>
+    <div style={{ padding: '9px 12px', background: 'var(--inputBg)', borderRadius: 8, border: '1px solid var(--bd)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
         <div
           onClick={hasDetails ? () => setExpanded(v => !v) : undefined}
@@ -3058,13 +2978,7 @@ function GosiContributorsCard({ contributors, est, T, lang, title }) {
     </div>
   )
   return (
-    <div style={cardChrome}>
-      <div style={cardHeader}>
-        <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.cyan }} />
-        <GosiSourceIcon />
-        <span style={cardTitle}>{title || T('الموظفون / المشتركون', 'Contributors')}</span>
-        <_GosiCountBadge n={contributors.length} color={C.cyan} />
-      </div>
+    <CollapsibleCard title={title || T('الموظفون / المشتركون', 'Contributors')} color={C.cyan} showGosiIcon badge={num(contributors.length)}>
       <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 10 }}>
         {/* Status strip — active / inactive / suspended. Computed from the
             contributors array so it stays accurate after we sync INACTIVE and
@@ -3172,7 +3086,7 @@ function GosiContributorsCard({ contributors, est, T, lang, title }) {
           )
         })}
       </div>
-    </div>
+    </CollapsibleCard>
   )
 }
 
@@ -3424,7 +3338,11 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
   const [search, setSearch] = useState('')
   const [advOpen, setAdvOpen] = useState(false)
   const [adv, setAdv] = useState({ entity: [], status: [], branch: [], saudiCenter: [], workforce: [], sortConfirm: '' })
-  const [detail, setDetail] = useState(null)
+  // صفحة التفاصيل الغنية تُشتق من viewId (يعمل مع سلسلة الرجوع والروابط العميقة).
+  // كلا العدستين (SBC/التأمينات) + الروابط تفتح نفس العرض المنسدل الموحّد.
+  // detail = الصف المفتوح (مطابق لحقول sbc عبر mapFacility). setDetail(r) للتوافق
+  // مع الاستدعاءات القديمة يفتح عبر viewId.
+  const setDetail = (r) => setViewId(r ? r.id : null)
   const [lastSync, setLastSync] = useState(null)
   const [filter, setFilter] = useState('all') // all | main | manager | partner | confirmation
   const [page, setPage] = useState(0)
@@ -3465,6 +3383,9 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
   // Populated on detail open via the useEffect below; reset when detail closes.
   const [extDetail, setExtDetail] = useState(null)
   const [extDetailLoading, setExtDetailLoading] = useState(false)
+  // صف المزامنة (sbc_facilities) المرتبط بالمنشأة — نجلب منه المدراء/الملاك/الأنشطة
+  // وبيانات السجل الخام التي لا يحملها صف facilities المُعاد تشكيله (mapFacility).
+  const [sbcExtra, setSbcExtra] = useState(null)
   // GOSI establishment main info — pulled from public.gosi_establishments
   // (populated by the GOSI bookmarklet). Looked up by gosi_registration_number
   // when the facility detail opens.
@@ -3489,6 +3410,10 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
   // صفحة تفاصيل المنشأة (full page) — نخزّن المعرّف فقط لتُعاد القراءة من الصفوف
   // المحدّثة بعد أي تعديل/إعادة تحميل.
   const [viewId, setViewId] = useState(null)
+  // الصف المفتوح — يُقرأ من الصفوف المحدّثة (لتنعكس التعديلات/الشطب تلقائياً).
+  // detail هو نفسه viewFacility (اسمان لنفس الشيء) كي يعمل العرض الغني كما هو.
+  const viewFacility = viewId ? rows.find(r => r.id === viewId) : null
+  const detail = viewFacility
   // نوع المنشأة (مؤسسة فردية / ش.ذ.م.م / …) — من قائمة lookup organization_type
   const [orgTypes, setOrgTypes] = useState([])
   // المكتب التابع — الفروع (branches)؛ يُعرض بالكود + المدينة ويُخزَّن branch_id
@@ -4261,6 +4186,29 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
     return () => { cancelled = true }
   }, [detail?.cr_national_number, sb])
 
+  // جلب صف المزامنة (sbc_facilities) المرتبط — المدراء/الملاك/الأنشطة/السجل الخام
+  // (لأن صف facilities المُعاد تشكيله لا يحمل هذه الحقول). المطابقة بالرقم الوطني
+  // للسجل ثم رقم السجل كخيار احتياطي.
+  useEffect(() => {
+    const crnn = detail?.cr_national_number
+    const crno = detail?.cr_number
+    if (!sb || (!crnn && !crno)) { setSbcExtra(null); return }
+    let cancelled = false
+    ;(async () => {
+      let row = null
+      if (crnn) {
+        const { data } = await sb.from('sbc_facilities').select('raw_cr_data').eq('cr_national_number', String(crnn)).limit(1).maybeSingle()
+        row = data || null
+      }
+      if (!row && crno) {
+        const { data } = await sb.from('sbc_facilities').select('raw_cr_data').eq('cr_number', String(crno)).limit(1).maybeSingle()
+        row = data || null
+      }
+      if (!cancelled) setSbcExtra(row)
+    })()
+    return () => { cancelled = true }
+  }, [sb, detail?.cr_national_number, detail?.cr_number])
+
   // Load MoC violations stats for the active person via sync_persons → sbc_dashboard_stats.
   useEffect(() => {
     if (!sb || !personFilter?.person_id) { setPersonStats(null); return }
@@ -4739,7 +4687,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
     boxShadow: 'var(--shadow-sm)',
     transition: '.2s',
   }
-  const innerBox = { background: 'var(--bd2)', border: '1px solid var(--bd)' }
+  const innerBox = { background: 'var(--inputBg)', border: '1px solid var(--bd)' }
 
   // Build smooth area chart paths for the 12-month trend
   const n = periodSeries.length
@@ -4778,29 +4726,10 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
   // First fetch (no rows yet) — show the full skeleton instead of zero-valued cards.
   const initialLoading = loading && rows.length === 0
 
-  // صفّ المنشأة المعروضة في صفحة التفاصيل — يُعاد اشتقاقه من rows بحسب المعرّف
-  // ليبقى محدّثاً بعد أي تعديل/إعادة تحميل.
-  const viewFacility = viewId ? rows.find(r => r.id === viewId) : null
-
   return (
     <div style={{ fontFamily: F }}>
       <style>{`.sbc-tbl-scroll::-webkit-scrollbar{display:none}@keyframes fac-shimmer{0%{background-position:100% 0}100%{background-position:-100% 0}}@keyframes fac-spin{to{transform:rotate(360deg)}}`}</style>
-      {viewFacility && (
-        <FacilityDetailPage
-          facility={viewFacility}
-          branchInfo={branchByFacility[viewFacility.id]}
-          sb={sb}
-          T={T} lang={lang}
-          onBack={() => setViewId(null)}
-          onEdit={(section) => openEdit(viewFacility, section)}
-          onStrikeToggle={(next) => toggleStruckOff(viewFacility, next)}
-          onDelete={() => deleteFacility(viewFacility)}
-          onDeleted={() => { setViewId(null); load() }}
-          user={user}
-          toast={toast}
-          canEdit={canPerm(user, 'facilities.create')} />
-      )}
-      {!viewFacility && !detail && (<>
+      {!viewFacility && (<>
       {/* Page title + description + sync anchor */}
       <div style={{ position: 'relative', marginBottom: 22, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 14, flexWrap: 'wrap' }}>
         {/* Title + description in a single column, with the add button beside it —
@@ -4984,7 +4913,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
 
       {/* Search bar + filter toggle — matches Invoices page filter row */}
       <div style={{ display: 'flex', gap: 10, marginBottom: advOpen ? 10 : 18, alignItems: 'center', flexWrap: 'wrap' }}>
-        <div style={{ flex: '1 1 280px', position: 'relative' }}>
+        <div style={{ flex: '1 1 280px', position: 'relative', borderRadius: 12, boxShadow: '0 2px 7px rgba(0,0,0,.12), inset 0 1px 0 rgba(176,125,0,.1)' }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
             style={{ position: 'absolute', top: '50%', left: 14, transform: 'translateY(-50%)', color: 'var(--tx4)', pointerEvents: 'none' }}>
             <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
@@ -5530,7 +5459,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
             position: 'relative',
             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
             padding: '9px 12px',
-            background: 'var(--bd2)',
+            background: 'var(--inputBg)',
             borderRadius: 8,
             border: '1px solid var(--bd)',
             gap: 10,
@@ -5550,7 +5479,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
           <div style={{
             position: 'relative',
             padding: '10px 10px',
-            background: 'var(--bd2)',
+            background: 'var(--inputBg)',
             borderRadius: 8,
             border: '1px solid var(--bd)',
             textAlign: 'center',
@@ -5599,7 +5528,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
             // was a 2-column flex and the role sat in the right column, which
             // pushed it to vertical center when the metadata grew — making it
             // look like the role was on a separate line under the name.
-            <div style={{ padding: '9px 12px', background: 'var(--bd2)', borderRadius: 8, border: '1px solid var(--bd)' }}>
+            <div style={{ padding: '9px 12px', background: 'var(--inputBg)', borderRadius: 8, border: '1px solid var(--bd)' }}>
               <div style={{ minWidth: 0 }}>
                 <div
                   onClick={hasDetails ? () => setExpanded(v => !v) : undefined}
@@ -5703,9 +5632,20 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
             </div>
           )
         }
-        const activities = detail.activities?.activityList || detail._raw?.crActivities?.activityList || []
-        const managers = detail.managers || detail._raw?.mangmentInformation?.managerList || []
-        const partners = detail.partners || detail._raw?.parityList || []
+        // بيانات المزامنة: إمّا على detail (لو كان صف مزامنة) أو من sbcExtra المجلوب.
+        const _sbcRaw = (() => {
+          const r = sbcExtra?.raw_cr_data
+          if (!r) return null
+          return (typeof r === 'string') ? (() => { try { return JSON.parse(r) } catch { return null } })() : r
+        })()
+        const activities = detail.activities?.activityList || detail._raw?.crActivities?.activityList
+          || _sbcRaw?.crActivities?.activityList || []
+        const managers = (Array.isArray(detail.managers) && detail.managers.length ? detail.managers : null)
+          || detail._raw?.mangmentInformation?.managerList
+          || _sbcRaw?.mangmentInformation?.managerList || []
+        const partners = (Array.isArray(detail.partners) && detail.partners.length ? detail.partners : null)
+          || detail._raw?.parityList
+          || _sbcRaw?.parityList || []
         const mgmtStructureAr = detail.management_structure?.managementStructureDescriptionAr
           || detail._raw?.mangmentInformation?.managementStructure?.managementStructureDescriptionAr || null
         const companyCharAr = Array.isArray(detail.company_character)
@@ -5760,9 +5700,15 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
         const hasSbcData = !!(detail?.raw_cr_data || detail?._raw) || prov.some(p => p.source_id === 'sbc')
         return (
         <div style={{ fontFamily: F, paddingTop: 0, paddingBottom: 80, color: 'var(--tx2)' }}>
-          {/* Top bar — Back + sync trigger (mirrors FacilityDetailPage top bar) */}
+          {/* Top bar — Back + إجراءات المنشأة (شطب/حذف) */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, gap: 12, flexWrap: 'wrap' }}>
             <BackButton onBack={() => setDetail(null)} label={T('رجوع','Back')} />
+            <FacilityRegistryActions
+              facility={detail}
+              T={T} lang={lang} user={user}
+              onStrikeToggle={(next) => toggleStruckOff(detail, next)}
+              onDelete={() => deleteFacility(detail)}
+              onDeleted={() => { setViewId(null); load() }} />
           </div>
 
           {/* Hero header — facility name + main/partner tag only */}
@@ -5796,6 +5742,14 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 14, alignItems: 'flex-start' }}>
             {/* Main column */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+              {/* كروت السجل الأساسي — تظهر دائماً (حتى للمنشآت غير المزامَنة أو المسجّلة
+                  في المركز السعودي فقط دون التأمينات) فتبقى الصفحة متناسقة لكل الحالات. */}
+              <FacilityRegistryCards
+                part="top"
+                facility={detail}
+                sb={sb} T={T} lang={lang} user={user} toast={toast}
+                onEdit={(section) => openEdit(detail, section)} />
 
               {/* Identifiers card — CR/national numbers + all government authority registrations
                   consolidated into a single panel so the user sees every "official number" in one place.
@@ -5832,18 +5786,13 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                 const rowBase = {
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                   padding: '10px 12px', borderRadius: 8, gap: 10, minWidth: 0,
-                  background: 'var(--bd2)', border: '1px solid var(--bd)',
+                  background: 'var(--inputBg)', border: '1px solid var(--bd)',
                 }
                 const rowGold = { ...rowBase, background: 'rgba(176,125,0,.06)', border: '1px solid rgba(176,125,0,.22)' }
                 const lbl = { color: 'var(--tx3)', fontWeight: 600, fontSize: 11, whiteSpace: 'nowrap' }
 
                 return (
-                  <div style={cardChrome}>
-                    <div style={cardHeader}>
-                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
-                      <SbcSourceIcon />
-                      <span style={cardTitle}>{T('المنشأة','Facility')}</span>
-                    </div>
+                  <CollapsibleCard title={T('المنشأة','Facility')} color={C.gold} showSbcIcon defaultExpanded>
                     <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                       {detail.entity_full_name_ar && (
                         <div style={{ ...rowBase, gridColumn: '1 / -1' }}>
@@ -5881,19 +5830,13 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                         <CopyableNumber value={detail.cr_number} onToast={toast} copyLabel={T('نُسخ', 'Copied')} />
                       </div>
                     </div>
-                  </div>
+                  </CollapsibleCard>
                 )
               })()}
 
               {/* Partners */}
               {partners.length > 0 && (
-                <div style={cardChrome}>
-                  <div style={cardHeader}>
-                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.blue }} />
-                    <SbcSourceIcon />
-                    <span style={cardTitle}>{T('الملاك والشركاء', 'Partners')}</span>
-                    <span style={{ marginInlineStart: 'auto', fontSize: 11, color: C.blue, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: C.blue + '14' }}>{num(partners.length)}</span>
-                  </div>
+                <CollapsibleCard title={T('الملاك والشركاء', 'Partners')} color={C.gold} showSbcIcon badge={num(partners.length)}>
                   <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 6 }}>
                     {[...partners]
                       // الأشخاص أولاً ثم المنشآت (إن وُجدت منشأة كشريك). نفس منطق
@@ -5908,22 +5851,16 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                         return <PersonRow key={i} p={p} roleAr={types} />
                       })}
                   </div>
-                </div>
+                </CollapsibleCard>
               )}
 
               {/* Managers */}
               {managers.length > 0 && (
-                <div style={cardChrome}>
-                  <div style={cardHeader}>
-                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.purple }} />
-                    <SbcSourceIcon />
-                    <span style={cardTitle}>{T('المدراء', 'Managers')}</span>
-                    <span style={{ marginInlineStart: 'auto', fontSize: 11, color: C.purple, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: C.purple + '14' }}>{num(managers.length)}</span>
-                  </div>
+                <CollapsibleCard title={T('المدراء', 'Managers')} color={C.gold} showSbcIcon badge={num(managers.length)}>
                   <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 6 }}>
                     {managers.map((m, i) => <PersonRow key={i} p={m} roleAr={T('مدير', 'Manager')} isManager />)}
                   </div>
-                </div>
+                </CollapsibleCard>
               )}
 
               {/* Classification card — merged with the "Full CR Data" fields
@@ -5941,8 +5878,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                   return parts.length === 3 ? parts.reverse().join('-') : s
                 }
                 return (
-                  <div style={cardChrome}>
-                    <div style={cardHeader}><span style={{ width: 6, height: 6, borderRadius: '50%', background: C.blue }} /><SbcSourceIcon /><span style={cardTitle}>{T('السجل التجاري','Commercial Register')}</span></div>
+                  <CollapsibleCard title={T('السجل التجاري','Commercial Register')} color={C.gold} showSbcIcon defaultExpanded>
                     <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                       {/* Each Field is now conditional — null/empty/undefined
                           values are hidden entirely per user request. Boolean
@@ -5966,7 +5902,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                         const lblS = { color: 'var(--tx3)', fontWeight: 600, fontSize: 11 }
                         const valS = { fontWeight: 600, color: 'var(--tx)', direction: 'ltr', fontSize: 11.5, textAlign: 'end', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
                         return (
-                          <div style={{ gridColumn: '1 / -1', position: 'relative', padding: '9px 12px', background: 'var(--bd2)', borderRadius: 8, border: '1px solid var(--bd)', display: 'flex', alignItems: 'stretch', gap: 0 }}>
+                          <div style={{ gridColumn: '1 / -1', position: 'relative', padding: '9px 12px', background: 'var(--inputBg)', borderRadius: 8, border: '1px solid var(--bd)', display: 'flex', alignItems: 'stretch', gap: 0 }}>
                             {flags.map((f, i) => (
                               <React.Fragment key={f.k}>
                                 {i > 0 && <div style={{ width: 1, background: 'rgba(255,255,255,.05)' }} />}
@@ -5987,7 +5923,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                           into two columns by a vertical divider. Each column
                           shows the gregorian date prominently on top and the
                           matching hijri date dimmed underneath. */}
-                      <div style={{ gridColumn: '1 / -1', position: 'relative', padding: '9px 12px', background: 'var(--bd2)', borderRadius: 8, border: '1px solid var(--bd)', display: 'flex', alignItems: 'stretch', gap: 0 }}>
+                      <div style={{ gridColumn: '1 / -1', position: 'relative', padding: '9px 12px', background: 'var(--inputBg)', borderRadius: 8, border: '1px solid var(--bd)', display: 'flex', alignItems: 'stretch', gap: 0 }}>
                         <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, paddingInlineEnd: 14 }}>
                           <span style={{ color: 'var(--tx3)', fontWeight: 600, fontSize: 11 }}>{T('تاريخ الإصدار', 'Issue date')}</span>
                           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2, minWidth: 0 }}>
@@ -6005,7 +5941,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                         </div>
                       </div>
                     </div>
-                  </div>
+                  </CollapsibleCard>
                 )
               })()}
 
@@ -6018,7 +5954,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                 const rowBase = {
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                   padding: '10px 12px', borderRadius: 8, gap: 10, minWidth: 0,
-                  background: 'var(--bd2)', border: '1px solid var(--bd)',
+                  background: 'var(--inputBg)', border: '1px solid var(--bd)',
                 }
                 const lbl = { color: 'var(--tx3)', fontWeight: 600, fontSize: 11, whiteSpace: 'nowrap' }
                 const val = { fontSize: 12, fontWeight: 600, color: 'var(--tx)', textAlign: 'end', direction: 'ltr', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
@@ -6054,7 +5990,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                   )
                 }
                 return (
-                  <CollapsibleCard title={T('معلومات الاتصال', 'Contact Information')} color="#5dade2" showSbcIcon>
+                  <CollapsibleCard title={T('معلومات الاتصال', 'Contact Information')} color={C.gold} showSbcIcon>
                     <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                       <Row k={T('الهاتف', 'Phone')} v={contact.phoneNo} />
                       <Row k={T('الجوال', 'Mobile')} v={saMobile(contact.mobileNo)} />
@@ -6069,7 +6005,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
               {hasGosi && (
                 <div style={cardChrome}>
                   <div style={cardHeader}>
-                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.ok }} />
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
                     <SbcSourceIcon />
                     <span style={cardTitle}>{T('المؤسسة العامة للتأمينات الإجتماعية', 'General Organization for Social Insurance')}</span>
                     {gosiState === 'loading' && <span style={{ marginInlineStart: 'auto', fontSize: 10.5, color: 'var(--tx5)' }}>{T('جارٍ الجلب…','loading…')}</span>}
@@ -6157,7 +6093,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
               {hasHrsd && (
                 <div style={cardChrome}>
                   <div style={cardHeader}>
-                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.cyan }} />
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
                     <SbcSourceIcon />
                     <span style={cardTitle}>{T('وزارة الموارد البشرية والتنمية الإجتماعية', 'Ministry of Human Resources and Social Development')}</span>
                     {hrsdState === 'loading' && <span style={{ marginInlineStart: 'auto', fontSize: 10.5, color: 'var(--tx5)' }}>{T('جارٍ الجلب…','loading…')}</span>}
@@ -6180,7 +6116,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                       }
                       const fieldChrome = {
                         position: 'relative', padding: '9px 12px',
-                        background: 'var(--bd2)', borderRadius: 8,
+                        background: 'var(--inputBg)', borderRadius: 8,
                         border: '1px solid var(--bd)',
                       }
                       const lbl = { color: 'var(--tx3)', fontWeight: 600, fontSize: 11 }
@@ -6264,7 +6200,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                       const children = [
                         { k: T('سعوديين', 'Saudi'),       v: fmtNum(hrsd.saudiLaborers),  color: '#22c55e' },
                         { k: T('غير سعوديين', 'Non-Saudi'), v: fmtNum(hrsd.foreignLaborers), color: C.purple },
-                        { k: T('نسبة السعودة', 'Saudization'), v: hrsd.saudiPercentage != null ? `${Number(hrsd.saudiPercentage).toFixed(1)}%` : '—', color: Number(hrsd.saudiPercentage) > 0 ? '#22c55e' : 'rgba(255,255,255,.7)' },
+                        { k: T('نسبة السعودة', 'Saudization'), v: hrsd.saudiPercentage != null ? `${Number(hrsd.saudiPercentage).toFixed(1)}%` : '—', color: Number(hrsd.saudiPercentage) > 0 ? '#22c55e' : (Number(hrsd.saudiPercentage) === 0 ? C.red : 'var(--tx2)') },
                       ]
                       return (
                         <div style={groupBox}>
@@ -6367,7 +6303,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                 const rowBase = {
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                   padding: '10px 12px', borderRadius: 8, gap: 10, minWidth: 0,
-                  background: 'var(--bd2)', border: '1px solid var(--bd)',
+                  background: 'var(--inputBg)', border: '1px solid var(--bd)',
                 }
                 const rowGold = { ...rowBase, background: 'rgba(176,125,0,.06)', border: '1px solid rgba(176,125,0,.22)' }
                 const lbl = { color: 'var(--tx3)', fontWeight: 600, fontSize: 11, whiteSpace: 'nowrap' }
@@ -6407,47 +6343,9 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                     {/* Qiwa cards moved — they now render after the GOSI sub-cards
                         block below to keep the visual order SBC → GOSI → Qiwa. */}
 
-                    {/* WPS Compliance — collapsible (starts closed). */}
-                    {gosiComp && (
-                      <CollapsibleCard title={T('التزام حماية الأجور (WPS)', 'WPS Compliance')} color="#0ea5e9" showSbcIcon>
-                        <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                          <Row k={T('نسبة الالتزام بحماية الأجور', 'WPS Compliance %')} v={gosiComp.wpsCompliancePercentage != null ? `${gosiComp.wpsCompliancePercentage}%` : null} ltr />
-                          <Row k={T('حالة الالتزام', 'WPS Status')} v={gosiComp.wpsComplianceStatus} />
-                          <Row k={T('عمال تم صرف أجورهم', 'Paid Workers')} v={numS(gosiComp.numberOfPaidLaborers)} ltr />
-                          <Row k={T('عمال لم تُصرف أجورهم', 'Unpaid Workers')} v={numS(gosiComp.numberOfUnPaidLaborers)} ltr />
-                          <Row k={T('نسبة العقود الموثقة', 'Contract Auth %')} v={gosiComp.caCompliancePercentage != null ? `${gosiComp.caCompliancePercentage}%` : null} ltr />
-                          <Row k={T('عقود موثقة', 'Authenticated')} v={numS(gosiComp.numberOfAUthenicated)} ltr />
-                          <Row k={T('عقود غير موثقة', 'Unauthenticated')} v={numS(gosiComp.numberOfUNAUthenicated)} ltr />
-                          <Row k={T('فترة الالتزام', 'Period')} v={gosiComp.compliancePeriod} />
-                        </div>
-                      </CollapsibleCard>
-                    )}
-
-                    {/* MoC Violations — collapsible */}
-                    <CollapsibleCard title={T('مخالفات وزارة التجارة', 'MoC Violations')} color="#ef4444" showSbcIcon>
-                      <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
-                        <Row k={T('عدم إيداع القوائم', 'Financial Filing')} v={violations?.totalViolationCount != null ? num(violations.totalViolationCount) : null} ltr />
-                        <Row k={T('مخالفات اللجان', 'Committee')} v={caseViolations?.totalViolationCount != null ? num(caseViolations.totalViolationCount) : null} ltr />
-                        <Row k={T('الامتثال', 'Emtethal')} v={emtethal?.totalViolationCount != null ? num(emtethal.totalViolationCount) : (emtethal?.error ? T('غير متاح', 'N/A') : null)} ltr />
-                      </div>
-                    </CollapsibleCard>
-
-                    {/* Filed financial statements (Qawaem) — collapsible */}
-                    {qawaem?.qawaemList && qawaem.qawaemList.length > 0 && (
-                      <CollapsibleCard title={T('القوائم المالية المُودَعة', 'Filed Statements')} color="#a78bfa" badge={num(qawaem.total)} showSbcIcon>
-                        <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                          {/* Sort by year ascending — API returns newest-first
-                              but we display oldest → newest per user request. */}
-                          {[...qawaem.qawaemList].sort((a, b) => (a.year || 0) - (b.year || 0)).map(y => (
-                            <Row key={y.year} k={`${T('سنة', 'Year')} ${y.year}`} v={y.count} ltr />
-                          ))}
-                        </div>
-                      </CollapsibleCard>
-                    )}
-
                     {/* رخص البلدية (Momrah) */}
                     {momrahList.length > 0 && (
-                      <CollapsibleCard title={T('رخص البلدية', 'Municipal Licenses')} color="#f97316" badge={num(momrahList.length)} showSbcIcon>
+                      <CollapsibleCard title={T('رخص البلدية', 'Municipal Licenses')} color={C.gold} badge={num(momrahList.length)} showSbcIcon>
                         <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 8 }}>
                           {momrahList.map((lic, i) => (
                             <div key={lic.licenseId || i} style={{ ...rowBase, padding: 12, display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'stretch' }}>
@@ -6500,87 +6398,13 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                       </CollapsibleCard>
                     )}
 
-                    {/* ملفات السجل (PDF) — with inline thumbnail previews.
-                        Each available PDF renders inside a sandboxed <iframe>
-                        zoomed-to-fit; clicking the preview (or its label) opens
-                        the file full-screen in a new tab. Unavailable variants
-                        get a dim placeholder so the layout stays balanced. */}
-                    <CollapsibleCard title={T('ملفات السجل (PDF)', 'CR Documents (PDF)')} color="#9b59b6" showSbcIcon>
-                      {/* Min card width 280px — Chrome's PDF viewer needs
-                          enough room to apply FitH cleanly; below ~220px it
-                          falls back to native zoom and shows scrollbars
-                          inside an otherwise-empty thumbnail. */}
-                      <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
-                        {[
-                          { lang: 'ar', label: T('السجل التجاري — عربي', 'CR — Arabic'), available: !!printAr?.downloadUrl },
-                          { lang: 'en', label: T('السجل التجاري — إنجليزي', 'CR — English'), available: !!printEn?.downloadUrl },
-                          { lang: 'contract', label: T('عقد التأسيس', 'Founding Contract'), available: !!printContract?.downloadUrl && detail.entity_type_ar === 'شركة' },
-                        ].map(({ lang: lng, label, available }) => {
-                          const href = `${STORAGE_BASE}-${lng}.pdf`
-                          if (!available) {
-                            return (
-                              <div key={lng} style={{ borderRadius: 10, background: 'var(--bd2)', border: '1px solid var(--bd)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                                <div style={{ aspectRatio: '3 / 2', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--tx5)', background: 'rgba(0,0,0,.18)' }}>
-                                  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
-                                  </svg>
-                                </div>
-                                <div style={{ padding: '8px 10px', fontSize: 11, fontWeight: 600, color: 'var(--tx5)', textAlign: 'center', borderTop: '1px solid rgba(255,255,255,.04)' }}>
-                                  {label}
-                                </div>
-                              </div>
-                            )
-                          }
-                          return (
-                            <div key={lng}
-                              style={{ borderRadius: 10, background: 'rgba(155,89,182,.08)', border: '1px solid rgba(155,89,182,.32)', overflow: 'hidden', display: 'flex', flexDirection: 'column', transition: '.15s' }}
-                              onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(155,89,182,.6)' }}
-                              onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(155,89,182,.32)' }}>
-                              {/* PDF preview thumbnail. Wrapper aspect is set
-                                  slightly wider (3:2) than the SBC certificate's
-                                  natural A4 landscape (≈1.41:1) — combined with
-                                  iframe height 200% and overflow:hidden, this
-                                  guarantees the page renders at full width from
-                                  the top of the iframe and the bottom gets
-                                  clipped (no empty strip) at every viewport. */}
-                              <div style={{ position: 'relative', aspectRatio: '3 / 2', background: '#fff', overflow: 'hidden' }}>
-                                <iframe
-                                  src={`${href}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
-                                  title={label}
-                                  style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '200%', border: 0, display: 'block' }}
-                                  loading="lazy"
-                                  scrolling="no"
-                                />
-                              </div>
-                              <a href={href} target="_blank" rel="noopener noreferrer"
-                                title={T('فتح في تاب جديد', 'Open in new tab')}
-                                style={{ padding: '8px 10px', fontSize: 11, fontWeight: 600, color: '#bb8fce', textAlign: 'center', borderTop: '1px solid rgba(155,89,182,.22)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, textDecoration: 'none', cursor: 'pointer', transition: 'background .15s' }}
-                                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(155,89,182,.18)' }}
-                                onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
-                                </svg>
-                                {label}
-                              </a>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </CollapsibleCard>
-
                     {/* Thin white separator between SBC cards and the GOSI
                         establishment card below — visual cue that the source
                         changes. */}
                     {gosiEstablishment && gosiEstablishment.raw_main && (
                       <>
                         <div style={{ height: 1, background: 'rgba(255,255,255,.08)', margin: '8px 0' }} />
-                        <GosiEstablishmentCard data={gosiEstablishment} T={T} lang={lang} />
-                        <GosiAccountCard data={gosiEstablishment} bills={gosiBills} contributors={gosiContributors} T={T} lang={lang} />
-                        <GosiContributorsCard contributors={gosiContributors.filter(gosiIsSaudi)} title={T('المشتركون السعوديون', 'Saudi contributors')} est={gosiEstablishment} T={T} lang={lang} />
-                        <GosiContributorsCard contributors={gosiContributors.filter(c => !gosiIsSaudi(c))} title={T('المشتركون غير السعوديين', 'Non-Saudi contributors')} est={gosiEstablishment} T={T} lang={lang} />
-                        <GosiOwnersCard owners={gosiOwners} T={T} lang={lang} />
                         <GosiAdminsCard admins={gosiAdmins} T={T} lang={lang} />
-                        <GosiCertificatesCard certificates={gosiCertificates} T={T} />
                       </>
                     )}
 
@@ -6600,7 +6424,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                               the headline numbers most operators look at first. */}
                           <CollapsibleCard
                             title={T('النطاقات والسعودة', 'Nitaqat & Saudization')}
-                            color="#3b82f6" showQiwaIcon defaultExpanded
+                            color={C.gold} showQiwaIcon defaultExpanded
                             badge={q.nitaqat_color_ar || q.color_name}>
                             <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                               {qRow({ k: T('النطاق', 'Nitaq band'), v: q.nitaqat_color_ar || q.color_name })}
@@ -6622,7 +6446,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                           {/* مؤشرات الالتزام + رخص العمل + المخالفات + القضايا */}
                           <CollapsibleCard
                             title={T('الالتزام ورخص العمل', 'Compliance & Work Permits')}
-                            color="#3b82f6" showQiwaIcon>
+                            color={C.gold} showQiwaIcon>
                             <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                               {qRow({ k: T('الالتزام العام', 'Overall compliance'), v: pct(q.score_compliance || q.indicator_compliance_score), ltr: true })}
                               {qRow({ k: T('درجة النطاقات', 'Nitaqat score'), v: pct(q.score_nitaqat), ltr: true })}
@@ -6652,7 +6476,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                           {(q.wps_cert_number || q.wps_compliance_rate != null || q.contract_auth_percentage != null) && (
                             <CollapsibleCard
                               title={T('حماية الأجور وتوثيق العقود', 'WPS & Contract Authentication')}
-                              color="#3b82f6" showQiwaIcon>
+                              color={C.gold} showQiwaIcon>
                               <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                                 {qRow({ k: T('رقم شهادة WPS', 'WPS certificate no.'), v: q.wps_cert_number, mono: true })}
                                 {qRow({ k: T('حالة الشهادة', 'Certificate status'), v: q.wps_cert_status })}
@@ -6671,7 +6495,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                           {(q.visa_approved != null || q.visa_work_quota != null || q.visa_balances_raw || q.absher_balance != null) && (
                             <CollapsibleCard
                               title={T('التأشيرات', 'Visas')}
-                              color="#3b82f6" showQiwaIcon>
+                              color={C.gold} showQiwaIcon>
                               <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                                 {qRow({ k: T('تأشيرات عمل — المسموح', 'Work — quota'), v: fmtNum(q.visa_work_quota), ltr: true })}
                                 {qRow({ k: T('تأشيرات عمل — متبقية', 'Work — remaining'), v: fmtNum(q.visa_work_unused), ltr: true })}
@@ -6706,7 +6530,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                           {q.locations_total != null && (
                             <CollapsibleCard
                               title={T('المواقع', 'Locations')}
-                              color="#3b82f6" showQiwaIcon>
+                              color={C.gold} showQiwaIcon>
                               <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                                 {qRow({ k: T('المواقع — الإجمالي', 'Locations total'), v: fmtNum(q.locations_total), ltr: true })}
                                 {qRow({ k: T('نشطة', 'Active'), v: fmtNum(q.locations_active), ltr: true })}
@@ -6726,7 +6550,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                           {(q.wp_validate_raw || q.wp_requests_total != null || q.wp_laborers_total != null) && (
                             <CollapsibleCard
                               title={T('رخص العمل (تفاصيل)', 'Work Permits (detailed)')}
-                              color="#3b82f6" showQiwaIcon>
+                              color={C.gold} showQiwaIcon>
                               <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                                 {qRow({ k: T('المنشأة مؤهلة', 'Establishment valid'), v: q.wp_is_valid == null ? null : (q.wp_is_valid ? T('نعم', 'Yes') : T('لا', 'No')) })}
                                 {qRow({ k: T('رصيد استثنائي', 'Exceptional balance'), v: q.wp_has_exceptional_balance == null ? null : (q.wp_has_exceptional_balance ? T('نعم', 'Yes') : T('لا', 'No')) })}
@@ -6747,7 +6571,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                           {(q.occ_total_laborers != null || q.occ_corrected_pct != null) && (
                             <CollapsibleCard
                               title={T('إدارة المهن', 'Occupation Management')}
-                              color="#3b82f6" showQiwaIcon
+                              color={C.gold} showQiwaIcon
                               badge={q.occ_matched_pct != null ? `${q.occ_matched_pct}%` : null}>
                               <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                                 {qRow({ k: T('إجمالي العمال', 'Total laborers'), v: fmtNum(q.occ_total_laborers), ltr: true })}
@@ -6779,7 +6603,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                           {(q.transfer_available_balance != null || q.transfer_eligibility_raw) && (
                             <CollapsibleCard
                               title={T('نقل الخدمات', 'Employee Transfer')}
-                              color="#3b82f6" showQiwaIcon
+                              color={C.gold} showQiwaIcon
                               badge={q.transfer_available_balance != null ? `${q.transfer_available_balance}` : null}>
                               <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                                 {qRow({ k: T('نوع المنشأة', 'Establishment type'), v: q.transfer_establishment_type })}
@@ -6824,7 +6648,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                           {(q.sc_certificate_number || q.dc_status) && (
                             <CollapsibleCard
                               title={T('الشهادات', 'Certificates')}
-                              color="#3b82f6" showQiwaIcon
+                              color={C.gold} showQiwaIcon
                               badge={q.sc_status_ar || null}>
                               <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 12 }}>
                                 {q.sc_certificate_number && (
@@ -6862,7 +6686,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                           {(q.ca_all_total != null || q.contracts_counts_raw) && (
                             <CollapsibleCard
                               title={T('توثيق العقود', 'Contract Authentication')}
-                              color="#3b82f6" showQiwaIcon
+                              color={C.gold} showQiwaIcon
                               badge={q.ca_all_percentage != null ? `${q.ca_all_percentage}%` : null}>
                               <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                                 {qRow({ k: T('إجمالي', 'Total'), v: fmtNum(q.ca_all_total), ltr: true })}
@@ -6894,7 +6718,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                           {(q.emp_total != null || q.emp_wp_valid != null || q.emp_contract_auth_total_pct != null) && (
                             <CollapsibleCard
                               title={T('إحصائيات الموظفين', 'Employee Statistics')}
-                              color="#3b82f6" showQiwaIcon>
+                              color={C.gold} showQiwaIcon>
                               <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                                 {qRow({ k: T('إجمالي الموظفين', 'Total'), v: fmtNum(q.emp_total), ltr: true })}
                                 {qRow({ k: T('سعوديون', 'Saudis'), v: fmtNum(q.emp_saudis), ltr: true })}
@@ -6929,7 +6753,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                           {(q.addr_city_ar || q.addr_district_ar || q.addr_street_ar) && (
                             <CollapsibleCard
                               title={T('العنوان المفصّل', 'Detailed Address')}
-                              color="#3b82f6" showQiwaIcon>
+                              color={C.gold} showQiwaIcon>
                               <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                                 {qRow({ k: T('المدينة', 'City'), v: q.addr_city_ar })}
                                 {qRow({ k: T('الحي', 'District'), v: q.addr_district_ar })}
@@ -6946,7 +6770,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                           {/* قوى — هوية المنشأة (Identity) — كل حقول التعريف من context/company */}
                           <CollapsibleCard
                             title={T('هوية المنشأة', 'Establishment Identity')}
-                            color="#3b82f6" showQiwaIcon>
+                            color={C.gold} showQiwaIcon>
                             <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                               {qRow({ k: T('معرّف المنشأة (Qiwa ID)', 'Qiwa company ID'), v: fmtNum(q.company_id), mono: true })}
                               {qRow({ k: T('Establishment ID', 'Establishment ID'), v: q.establishment_id, mono: true })}
@@ -6981,7 +6805,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                           {(q.city_name_ar || q.district || q.street || q.building_no) && (
                             <CollapsibleCard
                               title={T('العنوان (من السياق)', 'Address (context)')}
-                              color="#3b82f6" showQiwaIcon>
+                              color={C.gold} showQiwaIcon>
                               <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                                 {qRow({ k: T('كود المدينة', 'City code'), v: q.city_code, mono: true })}
                                 {qRow({ k: T('المدينة', 'City'), v: q.city_name_ar || q.city_name_en })}
@@ -7000,7 +6824,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                           {(q.entity_employees_total != null || q.est_employees_total != null) && (
                             <CollapsibleCard
                               title={T('ملخص الموظفين (كيان vs منشأة)', 'Employees Summary (entity vs establishment)')}
-                              color="#3b82f6" showQiwaIcon>
+                              color={C.gold} showQiwaIcon>
                               <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                                 {qRow({ k: T('الكيان — الإجمالي', 'Entity — total'), v: fmtNum(q.entity_employees_total), ltr: true })}
                                 {qRow({ k: T('الكيان — سعوديون', 'Entity — Saudis'), v: fmtNum(q.entity_employees_saudis), ltr: true })}
@@ -7016,7 +6840,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                           {(q.group_total_entities != null || q.group_total_establishments != null) && (
                             <CollapsibleCard
                               title={T('معلومات المجموعة', 'Group Information')}
-                              color="#3b82f6" showQiwaIcon>
+                              color={C.gold} showQiwaIcon>
                               <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                                 {qRow({ k: T('إجمالي الكيانات في المجموعة', 'Group entities'), v: fmtNum(q.group_total_entities), ltr: true })}
                                 {qRow({ k: T('إجمالي المنشآت في المجموعة', 'Group establishments'), v: fmtNum(q.group_total_establishments), ltr: true })}
@@ -7032,7 +6856,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                             || q.absher_amount_per_visa != null) && (
                             <CollapsibleCard
                               title={T('الكوتا والمؤشرات ومرحلة المنشأة', 'Quota / Indicators / Phase')}
-                              color="#3b82f6" showQiwaIcon>
+                              color={C.gold} showQiwaIcon>
                               <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                                 {qRow({ k: T('الكوتا المسموحة', 'Allowed quota'), v: fmtNum(q.indicator_quota_allowed), ltr: true })}
                                 {qRow({ k: T('سبب رفض الكوتا', 'Quota error reason'), v: q.indicator_quota_error_ar })}
@@ -7056,7 +6880,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                             || q.employee_cases_other != null) && (
                             <CollapsibleCard
                               title={T('تفصيل قضايا الموظفين', 'Employee Cases (breakdown)')}
-                              color="#3b82f6" showQiwaIcon
+                              color={C.gold} showQiwaIcon
                               badge={q.employee_cases_total != null ? `${q.employee_cases_total}` : null}>
                               <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                                 {qRow({ k: T('بانتظار الموافقة', 'Waiting approval'), v: fmtNum(q.employee_cases_waiting_approval), ltr: true })}
@@ -7077,7 +6901,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                           {(q.subscription_expiry_date || q.user_role || q.is_vip != null || q.status) && (
                             <CollapsibleCard
                               title={T('الاشتراك وحالة حساب Qiwa', 'Subscription & Account Status')}
-                              color="#3b82f6" showQiwaIcon
+                              color={C.gold} showQiwaIcon
                               badge={q.soon_expired ? T('قريب الانتهاء', 'Expiring') : null}>
                               <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                                 {qRow({ k: T('تاريخ انتهاء الاشتراك', 'Subscription expiry'), v: q.subscription_expiry_date, ltr: true })}
@@ -7199,7 +7023,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                                 {muqeemSubscriptions.map(s => (
                                   <div key={s.subscription_id} style={{
                                     padding: '8px 12px', borderRadius: 8,
-                                    background: 'var(--bd2)',
+                                    background: 'var(--inputBg)',
                                     border: '1px solid var(--bd)',
                                     display: 'grid', gridTemplateColumns: '1fr auto', gap: 8, alignItems: 'center',
                                   }}>
@@ -7282,10 +7106,44 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                 )
               })()}
 
+              {/* كروت العمالة والفواتير وسجل التعديلات — آخر العمود بعد كروت المزامنة. */}
+              <FacilityRegistryCards
+                part="bottom"
+                facility={detail}
+                sb={sb} T={T} lang={lang} user={user} toast={toast}
+                onEdit={(section) => openEdit(detail, section)} />
+
             </div>
 
             {/* Sidebar */}
             <div style={{ position: 'sticky', top: 14, display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {/* حالة المنشأة — حالة السجل الأساسي (تظهر دائماً)، أعلى الشريط الجانبي
+                  فوق «مصادر البيانات» و«حالة السجل التجاري». */}
+              {cardVisible(user, 'facilities', 'facility_status') && (() => {
+                const _sc = detail._basicCode
+                const _statusColor = _sc ? BASIC_STATUS_COLOR[_sc] : C.gray
+                const _statusLabel = _sc ? T(BASIC_STATUS_AR[_sc], BASIC_STATUS_EN[_sc]) : T('غير محدد', 'Undetermined')
+                const _cd = crNextCountdown(_sc, detail.confirmation_date)
+                const _confDate = detail.confirmation_date ? String(detail.confirmation_date).slice(0, 10) : null
+                return (
+                  <CollapsibleCard title={T('حالة المنشأة', 'Facility Status')} color={_statusColor} defaultExpanded>
+                    <div style={{ padding: '20px 22px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+                      <div style={{ fontSize: 26, fontWeight: 600, color: _statusColor, lineHeight: 1.1 }}>{_statusLabel}</div>
+                      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'stretch', gap: 22, marginTop: 16 }}>
+                        <div>
+                          <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--tx4)' }}>{T('التأكيد السنوي', 'Confirmation')}</div>
+                          <div style={{ fontSize: 14, fontWeight: 600, marginTop: 4, color: _confDate ? _statusColor : 'var(--tx4)', direction: 'ltr', fontVariantNumeric: 'tabular-nums', fontFamily: 'ui-monospace, monospace' }}>{_confDate || '—'}</div>
+                        </div>
+                        <div style={{ width: 1, background: 'var(--bd)' }} />
+                        <div>
+                          <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--tx4)' }}>{_cd ? T('للحالة التالية', 'To next status') : T('متبقٍ', 'Remaining')}</div>
+                          <div style={{ fontSize: 14, fontWeight: 600, marginTop: 4, color: _cd ? _cd.nextColor : 'var(--tx4)', direction: 'rtl' }}>{_cd ? `${_cd.daysToNext} ${T('يوم', 'days')}` : '—'}</div>
+                        </div>
+                      </div>
+                    </div>
+                  </CollapsibleCard>
+                )
+              })()}
               {/* Status summary — gated on hasSbcData since the CR issue/confirm
                   dates that drive the status come from the SBC payload. */}
               {hasSbcData && (
@@ -7351,6 +7209,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                     // — facilities can be created from a GOSI sync alone, in
                     // which case the SBC raw payload (raw_cr_data) is empty.
                     const hasSbc = !!(detail?.raw_cr_data || detail?._raw)
+                      || !!detail?.saudi_center
                       || prov.some(p => p.source_id === 'sbc')
                     const hasGosi = !!(gosiEstablishment || gosiOwners?.length
                       || gosiContributors?.length || gosiBills?.length || gosiAdmins?.length
@@ -7558,7 +7417,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                   <SectionCard title={T('القوائم المالية المُودَعة', 'Filed Financial Statements')} color="#a78bfa" count={qawaem.total}>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10 }}>
                       {qawaem.qawaemList.map(y => (
-                        <div key={y.year} style={{ padding: '10px 12px', background: 'var(--bd2)', borderRadius: 8, textAlign: 'center' }}>
+                        <div key={y.year} style={{ padding: '10px 12px', background: 'var(--inputBg)', borderRadius: 8, textAlign: 'center' }}>
                           <div style={{ fontSize: 11, color: 'var(--tx5)', marginBottom: 4 }}>{T('سنة', 'Year')} {y.year}</div>
                           <div style={{ fontSize: 18, fontWeight: 600, color: y.count > 0 ? '#22c55e' : '#ef4444', direction: 'ltr' }}>{y.count}</div>
                         </div>
@@ -7569,10 +7428,10 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
 
                 {/* ── Momrah municipal licenses ── */}
                 {momrahList.length > 0 && (
-                  <SectionCard title={T('رخص البلدية', 'Municipal Licenses')} color="#f97316" count={momrahList.length}>
+                  <SectionCard title={T('رخص البلدية', 'Municipal Licenses')} color={C.gold} count={momrahList.length}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                       {momrahList.map((lic, i) => (
-                        <div key={lic.licenseId || i} style={{ padding: 12, background: 'var(--bd2)', borderRadius: 10, border: '1px solid var(--bd)' }}>
+                        <div key={lic.licenseId || i} style={{ padding: 12, background: 'var(--inputBg)', borderRadius: 10, border: '1px solid var(--bd)' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8, gap: 8 }}>
                             <div style={{ minWidth: 0, flex: 1 }}>
                               <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx2)' }}>{lic.shopName}</div>
@@ -7600,7 +7459,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                 )}
 
                 {/* ── Documents (PDF downloads from Storage) ── */}
-                <SectionCard title={T('ملفات السجل (PDF)', 'CR Documents (PDF)')} color="#9b59b6">
+                <SectionCard title={T('ملفات السجل (PDF)', 'CR Documents (PDF)')} color={C.gold}>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
                     {[
                       { lang: 'ar', label: T('السجل التجاري — عربي', 'CR — Arabic'), available: !!printAr?.downloadUrl },
@@ -7617,7 +7476,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                         {label}
                       </a>
                     ) : (
-                      <div key={lang} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: 'var(--bd2)', border: '1px solid var(--bd)', borderRadius: 10, color: 'var(--tx5)', fontSize: 12, fontWeight: 600 }}>
+                      <div key={lang} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, color: 'var(--tx5)', fontSize: 12, fontWeight: 600 }}>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
                         </svg>
@@ -7638,7 +7497,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                             const pi = m.personInfo || {}
                             const name = [pi.firstNameAr, pi.fatherNameAr, pi.grandFatherNameAr, pi.familyNameAr].filter(Boolean).join(' ')
                             return (
-                              <div key={i} style={{ padding: 10, background: 'var(--bd2)', borderRadius: 8, fontSize: 11.5 }}>
+                              <div key={i} style={{ padding: 10, background: 'var(--inputBg)', borderRadius: 8, fontSize: 11.5 }}>
                                 <div style={{ fontWeight: 600, color: 'var(--tx2)' }}>{name || '—'}</div>
                                 <div style={{ color: 'var(--tx5)', marginTop: 3 }}>
                                   {m.managerType?.managerTypeDescriptionAr} · {pi.nationality?.nationalityDescriptionAr}
@@ -7659,7 +7518,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                               : (p.saudiCompany?.nameAr || p.establishment?.nameAr || p.gccCompany?.nameAr || p.foreignCompany?.nameAr || '—')
                             const share = p.partnerShare
                             return (
-                              <div key={i} style={{ padding: 10, background: 'var(--bd2)', borderRadius: 8, fontSize: 11.5 }}>
+                              <div key={i} style={{ padding: 10, background: 'var(--inputBg)', borderRadius: 8, fontSize: 11.5 }}>
                                 <div style={{ fontWeight: 600, color: 'var(--tx2)' }}>{name}</div>
                                 <div style={{ color: 'var(--tx5)', marginTop: 3 }}>{p.parityType?.parityTypeDescriptionAr}</div>
                                 {share?.totalContributionCount != null && (
@@ -7678,7 +7537,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
 
                 {/* ── Contact info ── */}
                 {(contact.phoneNo || contact.mobileNo || contact.email || contact.websiteURL) && (
-                  <SectionCard title={T('معلومات الاتصال', 'Contact Information')} color="#5dade2">
+                  <SectionCard title={T('معلومات الاتصال', 'Contact Information')} color={C.gold}>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0 24px' }}>
                       <FieldRow k={T('الهاتف', 'Phone')} v={contact.phoneNo} />
                       <FieldRow k={T('الجوال', 'Mobile')} v={saMobile(contact.mobileNo)} />
