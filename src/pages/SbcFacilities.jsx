@@ -108,9 +108,9 @@ function NumberRow({ color, label, value, toast, T }) {
       {hasVal ? (
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, direction: 'ltr', minWidth: 0 }}>
           <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 11, fontWeight: 600, color, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{value}</span>
-          <button type="button" onClick={onCopy} title={T ? T('نُسخ', 'Copy') : 'Copy'} style={{ width: 16, height: 16, padding: 0, border: 'none', background: 'transparent', color: copied ? C.ok : 'rgba(255,255,255,.3)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 3, transition: 'color .15s', flexShrink: 0 }}
+          <button type="button" onClick={onCopy} title={T ? T('نُسخ', 'Copy') : 'Copy'} style={{ width: 16, height: 16, padding: 0, border: 'none', background: 'transparent', color: copied ? C.ok : 'var(--tx5)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 3, transition: 'color .15s', flexShrink: 0 }}
             onMouseEnter={e => { if (!copied) e.currentTarget.style.color = C.gold }}
-            onMouseLeave={e => { if (!copied) e.currentTarget.style.color = 'rgba(255,255,255,.3)' }}>
+            onMouseLeave={e => { if (!copied) e.currentTarget.style.color = 'var(--tx5)' }}>
             {copied ? (
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
             ) : (
@@ -170,7 +170,7 @@ function PersonCompact({ p, dotColor }) {
   // managers); individuals keep the caller's hue (blue for owners, purple for
   // managers). Visual distinction makes it easy to scan who's a person vs an
   // owning/managing entity.
-  const color = isCompany ? C.gold : (dotColor || 'rgba(255,255,255,.85)')
+  const color = isCompany ? C.gold : (dotColor || 'var(--tx)')
   const words = (name || '').split(/\s+/).filter(Boolean)
   const isLong = words.length > 3
   const shortName = isLong ? words.slice(0, 3).join(' ') + '…' : name
@@ -181,7 +181,7 @@ function PersonCompact({ p, dotColor }) {
         {isLong && <span className="pc-full">{name}</span>}
       </div>
       {id && (
-        <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 9.5, fontWeight: 600, color: 'rgba(255,255,255,.55)', direction: 'ltr', fontVariantNumeric: 'tabular-nums', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{id}</span>
+        <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 9.5, fontWeight: 600, color: 'var(--tx3)', direction: 'ltr', fontVariantNumeric: 'tabular-nums', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{id}</span>
       )}
     </div>
   )
@@ -191,7 +191,7 @@ function PersonCompact({ p, dotColor }) {
 // start side, date value on the end side. Missing dates show a faint "—".
 function DateRow({ label, value, T, confirm }) {
   const hasVal = value && value !== '—'
-  let valColor = hasVal ? 'rgba(255,255,255,.85)' : 'rgba(255,255,255,.3)'
+  let valColor = hasVal ? 'var(--tx)' : 'var(--tx5)'
   if (confirm && hasVal) {
     const t = new Date(value).getTime()
     if (!Number.isNaN(t)) {
@@ -203,7 +203,7 @@ function DateRow({ label, value, T, confirm }) {
   }
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, padding: '2px 0' }} title={hasVal ? `${label}: ${value}` : label}>
-      <span style={{ fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,.5)', whiteSpace: 'nowrap' }}>{label}</span>
+      <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--tx3)', whiteSpace: 'nowrap' }}>{label}</span>
       <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 11, fontWeight: 600, color: valColor, fontVariantNumeric: 'tabular-nums', direction: 'ltr', whiteSpace: 'nowrap' }}>{hasVal ? value : '—'}</span>
     </div>
   )
@@ -1844,7 +1844,7 @@ function _GosiContribCell({ list, color, idField }) {
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, fontSize: 10 }}>
       <span style={{ fontSize: 13, fontWeight: 600, color, lineHeight: 1, marginBottom: 2 }}>{list.length}</span>
       {shown.map((id, i) => (
-        <span key={i} className="num" style={{ fontSize: 10, color: 'rgba(255,255,255,.65)', lineHeight: 1.3 }}>{id}</span>
+        <span key={i} className="num" style={{ fontSize: 10, color: 'var(--tx3)', lineHeight: 1.3 }}>{id}</span>
       ))}
       {extra > 0 && (
         <span style={{ fontSize: 9.5, color: 'var(--tx5)', fontWeight: 600 }}>+{extra}</span>
@@ -1867,9 +1867,9 @@ function _GosiWagesCell({ contributors }) {
   const extra = wages.length - shown.length
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, fontSize: 10 }}>
-      <span style={{ fontSize: 13, fontWeight: 600, color: '#ffffff', lineHeight: 1, marginBottom: 2 }}>{wages.length}</span>
+      <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx)', lineHeight: 1, marginBottom: 2 }}>{wages.length}</span>
       {shown.map((w, i) => (
-        <span key={i} className="num" style={{ fontSize: 10.5, fontWeight: 600, color: 'rgba(255,255,255,.7)', lineHeight: 1.3 }}>{w.toLocaleString('en-US')}</span>
+        <span key={i} className="num" style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--tx3)', lineHeight: 1.3 }}>{w.toLocaleString('en-US')}</span>
       ))}
       {extra > 0 && (
         <span style={{ fontSize: 9.5, color: 'var(--tx5)', fontWeight: 600 }}>+{extra}</span>
@@ -4385,13 +4385,13 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
         return (<>
 
         <style>{`
-          .sbcv-tbl{width:100%;table-layout:fixed;border-collapse:separate;border-spacing:0;font-family:${F};background:#161616;border-radius:10px;border:1px solid var(--bd)}
-          .sbcv-tbl thead th{position:sticky;top:0;background:#161616;color:rgba(255,255,255,.92);font-size:12px;font-weight:600;text-align:center;padding:14px 4px 11px;box-shadow:inset 0 -2px 0 rgba(176,125,0,.55);white-space:nowrap;z-index:2;letter-spacing:.2px}
+          .sbcv-tbl{width:100%;table-layout:fixed;border-collapse:separate;border-spacing:0;font-family:${F};background:var(--card-grad2);border-radius:10px;border:1px solid var(--bd)}
+          .sbcv-tbl thead th{position:sticky;top:0;background:var(--hd);color:var(--hdtx);font-size:14px;font-weight:600;text-align:center;padding:14px 4px 11px;box-shadow:inset 0 -2px 0 rgba(176,125,0,.55);white-space:nowrap;z-index:2;letter-spacing:.2px}
           .sbcv-tbl thead .hd-icon{color:${C.gold};display:inline-flex;align-items:center;justify-content:center;margin-inline-end:6px;vertical-align:middle}
           .sbcv-tbl thead .hd-icon svg{width:14px;height:14px;display:block}
-          .sbcv-tbl tbody td{padding:10px 4px;font-size:11.5px;color:#fff;text-align:center;vertical-align:middle;overflow:hidden;border-bottom:1px solid var(--bd2)}
+          .sbcv-tbl tbody td{padding:10px 4px;font-size:11.5px;color:var(--tx);text-align:center;vertical-align:middle;overflow:hidden;border-bottom:1px solid var(--bd2)}
           .sbcv-tbl tbody tr{cursor:pointer;transition:background .12s}
-          .sbcv-tbl tbody tr:nth-child(even) td{background:rgba(255,255,255,.02)}
+          .sbcv-tbl tbody tr:nth-child(even) td{background:var(--bd2)}
           .sbcv-tbl tbody tr:hover td{background:rgba(176,125,0,.06)}
           .sbcv-tbl tbody tr:last-child td:first-child{border-bottom-right-radius:9px}
           .sbcv-tbl tbody tr:last-child td:last-child{border-bottom-left-radius:9px}
@@ -4467,7 +4467,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                           <span className="marquee-inner">{r.entity_full_name_ar || '—'}</span>
                         </div>
                         {r.entity_full_name_en && (
-                          <span style={{ fontSize: 9.5, fontWeight: 500, color: 'rgba(255,255,255,.4)', direction: 'ltr', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{r.entity_full_name_en}</span>
+                          <span style={{ fontSize: 9.5, fontWeight: 500, color: 'var(--tx4)', direction: 'ltr', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{r.entity_full_name_en}</span>
                         )}
                       </div>
                     </td>
@@ -4481,8 +4481,8 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                         if (!entity && !form && !roleText) return <span className="muted">—</span>
                         return (
                           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, minWidth: 0 }}>
-                            {entity && <span style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,.85)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{entity}</span>}
-                            {formDiffers && <span style={{ fontSize: 10, fontWeight: 500, color: 'rgba(255,255,255,.55)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }} title={form}>{form}</span>}
+                            {entity && <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{entity}</span>}
+                            {formDiffers && <span style={{ fontSize: 10, fontWeight: 500, color: 'var(--tx3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }} title={form}>{form}</span>}
                             {roleText && (
                               <span style={{ fontSize: 9.5, fontWeight: 600, color: roleColor, letterSpacing: '.3px', whiteSpace: 'nowrap', marginTop: 1 }}>{roleText}</span>
                             )}
@@ -4613,7 +4613,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                           <span className="marquee-inner">{r.entity_full_name_ar || '—'}</span>
                         </div>
                         {r.entity_full_name_en && (
-                          <span style={{ fontSize: 9.5, fontWeight: 500, color: 'rgba(255,255,255,.4)', direction: 'ltr', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{r.entity_full_name_en}</span>
+                          <span style={{ fontSize: 9.5, fontWeight: 500, color: 'var(--tx4)', direction: 'ltr', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{r.entity_full_name_en}</span>
                         )}
                       </div>
                     </td>
@@ -4662,7 +4662,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                                     <span className="pc-short">{shortName}</span>
                                     {isLong && <span className="pc-full">{nm}</span>}
                                   </div>
-                                  {id && <span className="num" style={{ fontSize: 9.5, color: 'rgba(255,255,255,.45)', direction: 'ltr' }}>{id}</span>}
+                                  {id && <span className="num" style={{ fontSize: 9.5, color: 'var(--tx4)', direction: 'ltr' }}>{id}</span>}
                                 </div>
                               )
                             })}
