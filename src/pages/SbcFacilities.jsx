@@ -2930,6 +2930,47 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
         }
       })
 
+      // Adopt pre-existing stub facilities before the upsert. Other flows (worker
+      // sync linking current_facility_id) create facility rows keyed by unified/
+      // gosi/cr but without an sbc_facility_id. Since the upsert below conflicts
+      // only on sbc_facility_id, such a stub would force an INSERT that violates
+      // the unified/gosi/cr/vat/… partial-unique indexes. We claim each stub by
+      // stamping the incoming sbc_facility_id so the upsert UPDATES it in place —
+      // keeping its worker links intact and filling its real name + data.
+      const idMap = {}   // identifier → sbc_facility_id (prefer unified > gosi > cr)
+      const unifiedVals = [], gosiVals = [], crVals = []
+      for (const p of facilityPayloads) {
+        if (p.unified_number) { unifiedVals.push(p.unified_number); idMap['u:' + p.unified_number] ||= p.sbc_facility_id }
+        if (p.gosi_number)    { gosiVals.push(p.gosi_number);       idMap['g:' + p.gosi_number]    ||= p.sbc_facility_id }
+        if (p.cr_number)      { crVals.push(p.cr_number);           idMap['c:' + p.cr_number]      ||= p.sbc_facility_id }
+      }
+      const orParts = []
+      if (unifiedVals.length) orParts.push(`unified_number.in.(${unifiedVals.join(',')})`)
+      if (gosiVals.length)    orParts.push(`gosi_number.in.(${gosiVals.join(',')})`)
+      if (crVals.length)      orParts.push(`cr_number.in.(${crVals.join(',')})`)
+      if (orParts.length) {
+        const { data: stubs } = await sb.from('facilities')
+          .select('id,unified_number,gosi_number,cr_number')
+          .is('sbc_facility_id', null).is('deleted_at', null)
+          .or(orParts.join(','))
+        // sbc ids that already own a real facility row — never re-point a stub onto
+        // one of these (would violate the sbc_facility_id unique index).
+        const takenSbc = new Set()
+        const sbcIds = [...new Set(facilityPayloads.map(p => p.sbc_facility_id))]
+        for (let i = 0; i < sbcIds.length; i += 100) {
+          const { data: have } = await sb.from('facilities')
+            .select('sbc_facility_id').in('sbc_facility_id', sbcIds.slice(i, i + 100))
+          for (const h of (have || [])) if (h.sbc_facility_id) takenSbc.add(h.sbc_facility_id)
+        }
+        for (const s of (stubs || [])) {
+          const sbcId = idMap['u:' + s.unified_number] || idMap['g:' + s.gosi_number] || idMap['c:' + s.cr_number]
+          if (!sbcId || takenSbc.has(sbcId)) continue
+          const { error } = await sb.from('facilities')
+            .update({ sbc_facility_id: sbcId }).eq('id', s.id).is('sbc_facility_id', null)
+          if (!error) takenSbc.add(sbcId)
+        }
+      }
+
       for (let i = 0; i < facilityPayloads.length; i += 100) {
         const chunk = facilityPayloads.slice(i, i + 100)
         const { error } = await sb.from('facilities')
@@ -3022,6 +3063,45 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
           current_facility_id: facId,
           source_synced_at: new Date().toISOString(),
         })
+      }
+
+      // Adopt existing worker rows before the upsert — same reasoning as facilities.
+      // Workers already exist (paper-receipt imports, distribute flow, prior sync)
+      // keyed by iqama/border but with a NULL or older gosi_engagement_id. The
+      // upsert conflicts only on gosi_engagement_id, so an incoming contributor
+      // sharing an iqama/border with such a row would force an INSERT that violates
+      // the iqama/border unique index. Iqama is a national id ⇒ same iqama = same
+      // person, so we re-point that row's gosi_engagement_id to the incoming (the
+      // latest live engagement) and let the upsert update it in place — preserving
+      // its business links (invoices, services) instead of duplicating the person.
+      const engByIqama = {}, engByBorder = {}
+      const iqamaVals = [], borderVals = []
+      for (const p of workerPayloads) {
+        if (p.iqama_number)  { iqamaVals.push(p.iqama_number);  engByIqama[p.iqama_number]  ||= p.gosi_engagement_id }
+        if (p.border_number) { borderVals.push(p.border_number); engByBorder[p.border_number] ||= p.gosi_engagement_id }
+      }
+      const wOr = []
+      if (iqamaVals.length)  wOr.push(`iqama_number.in.(${iqamaVals.join(',')})`)
+      if (borderVals.length) wOr.push(`border_number.in.(${borderVals.join(',')})`)
+      if (wOr.length) {
+        const { data: wStubs } = await sb.from('workers')
+          .select('id,iqama_number,border_number,gosi_engagement_id')
+          .is('deleted_at', null).or(wOr.join(','))
+        // engagement ids already assigned to a row — never re-point onto one.
+        const takenEng = new Set()
+        const engIds = [...new Set(workerPayloads.map(p => p.gosi_engagement_id).filter(Boolean))]
+        for (let i = 0; i < engIds.length; i += 100) {
+          const { data: have } = await sb.from('workers')
+            .select('gosi_engagement_id').in('gosi_engagement_id', engIds.slice(i, i + 100))
+          for (const h of (have || [])) if (h.gosi_engagement_id) takenEng.add(h.gosi_engagement_id)
+        }
+        for (const w of (wStubs || [])) {
+          const eng = engByIqama[w.iqama_number] || engByBorder[w.border_number]
+          if (!eng || w.gosi_engagement_id === eng || takenEng.has(eng)) continue
+          const { error } = await sb.from('workers')
+            .update({ gosi_engagement_id: eng }).eq('id', w.id)
+          if (!error) takenEng.add(eng)
+        }
       }
 
       for (let i = 0; i < workerPayloads.length; i += 100) {
