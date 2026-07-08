@@ -495,7 +495,7 @@ function FacilityRegistryCards({ facility: f, sb, T, lang, user, toast, onEdit, 
   const [attKey, setAttKey] = useState(0)
   const [fileBusy, setFileBusy] = useState(null)
   useEffect(() => {
-    if (!sb || !f?.id || part !== 'top') { setFacFiles({}); setSyncFiles({}); return }
+    if (!sb || !f?.id || part !== 'bottom') { setFacFiles({}); setSyncFiles({}); return }
     let cancelled = false
     ;(async () => {
       const { data: atts } = await sb.from('attachments')
@@ -655,8 +655,12 @@ function FacilityRegistryCards({ facility: f, sb, T, lang, user, toast, onEdit, 
         </CollapsibleCard>
       )}
 
+      </>)}
+
+      {part === 'bottom' && (<>
       {/* ملفات السجل — معاينة مصغّرة لكل ملف (السجل التجاري/عقد التأسيس/مستخرج
-          السجل التجاري) مع رفع/استبدال/حذف. يظهر دائماً (مزامنة + رفع يدوي). */}
+          السجل التجاري) مع رفع/استبدال/حذف. يظهر دائماً (مزامنة + رفع يدوي).
+          موضوعة فوق كرت العمالة (part='bottom'). */}
       {cardVisible(user, 'facilities', 'facility_files') && (
         <CollapsibleCard title={T('ملفات السجل', 'CR Documents')} color={C.gold}>
           <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
@@ -5833,26 +5837,6 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                   </CollapsibleCard>
                 )
               })()}
-
-              {/* Partners */}
-              {partners.length > 0 && (
-                <CollapsibleCard title={T('الملاك والشركاء', 'Partners')} color={C.gold} showSbcIcon badge={num(partners.length)}>
-                  <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    {[...partners]
-                      // الأشخاص أولاً ثم المنشآت (إن وُجدت منشأة كشريك). نفس منطق
-                      // تصنيف PersonRow: غياب personInfo أو isCompany = منشأة.
-                      .sort((a, b) => {
-                        const ca = (!a.personInfo || !!extractPartyDisplay(a).isCompany) ? 1 : 0
-                        const cb = (!b.personInfo || !!extractPartyDisplay(b).isCompany) ? 1 : 0
-                        return ca - cb
-                      })
-                      .map((p, i) => {
-                        const types = Array.isArray(p.partnershipTypeList) ? p.partnershipTypeList.map(t => t.partnershipTypeDescriptionAr).filter(Boolean).join(' · ') : null
-                        return <PersonRow key={i} p={p} roleAr={types} />
-                      })}
-                  </div>
-                </CollapsibleCard>
-              )}
 
               {/* Managers */}
               {managers.length > 0 && (
