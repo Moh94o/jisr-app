@@ -5847,6 +5847,9 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                 </CollapsibleCard>
               )}
 
+              {/* المشرفون (GOSI) — placed directly under the Managers card. Self-hides when empty. */}
+              <GosiAdminsCard admins={gosiAdmins} T={T} lang={lang} />
+
               {/* Classification card — merged with the "Full CR Data" fields
                    so all non-duplicate CR attributes live in one place. The
                    pair Gregorian/Hijri date row appears at the bottom.
@@ -6382,15 +6385,6 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                       </CollapsibleCard>
                     )}
 
-                    {/* Thin white separator between SBC cards and the GOSI
-                        establishment card below — visual cue that the source
-                        changes. */}
-                    {gosiEstablishment && gosiEstablishment.raw_main && (
-                      <>
-                        <div style={{ height: 1, background: 'rgba(255,255,255,.08)', margin: '8px 0' }} />
-                        <GosiAdminsCard admins={gosiAdmins} T={T} lang={lang} />
-                      </>
-                    )}
 
                     {/* ── Qiwa cards (populated by qiwaSyncBookmarklet.js).
                         Only render when qiwa_companies has a row matching
