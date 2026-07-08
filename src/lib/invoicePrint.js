@@ -165,6 +165,7 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
     agentData: { ar: 'الوسيط', en: 'Agent', hi: 'एजेंट', ur: 'ایجنٹ', bn: 'এজেন্ট' },
     schedule: { ar: 'الدفعات', en: 'Schedule', hi: 'किस्तें', ur: 'اقساط', bn: 'কিস্তি' },
     paymentsReceived: { ar: 'المدفوعات المستلمة', en: 'Payments Received', hi: 'प्राप्त भुगतान', ur: 'موصولہ ادائیگیاں', bn: 'প্রাপ্ত পেমেন্ট' },
+    paperSlip: { ar: 'سند القبض', en: 'Receipt No.', hi: 'रसीद नं.', ur: 'رسید نمبر', bn: 'রসিদ নং' },
     milestone: { ar: 'البند', en: 'Item', hi: 'मद', ur: 'آئٹم', bn: 'আইটেম' },
     expectedDate: { ar: 'التاريخ المتوقع', en: 'Date', hi: 'तारीख', ur: 'تاریخ', bn: 'তারিখ' },
     amount: { ar: 'المبلغ', en: 'Amount', hi: 'राशि', ur: 'رقم', bn: 'পরিমাণ' },
@@ -842,11 +843,15 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
   }).join('')}</tbody></table>` : ''
 
   // ── Payments table ──
-  const payTbl = pays.length ? secTitle('paymentsReceived') + `<table><thead><tr><th class="c" style="width:12%">#</th><th class="c" style="width:27%">${lab('amount')}</th><th class="c" style="width:30%">${lab('date')}</th><th class="c">${lab('method')}</th></tr></thead><tbody>${pays.map((p, i) => {
+  const slipTokens = raw => String(raw || '').split(/[\/\-\\\s,،]+/).map(t => t.trim()).filter(t => /^\d+$/.test(t))
+  const payTbl = pays.length ? secTitle('paymentsReceived') + `<table><thead><tr><th class="c" style="width:9%">#</th><th class="c" style="width:22%">${lab('amount')}</th><th class="c" style="width:24%">${lab('date')}</th><th class="c" style="width:22%">${lab('paperSlip')}</th><th class="c">${lab('method')}</th></tr></thead><tbody>${pays.map((p, i) => {
     const refund = Number(p.amount) < 0
     const method = localize(p.payment_method) || lab('payment')
     const isLast = i === pays.length - 1
-    return `<tr class="${isLast ? 'row-latest' : ''}"><td class="c">${num2(i + 1)}</td><td class="c"><span class="amt"${refund ? ' style="color:var(--no)"' : ''}>${num2(nm(p.amount))} ${cur}</span></td><td class="c">${num2(fmtD(p.payment_date))}</td><td class="c">${esc(method)}${refund ? ` <span class="latest-tag no">${lab('refund')}</span>` : (isLast ? ` <span class="latest-tag">${lab('latest')}</span>` : '')}</td></tr>`
+    const inst = insts.find(x => x.id === p.installment_id)
+    const slips = slipTokens(inst?.paper_slip_no)
+    const slipCell = slips.length ? slips.map(s => num2(s)).join(' · ') : '—'
+    return `<tr class="${isLast ? 'row-latest' : ''}"><td class="c">${num2(i + 1)}</td><td class="c"><span class="amt"${refund ? ' style="color:var(--no)"' : ''}>${num2(nm(p.amount))} ${cur}</span></td><td class="c">${num2(fmtD(p.payment_date))}</td><td class="c">${slipCell}</td><td class="c">${esc(method)}${refund ? ` <span class="latest-tag no">${lab('refund')}</span>` : (isLast ? ` <span class="latest-tag">${lab('latest')}</span>` : '')}</td></tr>`
   }).join('')}</tbody></table>` : ''
 
   // ── Pricing + financial summary ──

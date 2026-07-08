@@ -490,10 +490,28 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
   }
 
   // ── تبويب 1: حقول عرض للقراءة فقط ──
+  // زر نسخ صغير يظهر بجانب أي قيمة عرض-فقط لنسخها إلى الحافظة.
+  const ValCopy = ({ text }) => {
+    const [done, setDone] = useState(false)
+    const t = (text == null ? '' : String(text)).trim()
+    if (!t || t === '—') return null
+    return (
+      <button type="button" title={T('نسخ','Copy')}
+        onClick={e => { e.stopPropagation(); try { navigator.clipboard.writeText(t) } catch {} setDone(true); setTimeout(() => setDone(false), 1200) }}
+        onMouseEnter={e => { if (!done) e.currentTarget.style.color = C.gold }}
+        onMouseLeave={e => { if (!done) e.currentTarget.style.color = 'var(--tx5)' }}
+        style={{ border: 'none', background: 'transparent', padding: 2, borderRadius: 5, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: done ? '#27a046' : 'var(--tx5)', flexShrink: 0, transition: 'color .15s' }}>
+        {done ? <Check size={13} strokeWidth={2.6} /> : <Copy size={13} strokeWidth={2.2} />}
+      </button>
+    )
+  }
   const Field = ({ label, value, color, span, ltr }) => (
     <div style={{ gridColumn: span === 2 ? '1 / -1' : 'auto', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 5, padding: '8px 11px', borderRadius: 9, background: 'var(--bd2)', border: '1px solid var(--bd)', minHeight: 40, minWidth: 0 }}>
       <span style={{ fontSize: 10, color: 'var(--tx5)', fontWeight: 600, letterSpacing: '.2px', lineHeight: 1.2 }}>{label}</span>
-      <span style={{ fontSize: 13, fontWeight: 600, color: color || 'var(--tx)', lineHeight: 1.2, textAlign: isAr ? 'right' : 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', ...(ltr ? { direction: 'ltr' } : {}) }}>{value || '—'}</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+        <span style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 600, color: color || 'var(--tx)', lineHeight: 1.2, textAlign: isAr ? 'right' : 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', ...(ltr ? { direction: 'ltr' } : {}) }}>{value || '—'}</span>
+        <ValCopy text={value} />
+      </div>
     </div>
   )
   const Group = ({ title, Icon, children }) => (

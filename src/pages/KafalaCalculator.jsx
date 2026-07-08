@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react'
 import ReactDOM from 'react-dom'
-import { User, FileText, Calculator, Tag, ChevronRight, ChevronLeft, Plus, Trash2, Check, X, AlertCircle, Briefcase, Phone, Calendar, ArrowLeftRight, Search, Shield, CreditCard, Clock, Building2, CheckCircle2, Circle, Info, Printer, Database, FileCheck, Send, Lock, RefreshCw, Wallet } from 'lucide-react'
+import { User, FileText, Calculator, Tag, ChevronRight, ChevronLeft, Plus, Trash2, Check, X, AlertCircle, Briefcase, Phone, Calendar, ArrowLeftRight, Search, Shield, CreditCard, Clock, Building2, CheckCircle2, Circle, Info, Printer, Database, FileCheck, Send, Lock, RefreshCw, Wallet, Copy } from 'lucide-react'
 import { getSupabase } from '../lib/supabase.js'
 import { getKafalaPricingConfig } from '../lib/kafalaPricing.js'
 import { noDash } from '../lib/utils.js'
@@ -892,6 +892,22 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
   // تاريخ انتهاء الإقامة + المهنة تظهر فقط بعد أن تستقر نتيجة فحص مقيم:
   //   متاحة (ok) → عرض فقط (MqLocked) ، غير متاحة/خطأ → إدخال يدوي. أثناء idle/loading تبقى مخفية.
   const mqResolved = muqeemFetchStatus === 'ok' || muqeemFetchStatus === 'unavailable' || muqeemFetchStatus === 'error' || muqeemFetchStatus === 'notfound'
+  // زر نسخ صغير يظهر بجانب أي قيمة عرض-فقط لنسخها إلى الحافظة.
+  const ValCopy = ({ text }) => {
+    const [done, setDone] = useState(false)
+    const t = (text == null ? '' : String(text)).trim()
+    if (!t || t === '—') return null
+    return (
+      <button type="button" title={T('نسخ','Copy')}
+        onClick={e => { e.stopPropagation(); try { navigator.clipboard.writeText(t) } catch {} setDone(true); setTimeout(() => setDone(false), 1200) }}
+        onMouseEnter={e => { if (!done) e.currentTarget.style.color = C.gold }}
+        onMouseLeave={e => { if (!done) e.currentTarget.style.color = 'var(--tx5)' }}
+        style={{ border: 'none', background: 'transparent', padding: 2, borderRadius: 5, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: done ? '#27a046' : 'var(--tx5)', flexShrink: 0, transition: 'color .15s' }}>
+        {done ? <Check size={13} strokeWidth={2.6} /> : <Copy size={13} strokeWidth={2.2} />}
+      </button>
+    )
+  }
+
   const MqLocked = ({ label, value, sub, req }) => (
     <div>
       {label && <Lbl req={req}>{label}</Lbl>}
@@ -903,6 +919,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
         <span title={T('من مقيم — لا يمكن تعديله','From Muqeem — locked')} style={{ position: 'absolute', insetInlineStart: 8, top: '50%', transform: 'translateY(-50%)', display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 600, color: '#F47B20', background: 'rgba(244,123,32,.12)', padding: '2px 6px', borderRadius: 6 }}>
           <Lock size={10} strokeWidth={2.5} /> {T('مقيم','Muqeem')}
         </span>
+        <span style={{ position: 'absolute', insetInlineEnd: 8, top: '50%', transform: 'translateY(-50%)' }}><ValCopy text={value} /></span>
       </div>
     </div>
   )
@@ -1514,7 +1531,10 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
           <div style={{ gridColumn: span === 2 ? '1 / -1' : 'auto', background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
             <span style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 600 }}>{label}</span>
             {/* المحاذاة منطقية (تبدأ من جهة البداية = اليمين في RTL)؛ القيم اللاتينية/الأرقام تُعزل اتجاهياً فقط لتُعرض LTR دون قلب المحاذاة. */}
-            <span style={{ fontSize: 14, fontWeight: 600, color: color || 'var(--tx)', textAlign: 'start', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ltr ? <span style={{ direction: 'ltr', unicodeBidi: 'isolate' }}>{value || '—'}</span> : (value || '—')}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+              <span style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 600, color: color || 'var(--tx)', textAlign: 'start', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ltr ? <span style={{ direction: 'ltr', unicodeBidi: 'isolate' }}>{value || '—'}</span> : (value || '—')}</span>
+              <ValCopy text={value} />
+            </div>
           </div>
         )
         const Group = ({ title, Icon, children }) => (

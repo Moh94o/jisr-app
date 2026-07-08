@@ -325,6 +325,9 @@ const[customName,setCustomName]=useState('')
 const[clientMode,setClientMode]=useState('existing')
 const[clientQ,setClientQ]=useState('')
 const[selClient,setSelClient]=useState(null)
+// نتائج بحث العميل من الخادم (لا أول 500 محلياً فقط) — كي يظهر أي عميل مهما كان ترتيبه بالاسم.
+const[clientSearchResults,setClientSearchResults]=useState(null)
+const[clientSearching,setClientSearching]=useState(false)
 const[newClient,setNewClient]=useState({name_ar:'',name_en:'',phone:'',id_number:'',nationality_id:''})
 const[natOpenClient,setNatOpenClient]=useState(false)
 const[natSearchClient,setNatSearchClient]=useState('')
@@ -634,12 +637,34 @@ if(step===5&&showSummaryScreen){d=totalSteps;absolute=true}
 return absolute?d:d+branchOffset
 })()
 
-// Client search (name AR / EN, phone, ID)
+// بحث العميل على مستوى الخادم (الاسم عربي/إنجليزي · الهوية · الجوال) — الفلترة المحلية كانت ترى أول
+// 500 عميل بالاسم فقط، فالعملاء المتأخرون أبجدياً لا يظهرون. مُنقّط (debounced)؛ الجوال يُطابَق بآخر 9 أرقام
+// ليتجاوز اختلاف البادئة (966/0). النتائج تُكمّل الفلترة المحلية أثناء التحميل.
+useEffect(()=>{
+const q=clientQ.trim()
+if(!q){setClientSearchResults(null);setClientSearching(false);return}
+let cancelled=false
+setClientSearching(true)
+const esc=q.replace(/[,()*]/g,' ').trim()
+const digits=q.replace(/\D/g,'')
+const parts=[`name_ar.ilike.*${esc}*`,`name_en.ilike.*${esc}*`]
+if(digits){parts.push(`id_number.ilike.*${digits}*`);const ph=digits.length>=9?digits.slice(-9):digits;parts.push(`phone.ilike.*${ph}*`)}
+const t=setTimeout(async()=>{
+const{data}=await sb.from('clients').select('id,name_ar,name_en,phone,id_number,nationality_id').is('deleted_at',null).or(parts.join(',')).order('name_ar').limit(25)
+if(cancelled)return
+setClientSearchResults(data||[])
+setClientSearching(false)
+},250)
+return()=>{cancelled=true;clearTimeout(t)}
+},[clientQ,sb])
+
+// Client search results — server-side when querying (all clients), local first-500 as fallback while it loads.
 const filteredClients=useMemo(()=>{
 if(!clientQ.trim())return[]
+if(clientSearchResults)return clientSearchResults.slice(0,8)
 const q=clientQ.trim().toLowerCase()
-return clients.filter(c=>(c.name_ar||'').toLowerCase().includes(q)||(c.name_en||'').toLowerCase().includes(q)||(c.phone||'').includes(q)||(c.id_number||'').includes(q)).slice(0,2)
-},[clients,clientQ])
+return clients.filter(c=>(c.name_ar||'').toLowerCase().includes(q)||(c.name_en||'').toLowerCase().includes(q)||(c.phone||'').includes(q)||(c.id_number||'').includes(q)).slice(0,8)
+},[clients,clientQ,clientSearchResults])
 
 // Facility weekly stats are not in the new schema yet — keep null so dependent UI gracefully renders empty
 useEffect(()=>{setWorkerFacilityStat(null)},[selWorker])
@@ -2297,7 +2322,8 @@ return<div style={{display:'flex',flexDirection:'column',gap:8,marginBottom:10}}
 {/* منطقة قابلة للتمرير — السكرول بار يخص كروت العملاء فقط، ويبقى التبديل والبحث ثابتين بالأعلى */}
 <div className="sr-scroll" style={{flex:1,minHeight:0,overflowY:'auto',overflowX:'hidden',paddingLeft:4,display:'flex',flexDirection:'column'}}>
 {/* Mode: existing (show results / selected client) */}
-{(!QUOTE_SVCS.has(selSvc)||kafalaSameClient!==null)&&clientMode==='existing'&&!(QUOTE_SVCS.has(selSvc)&&kafalaSameClient===true)&&<div style={{flex:1,minHeight:0,display:'flex',flexDirection:'column'}}>
+{/* عند اختيار عميل: الحاوية تأخذ ارتفاع محتواها (لا flex:1) كي تلتصق بطاقة العميل بقسم «العامل» بلا فراغ. */}
+{(!QUOTE_SVCS.has(selSvc)||kafalaSameClient!==null)&&clientMode==='existing'&&!(QUOTE_SVCS.has(selSvc)&&kafalaSameClient===true)&&<div style={{flex:selClient?'0 0 auto':1,minHeight:0,display:'flex',flexDirection:'column'}}>
 {filteredClients.length>0?<div style={{display:'flex',flexDirection:'column',gap:8}}>
 {(selClient?[selClient]:filteredClients).map(c=>{
 const sel=selClient?.id===c.id
@@ -2338,8 +2364,8 @@ style={{cursor:'pointer',position:'relative',border:`1px solid ${G.baseB}`,backg
 <div style={{width:42,height:42,borderRadius:'50%',background:'rgba(176,125,0,.08)',border:'1px dashed rgba(176,125,0,.3)',display:'flex',alignItems:'center',justifyContent:'center'}}>
 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(176,125,0,.65)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>{clientQ.trim()&&<line x1="8" y1="11" x2="14" y2="11"/>}</svg>
 </div>
-<div style={{fontSize:12.5,color:'var(--tx2)',fontWeight:600,fontFamily:F}}>{clientQ.trim()?T('لا يوجد عميل بهذا البحث','No client matches this search'):T('ابحث عن العميل','Search for the client')}</div>
-<div style={{fontSize:11,color:'var(--tx3)',fontWeight:600,fontFamily:F}}>{clientQ.trim()?T('يمكنك إضافة عميل جديد من الأعلى','You can add a new client above'):T('اكتب الاسم أو رقم الجوال أو رقم الهوية للبحث','Type the name, mobile or ID to search')}</div>
+<div style={{fontSize:12.5,color:'var(--tx2)',fontWeight:600,fontFamily:F}}>{clientQ.trim()?(clientSearching?T('جاري البحث…','Searching…'):T('لا يوجد عميل بهذا البحث','No client matches this search')):T('ابحث عن العميل','Search for the client')}</div>
+<div style={{fontSize:11,color:'var(--tx3)',fontWeight:600,fontFamily:F}}>{clientQ.trim()?(clientSearching?T('نبحث في كل العملاء','Searching all clients'):T('يمكنك إضافة عميل جديد من الأعلى','You can add a new client above')):T('اكتب الاسم أو رقم الجوال أو رقم الهوية للبحث','Type the name, mobile or ID to search')}</div>
 </div>}
 </div>}
 

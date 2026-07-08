@@ -19,6 +19,30 @@ const fmtAmt = (v) => Number(v || 0).toLocaleString('en-US', { minimumFractionDi
 
 const flagEmoji = (code) => { if (!code || code.length !== 2) return ''; try { return String.fromCodePoint(...[...code.toUpperCase()].map(c => c.charCodeAt(0) + 127397)) } catch { return '' } }
 
+// سند القبض الورقي المجمّع للمعاملة بأسلوب «الختم» + أيقونة نسخ.
+const SlipStamps = ({ raw, T }) => {
+  const nums = String(raw || '').split(/[\/\-\\\s,،]+/).map(t => t.trim()).filter(t => /^\d+$/.test(t))
+  const [copied, setCopied] = useState(false)
+  if (!nums.length) return null
+  const copy = () => { try { navigator.clipboard.writeText(nums.join(' ')); setCopied(true); setTimeout(() => setCopied(false), 1200) } catch (_) {} }
+  return (
+    <span title={T('سند القبض الورقي','Paper receipt')} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+      {nums.map((sl, i) => (
+        <span key={i} style={{ display: 'inline-block', border: '1.5px solid rgba(176,125,0,.5)', borderRadius: 7, padding: '2px 10px', color: C.gold, fontWeight: 700, transform: 'rotate(-3deg)', textAlign: 'center', lineHeight: 1.1 }}>
+          <span style={{ display: 'block', fontSize: 8, fontWeight: 600, opacity: .85 }}>{T('سند قبض','Receipt')}</span>
+          <span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{sl}</span>
+        </span>
+      ))}
+      <button type="button" onClick={copy} title={copied ? T('تم النسخ','Copied') : T('نسخ رقم السند','Copy receipt no.')}
+        style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 22, height: 22, borderRadius: 6, border: '1px solid ' + (copied ? 'rgba(46,204,113,.4)' : 'rgba(176,125,0,.3)'), background: copied ? 'rgba(46,204,113,.1)' : 'rgba(176,125,0,.08)', color: copied ? C.ok : C.gold, cursor: 'pointer', padding: 0, transition: '.15s' }}>
+        {copied
+          ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>}
+      </button>
+    </span>
+  )
+}
+
 const SVC_THEME = {
   work_visa:      { c: C.blue,    bg: 'rgba(93,173,226,.12)',  bd: 'rgba(93,173,226,.32)',  label_ar: 'تأشيرة عمل',     label_en: 'Work Visa' },
   iqama_issuance: { c: '#27ae60', bg: 'rgba(39,174,96,.12)',   bd: 'rgba(39,174,96,.32)',   label_ar: 'إصدار إقامة',    label_en: 'Iqama Issuance' },
@@ -159,7 +183,7 @@ export default function PaymentsPage({ sb, lang, user, branchId, toast, emptyIco
         payment_method:payment_method_id(code,value_ar,value_en),
         creator:created_by(person:person_id(name_ar,name_en)),
         service_request:service_request_id(
-          id, request_ref_no, request_date,
+          id, request_ref_no, request_date, slip_no,
           service_type:service_type_id(code,value_ar,value_en),
           status:status_id(code,value_ar,value_en),
           client:client_id(name_ar,name_en,phone,id_number,nationality:nationality_id(code,name_ar,name_en,flag_url)),
@@ -710,6 +734,7 @@ function FeeCard({ fee, isAr, T, onPay, onEdit }) {
                   <span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums', fontFamily: 'monospace' }}>{sr.request_ref_no}</span>
                 </span>
               )}
+              <SlipStamps raw={sr?.slip_no} T={T} />
               {phone && (
                 <a href={`tel:${phone}`} onClick={e => e.stopPropagation()} title={phone} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--tx3)', direction: 'ltr', textDecoration: 'none', padding: '2px 6px', borderRadius: 5, fontWeight: 600 }}>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>

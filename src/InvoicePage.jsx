@@ -890,12 +890,15 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
   const [agentFilter, setAgentFilter] = useState('')
   const [natFilter, setNatFilter] = useState('')
   const [overdue, setOverdue] = useState('')         // '' | '1' (عليها أقساط متأخرة)
+  const [slipQ, setSlipQ] = useState('')             // فلتر رقم سند القبض الورقي (النظام الورقي القديم)
+  const [dSlipQ, setDSlipQ] = useState('')           // بعد التهدئة — يقود الاستعلام
   // ترتيب الكروت: activity_desc = الافتراضي (الأحدث نشاطاً) · created_desc/created_asc = حسب تاريخ الإصدار
   const [sortMode, setSortMode] = useState('activity_desc')
   const [advOpen, setAdvOpen] = useState(false)
 
   // تهدئة البحث: لا نُطلق الاستعلام مع كل ضغطة، بل بعد توقف الكتابة ~300ms.
   useEffect(() => { const t = setTimeout(() => setDq(q), 300); return () => clearTimeout(t) }, [q])
+  useEffect(() => { const t = setTimeout(() => setDSlipQ(slipQ), 300); return () => clearTimeout(t) }, [slipQ])
 
   // Lookups
   const [branches, setBranches] = useState([])
@@ -1017,7 +1020,7 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
   // ومع أي تصفية نمرّر p_start=null + بقية الفلاتر فتُحسب على الفواتير المطابقة.
   // p_branch_ids يبقى دائماً قيد المكتب (null للمدير العام)؛ branchSel (مصفوفة) يصير قيداً صارماً للمكاتب المختارة.
   const statFilters = useMemo(() => ({
-    active: !!(branchSel.length || serviceType.length || payFilter.length || from || to || dq.trim() || amountMin !== '' || amountMax !== '' || paymentPlan || reqStage.length || accStatus || agentFilter || natFilter || overdue),
+    active: !!(branchSel.length || serviceType.length || payFilter.length || from || to || dq.trim() || dSlipQ.trim() || amountMin !== '' || amountMax !== '' || paymentPlan || reqStage.length || accStatus || agentFilter || natFilter || overdue),
     p_branch_ids: officeScope,
     p_branch_exact_ids: branchSel.length ? branchSel : null,
     p_service_type_ids: serviceType.length ? serviceType : null,
@@ -1033,7 +1036,8 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
     p_agent_id: agentFilter || null,
     p_nationality_id: natFilter || null,
     p_overdue: overdue === '1' ? true : null,
-  }), [officeScope, branchSel, serviceType, payFilter, from, to, amountMin, amountMax, paymentPlan, dq, reqStage, accStatus, agentFilter, natFilter, overdue])
+    p_slip: dSlipQ.trim() || null,
+  }), [officeScope, branchSel, serviceType, payFilter, from, to, amountMin, amountMax, paymentPlan, dq, reqStage, accStatus, agentFilter, natFilter, overdue, dSlipQ])
   // ملاحظة: serviceType/payFilter مصفوفتان — المرجع يتغيّر عند كل تعديل فيُعاد الحساب
 
   // خيارات «نوع الخدمة» في التصفية — نفس قائمة معالج إنشاء الفاتورة (ALL_SERVICES): نفس الأسماء ونفس الترتيب.
@@ -1248,7 +1252,7 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
       const branchScope = branchSel.length ? branchSel : officeScope
 
       // عند وجود تصفية غير المكتب/التاريخ نقيّد بمجموعة الفواتير المطابقة (تشمل البحث الذكي).
-      const needIds = active && !!(serviceType.length || payFilter.length || dq.trim() || amountMin !== '' || amountMax !== '' || paymentPlan || reqStage.length || accStatus || agentFilter || natFilter || overdue)
+      const needIds = active && !!(serviceType.length || payFilter.length || dq.trim() || dSlipQ.trim() || amountMin !== '' || amountMax !== '' || paymentPlan || reqStage.length || accStatus || agentFilter || natFilter || overdue)
       let idSet = null
       if (needIds) {
         const { active: _a, ...f } = statFilters
@@ -1418,8 +1422,8 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
           />
         </div>
         {(() => {
-          const hasFilters = !!(branchSel.length || serviceType.length || payFilter.length || from || to || amountMin !== '' || amountMax !== '' || paymentPlan || reqStage.length || accStatus || agentFilter || natFilter || overdue)
-          const clearAll = () => { setBranchSel([]); setFrom(''); setTo(''); setServiceType([]); setPayFilter([]); setAmountMin(''); setAmountMax(''); setPaymentPlan(''); setReqStage([]); setAccStatus(''); setAgentFilter(''); setNatFilter(''); setOverdue(''); setPage(0) }
+          const hasFilters = !!(branchSel.length || serviceType.length || payFilter.length || from || to || amountMin !== '' || amountMax !== '' || paymentPlan || reqStage.length || accStatus || agentFilter || natFilter || overdue || slipQ.trim())
+          const clearAll = () => { setBranchSel([]); setFrom(''); setTo(''); setServiceType([]); setPayFilter([]); setAmountMin(''); setAmountMax(''); setPaymentPlan(''); setReqStage([]); setAccStatus(''); setAgentFilter(''); setNatFilter(''); setOverdue(''); setSlipQ(''); setPage(0) }
           return (
         <button onClick={() => setAdvOpen(o => !o)} style={btnFilter(advOpen || hasFilters)}>
           {T('تصفية','Filter')}
@@ -1481,6 +1485,24 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
               <div>
                 <div style={fLbl}>{T('تاريخ إلى','Date To')}</div>
                 <DateField value={to} onChange={v => { setTo(v); setPage(0) }} lang={lang} />
+              </div>
+              {/* سند القبض الورقي — بحث الفواتير برقم السند (النظام الورقي القديم) */}
+              <div>
+                <div style={fLbl}>{T('سند القبض','Paper receipt')}</div>
+                <div style={{ position: 'relative' }}>
+                  <span style={{ position: 'absolute', insetInlineStart: 12, top: '50%', transform: 'translateY(-50%)', color: C.gold, lineHeight: 0, pointerEvents: 'none' }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M8 7h8M8 11h8M8 15h5"/></svg>
+                  </span>
+                  <input type="text" inputMode="numeric" value={slipQ} onChange={e => { setSlipQ(e.target.value); setPage(0) }}
+                    placeholder={T('رقم السند','Receipt no.')}
+                    style={{ width: '100%', height: 44, padding: '0 38px 0 34px', borderRadius: 12, background: 'var(--inputBg)', border: '1px solid var(--bd)', color: 'var(--tx)', fontSize: 13, fontFamily: F, boxSizing: 'border-box' }} />
+                  {slipQ && (
+                    <button type="button" onClick={() => { setSlipQ(''); setPage(0) }} title={T('مسح','Clear')}
+                      style={{ position: 'absolute', insetInlineEnd: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--tx4)', padding: 3, lineHeight: 0 }}>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                  )}
+                </div>
               </div>
               <div>
                 <div style={fLbl}>{T('نوع الخدمة','Service Type')}</div>
@@ -1874,7 +1896,7 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user, onO
       const isTransfer = baseSvcCode(code) === 'transfer'
       const branchId = inv.branch?.id
       const [insts, pays, det, quote, banks] = await Promise.all([
-        sb.from('installments').select('id,installment_order,total_amount,paid_amount,expected_date,paid_date,receipt_no,bank_reference,notes,visa_application_id,visa_application:visa_application_id(border_number,file_number,gender,nationality:nationality_id(name_ar,name_en),occupation:occupation_id(name_ar,name_en),embassy:embassy_id(name_ar,name_en),iqama_issuance_applications(iqama_number,deleted_at)),payment_method:payment_method_id(value_ar,value_en),payment_milestone:payment_milestone_id(value_ar,value_en)').eq('invoice_id', inv.id).is('deleted_at', null).order('installment_order'),
+        sb.from('installments').select('id,installment_order,total_amount,paid_amount,expected_date,paid_date,receipt_no,bank_reference,paper_slip_no,notes,visa_application_id,visa_application:visa_application_id(border_number,file_number,gender,nationality:nationality_id(name_ar,name_en),occupation:occupation_id(name_ar,name_en),embassy:embassy_id(name_ar,name_en),iqama_issuance_applications(iqama_number,deleted_at)),payment_method:payment_method_id(value_ar,value_en),payment_milestone:payment_milestone_id(value_ar,value_en)').eq('invoice_id', inv.id).is('deleted_at', null).order('installment_order'),
         sb.from('payments').select('id,amount,payment_date,is_valid,receipt_no,bank_reference,notes,payment_method:payment_method_id(value_ar,value_en,code),installment_id,creator:created_by(person:person_id(name_ar,name_en))').eq('invoice_id', inv.id).is('deleted_at', null).order('payment_date', { ascending: false }),
         // ترتيب ثابت لصفوف التأشيرة (created_at ثم id) — حتى لا يتبدّل ترتيب/ترقيم التأشيرات بعد تحديث رقم الحدود.
         (tbl && srId)
@@ -4619,12 +4641,14 @@ const VisaInfoRows = ({ inv, isAr, T, svc, data, user }) => {
         {tiles.length > 0 && (
           <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(tiles.length, 3)},1fr)`, gap: 8 }}>
             {tiles.map((t, i) => (
-              <div key={i} style={{ background: 'rgba(255,255,255,.04)', borderRadius: 8, padding: '8px 10px', gridColumn: t.span ? `span ${t.span}` : 'auto' }}>
+              <div key={i} style={{ background: 'rgba(255,255,255,.04)', borderRadius: 8, padding: '8px 10px', minWidth: 0, gridColumn: t.span ? `span ${t.span}` : 'auto' }}>
                 <div style={{ fontSize: 9.5, color: 'var(--tx4)', marginBottom: 4 }}>{t.label}</div>
                 {/* زر النسخ ملاصق للقيمة (نفس نمط بقية البطاقات: flex-end) */}
-                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, direction: 'ltr' }}>
+                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, direction: 'ltr', fontSize: 13, color: 'var(--tx2)' }}>
                   <CopyBtn text={String(t.value)} />
-                  <span style={{ minWidth: 0, fontSize: 13, color: 'var(--tx2)', direction: t.text ? (/[؀-ۿ]/.test(String(t.value)) ? 'rtl' : 'ltr') : 'ltr', fontWeight: 600, ...(t.text ? {} : { fontVariantNumeric: 'tabular-nums' }), overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.value}</span>
+                  {t.text
+                    ? <MarqueeValue value={String(t.value)} ltr={!/[؀-ۿ]/.test(String(t.value))} maxWidth="min(100%, 190px)" />
+                    : <span style={{ minWidth: 0, fontSize: 13, color: 'var(--tx2)', direction: 'ltr', fontWeight: 600, fontVariantNumeric: 'tabular-nums', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.value}</span>}
                 </span>
               </div>
             ))}
@@ -4962,7 +4986,8 @@ const TransactionRows = ({ inv, isAr, T, svc, payT, data, user }) => {
           below so the service detail isn't lost. */}
       <div style={boxStyle}>
         <span style={{ fontSize: 14, color: C.gold, fontWeight: 600, lineHeight: 1.4 }}>{svcName}</span>
-        {workerName && !isZeroSvc(code) && !SELF_PARTY_DONE_SVCS.includes(code) && (
+        {/* خدمة عامة: نعرض الوصف المُدخل للفاتورة (يختلف بين الفواتير) بدل اسم العميل المكرَّر — الاسم يظهر أصلاً في كرت العميل. */}
+        {workerName && !isZeroSvc(code) && !SELF_PARTY_DONE_SVCS.includes(code) && code !== 'general' && (
           <span style={{ fontSize: 13, color: 'var(--tx)', fontWeight: 600, lineHeight: 1.5, direction: 'rtl', marginTop: 4 }}>{workerName}</span>
         )}
         {/* نوع التصديق ونص الطلب صارا يُعرضان أسفل (بعد splCells) — مثل التأمين الطبي */}
@@ -5308,16 +5333,32 @@ const PaymentRow = ({ p, isAr, T, overflow = 0, onEdit, editLog, user }) => {
 }
 
 /* ═════ Installment timeline — vertical stepper showing each stage ═════ */
-const deriveInstMeta = (ins, T, isAr) => {
+// تأشيرة وإقامة (دائمة/مؤقتة): مراحل الدفع تُقرأ بدلالة التأشيرة لا الطلب العام —
+// «فتح الطلب» ⇒ «إصدار التأشيرة»، و«إصدار/تجديد الإقامة» ⇒ «إصدار الإقامة».
+const VISA_IQAMA_SVC = ['work_visa_permanent', 'work_visa_temporary']
+const VISA_IQAMA_MILESTONE_REMAP = {
+  'عند فتح الطلب': { ar: 'عند إصدار التأشيرة', en: 'On Visa Issuance' },
+  'On Request Open': { ar: 'عند إصدار التأشيرة', en: 'On Visa Issuance' },
+  'عند إصدار/تجديد الإقامة': { ar: 'عند إصدار الإقامة', en: 'On Iqama Issuance' },
+  'On Iqama Issuance/Renewal': { ar: 'عند إصدار الإقامة', en: 'On Iqama Issuance' },
+  'Initial payment + delegate approval': { ar: 'عند إصدار التأشيرة والوكالة', en: 'On Visa Issuance & Delegation' },
+}
+const deriveInstMeta = (ins, T, isAr, svcCode) => {
   const insTotal = Number(ins.total_amount || 0)
   const insPaid = Number(ins.paid_amount || 0)
   const state = insPaid >= insTotal && insTotal > 0 ? 'paid' : (insPaid > 0 ? 'partial' : 'unpaid')
   const stateC = state === 'paid' ? C.ok : (state === 'partial' ? C.gold : 'var(--tx3)')
   const stateBg = state === 'paid' ? 'rgba(46,204,113,.16)' : (state === 'partial' ? 'rgba(176,125,0,.14)' : 'var(--tx6)')
   const stateLabel = state === 'paid' ? T('مسدّد','Paid') : (state === 'partial' ? T('جزئي','Partial') : T('لم يُسدد','Unpaid'))
-  const milestone = ins.payment_milestone
+  let milestone = ins.payment_milestone
     ? (isAr ? ins.payment_milestone.value_ar : (ins.payment_milestone.value_en || ins.payment_milestone.value_ar))
     : (ins.notes || null)
+  if (milestone && VISA_IQAMA_SVC.includes(svcCode)) {
+    const r = VISA_IQAMA_MILESTONE_REMAP[milestone]
+    if (r) milestone = isAr ? r.ar : r.en
+  }
+  // نقل الكفالة: تُعرض الدفعات بترقيم عادي «الدفعة الأولى/الثانية…» لا بمسمّى مرحلة.
+  if (svcCode === 'transfer') milestone = null
   return { insTotal, insPaid, state, stateC, stateBg, stateLabel, milestone }
 }
 const CheckIcon = () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -5327,7 +5368,46 @@ const AR_ORD = ['الأولى', 'الثانية', 'الثالثة', 'الراب�
 const EN_ORD = ['First', 'Second', 'Third', 'Fourth', 'Fifth', 'Sixth', 'Seventh', 'Eighth', 'Ninth', 'Tenth']
 const instOrdinalLabel = (n, isAr) => isAr ? ('الدفعة ' + (AR_ORD[n - 1] || n)) : ((EN_ORD[n - 1] || ('#' + n)) + ' Installment')
 
-const InstallmentRow = ({ ins, n, last, single, T, isAr, user }) => { const m = deriveInstMeta(ins, T, isAr)
+// سند القبض الورقي القديم: قد يحمل أكثر من رقم مفصولة بـ «-» أو «/» أو «\» أو مسافة (كل رقم سند مستقل)،
+// وأحياناً ملاحظة عربية. نفصل الأرقام في شرائح مستقلة، ونعرض أي نص عربي كملاحظة.
+const parseSlips = (raw) => {
+  const s = String(raw || '').trim()
+  if (!s) return { nums: [], note: '' }
+  const nums = [], noteParts = []
+  s.split(/[\/\-\\\s,،]+/).map(t => t.trim()).filter(Boolean).forEach(t => {
+    if (/^\d+$/.test(t)) nums.push(t); else noteParts.push(t)
+  })
+  return { nums, note: noteParts.join(' ') }
+}
+
+// عرض سند القبض الورقي بأسلوب «الختم» + أيقونة نسخ (تنسخ كل الأرقام مفصولة بمسافة).
+const SlipStamps = ({ raw, T }) => {
+  const { nums, note } = parseSlips(raw)
+  const [copied, setCopied] = useState(false)
+  if (!nums.length && !note) return null
+  const copy = () => { try { navigator.clipboard.writeText(nums.join(' ')); setCopied(true); setTimeout(() => setCopied(false), 1200) } catch (_) {} }
+  return (
+    <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+      {nums.map((sl, i) => (
+        <span key={i} title={T('سند القبض الورقي','Paper receipt')} style={{ display: 'inline-block', border: '1.5px solid rgba(176,125,0,.5)', borderRadius: 7, padding: '3px 12px', color: C.gold, fontWeight: 700, transform: 'rotate(-3deg)', textAlign: 'center', lineHeight: 1.15 }}>
+          <span style={{ display: 'block', fontSize: 8.5, fontWeight: 600, opacity: .85 }}>{T('سند قبض','Receipt')}</span>
+          <span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums', fontSize: 13 }}>{sl}</span>
+        </span>
+      ))}
+      {nums.length > 0 && (
+        <button type="button" onClick={copy} title={copied ? T('تم النسخ','Copied') : T('نسخ رقم السند','Copy receipt no.')}
+          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, borderRadius: 6, border: '1px solid ' + (copied ? 'rgba(46,204,113,.4)' : 'rgba(176,125,0,.3)'), background: copied ? 'rgba(46,204,113,.1)' : 'rgba(176,125,0,.08)', color: copied ? C.ok : C.gold, cursor: 'pointer', padding: 0, transition: '.15s' }}>
+          {copied
+            ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>}
+        </button>
+      )}
+      {note && <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{note}</span>}
+    </div>
+  )
+}
+
+const InstallmentRow = ({ ins, n, last, single, T, isAr, user, svcCode }) => { const m = deriveInstMeta(ins, T, isAr, svcCode)
   const visOrder = fieldVisible(user, 'invoices', 'installment_order')
   const visAmount = fieldVisible(user, 'invoices', 'installment_amount')
   const visStatus = fieldVisible(user, 'invoices', 'installment_status')
@@ -5365,14 +5445,15 @@ const InstallmentRow = ({ ins, n, last, single, T, isAr, user }) => { const m = 
           <span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums', color: 'var(--tx3)' }}>{fmtGreg(ins.expected_date, isAr)}</span>
         </div>
       )}
+      <SlipStamps raw={ins.paper_slip_no} T={T} />
     </div>
   </div>
   )
 }
-const TimelineCol = ({ items, T, isAr, user }) => (
+const TimelineCol = ({ items, T, isAr, user, svcCode }) => (
   <div style={{ position: 'relative', paddingInlineStart: 22 }}>
     {items.length > 1 && <div style={{ position: 'absolute', insetInlineStart: 11, top: 14, bottom: 14, width: 2, background: 'var(--bd)' }} />}
-    {items.map((ins, i) => <InstallmentRow key={ins.id} ins={ins} n={i + 1} last={i === items.length - 1} single={false} T={T} isAr={isAr} user={user} />)}
+    {items.map((ins, i) => <InstallmentRow key={ins.id} ins={ins} n={i + 1} last={i === items.length - 1} single={false} T={T} isAr={isAr} user={user} svcCode={svcCode} />)}
   </div>
 )
 const TimelineHead = ({ icon, title, sub }) => (
@@ -5382,7 +5463,7 @@ const TimelineHead = ({ icon, title, sub }) => (
     {sub && <span style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{sub}</span>}
   </div>
 )
-const InstallmentTimeline = ({ insts, T, isAr, user }) => {
+const InstallmentTimeline = ({ insts, T, isAr, user, svcCode }) => {
   // Schedule shape: one shared combined «إصدار التأشيرة والتوكيل» tranche (no visa link) shown first,
   // then one «إصدار الإقامة» tranche per visa under its own header. Legacy/cash schedules stay flat.
   const visaInsts = insts.filter(x => x.visa_application_id)
@@ -5390,7 +5471,7 @@ const InstallmentTimeline = ({ insts, T, isAr, user }) => {
   if (!visaInsts.length) return (
     <div style={{ position: 'relative', paddingInlineStart: 22 }}>
       {insts.length > 1 && <div style={{ position: 'absolute', insetInlineStart: 11, top: 14, bottom: 14, width: 2, background: 'var(--bd)' }} />}
-      {insts.map((ins, i) => <InstallmentRow key={ins.id} ins={ins} n={ins.installment_order} last={i === insts.length - 1} single={insts.length === 1} T={T} isAr={isAr} user={user} />)}
+      {insts.map((ins, i) => <InstallmentRow key={ins.id} ins={ins} n={ins.installment_order} last={i === insts.length - 1} single={insts.length === 1} T={T} isAr={isAr} user={user} svcCode={svcCode} />)}
     </div>
   )
   const groups = []; const map = new Map()
@@ -5404,7 +5485,7 @@ const InstallmentTimeline = ({ insts, T, isAr, user }) => {
         <div>
           <TimelineHead title={sharedHasAuth ? T('التأشيرة والتوكيل','Visa & authorization') : T('إصدار التأشيرة','Visa issuance')} sub={T('مشتركة لكل التأشيرات','shared — all visas')}
             icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>} />
-          <TimelineCol items={txnInsts} T={T} isAr={isAr} user={user} />
+          <TimelineCol items={txnInsts} T={T} isAr={isAr} user={user} svcCode={svcCode} />
         </div>
         )
       })()}
@@ -5420,7 +5501,7 @@ const InstallmentTimeline = ({ insts, T, isAr, user }) => {
             return null
           })()}
             icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>} />
-          <TimelineCol items={g.items} T={T} isAr={isAr} user={user} />
+          <TimelineCol items={g.items} T={T} isAr={isAr} user={user} svcCode={svcCode} />
         </div>
       ))}
     </div>
@@ -5660,7 +5741,7 @@ const InstallmentsWithPayments = ({ data, breakdown, total = 0, paid = 0, remain
       {insts.length === 0 ? (
         <div style={{ padding: '6px 0 10px', fontSize: 11, color: 'var(--tx4)' }}>{T('لا توجد دفعات','No installments')}</div>
       ) : (
-        <InstallmentTimeline insts={insts} isAr={isAr} T={T} user={user} />
+        <InstallmentTimeline insts={insts} isAr={isAr} T={T} user={user} svcCode={data?.code} />
       )}
 
       {/* Payments — all actual payments */}
@@ -6467,7 +6548,7 @@ function NoteEditModal({ sb, toast, T, inv, editorId, editorName, onClose, onSav
 
 // قيمة طويلة تُقصَّ بثبات في مكانها (بلا تلميح متصفّح خارج النافذة)، وعند مرور الفأرة تنزلق أفقياً
 // في نفس الموضع لتكشف النص كاملاً ثم تعود — تلاشٍ خفيف عند الحافة يُشير إلى وجود بقية مخفية.
-const MarqueeValue = ({ value, ltr, color }) => {
+const MarqueeValue = ({ value, ltr, color, maxWidth = '62%' }) => {
   const wrapRef = useRef(null)
   const txtRef = useRef(null)
   const [over, setOver] = useState(0)
@@ -6481,7 +6562,7 @@ const MarqueeValue = ({ value, ltr, color }) => {
     <span ref={wrapRef}
       onMouseEnter={() => { measure(); setHov(true) }}
       onMouseLeave={() => setHov(false)}
-      style={{ position: 'relative', display: 'block', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '62%', direction: ltr ? 'ltr' : 'rtl',
+      style={{ position: 'relative', display: 'block', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth, minWidth: 0, direction: ltr ? 'ltr' : 'rtl',
         WebkitMaskImage: over && !hov ? `linear-gradient(${ltr ? 'to right' : 'to left'}, #000 80%, transparent)` : 'none',
         maskImage: over && !hov ? `linear-gradient(${ltr ? 'to right' : 'to left'}, #000 80%, transparent)` : 'none' }}>
       <span ref={txtRef}
@@ -9101,12 +9182,14 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
               {extraRows.length > 0 && (
                 <div style={{ marginTop: (counterFrom || byName || whenAt) ? 8 : 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
                   {extraRows.map(([lbl, val, mono, color, copy], i) => (
-                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
-                      <span style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 600 }}>{lbl}</span>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                        {copy && <CopyBtn text={val} />}
-                        <span style={{ fontSize: 12, color: color || 'var(--tx2)', fontWeight: 600, ...(mono ? { direction: 'ltr', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' } : {}) }}>{val}</span>
-                      </span>
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, fontSize: 12 }}>
+                      <span style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 600, flexShrink: 0 }}>{lbl}</span>
+                      {mono
+                        ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0, maxWidth: '60%' }}>
+                            {copy && <CopyBtn text={val} />}
+                            <span style={{ color: color || 'var(--tx2)', fontWeight: 600, direction: 'ltr', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{val}</span>
+                          </span>
+                        : <MarqueeValue value={val} ltr={!/[؀-ۿ]/.test(String(val))} color={color} maxWidth="min(100%, 190px)" />}
                     </div>
                   ))}
                 </div>
@@ -9226,12 +9309,14 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
                       {g.title && <div style={{ fontSize: 11.5, fontWeight: 600, color: C.goldSoft, marginBottom: 6 }}>{g.title}</div>}
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                         {g.rows.map(([lbl, val, mono, color, copy], i) => (
-                          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
-                            <span style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600 }}>{lbl}</span>
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                              {copy && <CopyBtn text={String(val)} />}
-                              <span style={{ fontSize: 12.5, color: color || 'var(--tx2)', fontWeight: 600, ...(mono ? { direction: 'ltr', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' } : {}) }}>{val}</span>
-                            </span>
+                          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, fontSize: 12.5 }}>
+                            <span style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600, flexShrink: 0 }}>{lbl}</span>
+                            {mono
+                              ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0, maxWidth: '60%' }}>
+                                  {copy && <CopyBtn text={String(val)} />}
+                                  <span style={{ color: color || 'var(--tx2)', fontWeight: 600, direction: 'ltr', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{val}</span>
+                                </span>
+                              : <MarqueeValue value={String(val)} ltr={!/[؀-ۿ]/.test(String(val))} color={color} maxWidth="min(100%, 190px)" />}
                           </div>
                         ))}
                       </div>
@@ -9513,12 +9598,13 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
                       const personOf = s => s?.by_name ? { name_ar: s.by_name, name_en: s.by_name } : null
                       const stageBar = (key, phaseLabel, sObj, prevAt, fileAtt, extraRows) => {
                         const cancelled = sObj?.status === 'cancelled'
+                        const skipped = sObj?.status === 'skipped'
                         const st = !sObj ? 'awaiting_done' : cancelled ? 'cancelled' : 'done'
                         return (
                           <div style={{ marginTop: key === 'transfer' ? 0 : 16 }}>
                             <TxnStatusBar T={T} stage={st} phase={phaseLabel}
-                              label={!sObj ? T('بالانتظار', 'Pending') : cancelled ? T('ملغاة', 'Cancelled') : T('منجز', 'Completed')} />
-                            {sObj && metaBlock({ accent: cancelled ? C.red : C.ok, counterFrom: prevAt, counterTo: sObj.at, whenAt: sObj.at, person: personOf(sObj), note: cancelled ? (sObj.reason || '') : '', extraRows: cancelled ? [] : extraRows, attachments: (!cancelled && fileAtt) ? [{ url: fileAtt.file_url, label: T('عرض الملف', 'View file') }] : [] })}
+                              label={!sObj ? T('بالانتظار', 'Pending') : cancelled ? T('ملغاة', 'Cancelled') : skipped ? T('لا يحتاج', 'Not Needed') : T('منجز', 'Completed')} />
+                            {sObj && metaBlock({ accent: cancelled ? C.red : skipped ? C.gold : C.ok, counterFrom: prevAt, counterTo: sObj.at, whenAt: sObj.at, person: personOf(sObj), note: (cancelled || skipped) ? (sObj.reason || '') : '', extraRows: (cancelled || skipped) ? [] : extraRows, attachments: (!cancelled && !skipped && fileAtt) ? [{ url: fileAtt.file_url, label: T('عرض الملف', 'View file') }] : [] })}
                           </div>
                         )
                       }
@@ -9537,6 +9623,7 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
                         ] : [])}
                         {stageBar('muqeem', T('الإقامة', 'Iqama'), mu, wp?.at || ins?.at || inv.created_at, data?.muqeemFile, mu ? [
                           [T('التجديد عبر تواصل', 'Renewal via contact'), mu.via_contact ? T('نعم', 'Yes') : T('لا', 'No'), false],
+                          [T('رقم الإقامة', 'Iqama No'), mu.iqama_number || tc.iqama_number || '—', true, null, true],
                           [T('تاريخ انتهاء الإقامة', 'Iqama Expiry'), mu.iqama_expiry ? fmtGreg(mu.iqama_expiry, isAr) : '—', false, C.gold],
                           [T('المدة الفعلية', 'Actual Duration'), muActualDur || '—', false, C.gold],
                           [T('المهنة', 'Occupation'), mu.occupation_name_ar || '—', false],
@@ -9593,6 +9680,7 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
                         ] : [])}
                         {stageBar('iqama', T('الإقامة', 'Iqama'), iq, wp?.at || ins?.at || inv.created_at, data?.muqeemFile, iq ? [
                           [T('التجديد عبر تواصل', 'Renewal via contact'), iq.via_contact ? T('نعم', 'Yes') : T('لا', 'No'), false],
+                          [T('رقم الإقامة', 'Iqama No'), iq.iqama_number || tc.iqama_number || '—', true, null, true],
                           [T('تاريخ انتهاء الإقامة', 'Iqama Expiry'), iq.iqama_expiry ? fmtGreg(iq.iqama_expiry, isAr) : '—', false, C.gold],
                           [T('المدة الفعلية', 'Actual Duration'), iqActualDur || '—', false, C.gold],
                           [T('المهنة', 'Occupation'), iq.occupation_name_ar || '—', false],
