@@ -3,12 +3,11 @@ import BackButton from './components/BackButton'
 import { buildBookmarklet, buildPdfBookmarklet } from './pages/sbcSyncBookmarklet.js'
 import { buildGosiBookmarklet } from './pages/gosiSyncBookmarklet.js'
 import { buildQiwaBookmarklet } from './pages/qiwaSyncBookmarklet.js'
-import { Sel } from './pages/KafalaCalculator.jsx'
 import { can as canPerm, canCardBtn, cardVisible, isGM, userOffices } from './lib/permissions.js'
 import { branchLabel } from './lib/utils.js'
 import { navSetHere } from './lib/navStack.js'
 import { Building2, Hash, Plus, Ban, Trash2, Pencil } from 'lucide-react'
-import { Modal as FKModal, ModalSection, ActionButton, SuccessView, GRID, TextField, Segmented, Select, DateField, Switch, EmptyState } from './components/ui/FormKit.jsx'
+import { Modal as FKModal, ModalSection, ActionButton, SuccessView, GRID, TextField, Segmented, Select, Dropdown as FKDropdown, DateField, Switch, EmptyState } from './components/ui/FormKit.jsx'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = {
@@ -4953,27 +4952,19 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
 
       {/* Advanced search panel — يفتحها زر «تصفية» */}
       {advOpen && (
-        <div style={{ marginBottom: 22, padding: '16px 18px', background: 'var(--card-grad2)', border: '1px solid var(--bd)', borderRadius: 14, boxShadow: '0 4px 16px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.04)' }}>
+        <div style={{ marginBottom: 22, padding: '16px 18px', background: 'var(--card-grad2)', border: '1px solid var(--bd)', borderRadius: 14, boxShadow: 'var(--shadow-md)' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
             <div>
               <div style={advLbl}>{T('الكيان', 'Entity')}</div>
-              <Sel value={adv.entity} onChange={v => setAdv(a => ({ ...a, entity: v }))}
-                placeholder={T('الكل', 'All')}
-                maxVisible={4}
-                multiple
-                options={[
-                  { v: '', l: T('الكل', 'All') },
-                  ...entityFilterOpts,
-                ]}/>
+              <FKDropdown multi selectedKeys={adv.entity} onChange={arr => setAdv(a => ({ ...a, entity: arr }))}
+                placeholder={T('الكل', 'All')} getKey={o => o.v} getLabel={o => o.l}
+                options={entityFilterOpts}/>
             </div>
             <div>
               <div style={advLbl}>{T('حالة السجل', 'CR Status')}</div>
-              <Sel value={adv.status} onChange={v => setAdv(a => ({ ...a, status: v }))}
-                placeholder={T('الكل', 'All')}
-                maxVisible={4}
-                multiple
+              <FKDropdown multi selectedKeys={adv.status} onChange={arr => setAdv(a => ({ ...a, status: arr }))}
+                placeholder={T('الكل', 'All')} getKey={o => o.v} getLabel={o => o.l}
                 options={[
-                  { v: '', l: T('الكل', 'All') },
                   { v: 'active', l: T('نشط', 'Active') },
                   { v: 'confirm', l: T('ضمن فترة التأكيد', 'In annual confirm') },
                   { v: 'suspended', l: T('معلّق', 'Suspended') },
@@ -4983,38 +4974,24 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
             </div>
             <div>
               <div style={advLbl}>{T('المكتب', 'Office')}</div>
-              <Sel value={adv.branch} onChange={v => setAdv(a => ({ ...a, branch: v }))}
-                placeholder={T('الكل', 'All')}
-                maxVisible={4}
-                searchable
-                multiple
-                searchPlaceholder={T('ابحث بالمكتب…', 'Search branch…')}
-                options={[
-                  { v: '', l: T('الكل', 'All') },
-                  ...branchFilterOpts,
-                ]}/>
+              <FKDropdown multi selectedKeys={adv.branch} onChange={arr => setAdv(a => ({ ...a, branch: arr }))}
+                placeholder={T('الكل', 'All')} getKey={o => o.v} getLabel={o => o.l}
+                options={branchFilterOpts}/>
             </div>
             <div>
               <div style={advLbl}>{T('المركز السعودي', 'Saudi Center')}</div>
-              <Sel value={adv.saudiCenter} onChange={v => setAdv(a => ({ ...a, saudiCenter: v }))}
-                placeholder={T('الكل', 'All')}
-                maxVisible={4}
-                multiple
+              <FKDropdown multi selectedKeys={adv.saudiCenter} onChange={arr => setAdv(a => ({ ...a, saudiCenter: arr }))}
+                placeholder={T('الكل', 'All')} getKey={o => o.v} getLabel={o => o.l}
                 options={[
-                  { v: '', l: T('الكل', 'All') },
                   { v: 'yes', l: T('نعم', 'Yes') },
                   { v: 'no', l: T('لا', 'No') },
                 ]}/>
             </div>
             <div>
               <div style={advLbl}>{T('عدد العمالة', 'Workforce count')}</div>
-              <Sel value={adv.workforce} onChange={v => setAdv(a => ({ ...a, workforce: v }))}
-                placeholder={T('الكل', 'All')}
-                maxVisible={4}
-                multiple
-                joinSummary
+              <FKDropdown multi selectedKeys={adv.workforce} onChange={arr => setAdv(a => ({ ...a, workforce: arr }))}
+                placeholder={T('الكل', 'All')} getKey={o => o.v} getLabel={o => o.l}
                 options={[
-                  { v: '', l: T('الكل', 'All') },
                   ...Array.from({ length: 11 }, (_, i) => ({ v: String(i), l: num(i) })),
                   { v: '10+', l: T(`أكثر من ${num(10)}`, 'More than 10') },
                 ]}/>
@@ -5023,10 +5000,9 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
               <div style={advLbl}>
                 {T('ترتيب حسب تاريخ التأكيد', 'Sort by confirm date')}
               </div>
-              <Sel value={adv.sortConfirm} onChange={v => setAdv(a => ({ ...a, sortConfirm: v }))}
-                placeholder={T('بدون ترتيب', 'No sort')}
+              <FKDropdown value={adv.sortConfirm} onChange={v => setAdv(a => ({ ...a, sortConfirm: v || '' }))}
+                placeholder={T('بدون ترتيب', 'No sort')} getKey={o => o.v} getLabel={o => o.l}
                 options={[
-                  { v: '', l: T('بدون ترتيب', 'No sort') },
                   { v: 'asc', l: T('تصاعدي · الأقدم أولاً', 'Ascending · oldest first') },
                   { v: 'desc', l: T('تنازلي · الأحدث أولاً', 'Descending · newest first') },
                 ]}/>
