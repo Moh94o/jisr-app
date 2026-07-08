@@ -35,11 +35,12 @@ const cardChrome = {
   overflow: 'hidden',
 }
 const cardHeader = {
-  display: 'flex', alignItems: 'center', gap: 8,
-  padding: '12px 22px',
+  display: 'flex', alignItems: 'center', gap: 10,
+  padding: '14px 22px',
   borderBottom: '1px solid var(--bd)',
 }
-const cardTitle = { fontSize: 12, color: 'var(--tx2)', fontWeight: 600, letterSpacing: '.2px' }
+// عنوان الكرت — بنفس هيئة عناوين كروت تفاصيل الفاتورة (ذهبي 16px).
+const cardTitle = { fontSize: 16, color: '#B07D00', fontWeight: 600, letterSpacing: '.2px' }
 const btnGold = { height: 40, padding: '0 16px', borderRadius: 11, background: 'linear-gradient(180deg,rgba(176,125,0,.22) 0%,rgba(176,125,0,.10) 100%)', border: '1px solid rgba(176,125,0,.45)', color: '#B07D00', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7, fontFamily: F, fontSize: 12, fontWeight: 600, transition: '.2s', boxShadow: '0 2px 8px rgba(176,125,0,.18), inset 0 1px 0 rgba(176,125,0,.18)' }
 const btnFilter = (active) => ({ height: 44, padding: '0 16px', borderRadius: 12, background: active ? 'var(--accent-soft)' : 'var(--search-bg)', border: '1px solid ' + (active ? 'var(--accent-bd)' : 'transparent'), color: active ? 'var(--accent)' : 'var(--tx2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 8, boxSizing: 'border-box', boxShadow: '0 2px 7px rgba(0,0,0,.12), inset 0 1px 0 rgba(176,125,0,.1)' })
 
@@ -6016,7 +6017,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                         overflow: 'hidden', marginBottom: 8,
                       }
                       const primaryCell = {
-                        flex: 1.1, padding: '10px 14px', textAlign: 'center',
+                        flex: 1, padding: '10px 14px', textAlign: 'center',
                         borderInlineEnd: '1px solid var(--bd)',
                         display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 4,
                       }
@@ -6176,7 +6177,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                         overflow: 'hidden', marginBottom: 8,
                       }
                       const primaryCell = {
-                        flex: 1.1, padding: '10px 14px', textAlign: 'center',
+                        flex: 1, padding: '10px 14px', textAlign: 'center',
                         borderInlineEnd: '1px solid var(--bd)',
                         display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 4,
                       }
@@ -6219,7 +6220,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                         overflow: 'hidden',
                       }
                       const primaryCell = {
-                        flex: 1.1, padding: '10px 14px', textAlign: 'center',
+                        flex: 1, padding: '10px 14px', textAlign: 'center',
                         borderInlineEnd: '1px solid var(--bd)',
                         display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 4,
                       }
