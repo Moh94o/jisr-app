@@ -9158,6 +9158,16 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
         const finalStage = reqCode === 'done' ? 'done'
           : (isCancelled || _acct === 'rejected') ? 'cancelled'
           : 'awaiting_done'
+        // الحقول الثلاثة المُدخَلة من البوت (الرقم الموحد · رقم الحدود · رقم الإقامة) تُعرَض
+        // كروابط ذكية عبر <SmartIdCell> أينما ظهرت في كرت المعاملة — خضراء قابلة للنقر إن وُجد
+        // الكيان، حمراء إن لم يوجد. المطابقة على تسمية الصف بالضبط (تستثني «الشركة الناقلة» إلخ).
+        // مضبوطة بصلاحية invoices.smart_id_links (المدير العام دائماً، وتُمنَح لغيره من
+        // لوحة الصلاحيات). من لا يملكها يرى القيمة كنصّ عادي بلا لون/رابط.
+        const _smartLinksOn = canPerm(user, 'invoices.smart_id_links')
+        const _lblUnified = T('الرقم الموحد', 'Unified No')
+        const _lblBorder = T('رقم الحدود', 'Border No')
+        const _lblIqama = T('رقم الإقامة', 'Iqama No')
+        const smartLinkKind = (lbl) => !_smartLinksOn ? null : lbl === _lblUnified ? 'facility' : lbl === _lblBorder ? 'worker_border' : lbl === _lblIqama ? 'worker_iqama' : null
         // كتلة تفصيلية موحَّدة تُعرض أسفل أي شارة مرحلة: عدّاد (حيّ أو مدة ثابتة) + بيانات إضافية + مَن/متى + ملاحظة.
         // counterFrom/counterTo: بداية ونهاية العدّاد (to محذوف ⇒ عدّاد حيّ). whenAt: وقت العرض في سطر «مَن/متى».
         const metaBlock = ({ accent, counterFrom, counterTo, whenAt, person, note, extraRows = [], docFile = null, docLabel = null, attachments = [] }) => {
@@ -9181,17 +9191,25 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
               )}
               {extraRows.length > 0 && (
                 <div style={{ marginTop: (counterFrom || byName || whenAt) ? 8 : 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  {extraRows.map(([lbl, val, mono, color, copy], i) => (
+                  {extraRows.map(([lbl, val, mono, color, copy], i) => {
+                    const _sk = smartLinkKind(lbl)
+                    return (
                     <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, fontSize: 12 }}>
                       <span style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 600, flexShrink: 0 }}>{lbl}</span>
-                      {mono
+                      {_sk
+                        ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0, maxWidth: '60%' }}>
+                            {copy && <CopyBtn text={val} />}
+                            <SmartIdCell sb={sb} kind={_sk} value={val} />
+                          </span>
+                        : mono
                         ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0, maxWidth: '60%' }}>
                             {copy && <CopyBtn text={val} />}
                             <span style={{ color: color || 'var(--tx2)', fontWeight: 600, direction: 'ltr', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{val}</span>
                           </span>
                         : <MarqueeValue value={val} ltr={!/[؀-ۿ]/.test(String(val))} color={color} maxWidth="min(100%, 190px)" />}
                     </div>
-                  ))}
+                    )
+                  })}
                 </div>
               )}
               {note && (
@@ -9308,17 +9326,25 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
                     <div key={gi} style={gi > 0 ? { marginTop: 10, paddingTop: 8, borderTop: '1px solid var(--bd)' } : undefined}>
                       {g.title && <div style={{ fontSize: 11.5, fontWeight: 600, color: C.goldSoft, marginBottom: 6 }}>{g.title}</div>}
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                        {g.rows.map(([lbl, val, mono, color, copy], i) => (
+                        {g.rows.map(([lbl, val, mono, color, copy], i) => {
+                          const _sk = smartLinkKind(lbl)
+                          return (
                           <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, fontSize: 12.5 }}>
                             <span style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600, flexShrink: 0 }}>{lbl}</span>
-                            {mono
+                            {_sk
+                              ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0, maxWidth: '60%' }}>
+                                  {copy && <CopyBtn text={String(val)} />}
+                                  <SmartIdCell sb={sb} kind={_sk} value={String(val)} />
+                                </span>
+                              : mono
                               ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0, maxWidth: '60%' }}>
                                   {copy && <CopyBtn text={String(val)} />}
                                   <span style={{ color: color || 'var(--tx2)', fontWeight: 600, direction: 'ltr', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{val}</span>
                                 </span>
                               : <MarqueeValue value={String(val)} ltr={!/[؀-ۿ]/.test(String(val))} color={color} maxWidth="min(100%, 190px)" />}
                           </div>
-                        ))}
+                          )
+                        })}
                       </div>
                     </div>
                   ))}
@@ -9897,6 +9923,74 @@ const Section = ({ title, children }) => (
     {children}
   </div>
 )
+// ─── بحث ذكي عن كيان بالرقم (منشأة بالرقم الموحد · عامل برقم الحدود/الإقامة) ──
+// للحقول الثلاثة التي تُدخَل من البوت في كرت المعاملة. يبحث حيّاً في القاعدة:
+// إن وُجد الكيان تصير القيمة خضراء تحتها خط وقابلة للنقر (تفتح صفحة المنشأة/العامل)،
+// وإلا حمراء. يربط تلقائياً أياً كان تسلسل الإدخال (الرقم أولاً أو الكيان).
+const _entLookupCache = new Map()      // مفتاح → نتيجة موجبة ثابتة (المعرّف لا يتغيّر)
+const _entLookupInflight = new Map()   // مفتاح → وعد قيد التنفيذ (منع الاستعلام المكرّر المتزامن)
+async function lookupEntityByNumber(sb, kind, value) {
+  const v = String(value ?? '').trim()
+  if (!v || !sb) return { state: 'missing' }
+  const key = kind + ':' + v
+  const hit = _entLookupCache.get(key)
+  if (hit) return hit
+  if (_entLookupInflight.has(key)) return _entLookupInflight.get(key)
+  const run = (async () => {
+    try {
+      if (kind === 'facility') {
+        const { data } = await sb.from('facilities').select('id').eq('unified_number', v).is('deleted_at', null).limit(1)
+        const row = data && data[0]
+        if (row) { const r = { state: 'found', target: 'facility', id: row.id }; _entLookupCache.set(key, r); return r }
+        return { state: 'missing' }
+      }
+      // العامل: يُبحث في العمالة الدائمة والمؤقتة معاً — الدائمة أولاً.
+      const col = kind === 'worker_border' ? 'border_number' : 'iqama_number'
+      const [pw, tw] = await Promise.all([
+        sb.from('workers').select('id').eq(col, v).is('deleted_at', null).limit(1),
+        sb.from('temproryworkers').select('id').eq(col, v).is('deleted_at', null).limit(1),
+      ])
+      const prow = pw.data && pw.data[0]
+      const trow = tw.data && tw.data[0]
+      if (prow) { const r = { state: 'found', target: 'worker', id: prow.id }; _entLookupCache.set(key, r); return r }
+      if (trow) { const r = { state: 'found', target: 'temp_worker', id: trow.id }; _entLookupCache.set(key, r); return r }
+      return { state: 'missing' }
+    } catch { return { state: 'error' } }
+    finally { _entLookupInflight.delete(key) }
+  })()
+  _entLookupInflight.set(key, run)
+  return run
+}
+
+const SmartIdCell = ({ sb, kind, value }) => {
+  const { T } = useFKLang()
+  const [res, setRes] = useState({ state: 'loading' })
+  useEffect(() => {
+    let alive = true
+    setRes({ state: 'loading' })
+    lookupEntityByNumber(sb, kind, value).then(r => { if (alive) setRes(r || { state: 'error' }) })
+    return () => { alive = false }
+  }, [sb, kind, value])
+  const found = res.state === 'found'
+  const missing = res.state === 'missing'
+  const color = found ? C.ok : missing ? C.red : 'var(--tx2)'
+  const go = () => {
+    if (!found) return
+    const ev = res.target === 'facility' ? 'app-navigate-facility'
+      : res.target === 'temp_worker' ? 'app-navigate-temp-worker'
+      : 'app-navigate-worker'
+    try { window.dispatchEvent(new CustomEvent(ev, { detail: { id: res.id } })) } catch { /* ignore */ }
+  }
+  const base = { color, fontWeight: 600, direction: 'ltr', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
+  if (found) return (
+    <button onClick={go} title={res.target === 'facility' ? T('فتح صفحة المنشأة', 'Open facility') : T('فتح صفحة العامل', 'Open worker')}
+      style={{ ...base, background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: 3, maxWidth: '100%' }}>
+      {value}
+    </button>
+  )
+  return <span style={base} title={missing ? T('غير موجود في البرنامج', 'Not found in the system') : undefined}>{value}</span>
+}
+
 const CopyBtn = ({ text }) => {
   const { T } = useFKLang()
   const [done, setDone] = useState(false)

@@ -6,7 +6,7 @@ import { buildQiwaBookmarklet } from './pages/qiwaSyncBookmarklet.js'
 import { can as canPerm, canCardBtn, cardVisible, isGM, userOffices } from './lib/permissions.js'
 import { branchLabel } from './lib/utils.js'
 import { navSetHere } from './lib/navStack.js'
-import { Building2, Hash, Plus, Ban, Trash2, Pencil } from 'lucide-react'
+import { Building2, Hash, Plus, Ban, Trash2, Pencil, X, AlertCircle, Landmark } from 'lucide-react'
 import { Modal as FKModal, ModalSection, ActionButton, SuccessView, GRID, TextField, Segmented, Select, Dropdown as FKDropdown, DateField, Switch, EmptyState } from './components/ui/FormKit.jsx'
 
 const F = "'Cairo','Tajawal',sans-serif"
@@ -177,8 +177,74 @@ function extractPartyDisplay(p) {
   return { name: '—', id: '', isCompany: false }
 }
 
+// عدّاد صلاحية الكابتشا — نسخة مطابقة لعداد حاسبة الكفالة (صلاحية رمز وزارة
+// الموارد ~15 ثانية فقط؛ عند الانتهاء يُطلب رمز جديد تلقائياً).
+const CAPTCHA_TTL = 13
+const CaptchaCountdown = ({ captchaKey, onExpire, color = C.gold }) => {
+  const [remaining, setRemaining] = useState(CAPTCHA_TTL)
+  const firedRef = useRef(false)
+  useEffect(() => {
+    firedRef.current = false
+    setRemaining(CAPTCHA_TTL)
+    const start = Date.now()
+    const iv = setInterval(() => {
+      const rem = Math.max(0, CAPTCHA_TTL - Math.floor((Date.now() - start) / 1000))
+      setRemaining(rem)
+      if (rem === 0 && !firedRef.current) {
+        firedRef.current = true
+        clearInterval(iv)
+        onExpire && onExpire()
+      }
+    }, 250)
+    return () => clearInterval(iv)
+  }, [captchaKey])
+  const urgent = remaining <= 6
+  const displayColor = urgent ? C.red : color
+  const size = 38, stroke = 3
+  const r = (size - stroke) / 2
+  const circ = 2 * Math.PI * r
+  const offset = circ * (1 - remaining / CAPTCHA_TTL)
+  return (
+    <div style={{ position: 'relative', width: size, height: size, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+      <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="var(--bd)" strokeWidth={stroke} />
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={displayColor} strokeWidth={stroke} strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={offset} style={{ transition: 'stroke-dashoffset .25s linear' }} />
+      </svg>
+      <span style={{ position: 'absolute', fontSize: 14, fontWeight: 500, color: displayColor, fontFamily: F, lineHeight: 1 }}>{remaining}</span>
+    </div>
+  )
+}
+
+// لون شارة النطاق حسب اسمه — نفس تدرّج ألوان بطاقة الموارد البشرية في التفاصيل.
+function nitaqBandColor(name) {
+  if (!name) return null
+  const n = name.toString()
+  if (n.includes('بلاتيني')) return '#cbd5e1'
+  if (n.includes('أحمر') || n.includes('احمر')) return '#ef4444'
+  if (n.includes('أصفر') || n.includes('اصفر')) return '#eab308'
+  if (n.includes('أخضر') || n.includes('اخضر')) {
+    if (n.includes('مرتفع')) return '#22c55e'
+    if (n.includes('متوسط')) return '#16a085'
+    if (n.includes('منخفض') || n.includes('صغير')) return '#84cc16'
+    return '#22c55e'
+  }
+  return null
+}
+
 function PersonCompact({ p, dotColor }) {
   const { name, id, isCompany } = extractPartyDisplay(p)
+  const [copied, setCopied] = useState(false)
+  const onCopy = async (e) => {
+    e.stopPropagation()
+    if (!id) return
+    try {
+      await navigator.clipboard.writeText(String(id))
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    } catch {
+      // clipboard api unavailable — ignore silently
+    }
+  }
   // Companies get the gold "entity" color regardless of context (owners or
   // managers); individuals keep the caller's hue (blue for owners, purple for
   // managers). Visual distinction makes it easy to scan who's a person vs an
@@ -189,12 +255,23 @@ function PersonCompact({ p, dotColor }) {
   const shortName = isLong ? words.slice(0, 3).join(' ') + '…' : name
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, padding: '2px 0', minWidth: 0, width: '100%' }}>
-      <div className={isLong ? 'pc-marquee pc-marquee-long' : 'pc-marquee'} title={name} style={{ fontSize: 10.5, fontWeight: 600, color }}>
+      <div className={isLong ? 'pc-marquee pc-marquee-long' : 'pc-marquee'} title={name} style={{ fontSize: 12, fontWeight: 600, color }}>
         <span className="pc-short">{shortName}</span>
         {isLong && <span className="pc-full">{name}</span>}
       </div>
       {id && (
-        <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 9.5, fontWeight: 600, color: 'var(--tx3)', direction: 'ltr', fontVariantNumeric: 'tabular-nums', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{id}</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, direction: 'ltr', minWidth: 0, maxWidth: '100%' }}>
+          <button type="button" onClick={onCopy} title="نُسخ" style={{ width: 16, height: 16, padding: 0, border: 'none', background: 'transparent', color: copied ? C.ok : 'var(--tx5)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 3, transition: 'color .15s', flexShrink: 0 }}
+            onMouseEnter={e => { if (!copied) e.currentTarget.style.color = C.gold }}
+            onMouseLeave={e => { if (!copied) e.currentTarget.style.color = 'var(--tx5)' }}>
+            {copied ? (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            ) : (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            )}
+          </button>
+          <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 10.5, fontWeight: 600, color: 'var(--tx3)', fontVariantNumeric: 'tabular-nums', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{id}</span>
+        </span>
       )}
     </div>
   )
@@ -3342,7 +3419,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
   const [err, setErr] = useState(null)
   const [search, setSearch] = useState('')
   const [advOpen, setAdvOpen] = useState(false)
-  const [adv, setAdv] = useState({ entity: [], status: [], branch: [], saudiCenter: [], workforce: [], sortConfirm: '' })
+  const [adv, setAdv] = useState({ entity: [], status: [], branch: [], manager: [], nitaq: [], workforce: [], saudis: [], sortConfirm: '' })
   // صفحة التفاصيل الغنية تُشتق من viewId (يعمل مع سلسلة الرجوع والروابط العميقة).
   // كلا العدستين (SBC/التأمينات) + الروابط تفتح نفس العرض المنسدل الموحّد.
   // detail = الصف المفتوح (مطابق لحقول sbc عبر mapFacility). setDetail(r) للتوافق
@@ -3365,6 +3442,9 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
   // filter. Loaded once in parallel with the facilities list so we can filter
   // without opening each row's detail.
   const [adminsCountByReg, setAdminsCountByReg] = useState({})
+  // قائمة مشرفي التأمينات (اسم + هوية) لكل منشأة — تُستخدم في عمود «المدير»
+  // كبديل عندما لا يوجد مدير في بيانات المركز السعودي.
+  const [adminsByReg, setAdminsByReg] = useState({})
   // Table view mode: 'sbc' keeps the original SBC-derived columns; 'gosi' swaps
   // most columns to GOSI-derived data (owners, debt, contributors split by
   // status & nationality). The facility name + numbers columns stay constant
@@ -3448,6 +3528,9 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
   const [branchByFacility, setBranchByFacility] = useState({})
   // عدد العمّال غير السعوديين المرتبطين بكل منشأة — من جدول workers عبر current_facility_id.
   const [nonSaudiByFacility, setNonSaudiByFacility] = useState({})
+  // عدد السعوديين المشتركين (اشتراك نشط في التأمينات) لكل منشأة — مفتاحها
+  // registration_no لأن الربط مع المنشأة يتم عبر gosi_registration_number.
+  const [saudiByReg, setSaudiByReg] = useState({})
   // Qiwa company row — populated by the Qiwa bookmarklet (qiwaSyncBookmarklet.js)
   // and matched here by cr_number when a facility detail opens.
   const [qiwaCompany, setQiwaCompany] = useState(null)
@@ -3622,12 +3705,35 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
       // السجل الأساسي للمنشآت — من جدول facilities (وليس مركز المزامنة). نجلب
       // نوع المنشأة والفرع عبر الربط المباشر، ثم نُعيد تشكيل كل صف ليطابق
       // الحقول التي يتوقعها الجدول/الفلاتر.
-      const { data, error } = await sb.from('facilities')
-        .select('*, org_type:lookup_items!facilities_organization_type_id_fkey(id,code,value_ar,value_en), branch:branches!facilities_branch_id_fkey(id,branch_code,name_ar,city:cities(name_ar,name_en))')
-        .is('deleted_at', null)
-        .order('name_ar', { ascending: true })
+      // النطاق وقائمة المدراء يعيشان في sbc_facilities (مزامنة المركز السعودي/
+      // الموارد البشرية) وليس في جدول facilities الأساسي — نجلبهما بالتوازي
+      // ونربطهما بكل منشأة عبر sbc_facility_id أو الرقم الموحد. المدراء يُنتزعون
+      // بمسار JSON محدد كي لا نسحب raw_cr_data كاملاً لكل المنشآت.
+      const [{ data, error }, { data: sbcExtra }] = await Promise.all([
+        sb.from('facilities')
+          .select('*, org_type:lookup_items!facilities_organization_type_id_fkey(id,code,value_ar,value_en), branch:branches!facilities_branch_id_fkey(id,branch_code,name_ar,city:cities(name_ar,name_en))')
+          .is('deleted_at', null)
+          .order('name_ar', { ascending: true }),
+        sb.from('sbc_facilities').select('id, cr_national_number, hrsd_nitaq_name, managers:raw_cr_data->mangmentInformation->managerList'),
+      ])
       if (error) throw error
-      setRows((data || []).map(mapFacility))
+      const nitaqById = {}, nitaqByCr = {}, mgrById = {}, mgrByCr = {}
+      for (const s of sbcExtra || []) {
+        if (s.hrsd_nitaq_name) {
+          nitaqById[s.id] = s.hrsd_nitaq_name
+          if (s.cr_national_number) nitaqByCr[s.cr_national_number] = s.hrsd_nitaq_name
+        }
+        if (Array.isArray(s.managers) && s.managers.length) {
+          mgrById[s.id] = s.managers
+          if (s.cr_national_number) mgrByCr[s.cr_national_number] = s.managers
+        }
+      }
+      setRows((data || []).map(f => ({
+        ...mapFacility(f),
+        // مزامنة sbc أولاً، وإلا النطاق المجلوب يدوياً المحفوظ على facilities نفسه.
+        hrsd_nitaq_name: nitaqById[f.sbc_facility_id] || nitaqByCr[f.unified_number] || f.hrsd_nitaq_name || null,
+        managers: mgrById[f.sbc_facility_id] || mgrByCr[f.unified_number] || [],
+      })))
       const bmap = {}
       for (const f of data || []) if (f.branch) bmap[f.id] = f.branch
       setBranchByFacility(bmap)
@@ -3978,15 +4084,25 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
   // of whether multiple roles are stored per admin.
   const loadAdminsCount = useCallback(async () => {
     if (!sb) return
-    const { data, error } = await sb.from('gosi_establishment_admins').select('registration_no')
+    const { data, error } = await sb.from('gosi_establishment_admins')
+      .select('registration_no, first_name_ar, second_name_ar, third_name_ar, family_name_ar, full_name_en, national_id')
     if (error || !Array.isArray(data)) return
-    const m = {}
+    const m = {}, byReg = {}
     for (const r of data) {
       const reg = r?.registration_no
       if (!reg) continue
       m[String(reg)] = (m[String(reg)] || 0) + 1
+      // نفس شكل عنصر مدراء SBC (personInfo) كي تعرضه PersonCompact مباشرة.
+      ;(byReg[String(reg)] ||= []).push({
+        personInfo: {
+          firstNameAr: [r.first_name_ar, r.second_name_ar, r.third_name_ar].filter(Boolean).join(' ') || r.full_name_en || '',
+          familyNameAr: r.family_name_ar || '',
+          identifierNo: r.national_id || '',
+        },
+      })
     }
     setAdminsCountByReg(m)
+    setAdminsByReg(byReg)
   }, [sb])
 
   // عدد العمّال غير السعوديين المرتبطين بكل منشأة — bulk select من workers ثم
@@ -3994,20 +4110,107 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
   // السعوديون عبر nationality_ar؛ القيم الفارغة تُحتسب ضمن غير السعوديين.
   const loadWorkerCounts = useCallback(async () => {
     if (!sb) return
-    const { data, error } = await sb.from('workers')
-      .select('current_facility_id, nationality_ar')
-      .is('deleted_at', null)
-      .not('current_facility_id', 'is', null)
-    if (error || !Array.isArray(data)) return
-    const isSaudi = (n) => { const s = (n || '').trim().replace(/^ال/, ''); return s === 'سعودي' || s === 'سعودية' || s === 'سعوديه' }
-    const m = {}
-    for (const w of data) {
-      if (isSaudi(w.nationality_ar)) continue
-      const fid = w.current_facility_id
-      m[fid] = (m[fid] || 0) + 1
+    const [wk, gc] = await Promise.all([
+      sb.from('workers')
+        .select('current_facility_id, nationality_ar')
+        .is('deleted_at', null)
+        .not('current_facility_id', 'is', null),
+      // السعوديون المشتركون في التأمينات — نفس منطق عرض GOSI في الجدول:
+      // نشط فعلياً = status ACTIVE + has_live_engagement، وسعودي = له هوية وطنية
+      // أو جنسيته سعودية.
+      sb.from('gosi_establishment_contributors')
+        .select('registration_no, status_type, has_live_engagement_in_establishment, national_id, nationality_ar, nationality_en'),
+    ])
+    if (!wk.error && Array.isArray(wk.data)) {
+      const isSaudi = (n) => { const s = (n || '').trim().replace(/^ال/, ''); return s === 'سعودي' || s === 'سعودية' || s === 'سعوديه' }
+      const m = {}
+      for (const w of wk.data) {
+        if (isSaudi(w.nationality_ar)) continue
+        const fid = w.current_facility_id
+        m[fid] = (m[fid] || 0) + 1
+      }
+      setNonSaudiByFacility(m)
     }
-    setNonSaudiByFacility(m)
+    if (!gc.error && Array.isArray(gc.data)) {
+      const isSaudiC = (c) => !!c.national_id || /السعودية|saudi/i.test(String(c.nationality_ar || '') + ' ' + String(c.nationality_en || ''))
+      const s = {}
+      for (const c of gc.data) {
+        if (String(c.status_type || '').toUpperCase() !== 'ACTIVE') continue
+        if (c.has_live_engagement_in_establishment !== true) continue
+        if (!isSaudiC(c)) continue
+        const k = String(c.registration_no)
+        s[k] = (s[k] || 0) + 1
+      }
+      setSaudiByReg(s)
+    }
   }, [sb])
+
+  // ═══ جلب النطاق من «استعلام نطاقات المنشآت» بموقع وزارة الموارد ═══
+  // نفس نمط استعلام العامل في حاسبة الكفالة: init يجيب صورة كابتشا يحلها
+  // المستخدم، ثم verify يرسل مكتب العمل + الرقم التسلسلي (شطرا رقم الموارد
+  // البشرية) ويعيد النطاق. النتيجة تُحفظ على facilities (وعلى sbc_facilities
+  // إن كانت المنشأة مربوطة) فلا يتكرر الجلب.
+  const NITAQ_FN_URL = '/.netlify/functions/check-nitaqat'
+  const [nitaqFetch, setNitaqFetch] = useState({ phase: 'idle', row: null, sessionToken: null, captchaImage: null, captchaInput: '', error: null, result: null })
+  const callNitaqFn = async (body, timeoutMs = 25000) => {
+    const ctrl = new AbortController()
+    const t = setTimeout(() => ctrl.abort(), timeoutMs)
+    try {
+      const res = await fetch(NITAQ_FN_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: ctrl.signal })
+      const j = await res.json().catch(() => ({}))
+      if (!res.ok || j.error) throw new Error(j.error || `HTTP ${res.status}`)
+      return j
+    } finally { clearTimeout(t) }
+  }
+  const startNitaqFetch = async (row) => {
+    setNitaqFetch({ phase: 'loading', row, sessionToken: null, captchaImage: null, captchaInput: '', error: null, result: null })
+    try {
+      const r = await callNitaqFn({ action: 'init' })
+      setNitaqFetch(c => c.phase === 'idle' ? c : ({ ...c, phase: 'captcha', sessionToken: r.session, captchaImage: r.captchaImage, captchaInput: '' }))
+    } catch (e) {
+      setNitaqFetch(c => c.phase === 'idle' ? c : ({ ...c, phase: 'error', error: e.name === 'AbortError' ? T('انتهت مهلة الاتصال بوزارة الموارد', 'HRSD connection timed out') : (e.message || T('خطأ في الاتصال', 'Connection error')) }))
+    }
+  }
+  const refreshNitaqCaptcha = async () => {
+    setNitaqFetch(c => ({ ...c, captchaImage: null, captchaInput: '', error: null }))
+    try {
+      const r = await callNitaqFn({ action: 'init' })
+      setNitaqFetch(c => c.phase === 'idle' ? c : ({ ...c, phase: 'captcha', sessionToken: r.session, captchaImage: r.captchaImage, captchaInput: '' }))
+    } catch (e) {
+      setNitaqFetch(c => c.phase === 'idle' ? c : ({ ...c, error: e.message || T('تعذّر تحديث رمز التحقق', 'Could not refresh captcha') }))
+    }
+  }
+  const closeNitaqFetch = () => setNitaqFetch({ phase: 'idle', row: null, sessionToken: null, captchaImage: null, captchaInput: '', error: null, result: null })
+  const submitNitaqCaptcha = async () => {
+    const { row, captchaInput, sessionToken } = nitaqFetch
+    if (!row || !captchaInput || captchaInput.length < 4) return
+    setNitaqFetch(c => ({ ...c, phase: 'verifying', error: null }))
+    try {
+      const r = await callNitaqFn({ action: 'verify', office: row.hrsd_labor_office_id, sequence: row.hrsd_sequence_number, captcha: captchaInput, session: sessionToken })
+      if (r.status === 'invalid_captcha') {
+        const fresh = await callNitaqFn({ action: 'init' })
+        setNitaqFetch(c => c.phase === 'idle' ? c : ({ ...c, phase: 'captcha', sessionToken: fresh.session, captchaImage: fresh.captchaImage, captchaInput: '', error: T('رمز التحقق غير صحيح — أدخل الرمز الجديد', 'Wrong code — enter the new one') }))
+        return
+      }
+      if (r.status === 'not_found') {
+        setNitaqFetch(c => ({ ...c, phase: 'error', error: T('لا توجد نتيجة لهذا الرقم في استعلام النطاقات', 'No result for this number in the Nitaqat inquiry') }))
+        return
+      }
+      if (r.status !== 'found' || !r.nitaq) {
+        setNitaqFetch(c => ({ ...c, phase: 'error', error: T('تعذّرت قراءة النطاق من نتيجة الاستعلام', 'Could not read the nitaq band from the inquiry result') }))
+        return
+      }
+      // حفظ النتيجة: على السجل الأساسي دائماً، وعلى صف المزامنة إن وُجد.
+      await sb.from('facilities').update({ hrsd_nitaq_name: r.nitaq, hrsd_nitaq_synced_at: new Date().toISOString() }).eq('id', row.id)
+      if (row.sbc_facility_id) {
+        sb.from('sbc_facilities').update({ hrsd_nitaq_name: r.nitaq }).eq('id', row.sbc_facility_id).then(() => {}, () => {})
+      }
+      setRows(rs => rs.map(x => x.id === row.id ? { ...x, hrsd_nitaq_name: r.nitaq } : x))
+      setNitaqFetch(c => ({ ...c, phase: 'done', result: r }))
+    } catch (e) {
+      setNitaqFetch(c => ({ ...c, phase: 'error', error: e.name === 'AbortError' ? T('انتهت مهلة التحقق', 'Verification timed out') : (e.message || T('خطأ في التحقق', 'Verification error')) }))
+    }
+  }
 
   // Loads aggregate GOSI data for the table's GOSI view: owners,
   // contributors (with status + nationality + wage), and the establishment
@@ -4415,8 +4618,10 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
     const entities = Array.isArray(adv.entity) ? adv.entity.filter(Boolean) : (adv.entity ? [adv.entity] : [])
     const statuses = Array.isArray(adv.status) ? adv.status.filter(Boolean) : (adv.status ? [adv.status] : [])
     const branches = Array.isArray(adv.branch) ? adv.branch.filter(Boolean) : (adv.branch ? [adv.branch] : [])
-    const saudiCenters = Array.isArray(adv.saudiCenter) ? adv.saudiCenter.filter(Boolean) : (adv.saudiCenter ? [adv.saudiCenter] : [])
+    const nitaqs = Array.isArray(adv.nitaq) ? adv.nitaq.filter(Boolean) : (adv.nitaq ? [adv.nitaq] : [])
     const workforces = Array.isArray(adv.workforce) ? adv.workforce.filter(Boolean) : (adv.workforce ? [adv.workforce] : [])
+    const saudisCounts = Array.isArray(adv.saudis) ? adv.saudis.filter(Boolean) : (adv.saudis ? [adv.saudis] : [])
+    const managersSel = Array.isArray(adv.manager) ? adv.manager.filter(Boolean) : (adv.manager ? [adv.manager] : [])
 
     // CR-status classification — identical to the CR donut card so the filter
     // and the summary always agree (active / confirm / suspended / cancelled).
@@ -4434,11 +4639,20 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
         return !!asg && branches.includes(asg.branch_code)
       })
     }
-    // المركز السعودي — فلتر منطقي (نعم/لا) على العمود saudi_center.
-    if (saudiCenters.length) {
+    // المدير — المنشأة تظهر إذا كان أحد مدرائها ضمن الاختيار. المفتاح هو
+    // الهوية إن وُجدت وإلا الاسم (نفس مفاتيح managerOptions).
+    if (managersSel.length) {
+      out = out.filter(r => (r._managers || []).some(p => {
+        const { name, id } = extractPartyDisplay(p)
+        return managersSel.includes(id || name)
+      }))
+    }
+    // النطاق — فلتر على نطاق الموارد البشرية (hrsd_nitaq_name)؛ خيار «بدون نطاق»
+    // يلتقط المنشآت التي لا يوجد لها نطاق مزامَن.
+    if (nitaqs.length) {
       out = out.filter(r => {
-        const has = !!r.saudi_center
-        return (saudiCenters.includes('yes') && has) || (saudiCenters.includes('no') && !has)
+        const n = r.hrsd_nitaq_name || ''
+        return n ? nitaqs.includes(n) : nitaqs.includes('__none')
       })
     }
     // عدد العمالة — عدد العمّال غير السعوديين المرتبطين بالمنشأة (نفس الرقم
@@ -4449,8 +4663,16 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
         return workforces.some(v => v === '10+' ? n > 10 : n === parseInt(v, 10))
       })
     }
+    // عدد السعوديين — عدد المشتركين السعوديين النشطين في التأمينات، مربوط
+    // بالمنشأة عبر رقم التأمينات (gosi_registration_number).
+    if (saudisCounts.length) {
+      out = out.filter(r => {
+        const n = (r.gosi_registration_number && saudiByReg[String(r.gosi_registration_number)]) || 0
+        return saudisCounts.some(v => v === '10+' ? n > 10 : n === parseInt(v, 10))
+      })
+    }
     return out
-  }, [normalized, search, filter, adv, personFilter, branchByFacility, nonSaudiByFacility])
+  }, [normalized, search, filter, adv, personFilter, branchByFacility, nonSaudiByFacility, saudiByReg])
 
   // Group branches under their main parent, then produce a flat display list
   // where each branch row carries `_isBranch: true` and appears directly after
@@ -4936,8 +5158,8 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
               role="button"
               tabIndex={0}
               title={T('مسح الفلاتر', 'Clear filters')}
-              onClick={e => { e.stopPropagation(); setAdv({ entity: [], status: [], branch: [], saudiCenter: [], workforce: [], sortConfirm: '' }) }}
-              onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); e.preventDefault(); setAdv({ entity: [], status: [], branch: [], saudiCenter: [], workforce: [], sortConfirm: '' }) } }}
+              onClick={e => { e.stopPropagation(); setAdv({ entity: [], status: [], branch: [], manager: [], nitaq: [], workforce: [], saudis: [], sortConfirm: '' }) }}
+              onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); e.preventDefault(); setAdv({ entity: [], status: [], branch: [], manager: [], nitaq: [], workforce: [], saudis: [], sortConfirm: '' }) } }}
               onMouseEnter={e => { e.currentTarget.style.background = C.red; e.currentTarget.style.color = '#fff' }}
               onMouseLeave={e => { e.currentTarget.style.background = C.gold; e.currentTarget.style.color = '#000' }}
               style={{ background: C.gold, color: '#000', width: 18, height: 18, borderRadius: 999, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '.18s' }}
@@ -4954,6 +5176,12 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
       {advOpen && (
         <div style={{ marginBottom: 22, padding: '16px 18px', background: 'var(--card-grad2)', border: '1px solid var(--bd)', borderRadius: 14, boxShadow: 'var(--shadow-md)' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
+            <div>
+              <div style={advLbl}>{T('المكتب', 'Office')}</div>
+              <FKDropdown multi selectedKeys={adv.branch} onChange={arr => setAdv(a => ({ ...a, branch: arr }))}
+                placeholder={T('الكل', 'All')} getKey={o => o.v} getLabel={o => o.l}
+                options={branchFilterOpts}/>
+            </div>
             <div>
               <div style={advLbl}>{T('الكيان', 'Entity')}</div>
               <FKDropdown multi selectedKeys={adv.entity} onChange={arr => setAdv(a => ({ ...a, entity: arr }))}
@@ -4973,23 +5201,32 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                 ]}/>
             </div>
             <div>
-              <div style={advLbl}>{T('المكتب', 'Office')}</div>
-              <FKDropdown multi selectedKeys={adv.branch} onChange={arr => setAdv(a => ({ ...a, branch: arr }))}
+              <div style={advLbl}>{T('المدير', 'Manager')}</div>
+              <FKDropdown multi selectedKeys={adv.manager} onChange={arr => setAdv(a => ({ ...a, manager: arr }))}
                 placeholder={T('الكل', 'All')} getKey={o => o.v} getLabel={o => o.l}
-                options={branchFilterOpts}/>
+                options={managerOptions.map(m => ({ v: m.id || m.name, l: m.name }))}/>
             </div>
             <div>
-              <div style={advLbl}>{T('المركز السعودي', 'Saudi Center')}</div>
-              <FKDropdown multi selectedKeys={adv.saudiCenter} onChange={arr => setAdv(a => ({ ...a, saudiCenter: arr }))}
+              <div style={advLbl}>{T('النطاق', 'Nitaq band')}</div>
+              <FKDropdown multi selectedKeys={adv.nitaq} onChange={arr => setAdv(a => ({ ...a, nitaq: arr }))}
                 placeholder={T('الكل', 'All')} getKey={o => o.v} getLabel={o => o.l}
                 options={[
-                  { v: 'yes', l: T('نعم', 'Yes') },
-                  { v: 'no', l: T('لا', 'No') },
+                  ...nitaqOptions.map(n => ({ v: n, l: n })),
+                  { v: '__none', l: T('بدون نطاق', 'No band') },
                 ]}/>
             </div>
             <div>
               <div style={advLbl}>{T('عدد العمالة', 'Workforce count')}</div>
               <FKDropdown multi selectedKeys={adv.workforce} onChange={arr => setAdv(a => ({ ...a, workforce: arr }))}
+                placeholder={T('الكل', 'All')} getKey={o => o.v} getLabel={o => o.l}
+                options={[
+                  ...Array.from({ length: 11 }, (_, i) => ({ v: String(i), l: num(i) })),
+                  { v: '10+', l: T(`أكثر من ${num(10)}`, 'More than 10') },
+                ]}/>
+            </div>
+            <div>
+              <div style={advLbl}>{T('عدد السعوديين', 'Saudi count')}</div>
+              <FKDropdown multi selectedKeys={adv.saudis} onChange={arr => setAdv(a => ({ ...a, saudis: arr }))}
                 placeholder={T('الكل', 'All')} getKey={o => o.v} getLabel={o => o.l}
                 options={[
                   ...Array.from({ length: 11 }, (_, i) => ({ v: String(i), l: num(i) })),
@@ -5031,10 +5268,10 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
 
         <style>{`
           .sbcv-tbl{width:100%;table-layout:fixed;border-collapse:separate;border-spacing:0;font-family:${F};background:var(--card-grad2);border-radius:10px;border:1px solid var(--bd)}
-          .sbcv-tbl thead th{position:sticky;top:0;background:var(--hd);color:var(--hdtx);font-size:14px;font-weight:600;text-align:center;padding:14px 4px 11px;box-shadow:inset 0 -2px 0 rgba(176,125,0,.55);white-space:nowrap;z-index:2;letter-spacing:.2px}
+          .sbcv-tbl thead th{position:sticky;top:0;background:var(--hd);color:var(--hdtx);font-size:13.5px;font-weight:600;text-align:center;padding:13px 5px 11px;box-shadow:inset 0 -2px 0 rgba(176,125,0,.55);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;z-index:2;letter-spacing:.2px}
           .sbcv-tbl thead .hd-icon{color:${C.gold};display:inline-flex;align-items:center;justify-content:center;margin-inline-end:6px;vertical-align:middle}
           .sbcv-tbl thead .hd-icon svg{width:14px;height:14px;display:block}
-          .sbcv-tbl tbody td{padding:10px 4px;font-size:11.5px;color:var(--tx);text-align:center;vertical-align:middle;overflow:hidden;border-bottom:1px solid var(--bd2)}
+          .sbcv-tbl tbody td{padding:12px 6px;font-size:12.5px;color:var(--tx);text-align:center;vertical-align:middle;overflow:hidden;border-bottom:1px solid var(--bd2)}
           .sbcv-tbl tbody tr{cursor:pointer;transition:background .12s}
           .sbcv-tbl tbody tr:nth-child(even) td{background:var(--bd2)}
           .sbcv-tbl tbody tr:hover td{background:rgba(176,125,0,.06)}
@@ -5046,7 +5283,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
           .sbcv-tbl .num{direction:ltr;font-family:ui-monospace,monospace;font-variant-numeric:tabular-nums;font-weight:600}
           .sbcv-tbl .muted{color:var(--tx5)}
           .sbcv-tbl .name-cell{overflow:hidden;padding-inline:14px}
-          .sbcv-tbl .name-marquee{display:block;max-width:100%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:12px;font-weight:600;color:var(--tx)}
+          .sbcv-tbl .name-marquee{display:block;max-width:100%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:13.5px;font-weight:600;color:var(--tx)}
           .sbcv-tbl .name-marquee .marquee-inner{display:inline-block;will-change:transform}
           .sbcv-tbl tbody tr:hover .name-marquee{text-overflow:clip}
           .sbcv-tbl tbody tr:hover .name-marquee .marquee-inner{animation:name-bounce 9s ease-in-out infinite}
@@ -5056,8 +5293,14 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
           .sbcv-tbl .pc-marquee .pc-full{display:none}
           .sbcv-tbl tbody tr:hover .pc-marquee-long .pc-short{display:none}
           .sbcv-tbl tbody tr:hover .pc-marquee-long .pc-full{display:inline-block;animation:name-bounce 9s ease-in-out infinite}
-          .sbcv-pill{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:5px;font-size:10px;font-weight:600;white-space:nowrap;line-height:1.5}
-          .sbcv-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+          .sbcv-pill{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;font-size:10.5px;font-weight:600;white-space:nowrap;line-height:1.6;max-width:100%}
+          .sbcv-pill .pill-txt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+          .sbcv-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+          .sbcv-subtag{display:inline-block;font-size:9px;font-weight:600;color:var(--tx4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;letter-spacing:.2px}
+          .sbcv-count{font-size:18px;font-weight:600;direction:ltr;font-family:ui-monospace,monospace;font-variant-numeric:tabular-nums;line-height:1}
+          .sbcv-chip-btn{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 13px;border-radius:9px;border:1px dashed rgba(176,125,0,.55);background:rgba(176,125,0,.08);color:${C.gold};font-family:${F};font-size:11.5px;font-weight:600;cursor:pointer;white-space:nowrap;transition:background .15s;max-width:100%}
+          .sbcv-chip-btn:hover{background:rgba(176,125,0,.18)}
+          .sbcv-chip-btn svg{flex-shrink:0}
         `}</style>
 
         {/* Facility table — SBC lens (default).
@@ -5068,19 +5311,25 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
         <div style={{ borderRadius: 10 }}>
           <table className="sbcv-tbl">
             <colgroup>
-              <col style={{ width: '25%' }} />
+              <col style={{ width: '17%' }} />
+              <col style={{ width: '8%' }} />
+              <col style={{ width: '16%' }} />
               <col style={{ width: '12%' }} />
-              <col style={{ width: '24%' }} />
-              <col style={{ width: '14%' }} />
-              <col style={{ width: '14%' }} />
-              <col style={{ width: '11%' }} />
+              <col style={{ width: '12%' }} />
+              <col style={{ width: '7%' }} />
+              <col style={{ width: '7%' }} />
+              <col style={{ width: '12%' }} />
+              <col style={{ width: '9%' }} />
             </colgroup>
             <thead>
               <tr>
-                <th>{T('اسم المنشأة','Facility Name')}</th>
-                <th>{T('نوع المنشأة','Type')}</th>
+                <th>{T('المنشأة','Facility')}</th>
+                <th>{T('النوع','Type')}</th>
                 <th>{T('أرقام المنشأة','Facility Numbers')}</th>
-                <th>{T('العمالة','Workforce')}</th>
+                <th>{T('المدير','Manager')}</th>
+                <th>{T('النطاق','Nitaq')}</th>
+                <th>{T('غير سعودي','Non-Saudi')}</th>
+                <th>{T('سعودي','Saudi')}</th>
                 <th>{T('التأكيد السنوي','Annual Confirm')}</th>
                 <th>{T('الفرع','Branch')}</th>
               </tr>
@@ -5103,7 +5352,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                           <span className="marquee-inner">{r.entity_full_name_ar || '—'}</span>
                         </div>
                         {r.entity_full_name_en && (
-                          <span style={{ fontSize: 9.5, fontWeight: 500, color: 'var(--tx4)', direction: 'ltr', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{r.entity_full_name_en}</span>
+                          <span style={{ fontSize: 10.5, fontWeight: 500, color: 'var(--tx4)', direction: 'ltr', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{r.entity_full_name_en}</span>
                         )}
                       </div>
                     </td>
@@ -5117,9 +5366,9 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                         if (!entity && !form && !roleText) return <span className="muted">—</span>
                         return (
                           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, minWidth: 0, maxWidth: '100%' }}>
-                            {entity && <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx)', whiteSpace: 'nowrap' }}>{entity}</span>}
-                            {formDiffers && <span style={{ fontSize: 9.5, fontWeight: 500, color: 'var(--tx3)', whiteSpace: 'nowrap' }} title={form}>{form}</span>}
-                            {roleText && <span style={{ fontSize: 9.5, fontWeight: 600, color: roleColor, letterSpacing: '.3px', whiteSpace: 'nowrap' }}>{roleText}</span>}
+                            {entity && <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx)', whiteSpace: 'nowrap' }}>{entity}</span>}
+                            {formDiffers && <span style={{ fontSize: 10.5, fontWeight: 500, color: 'var(--tx3)', whiteSpace: 'nowrap' }} title={form}>{form}</span>}
+                            {roleText && <span style={{ fontSize: 10.5, fontWeight: 600, color: roleColor, letterSpacing: '.3px', whiteSpace: 'nowrap' }}>{roleText}</span>}
                           </div>
                         )
                       })()}
@@ -5136,10 +5385,67 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                     </td>
                     <td>
                       {(() => {
-                        const n = nonSaudiByFacility[r.id] || 0
+                        // المدير — من قائمة مدراء المركز السعودي المرتبطة بالمنشأة.
+                        // عند عدم وجود مدير نعرض مشرف التأمينات (GOSI) بدلاً عنه.
+                        const mgrs = Array.isArray(r.managers) ? r.managers : []
+                        const admins = (!mgrs.length && gosiNo && adminsByReg[String(gosiNo)]) || []
+                        const list = mgrs.length ? mgrs : admins
+                        if (!list.length) return <span className="muted">—</span>
+                        const isAdmin = !mgrs.length
                         return (
-                          <span style={{ fontSize: 18, fontWeight: 600, direction: 'ltr', fontFamily: 'ui-monospace, monospace', fontVariantNumeric: 'tabular-nums', color: n > 0 ? C.gold : 'var(--tx5)' }}>{num(n)}</span>
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, minWidth: 0, width: '100%' }}>
+                            {list.slice(0, 2).map((m, i) => <PersonCompact key={i} p={m} dotColor={isAdmin ? C.ok : C.purple} />)}
+                            {list.length > 2 && (
+                              <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--tx4)', whiteSpace: 'nowrap' }}>{T(`+${num(list.length - 2)} آخرون`, `+${list.length - 2} more`)}</span>
+                            )}
+                          </div>
                         )
+                      })()}
+                    </td>
+                    <td>
+                      {(() => {
+                        const nq = r.hrsd_nitaq_name
+                        if (!nq) {
+                          // زر جلب النطاق — يظهر فقط عندما نملك شطري رقم الموارد
+                          // البشرية (مكتب العمل + التسلسل) المطلوبَين للاستعلام.
+                          if (r.hrsd_labor_office_id == null || r.hrsd_sequence_number == null) return <span className="muted">—</span>
+                          return (
+                            <button type="button" className="sbcv-chip-btn"
+                              onClick={e => { e.stopPropagation(); startNitaqFetch(r) }}
+                              title={T('جلب النطاق من استعلام النطاقات بوزارة الموارد', 'Fetch the nitaq band from the HRSD inquiry')}>
+                              {T('جلب النطاق', 'Fetch nitaq')}
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/><polyline points="21 3 21 9 15 9"/></svg>
+                            </button>
+                          )
+                        }
+                        // الاسم الرئيسي في التاق، وأي توضيح بين قوسين يهبط سطراً
+                        // مستقلاً كي لا يُبتر النص («اخضر صغير (فئة أ)» …).
+                        // التصميم مطابق لتاق حالة المعاملة في كرت الفواتير:
+                        // إطار جانبي 3px + خلفية بلون الحالة بشفافية خفيفة.
+                        const main = nq.split('(')[0].trim()
+                        const qualM = nq.match(/\(([^)]*)\)?/)
+                        const qual = qualM ? qualM[1].trim() : null
+                        const c = nitaqBandColor(nq) || C.gray
+                        return (
+                          <span title={nq} style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1, borderInlineStart: '3px solid ' + c, background: c + '10', padding: '6px 13px', color: c, fontSize: 12, fontWeight: 600, maxWidth: '100%', lineHeight: 1.5 }}>
+                            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}>{main}</span>
+                            {qual && <span style={{ fontSize: 10, fontWeight: 600, opacity: .75, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%', letterSpacing: '.2px' }}>{qual}</span>}
+                          </span>
+                        )
+                      })()}
+                    </td>
+                    <td>
+                      {(() => {
+                        const n = nonSaudiByFacility[r.id] || 0
+                        return <span className="sbcv-count" style={{ color: n > 0 ? C.gold : 'var(--tx5)' }}>{num(n)}</span>
+                      })()}
+                    </td>
+                    <td>
+                      {(() => {
+                        // سعودي — المشتركون السعوديون النشطون في التأمينات؛ أخضر
+                        // تمييزاً له عن عدّاد غير السعوديين الذهبي.
+                        const n = (gosiNo && saudiByReg[String(gosiNo)]) || 0
+                        return <span className="sbcv-count" style={{ color: n > 0 ? '#22c55e' : 'var(--tx5)' }}>{num(n)}</span>
                       })()}
                     </td>
                     <td>
@@ -5153,9 +5459,9 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                         const cd = crNextCountdown(sc, r._confirmDateRaw)
                         return (
                           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, minWidth: 0, width: '100%' }}>
-                            <span style={{ fontSize: 14, fontWeight: 600, direction: 'ltr', color: dateColor, fontVariantNumeric: 'tabular-nums', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{greg}</span>
+                            <span style={{ fontSize: 13.5, fontWeight: 600, direction: 'ltr', fontFamily: 'ui-monospace, monospace', color: dateColor, fontVariantNumeric: 'tabular-nums', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{greg}</span>
                             {cd && (
-                              <span title={`${cd.daysToNext} ${T(cd.nextTip[0], cd.nextTip[1])}`} style={{ fontSize: 9.5, fontWeight: 600, color: cd.nextColor, whiteSpace: 'nowrap', direction: 'rtl' }}>{T(`بعد ${cd.daysToNext} يوم`, `in ${cd.daysToNext}d`)}</span>
+                              <span title={`${cd.daysToNext} ${T(cd.nextTip[0], cd.nextTip[1])}`} style={{ fontSize: 10.5, fontWeight: 600, color: cd.nextColor, whiteSpace: 'nowrap', direction: 'rtl' }}>{T(`بعد ${cd.daysToNext} يوم`, `in ${cd.daysToNext}d`)}</span>
                             )}
                           </div>
                         )
@@ -5168,8 +5474,8 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                         const city = asg.city ? T(asg.city.name_ar, asg.city.name_en || asg.city.name_ar) : null
                         return (
                           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, minWidth: 0, width: '100%' }}>
-                            <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{asg.branch_code || '—'}</span>
-                            {city && <span style={{ fontSize: 9.5, fontWeight: 500, color: 'var(--tx4)', whiteSpace: 'nowrap' }}>{city}</span>}
+                            <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{asg.branch_code || '—'}</span>
+                            {city && <span style={{ fontSize: 10.5, fontWeight: 500, color: 'var(--tx4)', whiteSpace: 'nowrap' }}>{city}</span>}
                           </div>
                         )
                       })()}
@@ -7621,6 +7927,102 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
           </ModalSection>
           )}
         </FKModal>
+      )}
+
+      {/* ═══ نافذة جلب النطاق — كابتشا وزارة الموارد (استعلام النطاقات) ═══ */}
+      {nitaqFetch.phase !== 'idle' && (
+        <div style={{ position: 'fixed', inset: 0, background: 'var(--overlayBg)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2100, padding: 16, fontFamily: F }} dir={lang === 'en' ? 'ltr' : 'rtl'}>
+          <div onClick={e => e.stopPropagation()} style={{ width: 420, maxWidth: '94vw', background: 'var(--modal-bg)', borderRadius: 16, border: '1px solid rgba(176,125,0,.4)', padding: 22, boxShadow: 'var(--shadow-lg)', position: 'relative' }}>
+            <button onClick={closeNitaqFetch} style={{ position: 'absolute', top: 12, [lang === 'en' ? 'right' : 'left']: 12, width: 30, height: 30, borderRadius: 8, background: 'var(--bd2)', border: '1px solid var(--bd)', color: 'var(--tx3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={14} /></button>
+
+            <div style={{ textAlign: lang === 'en' ? 'left' : 'right', paddingBottom: 14, marginBottom: 14, borderBottom: '1px solid var(--bd)', [lang === 'en' ? 'paddingRight' : 'paddingLeft']: 36 }}>
+              <div style={{ fontSize: 20, fontWeight: 600, color: 'var(--tx)', display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'flex-start' }}>
+                <Landmark size={20} style={{ color: C.gold }} />
+                <span>{T('جلب النطاق — وزارة الموارد', 'Fetch Nitaq — HRSD')}</span>
+              </div>
+              {nitaqFetch.row && (
+                <div style={{ fontSize: 11.5, fontWeight: 500, color: 'var(--tx3)', marginTop: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {nitaqFetch.row.entity_full_name_ar || '—'}
+                  <span style={{ fontFamily: 'ui-monospace, monospace', direction: 'ltr', display: 'inline-block', marginInlineStart: 8, color: C.gold }}>{nitaqFetch.row.hrsd_labor_office_id}-{nitaqFetch.row.hrsd_sequence_number}</span>
+                </div>
+              )}
+            </div>
+
+            {nitaqFetch.phase === 'loading' && (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: '24px 0 8px' }}>
+                <div style={{ width: 36, height: 36, border: '3px solid rgba(176,125,0,.18)', borderTopColor: C.gold, borderRadius: '50%', animation: 'fac-spin 0.8s linear infinite' }} />
+                <div style={{ fontSize: 14, color: 'var(--tx5)' }}>{T('جاري الاتصال بوزارة الموارد…', 'Connecting to HRSD…')}</div>
+                <div style={{ fontSize: 12, color: 'var(--tx4)', textAlign: 'center', lineHeight: 1.6, padding: '0 8px' }}>{T('قد يستغرق موقع الوزارة بضع ثوانٍ', 'The ministry site may take a few seconds')}</div>
+              </div>
+            )}
+
+            {nitaqFetch.phase === 'captcha' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                <div style={{ fontSize: 12, color: 'var(--tx3)', textAlign: lang === 'en' ? 'left' : 'right' }}>{T('أدخل رمز التحقق الظاهر بالصورة', 'Enter the captcha shown in the image')}</div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '0 8px' }}>
+                  {nitaqFetch.captchaImage
+                    ? <CaptchaCountdown captchaKey={nitaqFetch.captchaImage} onExpire={refreshNitaqCaptcha} color={C.gold} />
+                    : <div style={{ width: 38, height: 38, flexShrink: 0 }} aria-hidden="true" />}
+                  {nitaqFetch.captchaImage
+                    ? <img src={nitaqFetch.captchaImage} alt="captcha" style={{ height: 72, background: 'transparent', mixBlendMode: 'multiply', imageRendering: 'auto' }} />
+                    : <span style={{ fontSize: 14, color: '#888' }}>{T('...جاري التحميل', 'Loading...')}</span>}
+                  <button type="button" onClick={refreshNitaqCaptcha} title={T('رمز تحقق جديد', 'New captcha')} style={{ width: 38, height: 38, padding: 0, borderRadius: '50%', border: 'none', background: 'rgba(176,125,0,.12)', color: C.gold, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background .15s' }} onMouseEnter={e => e.currentTarget.style.background = 'rgba(176,125,0,.22)'} onMouseLeave={e => e.currentTarget.style.background = 'rgba(176,125,0,.12)'}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/><path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"/></svg>
+                  </button>
+                </div>
+                <input
+                  value={nitaqFetch.captchaInput}
+                  onChange={e => setNitaqFetch(c => ({ ...c, captchaInput: e.target.value.slice(0, 6) }))}
+                  onKeyDown={e => { if (e.key === 'Enter') submitNitaqCaptcha() }}
+                  placeholder="______"
+                  autoFocus maxLength={6}
+                  style={{ height: 48, width: 240, alignSelf: 'center', padding: '0 18px', border: '1px solid var(--bd)', borderRadius: 12, fontFamily: F, fontSize: 20, fontWeight: 600, color: 'var(--tx)', outline: 'none', background: 'var(--modal-input-bg)', textAlign: 'center', letterSpacing: '10px', direction: 'ltr', transition: '.2s', boxShadow: 'var(--shadow-sm)' }}
+                />
+                {nitaqFetch.error && <div style={{ fontSize: 12, color: C.red, textAlign: 'center', marginTop: -10, marginBottom: -4 }}>{nitaqFetch.error}</div>}
+                <button onClick={submitNitaqCaptcha} disabled={!nitaqFetch.captchaInput || nitaqFetch.captchaInput.length < 4} className="btn-primary-modal" style={{ height: 48, width: 240, alignSelf: 'center', borderRadius: 12, fontFamily: F, fontSize: 16, fontWeight: 600, letterSpacing: '.3px', cursor: (!nitaqFetch.captchaInput || nitaqFetch.captchaInput.length < 4) ? 'not-allowed' : 'pointer', opacity: (!nitaqFetch.captchaInput || nitaqFetch.captchaInput.length < 4) ? 0.45 : 1 }}>{T('جلب النطاق', 'Fetch nitaq')}</button>
+              </div>
+            )}
+
+            {nitaqFetch.phase === 'verifying' && (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: '28px 0' }}>
+                <div style={{ width: 36, height: 36, border: '3px solid rgba(176,125,0,.18)', borderTopColor: C.gold, borderRadius: '50%', animation: 'fac-spin 0.8s linear infinite' }} />
+                <div style={{ fontSize: 14, color: 'var(--tx5)' }}>{T('جاري الاستعلام عن النطاق…', 'Fetching the nitaq band…')}</div>
+              </div>
+            )}
+
+            {nitaqFetch.phase === 'done' && (() => {
+              const band = nitaqFetch.result?.nitaq
+              const bc = nitaqBandColor(band)
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, padding: '10px 0 4px' }}>
+                  <div style={{ width: 58, height: 58, borderRadius: '50%', background: 'rgba(46,204,113,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.ok }}>
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                  </div>
+                  <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--tx)' }}>{T('تم جلب النطاق وحفظه', 'Nitaq fetched & saved')}</div>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderInlineStart: '4px solid ' + (bc || C.gray), background: (bc || C.gray) + '10', padding: '8px 18px', color: bc || C.gray, fontSize: 15, fontWeight: 600 }}>
+                    {band}
+                  </span>
+                  {nitaqFetch.result?.entitySize && (
+                    <div style={{ fontSize: 12, color: 'var(--tx3)' }}>{T('حجم المنشأة', 'Entity size')}: {nitaqFetch.result.entitySize}</div>
+                  )}
+                  <button onClick={closeNitaqFetch} style={{ height: 40, minWidth: 160, borderRadius: 10, border: '1px solid rgba(176,125,0,.4)', background: 'rgba(176,125,0,.12)', color: C.gold, fontFamily: F, fontSize: 14, fontWeight: 600, cursor: 'pointer', marginTop: 4 }}>{T('إغلاق', 'Close')}</button>
+                </div>
+              )
+            })()}
+
+            {nitaqFetch.phase === 'error' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '8px 0' }}>
+                  <div style={{ width: 58, height: 58, borderRadius: '50%', background: 'rgba(192,57,43,.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.red }}><AlertCircle size={28} /></div>
+                  <div style={{ fontSize: 14, fontWeight: 500, color: C.red, textAlign: 'center' }}>{T('تعذّر جلب النطاق', 'Fetch failed')}</div>
+                  <div style={{ fontSize: 14, color: 'var(--tx3)', textAlign: 'center', lineHeight: 1.6, padding: '0 8px' }}>{nitaqFetch.error}</div>
+                </div>
+                <button onClick={() => startNitaqFetch(nitaqFetch.row)} style={{ height: 40, borderRadius: 10, border: '1px solid rgba(176,125,0,.4)', background: 'rgba(176,125,0,.12)', color: C.gold, fontFamily: F, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>{T('إعادة المحاولة', 'Retry')}</button>
+              </div>
+            )}
+
+          </div>
+        </div>
       )}
 
     </div>
