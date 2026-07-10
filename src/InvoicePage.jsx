@@ -1102,7 +1102,13 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
     const weekStart = new Date(todayStart.getTime() - 6 * 24 * 3600 * 1000)
     const normKpi = (x) => ({ cnt: Number(x?.cnt) || 0, sum: Number(x?.sum) || 0 })
     const normSvc = (rows) => (rows || []).map(s => ({ code: s.code, cnt: Number(s.cnt) || 0, sum: Number(s.sum) || 0 }))
-    const { active, ...f } = statFilters
+    // كروت الإحصاء: المدير العام تتبع عوامل التصفية المختارة (يوم/مدى/كل التواريخ).
+    // باقي المستخدمين تبقى مثبّتة على «اليوم» دائماً وتتجاهل فلاتر التاريخ والخدمة…،
+    // لكن يُطبَّق اختيار المكتب فقط — فلو اختار مكتباً يحق له، تظهر يومية ذلك المكتب.
+    // القائمة والبحث في الأسفل يبقيان يتبعان كل التصفية للجميع (تأثير مستقل).
+    const { active: _rawActive, ...rawF } = statFilters
+    const active = isGM(user) ? _rawActive : false
+    const f = isGM(user) ? rawF : { p_branch_ids: rawF.p_branch_ids, p_branch_exact_ids: rawF.p_branch_exact_ids }
     const applyPeriod = ([t, w]) => {
       if (t.data) {
         setPeriodStats({ cash: normKpi(t.data.cash), bank: normKpi(t.data.bank), cancelled: normKpi(t.data.cancelled), voided: normKpi(t.data.voided) })
@@ -1125,7 +1131,7 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
       applyPeriod(res)
     })
     return () => { alive = false }
-  }, [sb, statFilters, refreshTick])
+  }, [sb, statFilters, refreshTick, user])
 
   // Paged invoice list — البحث والتصفية الشاملة عبر RPC واحد (search_invoice_ids):
   // الدالة تطبّق كل الفلاتر + البحث الذكي عبر كل حقول الفاتورة والمعاملة وتُرجع صفحة المعرّفات + العدد الكلي،

@@ -4830,10 +4830,17 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
     })
   }, [rows, personFilter])
 
+  // كروت الإحصاء (العدد الرئيسي/دونات السجل/المخطّط) تُعرض بقيمة 0 لكل المستخدمين
+  // ما عدا المدير العام. الجدول والبحث يبقيان كما هما لمن له صلاحية العرض.
+  const statsVisible = isGM(user)
+
   // Hero counts + CR donut reflect the *filtered* set (search + advanced
   // filters), not just the person scope — so the summary always mirrors what
   // the table is showing.
-  const counts = useMemo(() => ({
+  const counts = useMemo(() => (!statsVisible ? {
+    total: 0, main: 0, company: 0, establishment: 0, branches: 0,
+    manager: 0, partner: 0, confirmation: 0, liquidation: 0,
+  } : {
     total: filtered.length,
     main: filtered.filter(r => r.is_main).length,
     company: filtered.filter(r => r.entity_type_ar === 'شركة').length,
@@ -4843,7 +4850,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
     partner: filtered.filter(r => r.is_partner).length,
     confirmation: filtered.filter(r => r.is_in_confirmation_period).length,
     liquidation: filtered.filter(r => r.in_liquidation_process).length,
-  }), [filtered])
+  }), [filtered, statsVisible])
 
   // CR status buckets — same classification used in the Sync Hub CR donut:
   // cancelled/suspended detected from the status text, otherwise active (with
@@ -4853,6 +4860,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
   // no confirmation date (and not struck-off) land in «غير محدد».
   const crStatus = useMemo(() => {
     const b = { active: 0, confirm: 0, suspended: 0, cancelled: 0, undetermined: 0 }
+    if (!statsVisible) return b
     for (const r of filtered) {
       const sc = r._basicCode
       if (sc === 'cancelled') b.cancelled += 1
@@ -4862,12 +4870,13 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
       else b.undetermined += 1
     }
     return b
-  }, [filtered])
+  }, [filtered, statsVisible])
 
   // GOSI-sourced establishment counts — drive the hero card when the GOSI view
   // is active. A GOSI establishment is "main" (رئيسية) when it has no parent
   // (main_est_reg_no null or equal to its own reg), otherwise it's a branch.
   const gosiCounts = useMemo(() => {
+    if (!statsVisible) return { total: 0, main: 0, branches: 0, liquidation: 0 }
     const ests = Object.values(gosiEstByReg || {})
     let main = 0
     for (const e of ests) {
@@ -4875,7 +4884,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
       if (m == null || String(m) === String(e.registration_no)) main++
     }
     return { total: ests.length, main, branches: ests.length - main, liquidation: 0 }
-  }, [gosiEstByReg])
+  }, [gosiEstByReg, statsVisible])
   const heroCounts = tableView === 'gosi' ? gosiCounts : counts
 
   // 12-month CR registration trend — buckets `cr_issue_date` per calendar month.
@@ -4885,6 +4894,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
       const d = new Date(today.getFullYear(), today.getMonth() - (11 - i), 1)
       return { date: d, main: 0, branch: 0, total: 0 }
     })
+    if (!statsVisible) return buckets
     scopedRows.forEach(r => {
       let raw = r.cr_issue_date
       if (typeof raw === 'string' && raw.startsWith('{')) { try { raw = JSON.parse(raw) } catch {} }
@@ -4900,7 +4910,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
       buckets[idx].total += 1
     })
     return buckets
-  }, [scopedRows])
+  }, [scopedRows, statsVisible])
 
   // Quick count of non-empty advanced fields (for the badge on the "بحث متقدم" button).
   const advCount = Object.values(adv).filter(v => String(v || '').trim() !== '').length

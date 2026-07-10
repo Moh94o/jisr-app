@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import BackButton from './components/BackButton'
-import { can as canPerm, can, cardVisible, canCardBtn } from './lib/permissions.js'
+import { can as canPerm, can, cardVisible, canCardBtn, isGM } from './lib/permissions.js'
 import { navSetHere } from './lib/navStack.js'
 import { UserPlus, Building2, Search, X, Hash, FileText, ShieldCheck, Users, MapPin, Check, Plus, Pencil, Trash2, Phone, ChevronLeft, ChevronRight, HeartPulse, RefreshCw, AlertCircle, LogOut } from 'lucide-react'
 import { Modal as FKModal, ModalSection, ActionButton, SuccessView, GRID, TextField, IdField, DateField, Select, FileField, PhoneField, PhoneListField, EmptyState } from './components/ui/FormKit.jsx'
@@ -750,6 +750,9 @@ export default function TempWorkforcePage({ sb, toast, lang, user, onTabChange }
     const m = {}; facilities.forEach(f => { m[f.id] = f }); return m
   }, [facilities])
 
+  // كروت الإحصاء تُعرض بقيمة 0 لكل المستخدمين ما عدا المدير العام (نفس منطق الدائمة).
+  const statsVisible = isGM(user)
+
   // Lens-scoped rows (mirrors SbcFacilities scopedRows pattern).
   const scopedRows = useMemo(() => {
     if (viewLens === 'all') return workers
@@ -757,6 +760,7 @@ export default function TempWorkforcePage({ sb, toast, lang, user, onTabChange }
   }, [workers, viewLens])
 
   const stats = useMemo(() => {
+    if (!statsVisible) return { total: 0, active: 0, suspended: 0, expired: 0, exp30: 0, valid: 0, noIqama: 0 }
     const total = scopedRows.length
     const active = scopedRows.filter(w => w.worker_status === 'active').length
     const suspended = scopedRows.filter(w => w.worker_status === 'suspended').length
@@ -768,10 +772,11 @@ export default function TempWorkforcePage({ sb, toast, lang, user, onTabChange }
     const valid = scopedRows.filter(w => { const d = daysUntil(w.iqama_expiry_date); return d != null && d > 30 }).length
     const noIqama = scopedRows.filter(w => !w.iqama_expiry_date).length
     return { total, active, suspended, expired, exp30, valid, noIqama }
-  }, [scopedRows])
+  }, [scopedRows, statsVisible])
 
-  // Nationality leaderboard for the third stats card.
+  // Nationality leaderboard for the third stats card. غير المدير العام ⇒ فارغ (0).
   const natTop = useMemo(() => {
+    if (!statsVisible) return []
     const counts = {}
     for (const w of scopedRows) {
       const n = (w.nationality_ar || '').trim()
@@ -779,7 +784,7 @@ export default function TempWorkforcePage({ sb, toast, lang, user, onTabChange }
       counts[n] = (counts[n] || 0) + 1
     }
     return Object.entries(counts).sort((a, b) => b[1] - a[1])
-  }, [scopedRows])
+  }, [scopedRows, statsVisible])
 
   const advCount = useMemo(() => Object.values(adv).filter(v => v).length, [adv])
 
