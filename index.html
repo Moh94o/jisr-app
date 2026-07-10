@@ -9,6 +9,31 @@
         document.documentElement.setAttribute('data-theme', 'light');
       })();
     </script>
+    <!-- إبطال أي service worker/كاش قديم من نسخ سابقة حتى لا يعلق أحد بنسخة مخزّنة قديمة.
+         يُلغي التسجيل + يمسح الكاش، ثم يحدّث الصفحة مرة واحدة (حارس sessionStorage ضد التكرار). -->
+    <script>
+      (function () {
+        try {
+          if (!('serviceWorker' in navigator)) return;
+          navigator.serviceWorker.getRegistrations().then(function (regs) {
+            var had = regs && regs.length;
+            return Promise.all(regs.map(function (r) { return r.unregister(); })).then(function () {
+              if (window.caches && caches.keys) {
+                return caches.keys()
+                  .then(function (keys) { return Promise.all(keys.map(function (k) { return caches.delete(k); })); })
+                  .then(function () { return had; });
+              }
+              return had;
+            });
+          }).then(function (had) {
+            if (had && !sessionStorage.getItem('sw_purged')) {
+              sessionStorage.setItem('sw_purged', '1');
+              location.reload();
+            }
+          }).catch(function () {});
+        } catch (e) { /* ignore */ }
+      })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     
     <!-- PWA Meta Tags -->
