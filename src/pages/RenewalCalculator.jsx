@@ -174,7 +174,7 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
     if (!sb || !worker?.iqama_number) { setDupQuote(null); return }
     ;(async () => {
       const { data } = await sb.from('iqama_renewal_calculation')
-        .select('id,quote_no,status,priced_at,branch_id,invoice_id')
+        .select('id,quote_no,status,priced_at,created_at,branch_id,invoice_id')
         .eq('iqama_number', worker.iqama_number)
         .in('status', ['approved', 'invoiced', 'completed'])
         .is('deleted_at', null)
@@ -188,6 +188,9 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
         const cancelledInv = new Set((invRows || []).filter(r => r.status?.code === 'cancelled').map(r => r.id))
         candidates = candidates.filter(c => !c.invoice_id || !cancelledInv.has(c.invoice_id))
       }
+      // حسبة عمرها أكثر من شهرين لا تُعدّ «سارية» — لا تحجب إصدار حسبة جديدة (لا تظهر الملاحظة ويعمل «التالي»).
+      const twoMonthsAgo = new Date(); twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2)
+      candidates = candidates.filter(c => { const t = c.priced_at || c.created_at; return t ? new Date(t) >= twoMonthsAgo : true })
       // كود المكتب باستعلام منفصل — لا يوجد FK يسمح بالتضمين المباشر
       let dq = candidates[0] || null
       if (dq?.branch_id) {
