@@ -2103,11 +2103,14 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user, onO
   // منشئ الفاتورة: يملك دوماً أزرار المعاملة داخل تفاصيل فاتورته — يتجاوز حجب الأدوار/الصلاحيات
   // (صلاحية التعديل + صلاحية المكتب + إظهار النوافذ) على أزرار المراحل فقط، لا على المالية.
   const isCreator = !!(user?.id && inv.created_by && String(inv.created_by) === String(user.id))
-  const canStageEdit = !cancelledRO && (isCreator || (invBranchCan && canPerm(user, 'invoices.edit')))
+  // أزرار مراحل المعاملة مفصولة عن «تعديل الفواتير»: تكفي صلاحية «مراحل المعاملة» (invoices.manage_stages)
+  // وحدها — فيمكن منح دور «منشئ فواتير» تقدّمَ المراحل دون فتح تعديل التسعير/العميل/الخدمة.
+  const canStagesPerm = canPerm(user, 'invoices.edit') || canPerm(user, 'invoices.manage_stages')
+  const canStageEdit = !cancelledRO && (isCreator || (invBranchCan && canStagesPerm))
   // بوابة إظهار نافذة مرحلة: مسموحة لمنشئ الفاتورة دائماً، وإلا حسب صلاحيات الدور.
   const stageModalOk = (key) => isCreator || modalAllowed(user, 'invoices', key)
   // صلاحية التعديل لأغراض أزرار المراحل — يتجاوزها المنشئ.
-  const canStagePerm = isCreator || canPerm(user, 'invoices.edit')
+  const canStagePerm = isCreator || canStagesPerm
 
   // المراحل تنقسم لقسمين بحسب طلب التصميم:
   //   • stageActions = الأزرار القابلة للضغط (مرحلة لم تُنجَز بعد) → تُعرض في الهيدر بتصميم زر «تسجيل دفعة».
