@@ -18,6 +18,7 @@ export const KAFALA_DEFAULTS={
   workPermitDailyAfter:22,workPermitCutoffDate:'2027-02-20',
   workPermitProcDays:7,workPermitExpiredThreshold:30,workPermitExpiredProcDays:7,
   iqamaWpResetEnabled:false,iqamaWpResetAfterDays:365,iqamaWpIssuanceDays:5,iqamaWpBasis:'iqama',iqamaOfficeDiscountEnabled:true,
+  iqamaApprovalDiscountCap3M:25,iqamaApprovalDiscountCap6M:51,iqamaApprovalDiscountCap9M:76,iqamaApprovalDiscountCap12M:102,
   kafalaWpBasis:'iqama',kafalaWpResetEnabled:false,kafalaWpResetAfterDays:365,kafalaWpIssuanceDays:5,kafalaOfficeFeeMode:'flat',kafalaOfficeDiscountEnabled:true,
   kafalaFloorMode:'daily',kafalaFloorFixed:0,
   profChange:1000,profChangeFreeOccupations:['2381e970-e939-4c6b-a7a9-8862f2133d41','1b4568be-0ea5-4079-bc90-ecca71d30adb'],officeFee:6500,officeDailyRate:18.06,iqamaOfficeFeeMode:'flat',
@@ -257,6 +258,10 @@ const IQAMA_EXTRA_FIELDS=[
   {k:'iqamaWpBasis',l:'أساس احتساب رخصة العمل',d:'iqama',t:'mode'},
   {k:'iqamaExemptionMode',l:'سياسة الإعفاء في الحاسبة',d:'free',t:'mode'},
   {k:'iqamaOfficeDiscountEnabled',l:'السماح بخصم المكتب عند التصديق',d:true,t:'bool'},
+  {k:'iqamaApprovalDiscountCap3M',l:'سقف الخصم · ٣ أشهر',d:25,sfx:'ريال'},
+  {k:'iqamaApprovalDiscountCap6M',l:'سقف الخصم · ٦ أشهر',d:51,sfx:'ريال'},
+  {k:'iqamaApprovalDiscountCap9M',l:'سقف الخصم · ٩ أشهر',d:76,sfx:'ريال'},
+  {k:'iqamaApprovalDiscountCap12M',l:'سقف الخصم · ١٢ شهر',d:102,sfx:'ريال'},
 ]
 const IQAMA_FIELDS=[...KAFALA_FIELDS.filter(f=>!['transferFee1','transferFee2','transferFee3'].includes(f.k)),...WP_NO_EXEMPT_FIELDS,...IQAMA_EXTRA_FIELDS]
 // أقسام تجديد الإقامة كصفحات معالج: نفس أقسام الكفالة لكن بحقول الإقامة فقط، مع حذف الأقسام الفارغة (نقل الكفالة).
@@ -1963,7 +1968,8 @@ const renderIqamaInlineEditor=(s,opts={})=>{
     if(title==='رسوم المكتب'){const daily=v.iqamaOfficeFeeMode==='daily';return(<div style={{display:'flex',flexDirection:'column',gap:12}}>
       {sub('طريقة الحساب')}{ed?seg('iqamaOfficeFeeMode',[{val:'flat',l:'سعر ثابت',sub:'نفس المبلغ'},{val:'daily',l:'يومي',sub:'سعر اليوم × الأيام'}]):pill(daily?'الوضع: يومي':'الوضع: سعر ثابت',C.gold)}
       {ed?grid(2,[fld('officeFee',1),fld('officeDailyRate',1)]):grid(2,[Stat('السعر الثابت',fmtThousands(v.officeFee??0),'ريال'),Stat('سعر اليوم',fmtThousands(v.officeDailyRate??0),'ريال/يوم')])}
-      {sub('الخصم عند التصديق')}{ed?sw('iqamaOfficeDiscountEnabled','مسموح بخصم المكتب','خصم المكتب معطّل'):pill(v.iqamaOfficeDiscountEnabled!==false?'خصم المكتب: مسموح':'خصم المكتب: غير مسموح',v.iqamaOfficeDiscountEnabled!==false?C.ok:C.red)}</div>)}
+      {sub('الخصم عند التصديق')}{ed?sw('iqamaOfficeDiscountEnabled','مسموح بخصم المكتب','خصم المكتب معطّل'):pill(v.iqamaOfficeDiscountEnabled!==false?'خصم المكتب: مسموح':'خصم المكتب: غير مسموح',v.iqamaOfficeDiscountEnabled!==false?C.ok:C.red)}
+      {sub('سقف الخصم حسب مدة التجديد')}{ed?grid(4,[fld('iqamaApprovalDiscountCap3M',1),fld('iqamaApprovalDiscountCap6M',1),fld('iqamaApprovalDiscountCap9M',1),fld('iqamaApprovalDiscountCap12M',1)]):grid(4,[Stat('٣ أشهر',fmtThousands(v.iqamaApprovalDiscountCap3M??25),'ريال'),Stat('٦ أشهر',fmtThousands(v.iqamaApprovalDiscountCap6M??51),'ريال'),Stat('٩ أشهر',fmtThousands(v.iqamaApprovalDiscountCap9M??76),'ريال'),Stat('١٢ شهر',fmtThousands(v.iqamaApprovalDiscountCap12M??102),'ريال')])}</div>)}
     if(title==='التأمين الطبي'){const bk=Array.isArray(v.medicalBrackets)?v.medicalBrackets:[];return ed?renderIqamaMedicalBody():(<div style={{display:'flex',flexDirection:'column',gap:11}}>
       {grid(3,[Stat('سريان التأمين',v.medicalGraceMonths??2,'شهر'),Stat('أيام إضافية',v.medicalGraceDays??10,'يوم'),Stat('حد تغطية المكتب',fmtThousands(v.medGovCover??1000),'ريال')])}
       {bk.length?<div style={{display:'flex',flexWrap:'wrap',gap:8}}>{bk.map((b,i)=>(<span key={i} style={{display:'inline-flex',alignItems:'center',gap:6,padding:'7px 12px',borderRadius:10,background:'var(--card-bg)',border:'1px solid var(--bd)',fontSize:11.5,fontWeight:600}}><span style={{color:'var(--tx3)'}}>{b.min}-{b.max} سنة</span><span style={{color:C.gold,fontWeight:600,direction:'ltr'}}>{fmtThousands(b.rate)} ريال</span></span>))}</div>:<div style={{fontSize:11,color:'var(--tx5)',textAlign:'center',padding:'8px 0'}}>لا توجد فئات</div>}
@@ -1975,7 +1981,7 @@ const renderIqamaInlineEditor=(s,opts={})=>{
     'المهلة والغرامات':{keys:['iqamaGraceDays','iqamaFine1','iqamaFine2']},
     'كرت العمل (رخصة العمل)':{keys:['workPermit3M','workPermit6M','workPermit9M','workPermit12M','workPermitNoExempt3M','workPermitNoExempt6M','workPermitNoExempt9M','workPermitNoExempt12M','workPermitDailyAfter','workPermitCutoffDate','workPermitProcDays','iqamaWpBasis','iqamaExemptionMode','iqamaWpResetEnabled','iqamaWpResetAfterDays','iqamaWpIssuanceDays']},
     'رسوم تغيير المهنة':{keys:['profChange'],extra:['profChangeFreeOccupations']},
-    'رسوم المكتب':{keys:['officeFee','officeDailyRate','iqamaOfficeFeeMode','iqamaOfficeDiscountEnabled']},
+    'رسوم المكتب':{keys:['officeFee','officeDailyRate','iqamaOfficeFeeMode','iqamaOfficeDiscountEnabled','iqamaApprovalDiscountCap3M','iqamaApprovalDiscountCap6M','iqamaApprovalDiscountCap9M','iqamaApprovalDiscountCap12M']},
     'التأمين الطبي':{keys:['medicalGraceMonths','medicalGraceDays','medGovCover'],extra:['medicalBrackets']},
   }
   const titles=['الرسوم الحكومية لتجديد الإقامة','المهلة والغرامات','كرت العمل (رخصة العمل)','رسوم تغيير المهنة','رسوم المكتب','التأمين الطبي']

@@ -16,6 +16,9 @@ export const KAFALA_DEFAULTS={
   iqamaExemptionMode:'free',
   // السماح بخصم المكتب عند تصديق التجديد (سياسة الأدمن)
   iqamaOfficeDiscountEnabled:true,
+  // سقف خصم المكتب عند التصديق حسب مدة التجديد (سياسة الأدمن — الإدارة ← الخدمات ← تجديد الإقامة).
+  // الحد الأعلى للخصم الذي يُدخله المُصدِّق لكل مدة (٣/٦/٩/١٢ شهرًا). لمدد غير معيارية يُحسب تناسبيًا من فئة ١٢.
+  iqamaApprovalDiscountCap3M:25,iqamaApprovalDiscountCap6M:51,iqamaApprovalDiscountCap9M:76,iqamaApprovalDiscountCap12M:102,
   // سياسات نقل الكفالة (مطابقة للتجديد): أساس رخصة العمل · قاعدة المنتهية من مدة طويلة · وضع رسوم المكتب · الخصم
   kafalaWpBasis:'iqama',kafalaWpResetEnabled:false,kafalaWpResetAfterDays:365,kafalaWpIssuanceDays:5,kafalaOfficeFeeMode:'flat',kafalaOfficeDiscountEnabled:true,
   // أرضية الخصم الافتراضية (سياسة الأدمن): تُملأ في نافذة تصديق نقل الكفالة وتُفرض كحدّ أدنى لرسوم المكتب بعد الخصم.
@@ -58,4 +61,18 @@ export function setKafalaPricingConfig(partial){
 // تجديد الإقامة يقرأ هذا بدل إعدادات نقل الكفالة (مطابق لما تفعله صفحة طلب الخدمة للفاتورة).
 export function getIqamaRenewalPricingConfig(branchId){
   try{const r=JSON.parse(localStorage.getItem('iqamaRenewalPricingConfig')||'{}');return mergeKafalaCfg(r,branchPricingOverride('iqama_renewal',branchId))}catch{return{...KAFALA_DEFAULTS}}
+}
+
+// سقف خصم المكتب عند تصديق التجديد بحسب مدة التجديد (شهور) — يقرأه المُصدِّق من الإعدادات.
+// ٣/٦/٩/١٢ شهرًا لها قيم مستقلة؛ لمدة أطول من ١٢ يُحسب تناسبيًا من فئة الـ١٢.
+export function renewalApprovalDiscountCap(cfg,months){
+  const c=cfg||KAFALA_DEFAULTS
+  const m=Number(months)||0
+  const n=(x,d)=>{const v=Number(x);return isFinite(v)&&v>=0?v:d}
+  if(m<=0)return 0
+  if(m<=3)return n(c.iqamaApprovalDiscountCap3M,25)
+  if(m<=6)return n(c.iqamaApprovalDiscountCap6M,51)
+  if(m<=9)return n(c.iqamaApprovalDiscountCap9M,76)
+  if(m<=12)return n(c.iqamaApprovalDiscountCap12M,102)
+  return Math.round(n(c.iqamaApprovalDiscountCap12M,102)/12*m)
 }
