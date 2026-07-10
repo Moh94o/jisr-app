@@ -4,7 +4,7 @@ import { Modal as FKModal, C, F, ActionButton, Select } from '../components/ui/F
 import { getIqamaRenewalPricingConfig } from '../lib/kafalaPricing.js'
 import { noDash } from '../lib/utils.js'
 import { computeRenewalDerived } from '../lib/renewalDerived.js'
-import { stageVisible, fieldVisible, fieldEditable, isGM } from '../lib/permissions.js'
+import { stageVisible, fieldVisible, fieldEditable } from '../lib/permissions.js'
 
 // حدود الرسوم الحكومية المشمولة في «رسوم المكتب» — ما يتجاوزها يُضاف. (تُنقل للإعدادات لاحقًا)
 const COVER = { iqama: 650, workPermit: 100, medical: 1000 }
@@ -1048,8 +1048,8 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
 
   // ── بناء صفحات الويزارد ──
   const titles = [T('العامل', 'Worker'), T('التفاصيل', 'Details'), T('التجديد', 'Renewal'), T('التسعيرة', 'Pricing'), T('المراجعة', 'Review'), T('التكلفة', 'Cost')]
-  // حسبة سابقة سارية لنفس العامل تمنع «التالي» (تظهر كإشعار في التذييل) حتى تُلغى؛ المدير العام يتجاوزها — انظر dupBlocks.
-  const dupBlocks = !!dupQuote && !isGM(user)
+  // حسبة سابقة سارية لنفس العامل لم تعد تمنع «التالي» لأحد — تظهر كإشعار إعلامي فقط في التذييل (للجميع).
+  const dupBlocks = false
   const tab0Valid = !!worker && phoneValid && !workerDataIncomplete && !dupBlocks
   const pages = titles.map((title, i) => ({
     title,
