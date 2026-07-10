@@ -77,8 +77,9 @@ const fmtDuration = (fromIso, toIso, ar = true) =>
 /* ─────── Service-type theme ─────── */
 const SVC_THEME = {
   work_visa:            { c: C.blue,   bg: 'rgba(93,173,226,.12)',  bd: 'rgba(93,173,226,.32)',  label_ar: 'تأشيرة عمل',         label_en: 'Work Visa' },
-  work_visa_permanent:  { c: C.blue,   bg: 'rgba(93,173,226,.12)',  bd: 'rgba(93,173,226,.32)',  label_ar: 'تأشيرة وإقامة دائمة',   label_en: 'Permanent Visa & Iqama' },
-  work_visa_temporary:  { c: C.blue,   bg: 'rgba(93,173,226,.12)',  bd: 'rgba(93,173,226,.32)',  label_ar: 'تأشيرة وإقامة مؤقتة',   label_en: 'Temporary Visa & Iqama' },
+  work_visa_permanent:  { c: C.blue,   bg: 'rgba(93,173,226,.12)',  bd: 'rgba(93,173,226,.32)',  label_ar: 'تأشيرة بإقامة 12 شهر',   label_en: '12-Month Visa & Iqama' },
+  work_visa_6m:         { c: '#48a1d6',bg: 'rgba(72,161,214,.12)',  bd: 'rgba(72,161,214,.32)',  label_ar: 'تأشيرة بإقامة 6 أشهر',   label_en: '6-Month Visa & Iqama' },
+  work_visa_temporary:  { c: C.blue,   bg: 'rgba(93,173,226,.12)',  bd: 'rgba(93,173,226,.32)',  label_ar: 'تأشيرة بإقامة 3 شهور',   label_en: '3-Month Visa & Iqama' },
   iqama_issuance: { c: '#27ae60',bg: 'rgba(39,174,96,.12)',   bd: 'rgba(39,174,96,.32)',   label_ar: 'إصدار إقامة', label_en: 'Iqama Issuance' },
   transfer:       { c: C.orange, bg: 'rgba(243,156,18,.12)',  bd: 'rgba(243,156,18,.32)',  label_ar: 'نقل كفالة',   label_en: 'Transfer' },
   ajeer:          { c: C.purple, bg: 'rgba(187,143,206,.12)', bd: 'rgba(187,143,206,.32)', label_ar: 'أجير',        label_en: 'Ajeer' },
@@ -110,6 +111,7 @@ const SVC_ICON_WORK_VISA = <svg width="11" height="11" viewBox="0 0 24 24" fill=
 const SVC_ICON = {
   work_visa: SVC_ICON_WORK_VISA,
   work_visa_permanent: SVC_ICON_WORK_VISA,
+  work_visa_6m: SVC_ICON_WORK_VISA,
   work_visa_temporary: SVC_ICON_WORK_VISA,
   iqama_issuance: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h10M7 12h6M7 16h4"/><path d="m17 14 2 2 3-3"/></svg>,
   transfer: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/></svg>,
@@ -480,7 +482,9 @@ export default function TransactionsPage({ sb, lang, user, tabId, branchId, toas
         // Per-service hero overrides (title + description). Falls back to the generic lockedLabel hero.
         const HERO = {
           general: { ar: 'خدمة عامة', en: 'General', dAr: 'الطلبات المصنّفة ضمن «الخدمة العامة» — أي معاملة لا تندرج تحت خدمة محدّدة — ومتابعة حالتها', dEn: 'Requests categorized under the “General” service — any transaction not tied to a specific service — tracked by status' },
-          work_visa_permanent: { ar: 'إصدار تأشيرات وإقامات العمل الدائمة', en: 'Issuing Permanent Work Visas & Iqamas', dAr: 'إصدار ومتابعة طلبات تأشيرات وإقامات العمل الدائمة للمنشآت', dEn: 'Issue and track permanent work-visa & iqama requests for facilities' },
+          work_visa_permanent: { ar: 'تأشيرة بإقامة 12 شهر', en: '12-Month Visa & Iqama', dAr: 'إصدار ومتابعة طلبات التأشيرات بإقامة 12 شهر للمنشآت', dEn: 'Issue and track 12-month visa & iqama requests for facilities' },
+          work_visa_6m: { ar: 'تأشيرة بإقامة 6 أشهر', en: '6-Month Visa & Iqama', dAr: 'إصدار ومتابعة طلبات التأشيرات بإقامة 6 أشهر للمنشآت', dEn: 'Issue and track 6-month visa & iqama requests for facilities' },
+          work_visa_temporary: { ar: 'تأشيرة بإقامة 3 شهور', en: '3-Month Visa & Iqama', dAr: 'إصدار ومتابعة طلبات التأشيرات بإقامة 3 شهور للمنشآت', dEn: 'Issue and track 3-month visa & iqama requests for facilities' },
           supplier_payroll: { ar: 'طلب رواتب سبلاير', en: 'Supplier Payroll Requests', dAr: 'إصدار ومتابعة طلبات رواتب السبلاير غير المدفوعة للعمّال', dEn: 'Issue and track unpaid supplier-worker payroll requests' },
           external_transfer_approval: { ar: 'الموافقة للنقل الخارجي', en: 'External Transfer Approval', dAr: 'إصدار ومتابعة طلبات الموافقة على النقل الخارجي', dEn: 'Issue and track external transfer approval requests' },
         }

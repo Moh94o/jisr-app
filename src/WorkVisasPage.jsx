@@ -369,7 +369,7 @@ export default function WorkVisasPage({ sb, toast, lang, user, onTabChange }) {
           <div style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600, letterSpacing: '.2px' }}>{T('حالة التأشيرات', 'Visa Status')}</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, flex: 1 }}>
             <div style={{ position: 'relative', width: 112, height: 112, flexShrink: 0 }}>
-              <svg width="112" height="112" viewBox="0 0 112 112" style={{ filter: 'drop-shadow(0 6px 18px rgba(0,0,0,.4))' }}>
+              <svg width="112" height="112" viewBox="0 0 112 112">
                 <defs>
                   <radialGradient id="vs-donut-core" cx="50%" cy="50%" r="50%">
                     <stop offset="0%" stopColor="rgba(255,255,255,.06)" /><stop offset="100%" stopColor="rgba(255,255,255,0)" />

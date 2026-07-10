@@ -102,9 +102,20 @@ return files
 }
 
 // ═══════ Service Types (Bento Grid) ═══════
+// أيقونة مدّة الإقامة — رقم الأشهر داخل شارة (بدل التقويم) للتأشيرات «بإقامة N».
+const durationIcon=(label)=>function DurationIcon({size=22,color='currentColor',strokeWidth=1.5}){
+  return(
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="3" y="3.5" width="18" height="17" rx="5.5"/>
+      <text x="12" y="12.2" textAnchor="middle" dominantBaseline="central" fontSize={label.length>1?9.5:12} fontWeight="800" fill={color} stroke="none" style={{fontFamily:"'Cairo','Tajawal',sans-serif"}}>{label}</text>
+    </svg>
+  )
+}
+const Visa12Icon=durationIcon('12'),Visa6Icon=durationIcon('6'),Visa3Icon=durationIcon('3')
 const MAIN_SERVICES=[
-{id:'work_visa_permanent',name_ar:'تأشيرة وإقامة دائمة',name_en:'Permanent Visa & Iqama',Icon:CalendarRange,featured:true,billable:true},
-{id:'work_visa_temporary',name_ar:'تأشيرة وإقامة مؤقتة',name_en:'Temporary Visa & Iqama',Icon:CalendarClock,billable:true},
+{id:'work_visa_permanent',name_ar:'تأشيرة بإقامة 12 شهر',name_en:'12-Month Visa & Iqama',Icon:Visa12Icon,featured:true,billable:true},
+{id:'work_visa_6m',name_ar:'تأشيرة بإقامة 6 أشهر',name_en:'6-Month Visa & Iqama',Icon:Visa6Icon,billable:true},
+{id:'work_visa_temporary',name_ar:'تأشيرة بإقامة 3 شهور',name_en:'3-Month Visa & Iqama',Icon:Visa3Icon,billable:true},
 {id:'kafala_transfer',name_ar:'نقل كفالة',name_en:'Sponsorship Transfer',Icon:ArrowLeftRight,billable:true},
 {id:'iqama_renewal',name_ar:'تجديد الإقامة',name_en:'Iqama Renewal',Icon:RefreshCw,billable:true},
 {id:'ajeer_contract',name_ar:'عقد أجير',name_en:'Ajeer Contract',Icon:Users,billable:true},
@@ -146,7 +157,7 @@ export const ALL_SERVICES=[...MAIN_SERVICES,...OTHER_SERVICES]
 
 // خريطة: معرّف الخدمة في المعالج → كود service_type في lookup_items. (مُصدَّرة لإعادة استخدامها في فلتر الفواتير.)
 export const SVC_CODE_MAP={
-  work_visa_permanent:'work_visa_permanent',work_visa_temporary:'work_visa_temporary',
+  work_visa_permanent:'work_visa_permanent',work_visa_temporary:'work_visa_temporary',work_visa_6m:'work_visa_6m',
   kafala_transfer:'transfer',iqama_renewal:'iqama_renewal',ajeer_contract:'ajeer',
   supplier_payroll:'supplier_payroll',external_transfer_approval:'external_transfer_approval',
   // ids whose service_type code differs from the wizard id, or that have no registry entry of their own:
@@ -159,12 +170,15 @@ export const SVC_CODE_MAP={
 }
 
 // ═══════ Visa services (custom inputs) ═══════
-const VISA_SERVICES=new Set(['work_visa_permanent','work_visa_temporary'])
+const VISA_SERVICES=new Set(['work_visa_permanent','work_visa_6m','work_visa_temporary'])
+// تأشيرات «بإقامة» بمسار الإقامة الكامل (١٢ شهر و٦ أشهر): ثلاث دفعات + مراحل التأمين/رخصة العمل + توزيع المنشآت.
+// المؤقتة (٣ شهور) خارج هذه المجموعة (مسار دفعتين بلا إقامة لكل تأشيرة). أي تأشيرة «بإقامة» جديدة تُضاف هنا.
+const RESIDENCE_VISA_SERVICES=new Set(['work_visa_permanent','work_visa_6m'])
 
 // ═══════ Client step applies ONLY to these services ═══════
 // Every other service skips the client step and opens step 2 directly on worker selection —
 // for them the client IS the worker, so there is no separate client party to pick.
-const CLIENT_SERVICES=new Set(['work_visa_permanent','work_visa_temporary','kafala_transfer','iqama_renewal','custom'])
+const CLIENT_SERVICES=new Set(['work_visa_permanent','work_visa_6m','work_visa_temporary','kafala_transfer','iqama_renewal','custom'])
 // Quote-driven services: the invoice does NOT price anything itself — it picks a certified calculation
 // (نقل الكفالة → transfer_calculation · تجديد الإقامة → iqama_renewal_calculation) and attaches an invoice to it.
 // Both reorder the wizard (quote = step 2 «التفاصيل», client = step 3 «العميل») and share the same party/payment UI.
@@ -1415,24 +1429,24 @@ const cfg=getVisaMinConfig(selSvc)
 const numVisas=visaGroups.reduce((s,g)=>s+(parseInt(g.count)||0),0)||1
 const total=totalOverride!==null?Number(totalOverride):Number(pricing?.total||0)
 const minTotalAbs=(Number(cfg.defaultTotal)||0)*numVisas
-if(minTotalAbs>0&&total<minTotalAbs){setErr(T('السعر الإجمالي أقل من الحد الأدنى المسموح','Total price is below the minimum allowed'));return false}
+if(minTotalAbs>0&&total<minTotalAbs&&!gm){setErr(T('السعر الإجمالي أقل من الحد الأدنى المسموح','Total price is below the minimum allowed'));return false}
 // المؤقتة: دفعتان (إصدار + توكيل). الدائمة: ثلاث (مع دفعة الإقامة لكل تأشيرة).
 {
-const hasResidence=selSvc==='work_visa_permanent'
+const hasResidence=RESIDENCE_VISA_SERVICES.has(selSvc)
 const defaultEach=total/(hasResidence?3:2)
 const issuanceVal=visaInstallments.issuance===''?defaultEach:(Number(visaInstallments.issuance)||0)
-if(issuanceVal<numVisas*cfg.issuance){setErr(T('دفعة «عند إصدار التأشيرة» أقل من الحد المسموح','The "on visa issuance" installment is below the allowed minimum'));return false}
+if(issuanceVal<numVisas*cfg.issuance&&!gm){setErr(T('دفعة «عند إصدار التأشيرة» أقل من الحد المسموح','The "on visa issuance" installment is below the allowed minimum'));return false}
 if(hasResidence){
 const authVal=visaInstallments.authorization===''?defaultEach:(Number(visaInstallments.authorization)||0)
 // دفعة «عند توكيل التأشيرة» (الدائمة): تُفرض بالحد الأدنى لدفعة الوكالة من إعدادات الخدمة.
-if((Number(cfg.authorization)||0)>0&&authVal<numVisas*cfg.authorization){setErr(T('دفعة «عند توكيل التأشيرة» أقل من الحد المسموح','The "on visa authorization" installment is below the allowed minimum'));return false}
+if((Number(cfg.authorization)||0)>0&&authVal<numVisas*cfg.authorization&&!gm){setErr(T('دفعة «عند توكيل التأشيرة» أقل من الحد المسموح','The "on visa authorization" installment is below the allowed minimum'));return false}
 const residenceSubtotal=Math.max(0,total-issuanceVal-authVal)
 const residencePerVisa=visaInstallments.residencePerVisa===''?(residenceSubtotal/numVisas):(Number(visaInstallments.residencePerVisa)||0)
-if((Number(cfg.residence)||0)>0&&residencePerVisa<Number(cfg.residence)){setErr(T('دفعة «عند إصدار الإقامة» أقل من الحد المسموح','The "on Iqama issuance" installment is below the allowed minimum'));return false}
+if((Number(cfg.residence)||0)>0&&residencePerVisa<Number(cfg.residence)&&!gm){setErr(T('دفعة «عند إصدار الإقامة» أقل من الحد المسموح','The "on Iqama issuance" installment is below the allowed minimum'));return false}
 }else{
 // المؤقتة: التوكيل هو الباقي بعد الإصدار — يُفرض ألا ينزل عن حدّه ولا أن يتجاوز الإصدار الإجمالي.
 const authVal=Math.max(0,total-issuanceVal)
-if(authVal<numVisas*cfg.authorization){setErr(T('دفعة «عند توكيل التأشيرة» أقل من الحد المسموح','The "on visa authorization" installment is below the allowed minimum'));return false}
+if(authVal<numVisas*cfg.authorization&&!gm){setErr(T('دفعة «عند توكيل التأشيرة» أقل من الحد المسموح','The "on visa authorization" installment is below the allowed minimum'));return false}
 if(issuanceVal>total+0.01){setErr(T('دفعة «عند إصدار التأشيرة» تتجاوز الإجمالي','The "on visa issuance" installment exceeds the total'));return false}
 }
 }
@@ -1452,7 +1466,7 @@ if(rows.length<2){setErr(T('الدفعات المتعددة تتطلب دفعت�
 // ⚠️ استثناء لمرة واحدة (حالة خاصة يوم 2026-07-03): السماح بدفعة أولى أقل من الرسوم
 // الحكومية — يبطل تلقائياً بعد نهاية هذا اليوم ويعود الشرط للعمل. يُحذف لاحقاً.
 const oneTimeBypass=new Date().toISOString().slice(0,10)==='2026-07-03'
-if(first<minFirst&&!oneTimeBypass){setErr(T(`الدفعة الأولى يجب ألا تقل عن ${fmtAmt(minFirst.toFixed(2))} ريال (مجموع الرسوم الحكومية)`,`The first installment must be at least ${fmtAmt(minFirst.toFixed(2))} SAR (total government fees)`));return false}
+if(first<minFirst&&!oneTimeBypass&&!gm){setErr(T(`الدفعة الأولى يجب ألا تقل عن ${fmtAmt(minFirst.toFixed(2))} ريال (مجموع الرسوم الحكومية)`,`The first installment must be at least ${fmtAmt(minFirst.toFixed(2))} SAR (total government fees)`));return false}
 // كل دفعة يجب أن تحمل مبلغاً موجباً
 if(rows.some(r=>(parseFloat(r.amount)||0)<=0)){setErr(T('يرجى إدخال مبلغ لكل دفعة','Please enter an amount for each installment'));return false}
 // كل دفعة بعد الأولى تحتاج تاريخاً
@@ -1465,10 +1479,10 @@ if(Math.abs(sum-total)>0.01){setErr(T(`مجموع الدفعات (${fmtAmt(sum.t
 if(step===5&&!showSummaryScreen&&!showBrokerNoteScreen&&VISA_SERVICES.has(selSvc)){
 const numVisas=visaGroups.reduce((s,g)=>s+(parseInt(g.count)||0),0)||1
 const total=totalOverride!==null?Number(totalOverride):Number(pricing?.total||0)
-const defaultEach=total/(selSvc==='work_visa_permanent'?3:2)
+const defaultEach=total/(RESIDENCE_VISA_SERVICES.has(selSvc)?3:2)
 const issuanceVal=visaInstallments.issuance===''?defaultEach:(Number(visaInstallments.issuance)||0)
 const paid=Number(paidAmount)||0
-if(paid<issuanceVal-0.01){setErr(T(`المبلغ المدفوع يجب أن يغطي دفعة «عند إصدار التأشيرة» (${fmtAmt(issuanceVal.toFixed(2))} ريال)`,`The paid amount must cover the "on visa issuance" installment (${fmtAmt(issuanceVal.toFixed(2))} SAR)`));return false}
+if(paid<issuanceVal-0.01&&!gm){setErr(T(`المبلغ المدفوع يجب أن يغطي دفعة «عند إصدار التأشيرة» (${fmtAmt(issuanceVal.toFixed(2))} ريال)`,`The paid amount must cover the "on visa issuance" installment (${fmtAmt(issuanceVal.toFixed(2))} SAR)`));return false}
 }
 // Step 5 (payment entry) — نقل كفالة / تجديد الإقامة (دفعة واحدة): المبلغ المدفوع يجب ألا يقل عن الرسوم الحكومية.
 // تجديد الإقامة = نفس قيمة صفحة التفاصيل (government_fees)؛ نقل الكفالة = الإجمالي الابتدائي − رسوم المكتب − خصم أبشر.
@@ -1476,13 +1490,13 @@ if(step===5&&!showSummaryScreen&&!showBrokerNoteScreen&&(selSvc==='kafala_transf
 const _sub=Number(selKafalaQuote?.subtotal||0)
 const govFees=selSvc==='iqama_renewal'?iqamaQuoteGovFees(selKafalaQuote):(_sub>0?Math.max(0,_sub-Number(selKafalaQuote?.office_fee||0)-Number(selKafalaQuote?.absher_discount||0)):Math.max(0,(Number(pricing?.total)||0)-Number((kafalaLines&&kafalaLines.officeFee)||0)))
 const paid=Number(paidAmount)||0
-if(paid<govFees-0.01){setErr(T(`المبلغ المدفوع يجب ألا يقل عن الرسوم الحكومية (${fmtAmt(govFees.toFixed(2))} ريال)`,`The paid amount must not be less than the government fees (${fmtAmt(govFees.toFixed(2))} SAR)`));return false}
+if(paid<govFees-0.01&&!gm){setErr(T(`المبلغ المدفوع يجب ألا يقل عن الرسوم الحكومية (${fmtAmt(govFees.toFixed(2))} ريال)`,`The paid amount must not be less than the government fees (${fmtAmt(govFees.toFixed(2))} SAR)`));return false}
 }
 // Step 5 (payment entry) — نقل كفالة/تجديد (دفعات متعددة): المبلغ المدفوع (الدفعة المقدّمة) يجب ألا يقل عن الدفعة الأولى «عند الإصدار».
 if(step===5&&!showSummaryScreen&&!showBrokerNoteScreen&&(selSvc==='kafala_transfer'||selSvc==='iqama_renewal')&&kafalaPayMode==='split'){
 const first=parseFloat((kafalaInstallments||[])[0]?.amount)||0
 const paid=Number(paidAmount)||0
-if(paid<first-0.01){setErr(T(`المبلغ المدفوع يجب ألا يقل عن الدفعة الأولى (${fmtAmt(first.toFixed(2))} ريال)`,`The paid amount must not be less than the first installment (${fmtAmt(first.toFixed(2))} SAR)`));return false}
+if(paid<first-0.01&&!gm){setErr(T(`المبلغ المدفوع يجب ألا يقل عن الدفعة الأولى (${fmtAmt(first.toFixed(2))} ريال)`,`The paid amount must not be less than the first installment (${fmtAmt(first.toFixed(2))} SAR)`));return false}
 }
 // Step 5 (payment entry) — bank transfer requires a receipt file before proceeding
 if(step===5&&!showSummaryScreen&&!showBrokerNoteScreen&&(Number(paidAmount)||0)>0&&paymentMethod==='bank'){
@@ -1647,7 +1661,7 @@ if(VISA_SERVICES.has(selSvc)&&isServiceBillable(selSvc)){
   if(minTotalAbs>0&&total<minTotalAbs){setErr(T('السعر الإجمالي أقل من الحد الأدنى المسموح','Total price is below the minimum allowed'));return}
   // المؤقتة: دفعتان (إصدار + توكيل) فيُفرض حد الإصدار فقط. الدائمة: ثلاث دفعات بحدودها الكاملة.
   {
-  const hasResidence=selSvc==='work_visa_permanent'
+  const hasResidence=RESIDENCE_VISA_SERVICES.has(selSvc)
   const defaultEach=total/(hasResidence?3:2)
   const issuanceVal=visaInstallments.issuance===''?defaultEach:(Number(visaInstallments.issuance)||0)
   const minIss=(Number(minCfg.issuance)||0)*numVisas
@@ -1717,7 +1731,7 @@ finalClientId=nc.id
 // Fall back to the generic "عام" bucket — NEVER 'other'/الغرفة التجارية — for any id not listed.
 const serviceTypeCode=SVC_CODE_MAP[selSvc]||'general'
 // Both visa variants share the visa_applications table, so detail-table/row logic keys off the base family.
-const svcCode=(serviceTypeCode==='work_visa_permanent'||serviceTypeCode==='work_visa_temporary')?'work_visa':serviceTypeCode
+const svcCode=VISA_SERVICES.has(serviceTypeCode)?'work_visa':serviceTypeCode
 
 // Resolve lookup IDs (service_type + initial status). الغرفة التجارية (other) وعقد أجير (ajeer) يبدآن
 // «جديدة» ولا ينتقلان إلى «قيد التنفيذ» إلا بعد إدخال رقم المعاملة/رقم العقد في صفحة المعاملة؛ بقية
@@ -1759,10 +1773,10 @@ const fileNo=fi+1
 Object.entries(f.assignments||{}).forEach(([gid,cnt])=>{
 const g=groupById[String(gid)];const n=parseInt(cnt)||0
 // التأشيرة الدائمة: المنشأة تُختار يدويًا في صفحة تفاصيل المعاملة (مسار «اختيار المنشأة وتوزيع التأشيرات») — لا تُسند تلقائيًا من منشأة العميل/العامل.
-for(let k=0;k<n;k++)visaRows.push({service_request_id:sr.id,main_facility_id:serviceTypeCode==='work_visa_permanent'?null:(selWorker?.facility?.id||null),file_number:fileNo,nationality_id:g?.nationality||fields.nationality_id||null,occupation_id:g?.profession||fields.occupation_id||null,embassy_id:g?.embassy||fields.embassy_id||null,gender:g?.gender||fields.gender||null})
+for(let k=0;k<n;k++)visaRows.push({service_request_id:sr.id,main_facility_id:RESIDENCE_VISA_SERVICES.has(serviceTypeCode)?null:(selWorker?.facility?.id||null),file_number:fileNo,nationality_id:g?.nationality||fields.nationality_id||null,occupation_id:g?.profession||fields.occupation_id||null,embassy_id:g?.embassy||fields.embassy_id||null,gender:g?.gender||fields.gender||null})
 })
 })
-if(visaRows.length===0)visaRows.push({service_request_id:sr.id,main_facility_id:serviceTypeCode==='work_visa_permanent'?null:(selWorker?.facility?.id||null),file_number:1,nationality_id:fields.nationality_id||null,occupation_id:fields.occupation_id||null,embassy_id:fields.embassy_id||null,gender:fields.gender||null})
+if(visaRows.length===0)visaRows.push({service_request_id:sr.id,main_facility_id:RESIDENCE_VISA_SERVICES.has(serviceTypeCode)?null:(selWorker?.facility?.id||null),file_number:1,nationality_id:fields.nationality_id||null,occupation_id:fields.occupation_id||null,embassy_id:fields.embassy_id||null,gender:fields.gender||null})
 const{data:createdVisas,error:dErr}=await sb.from('visa_applications').insert(visaRows).select('id')
 if(dErr)throw dErr
 createdVisaIds=(createdVisas||[]).map(v=>v.id)
@@ -1880,7 +1894,7 @@ const paidNum=Math.min(Number(paidAmount)||0,total)
 const isVisa=VISA_SERVICES.has(selSvc)
 // Permanent = إصدار مشتركة + توكيل مشتركة + إصدار الإقامة لكل تأشيرة.
 // Temporary = إصدار مشتركة + توكيل لكل تأشيرة (التوكيل هنا بديل دفعة الإقامة، مرتبط بكل تأشيرة).
-const hasResidence=selSvc==='work_visa_permanent'
+const hasResidence=RESIDENCE_VISA_SERVICES.has(selSvc)
 const visaHasInstallments=isVisa
 const visaStageCount=visaHasInstallments?(hasResidence?3:2):0
 const numVisas=isVisa?(visaGroups.reduce((s,g)=>s+(parseInt(g.count)||0),0)||1):1
@@ -2227,7 +2241,7 @@ return<div key={s.id} className={`bento-card${sel?' selected':''}${!active?' dis
 <div className="bento-icon"><I size={22} color={C.bentoGold} strokeWidth={1.5}/></div>
 <div className="bento-label">{svcName(s,isAr)}</div>
 </div>})}
-<div className="bento-card bento-nav" onClick={()=>setShowOthers(true)} style={{gridColumn:'span 3'}}>
+<div className="bento-card bento-nav" onClick={()=>setShowOthers(true)} style={{gridColumn:`span ${((3-(MAIN_SERVICES.length%3))%3)||3}`}}>
 <div className="bento-icon"><Ellipsis size={22} color="var(--accent)" strokeWidth={1.5}/></div>
 <div className="bento-label">{T('خدمات أخرى','Other services')}</div>
 <div style={{fontSize:10,color:'var(--tx3)',fontFamily:F}}>{OTHER_SERVICES.length} {T('خدمة','services')}</div>
@@ -3970,7 +3984,7 @@ const total=totalOverride!==null?totalOverride:(pricing.total||0)
 const cfg=getVisaMinConfig(selSvc)
 const minIssuance=numVisas*cfg.issuance
 // الدائمة: إصدار مشتركة + توكيل مشتركة + إقامة لكل تأشيرة. المؤقتة: إصدار مشتركة + توكيل لكل تأشيرة.
-const hasResidence=selSvc==='work_visa_permanent'
+const hasResidence=RESIDENCE_VISA_SERVICES.has(selSvc)
 const defaultEach=total/(hasResidence?3:2)
 const issuanceVal=visaInstallments.issuance===''?defaultEach:(Number(visaInstallments.issuance)||0)
 // التوكيل المشترك للدائمة فقط؛ المؤقتة بلا توكيل مشترك (توكيلها لكل تأشيرة ضمن الدفعة لكل تأشيرة).
@@ -4060,7 +4074,7 @@ const effectiveTotal=(isVisa&&totalOverride!==null)?totalOverride:pricing.total
 const effectiveRemaining=effectiveTotal-paid
 const numVisas=isVisa?visaGroups.reduce((s,g)=>s+(parseInt(g.count)||0),0):0
 // Compute installments values for display
-const hasResidence=isVisa&&selSvc==='work_visa_permanent'
+const hasResidence=isVisa&&RESIDENCE_VISA_SERVICES.has(selSvc)
 const defaultEach=effectiveTotal/(hasResidence?3:2)
 const issuanceVal=isVisa?(visaInstallments.issuance===''?defaultEach:(Number(visaInstallments.issuance)||0)):0
 const authVal=isVisa&&hasResidence?(visaInstallments.authorization===''?defaultEach:(Number(visaInstallments.authorization)||0)):0

@@ -8,6 +8,7 @@ import { branchLabel } from './lib/utils.js'
 import { navSetHere } from './lib/navStack.js'
 import { Building2, Hash, Plus, Ban, Trash2, Pencil, X, AlertCircle, Landmark } from 'lucide-react'
 import { Modal as FKModal, ModalSection, ActionButton, SuccessView, GRID, TextField, Segmented, Select, Dropdown as FKDropdown, DateField, Switch, EmptyState } from './components/ui/FormKit.jsx'
+import InvoiceReceiptCard from './components/ui/InvoiceReceiptCard.jsx'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = {
@@ -219,7 +220,7 @@ const CaptchaCountdown = ({ captchaKey, onExpire, color = C.gold }) => {
 function nitaqBandColor(name) {
   if (!name) return null
   const n = name.toString()
-  if (n.includes('بلاتيني')) return '#cbd5e1'
+  if (n.includes('بلاتيني')) return '#8f96a3'
   if (n.includes('أحمر') || n.includes('احمر')) return '#ef4444'
   if (n.includes('أصفر') || n.includes('اصفر')) return '#eab308'
   if (n.includes('أخضر') || n.includes('اخضر')) {
@@ -853,31 +854,7 @@ function FacilityRegistryCards({ facility: f, sb, T, lang, user, toast, onEdit, 
                 <div style={{ fontSize: 12, color: 'var(--tx4)', textAlign: 'center', padding: '8px 0' }}>{T('جارٍ التحميل…', 'Loading…')}</div>
               ) : facListRows.length === 0 ? (
                 <div style={{ fontSize: 12, color: 'var(--tx4)', textAlign: 'center', padding: '8px 0' }}>{T('لا توجد فواتير أو خدمات مرتبطة', 'No invoices or services linked')}</div>
-              ) : facListRows.map((r, i) => {
-                const cancelled = r.invoice_status === 'cancelled'
-                const paidUp = r.invoice_id && Number(r.remaining_amount) <= 0 && !cancelled
-                const stt = cancelled ? { t: T('ملغاة', 'Cancelled'), c: C.red } : paidUp ? { t: T('مدفوعة', 'Paid'), c: C.ok } : r.invoice_id ? { t: `${T('متبقٍ', 'Due')} ${num(Math.round(Number(r.remaining_amount) || 0))}`, c: C.gold } : null
-                return (
-                  <div key={i} onClick={r.invoice_id ? () => goInvoice(r.invoice_id) : undefined} title={r.invoice_id ? T('عرض تفاصيل الفاتورة', 'View invoice') : ''}
-                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '10px 12px', background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, cursor: r.invoice_id ? 'pointer' : 'default', opacity: cancelled ? .65 : 1, transition: 'border-color .15s' }}
-                    onMouseEnter={e => { if (r.invoice_id) e.currentTarget.style.borderColor = 'rgba(176,125,0,.5)' }}
-                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--bd)' }}>
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.service_ar || T('خدمة', 'Service')}</div>
-                      <div style={{ fontSize: 10.5, color: 'var(--tx4)', fontFamily: 'ui-monospace, monospace', direction: 'ltr', marginTop: 2 }}>{T('مرجع', 'Ref')}: {r.request_ref_no || '—'}</div>
-                    </div>
-                    <div style={{ textAlign: 'end', flexShrink: 0 }}>
-                      {r.invoice_no ? (
-                        <div style={{ fontSize: 11.5, fontWeight: 600, color: C.gold, direction: 'ltr', display: 'inline-flex', alignItems: 'center', gap: 5, justifyContent: 'flex-end' }}>
-                          {r.invoice_no}
-                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg>
-                        </div>
-                      ) : <span style={{ fontSize: 11, color: 'var(--tx5)' }}>{T('بدون فاتورة', 'No invoice')}</span>}
-                      {stt && <div style={{ fontSize: 10.5, fontWeight: 600, color: stt.c, marginTop: 2, direction: 'rtl' }}>{stt.t}</div>}
-                    </div>
-                  </div>
-                )
-              })}
+              ) : facListRows.map((r, i) => <InvoiceReceiptCard key={i} r={r} onOpen={goInvoice} T={T} />)}
             </div>
           </div>
         </CollapsibleCard>
@@ -3419,7 +3396,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
   const [err, setErr] = useState(null)
   const [search, setSearch] = useState('')
   const [advOpen, setAdvOpen] = useState(false)
-  const [adv, setAdv] = useState({ entity: [], status: [], branch: [], manager: [], nitaq: [], workforce: [], saudis: [], sortConfirm: '' })
+  const [adv, setAdv] = useState({ entity: [], status: [], branch: [], manager: [], nitaq: [], workforce: [], saudis: [], sortBy: '' })
   // صفحة التفاصيل الغنية تُشتق من viewId (يعمل مع سلسلة الرجوع والروابط العميقة).
   // كلا العدستين (SBC/التأمينات) + الروابط تفتح نفس العرض المنسدل الموحّد.
   // detail = الصف المفتوح (مطابق لحقول sbc عبر mapFacility). setDetail(r) للتوافق
@@ -3526,6 +3503,9 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
   // خريطة المكتب التابع لكل منشأة (facility_id → الفرع) — تُبنى داخل load() من
   // الربط المباشر facilities.branch_id. المكتب هو الفرع الذي تُسنده يدوياً.
   const [branchByFacility, setBranchByFacility] = useState({})
+  // كل الفروع التابعة لكل منشأة (facility_id → [branch objects]) من branch_ids —
+  // منشأة واحدة قد تخدمها أكثر من مكتب (مثل شركات تعمل في الجبيل والخبر معاً).
+  const [branchCodesByFacility, setBranchCodesByFacility] = useState({})
   // عدد العمّال غير السعوديين المرتبطين بكل منشأة — من جدول workers عبر current_facility_id.
   const [nonSaudiByFacility, setNonSaudiByFacility] = useState({})
   // عدد السعوديين المشتركين (اشتراك نشط في التأمينات) لكل منشأة — مفتاحها
@@ -3709,14 +3689,18 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
       // الموارد البشرية) وليس في جدول facilities الأساسي — نجلبهما بالتوازي
       // ونربطهما بكل منشأة عبر sbc_facility_id أو الرقم الموحد. المدراء يُنتزعون
       // بمسار JSON محدد كي لا نسحب raw_cr_data كاملاً لكل المنشآت.
-      const [{ data, error }, { data: sbcExtra }] = await Promise.all([
+      const [{ data, error }, { data: sbcExtra }, { data: allBranches }] = await Promise.all([
         sb.from('facilities')
           .select('*, org_type:lookup_items!facilities_organization_type_id_fkey(id,code,value_ar,value_en), branch:branches!facilities_branch_id_fkey(id,branch_code,name_ar,city:cities(name_ar,name_en))')
           .is('deleted_at', null)
           .order('name_ar', { ascending: true }),
         sb.from('sbc_facilities').select('id, cr_national_number, hrsd_nitaq_name, managers:raw_cr_data->mangmentInformation->managerList'),
+        // كل الفروع (غير مفلترة) لحل branch_ids → أكواد الفروع؛ منشأة قد تتبع أكثر من فرع.
+        sb.from('branches').select('id, branch_code, name_ar, city:cities(name_ar,name_en)').is('deleted_at', null),
       ])
       if (error) throw error
+      const branchById = {}
+      for (const b of allBranches || []) branchById[b.id] = b
       const nitaqById = {}, nitaqByCr = {}, mgrById = {}, mgrByCr = {}
       for (const s of sbcExtra || []) {
         if (s.hrsd_nitaq_name) {
@@ -3734,9 +3718,18 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
         hrsd_nitaq_name: nitaqById[f.sbc_facility_id] || nitaqByCr[f.unified_number] || f.hrsd_nitaq_name || null,
         managers: mgrById[f.sbc_facility_id] || mgrByCr[f.unified_number] || [],
       })))
-      const bmap = {}
-      for (const f of data || []) if (f.branch) bmap[f.id] = f.branch
+      // خريطتان: bmap = الفرع الأساسي (للعرض المختصر/التوافق)، cmap = كل الفروع
+      // التي تتبعها المنشأة (branch_ids) لأجل الفلترة وعرض تعدّد الفروع.
+      const bmap = {}, cmap = {}
+      for (const f of data || []) {
+        const ids = Array.isArray(f.branch_ids) && f.branch_ids.length ? f.branch_ids : (f.branch_id ? [f.branch_id] : [])
+        const objs = ids.map(id => branchById[id]).filter(Boolean)
+        if (objs.length) cmap[f.id] = objs
+        if (f.branch) bmap[f.id] = f.branch
+        else if (objs.length) bmap[f.id] = objs[0]
+      }
       setBranchByFacility(bmap)
+      setBranchCodesByFacility(cmap)
     } catch (e) {
       setErr(String(e.message || e))
     } finally { setLoading(false) }
@@ -3776,6 +3769,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
         hrsd_number_2: (addForm.hrsd_number_2 || '').trim() || null,
         organization_type_id: addForm.organization_type_id || null,
         branch_id: addForm.branch_id || null,
+        branch_ids: addForm.branch_id ? [addForm.branch_id] : [],
         confirmation_date: addForm.confirmation_date || null,
         saudi_center: true,   // الافتراضي للمنشأة الجديدة: مسجّلة في المركز السعودي (نعم)
         created_by: user?.id || null,
@@ -3828,6 +3822,9 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
         hrsd_number_2: (editForm.hrsd_number_2 || '').trim() || null,
         organization_type_id: editForm.organization_type_id || null,
         branch_id: editForm.branch_id || null,
+        // نحافظ على تعدّد الفروع: الفرع المختار يُضاف كفرع أساسي دون حذف باقي فروع
+        // المنشأة (branch_ids). لإزالة فرع، يُعدَّل من البيانات مباشرة.
+        branch_ids: Array.from(new Set([...(editRow?.branch_ids || []), editForm.branch_id].filter(Boolean))),
         confirmation_date: editForm.confirmation_date || null,
         struck_off: !!editForm.struck_off,
         saudi_center: !!editForm.saudi_center,
@@ -4515,14 +4512,18 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
   // assigned a branch (branchByFacility holds branch_code + city).
   const branchFilterOpts = useMemo(() => {
     const seen = new Map()
-    for (const b of Object.values(branchByFacility)) {
+    for (const arr of Object.values(branchCodesByFacility)) {
+     for (const b of arr) {
       if (b?.branch_code && !seen.has(b.branch_code)) {
         const city = b.city ? T(b.city.name_ar, b.city.name_en || b.city.name_ar) : ''
-        seen.set(b.branch_code, { v: b.branch_code, l: city ? `${branchLabel(b)} — ${city}` : branchLabel(b) })
+        // name/code/city حقول مهيكلة لعرض الخيار على سطرين + شارة كود، وl نص البحث.
+        seen.set(b.branch_code, { v: b.branch_code, name: b.name_ar || b.branch_code, code: b.branch_code, city, l: [b.name_ar, b.branch_code, city].filter(Boolean).join(' ') })
       }
+     }
     }
-    return [...seen.values()].sort((a, b) => String(a.v).localeCompare(String(b.v)))
-  }, [branchByFacility, lang])
+    // «بدون مكتب» يلتقط المنشآت غير المرتبطة بأي فرع بعد.
+    return [...[...seen.values()].sort((a, b) => String(a.v).localeCompare(String(b.v))), { v: '__none', name: T('بدون مكتب', 'No office'), code: null, city: '', l: T('بدون مكتب', 'No office') }]
+  }, [branchCodesByFacility, lang])
   // Partners-count dropdown options. Capped at 3 with the final "or more"
   // bucket catching everything above that — keeps the list compact since
   // facilities with 4+ owners are rare and roll up into "ثلاثة أو أكثر".
@@ -4635,8 +4636,11 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
     }
     if (branches.length) {
       out = out.filter(r => {
-        const asg = branchByFacility[r.id]
-        return !!asg && branches.includes(asg.branch_code)
+        // منشأة قد تتبع أكثر من فرع (branch_ids)؛ تظهر إذا كان أي من فروعها ضمن الاختيار.
+        const codes = (branchCodesByFacility[r.id] || []).map(b => b?.branch_code).filter(Boolean)
+        // «بدون مكتب» = لا يوجد ربط بفرع؛ يعمل جنباً إلى جنب مع اختيار مكاتب محددة.
+        if (!codes.length) return branches.includes('__none')
+        return codes.some(c => branches.includes(c))
       })
     }
     // المدير — المنشأة تظهر إذا كان أحد مدرائها ضمن الاختيار. المفتاح هو
@@ -4672,37 +4676,38 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
       })
     }
     return out
-  }, [normalized, search, filter, adv, personFilter, branchByFacility, nonSaudiByFacility, saudiByReg])
+  }, [normalized, search, filter, adv, personFilter, branchByFacility, branchCodesByFacility, nonSaudiByFacility, saudiByReg])
 
   // Group branches under their main parent, then produce a flat display list
   // where each branch row carries `_isBranch: true` and appears directly after
   // its main row. This gives hierarchy without a disruptive expand UI for
   // accounts with few branches.
   const displayRows = useMemo(() => {
-    // When any date sort is active the branch grouping is intentionally
-    // bypassed — chronological order trumps parent/branch adjacency. If both
-    // confirm + issue sorts are set, confirm date is primary and issue date
-    // breaks ties.
-    if (adv.sortConfirm) {
-      const ts = (raw) => {
-        if (!raw) return null
-        const t = new Date(raw).getTime()
-        return isNaN(t) ? null : t
-      }
-      const cmpField = (a, b, field, dir) => {
-        const ta = ts(a[field]), tb = ts(b[field])
-        if (ta == null && tb == null) return 0
-        if (ta == null) return 1   // empties always at the bottom regardless of dir
-        if (tb == null) return -1
-        return ta === tb ? 0 : (ta > tb ? dir : -dir)
-      }
-      return [...filtered].sort((a, b) => {
-        if (adv.sortConfirm) {
-          const c = cmpField(a, b, '_confirmDateRaw', adv.sortConfirm === 'asc' ? 1 : -1)
-          if (c !== 0) return c
+    // When any sort is active the branch grouping is intentionally bypassed —
+    // the chosen order trumps parent/branch adjacency. sortBy = '<field>_<dir>'
+    // (confirm = تاريخ التأكيد السنوي، saudis = عدد السعوديين في التأمينات،
+    // nonsaudis = عدد العمالة غير السعودية المرتبطة).
+    if (adv.sortBy) {
+      const [field, dir0] = adv.sortBy.split('_')
+      const dir = dir0 === 'asc' ? 1 : -1
+      if (field === 'confirm') {
+        const ts = (raw) => {
+          if (!raw) return null
+          const t = new Date(raw).getTime()
+          return isNaN(t) ? null : t
         }
-        return 0
-      })
+        return [...filtered].sort((a, b) => {
+          const ta = ts(a._confirmDateRaw), tb = ts(b._confirmDateRaw)
+          if (ta == null && tb == null) return 0
+          if (ta == null) return 1   // empties always at the bottom regardless of dir
+          if (tb == null) return -1
+          return ta === tb ? 0 : (ta > tb ? dir : -dir)
+        })
+      }
+      const cnt = field === 'saudis'
+        ? r => (r.gosi_registration_number && saudiByReg[String(r.gosi_registration_number)]) || 0
+        : r => nonSaudiByFacility[r.id] || 0
+      return [...filtered].sort((a, b) => dir * (cnt(a) - cnt(b)))
     }
     const branchesByParent = {}
     const mains = []
@@ -4731,7 +4736,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
     }
     for (const o of orphans) out.push(o)
     return out
-  }, [filtered, adv.sortConfirm])
+  }, [filtered, adv.sortBy, saudiByReg, nonSaudiByFacility])
 
   const Tag = ({ children, color }) => (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 600, color: color || 'rgba(255,255,255,.7)', lineHeight: 1.2 }}>
@@ -5090,7 +5095,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
               <div style={{ display: 'flex', alignItems: 'center', gap: 14, flex: 1 }}>
                 {/* Donut */}
                 <div style={{ position: 'relative', width: 112, height: 112, flexShrink: 0 }}>
-                  <svg width="112" height="112" viewBox="0 0 112 112" style={{ filter: 'drop-shadow(0 6px 18px rgba(0,0,0,.4))' }}>
+                  <svg width="112" height="112" viewBox="0 0 112 112">
                     <defs>
                       <radialGradient id="fac-cr-donut-core" cx="50%" cy="50%" r="50%">
                         <stop offset="0%" stopColor="rgba(255,255,255,.06)" />
@@ -5158,8 +5163,8 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
               role="button"
               tabIndex={0}
               title={T('مسح الفلاتر', 'Clear filters')}
-              onClick={e => { e.stopPropagation(); setAdv({ entity: [], status: [], branch: [], manager: [], nitaq: [], workforce: [], saudis: [], sortConfirm: '' }) }}
-              onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); e.preventDefault(); setAdv({ entity: [], status: [], branch: [], manager: [], nitaq: [], workforce: [], saudis: [], sortConfirm: '' }) } }}
+              onClick={e => { e.stopPropagation(); setAdv({ entity: [], status: [], branch: [], manager: [], nitaq: [], workforce: [], saudis: [], sortBy: '' }) }}
+              onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); e.preventDefault(); setAdv({ entity: [], status: [], branch: [], manager: [], nitaq: [], workforce: [], saudis: [], sortBy: '' }) } }}
               onMouseEnter={e => { e.currentTarget.style.background = C.red; e.currentTarget.style.color = '#fff' }}
               onMouseLeave={e => { e.currentTarget.style.background = C.gold; e.currentTarget.style.color = '#000' }}
               style={{ background: C.gold, color: '#000', width: 18, height: 18, borderRadius: 999, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '.18s' }}
@@ -5180,7 +5185,16 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
               <div style={advLbl}>{T('المكتب', 'Office')}</div>
               <FKDropdown multi selectedKeys={adv.branch} onChange={arr => setAdv(a => ({ ...a, branch: arr }))}
                 placeholder={T('الكل', 'All')} getKey={o => o.v} getLabel={o => o.l}
-                options={branchFilterOpts}/>
+                options={branchFilterOpts}
+                renderCell={o => (
+                  <span style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                    <span style={{ minWidth: 0 }}>
+                      <span style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--tx)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'start' }}>{o.name}</span>
+                      {o.city && <span style={{ display: 'block', fontSize: 10.5, color: 'var(--tx4)', marginTop: 1, textAlign: 'start' }}>{o.city}</span>}
+                    </span>
+                    {o.code && <span style={{ fontSize: 10, fontWeight: 600, color: C.gold, fontFamily: 'ui-monospace, monospace', direction: 'ltr', background: 'rgba(176,125,0,.1)', border: '1px solid rgba(176,125,0,.3)', borderRadius: 6, padding: '1px 7px', flexShrink: 0 }}>{o.code}</span>}
+                  </span>
+                )}/>
             </div>
             <div>
               <div style={advLbl}>{T('الكيان', 'Entity')}</div>
@@ -5204,7 +5218,13 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
               <div style={advLbl}>{T('المدير', 'Manager')}</div>
               <FKDropdown multi selectedKeys={adv.manager} onChange={arr => setAdv(a => ({ ...a, manager: arr }))}
                 placeholder={T('الكل', 'All')} getKey={o => o.v} getLabel={o => o.l}
-                options={managerOptions.map(m => ({ v: m.id || m.name, l: m.name }))}/>
+                options={managerOptions.map(m => ({ v: m.id || m.name, name: m.name, idno: m.id, l: m.id ? `${m.name} ${m.id}` : m.name }))}
+                renderCell={o => (
+                  <span style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, textAlign: 'start' }}>{o.name}</span>
+                    {o.idno && <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--tx4)', fontFamily: 'ui-monospace, monospace', direction: 'ltr', flexShrink: 0 }}>{o.idno}</span>}
+                  </span>
+                )}/>
             </div>
             <div>
               <div style={advLbl}>{T('النطاق', 'Nitaq band')}</div>
@@ -5235,13 +5255,17 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
             </div>
             <div>
               <div style={advLbl}>
-                {T('ترتيب حسب تاريخ التأكيد', 'Sort by confirm date')}
+                {T('الترتيب حسب', 'Sort by')}
               </div>
-              <FKDropdown value={adv.sortConfirm} onChange={v => setAdv(a => ({ ...a, sortConfirm: v || '' }))}
+              <FKDropdown value={adv.sortBy} onChange={v => setAdv(a => ({ ...a, sortBy: v || '' }))}
                 placeholder={T('بدون ترتيب', 'No sort')} getKey={o => o.v} getLabel={o => o.l}
                 options={[
-                  { v: 'asc', l: T('تصاعدي · الأقدم أولاً', 'Ascending · oldest first') },
-                  { v: 'desc', l: T('تنازلي · الأحدث أولاً', 'Descending · newest first') },
+                  { v: 'confirm_asc', l: T('تاريخ التأكيد السنوي · تصاعدي', 'Annual confirm date · ascending') },
+                  { v: 'confirm_desc', l: T('تاريخ التأكيد السنوي · تنازلي', 'Annual confirm date · descending') },
+                  { v: 'saudis_asc', l: T('عدد السعوديين · تصاعدي', 'Saudi count · ascending') },
+                  { v: 'saudis_desc', l: T('عدد السعوديين · تنازلي', 'Saudi count · descending') },
+                  { v: 'nonsaudis_asc', l: T('عدد غير السعوديين · تصاعدي', 'Non-Saudi count · ascending') },
+                  { v: 'nonsaudis_desc', l: T('عدد غير السعوديين · تنازلي', 'Non-Saudi count · descending') },
                 ]}/>
             </div>
           </div>
@@ -5301,6 +5325,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
           .sbcv-chip-btn{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 13px;border-radius:9px;border:1px dashed rgba(176,125,0,.55);background:rgba(176,125,0,.08);color:${C.gold};font-family:${F};font-size:11.5px;font-weight:600;cursor:pointer;white-space:nowrap;transition:background .15s;max-width:100%}
           .sbcv-chip-btn:hover{background:rgba(176,125,0,.18)}
           .sbcv-chip-btn svg{flex-shrink:0}
+          .sbcv-chip-btn.icon-only{width:30px;height:auto;min-height:30px;padding:0;justify-content:center;flex-shrink:0}
         `}</style>
 
         {/* Facility table — SBC lens (default).
@@ -5328,7 +5353,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                 <th>{T('أرقام المنشأة','Facility Numbers')}</th>
                 <th>{T('المدير','Manager')}</th>
                 <th>{T('النطاق','Nitaq')}</th>
-                <th>{T('غير سعودي','Non-Saudi')}</th>
+                <th>{T('أجنبي','Foreign')}</th>
                 <th>{T('سعودي','Saudi')}</th>
                 <th>{T('التأكيد السنوي','Annual Confirm')}</th>
                 <th>{T('الفرع','Branch')}</th>
@@ -5405,19 +5430,18 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                     <td>
                       {(() => {
                         const nq = r.hrsd_nitaq_name
-                        if (!nq) {
-                          // زر جلب النطاق — يظهر فقط عندما نملك شطري رقم الموارد
-                          // البشرية (مكتب العمل + التسلسل) المطلوبَين للاستعلام.
-                          if (r.hrsd_labor_office_id == null || r.hrsd_sequence_number == null) return <span className="muted">—</span>
-                          return (
-                            <button type="button" className="sbcv-chip-btn"
-                              onClick={e => { e.stopPropagation(); startNitaqFetch(r) }}
-                              title={T('جلب النطاق من استعلام النطاقات بوزارة الموارد', 'Fetch the nitaq band from the HRSD inquiry')}>
-                              {T('جلب النطاق', 'Fetch nitaq')}
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/><polyline points="21 3 21 9 15 9"/></svg>
-                            </button>
-                          )
-                        }
+                        // زر جلب/تحديث النطاق — أيقونة فقط، يظهر دائماً (سواء وُجد
+                        // نطاق أم لا) متى توفّر شطرا رقم الموارد البشرية
+                        // (مكتب العمل + التسلسل) المطلوبان للاستعلام.
+                        const canFetch = r.hrsd_labor_office_id != null && r.hrsd_sequence_number != null
+                        const fetchBtn = canFetch ? (
+                          <button type="button" className="sbcv-chip-btn icon-only"
+                            onClick={e => { e.stopPropagation(); startNitaqFetch(r) }}
+                            title={T('جلب النطاق من استعلام النطاقات بوزارة الموارد', 'Fetch the nitaq band from the HRSD inquiry')}>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/><polyline points="21 3 21 9 15 9"/></svg>
+                          </button>
+                        ) : null
+                        if (!nq) return fetchBtn || <span className="muted">—</span>
                         // الاسم الرئيسي في التاق، وأي توضيح بين قوسين يهبط سطراً
                         // مستقلاً كي لا يُبتر النص («اخضر صغير (فئة أ)» …).
                         // التصميم مطابق لتاق حالة المعاملة في كرت الفواتير:
@@ -5426,10 +5450,16 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                         const qualM = nq.match(/\(([^)]*)\)?/)
                         const qual = qualM ? qualM[1].trim() : null
                         const c = nitaqBandColor(nq) || C.gray
+                        // بلاتيني: خلفية بلون البلاتين المعدني وخط أسود (لا يوجد
+                        // «لون نص بلاتيني» مقروء، فالتاق نفسه يحمل اللون).
+                        const plat = nq.includes('بلاتيني')
                         return (
-                          <span title={nq} style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1, borderInlineStart: '3px solid ' + c, background: c + '10', padding: '6px 13px', color: c, fontSize: 12, fontWeight: 600, maxWidth: '100%', lineHeight: 1.5 }}>
-                            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}>{main}</span>
-                            {qual && <span style={{ fontSize: 10, fontWeight: 600, opacity: .75, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%', letterSpacing: '.2px' }}>{qual}</span>}
+                          <span style={{ display: 'inline-flex', alignItems: 'stretch', gap: 6, maxWidth: '100%' }}>
+                            <span title={nq} style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1, height: 46, boxSizing: 'border-box', borderInlineStart: '3px solid ' + (plat ? '#8f96a3' : c), background: plat ? 'linear-gradient(135deg, #e6e9ee, #bfc5cf)' : c + '10', padding: '4px 13px', color: plat ? '#16181d' : c, fontSize: 12, fontWeight: 600, minWidth: 0, lineHeight: 1.5 }}>
+                              <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}>{main}</span>
+                              {qual && <span style={{ fontSize: 10, fontWeight: 600, opacity: .75, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%', letterSpacing: '.2px' }}>{qual}</span>}
+                            </span>
+                            {fetchBtn}
                           </span>
                         )
                       })()}
@@ -5469,12 +5499,16 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                     </td>
                     <td>
                       {(() => {
-                        const asg = branchByFacility[r.id]
-                        if (!asg) return <span className="muted">—</span>
-                        const city = asg.city ? T(asg.city.name_ar, asg.city.name_en || asg.city.name_ar) : null
+                        const all = branchCodesByFacility[r.id] || (branchByFacility[r.id] ? [branchByFacility[r.id]] : [])
+                        if (!all.length) return <span className="muted">—</span>
+                        const primary = all[0]
+                        const city = primary.city ? T(primary.city.name_ar, primary.city.name_en || primary.city.name_ar) : null
+                        const extra = all.slice(1).map(b => b.branch_code).filter(Boolean)
                         return (
                           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, minWidth: 0, width: '100%' }}>
-                            <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{asg.branch_code || '—'}</span>
+                            <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
+                              {primary.branch_code || '—'}{extra.length ? ' + ' + extra.join(' + ') : ''}
+                            </span>
                             {city && <span style={{ fontSize: 10.5, fontWeight: 500, color: 'var(--tx4)', whiteSpace: 'nowrap' }}>{city}</span>}
                           </div>
                         )
@@ -6379,7 +6413,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                       const nitaqColor = (name) => {
                         if (!name) return null
                         const n = name.toString()
-                        if (n.includes('بلاتيني')) return '#cbd5e1'
+                        if (n.includes('بلاتيني')) return '#8f96a3'
                         if (n.includes('أحمر') || n.includes('احمر')) return '#ef4444'
                         if (n.includes('أصفر') || n.includes('اصفر')) return '#eab308'
                         if (n.includes('أخضر') || n.includes('اخضر')) {
@@ -7992,14 +8026,15 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
 
             {nitaqFetch.phase === 'done' && (() => {
               const band = nitaqFetch.result?.nitaq
-              const bc = nitaqBandColor(band)
+              const isPlat = String(band || '').includes('بلاتيني')
+              const bc = isPlat ? '#8f96a3' : nitaqBandColor(band)
               return (
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, padding: '10px 0 4px' }}>
                   <div style={{ width: 58, height: 58, borderRadius: '50%', background: 'rgba(46,204,113,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.ok }}>
                     <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
                   </div>
                   <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--tx)' }}>{T('تم جلب النطاق وحفظه', 'Nitaq fetched & saved')}</div>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderInlineStart: '4px solid ' + (bc || C.gray), background: (bc || C.gray) + '10', padding: '8px 18px', color: bc || C.gray, fontSize: 15, fontWeight: 600 }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderInlineStart: '4px solid ' + (bc || C.gray), background: isPlat ? 'linear-gradient(135deg, #e6e9ee, #bfc5cf)' : (bc || C.gray) + '10', padding: '8px 18px', color: isPlat ? '#16181d' : (bc || C.gray), fontSize: 15, fontWeight: 600 }}>
                     {band}
                   </span>
                   {nitaqFetch.result?.entitySize && (

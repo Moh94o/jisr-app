@@ -118,6 +118,7 @@ export const PAGE_VIEW_PERM = {
   invoices: 'invoices.view',
   payments: 'payments.view',
   deposits: 'deposits.view',
+  jub1_receipts: 'jub1_receipts.view',
   transfer_calc: 'quotations.view',
   renewal_calc: 'renewal_calc.view',
   admin_offices: 'admin_offices.view',

@@ -4114,7 +4114,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
               <div style={{ display: 'flex', alignItems: 'center', gap: 14, flex: 1 }}>
                 {/* Donut */}
                 <div style={{ position: 'relative', width: 112, height: 112, flexShrink: 0 }}>
-                  <svg width="112" height="112" viewBox="0 0 112 112" style={{ filter: 'drop-shadow(0 6px 18px rgba(0,0,0,.4))' }}>
+                  <svg width="112" height="112" viewBox="0 0 112 112">
                     <defs>
                       <radialGradient id="cr-donut-core" cx="50%" cy="50%" r="50%">
                         <stop offset="0%" stopColor="rgba(255,255,255,.06)" />
@@ -5516,7 +5516,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                       const nitaqColor = (name) => {
                         if (!name) return null
                         const n = name.toString()
-                        if (n.includes('بلاتيني')) return '#cbd5e1'
+                        if (n.includes('بلاتيني')) return '#8f96a3'
                         if (n.includes('أحمر') || n.includes('احمر')) return '#ef4444'
                         if (n.includes('أصفر') || n.includes('اصفر')) return '#eab308'
                         if (n.includes('أخضر') || n.includes('اخضر')) {

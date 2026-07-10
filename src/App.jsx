@@ -31,6 +31,7 @@ import SectionStub from './pages/SectionStub.jsx'
 import PaymentsPage from './pages/PaymentsPage.jsx'
 import ExternalPaymentsPage from './pages/ExternalPaymentsPage.jsx'
 import DepositsPage from './pages/DepositsPage.jsx'
+import Jub1ReceiptsPage from './Jub1ReceiptsPage.jsx'
 import StampBadge from './components/ui/StampBadge.jsx'
 import OfficialStampBadge from './components/ui/OfficialStampBadge.jsx'
 import WelcomeToast from './components/WelcomeToast.jsx'
@@ -96,8 +97,9 @@ const DT = (clr) => ({
   alert: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" fill={clr} fillOpacity=".12" stroke={clr} strokeWidth="1.5"/><line x1="12" y1="9" x2="12" y2="13" stroke={clr} strokeWidth="1.8" strokeLinecap="round"/><circle cx="12" cy="16" r="1" fill={clr}/></svg>,
   calendar: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="18" rx="2" fill={clr} fillOpacity=".12" stroke={clr} strokeWidth="1.5"/><line x1="16" y1="2" x2="16" y2="6" stroke={clr} strokeWidth="1.5" opacity=".5"/><line x1="8" y1="2" x2="8" y2="6" stroke={clr} strokeWidth="1.5" opacity=".5"/><line x1="3" y1="10" x2="21" y2="10" stroke={clr} strokeWidth="1.5" opacity=".4"/><path d="M8 14h2v2H8z" fill={clr} opacity=".5"/><path d="M12 14h2v2h-2z" fill={clr} opacity=".3"/></svg>,
   // ── أيقونات تبويبات المعاملات — نفس أيقونات الفاتورة (lucide) ──
-  svc_visa_perm:    <CalendarRange color={clr} size={18} strokeWidth={1.7} />,
-  svc_visa_temp:    <CalendarClock color={clr} size={18} strokeWidth={1.7} />,
+  svc_visa_perm:    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={clr} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3.5" width="18" height="17" rx="5.5"/><text x="12" y="12.2" textAnchor="middle" dominantBaseline="central" fontSize="9.5" fontWeight="800" fill={clr} stroke="none" fontFamily="Cairo,sans-serif">12</text></svg>,
+  svc_visa_6m:      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={clr} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3.5" width="18" height="17" rx="5.5"/><text x="12" y="12.2" textAnchor="middle" dominantBaseline="central" fontSize="12" fontWeight="800" fill={clr} stroke="none" fontFamily="Cairo,sans-serif">6</text></svg>,
+  svc_visa_temp:    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={clr} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3.5" width="18" height="17" rx="5.5"/><text x="12" y="12.2" textAnchor="middle" dominantBaseline="central" fontSize="12" fontWeight="800" fill={clr} stroke="none" fontFamily="Cairo,sans-serif">3</text></svg>,
   svc_transfer:     <ArrowLeftRight color={clr} size={18} strokeWidth={1.7} />,
   svc_renew:        <RefreshCw color={clr} size={18} strokeWidth={1.7} />,
   svc_ajeer:        <Users color={clr} size={18} strokeWidth={1.7} />,
@@ -557,8 +559,9 @@ return(<div style={{minHeight:'100vh',display:'flex',alignItems:'center',justify
 // Transaction sub-pages — one per request type (mirrors the service list in ServiceRequestPage).
 // `code` is the service_type lookup code each page filters the transactions list by.
 const TX_TYPES=[
-{id:'tx_work_visa_permanent',code:'work_visa_permanent',ar:'تأشيرة وإقامة دائمة',en:'Permanent Visa & Iqama',i:'calendar'},
-{id:'tx_work_visa_temporary',code:'work_visa_temporary',ar:'تأشيرة وإقامة مؤقتة',en:'Temporary Visa & Iqama',i:'calendar'},
+{id:'tx_work_visa_permanent',code:'work_visa_permanent',ar:'تأشيرة بإقامة 12 شهر',en:'12-Month Visa & Iqama',i:'calendar'},
+{id:'tx_work_visa_6m',code:'work_visa_6m',ar:'تأشيرة بإقامة 6 أشهر',en:'6-Month Visa & Iqama',i:'calendar'},
+{id:'tx_work_visa_temporary',code:'work_visa_temporary',ar:'تأشيرة بإقامة 3 شهور',en:'3-Month Visa & Iqama',i:'calendar'},
 {id:'tx_transfer',code:'transfer',ar:'نقل كفالة',en:'Sponsorship Transfer',i:'broker'},
 {id:'tx_iqama_renewal',code:'iqama_renewal',ar:'تجديد الإقامة',en:'Iqama Renewal',i:'role'},
 {id:'tx_ajeer',code:'ajeer',ar:'عقد أجير',en:'Ajeer Contract',i:'users'},
@@ -581,8 +584,9 @@ const TX_TYPES=[
 // by that service_type. Order matches the invoice popup (main services first).
 const TXN_SECTIONS=[
 // — الخدمات الرئيسية (تأشيرات/إقامات/نقل) —
-{id:'work-visa-permanent',  ar:'تأشيرة وإقامة دائمة',      en:'Permanent Visa & Iqama',     i:'svc_visa_perm',    code:'work_visa_permanent'},
-{id:'work-visa-temporary',  ar:'تأشيرة وإقامة مؤقتة',      en:'Temporary Visa & Iqama',     i:'svc_visa_temp',    code:'work_visa_temporary'},
+{id:'work-visa-permanent',  ar:'تأشيرة بإقامة 12 شهر',     en:'12-Month Visa & Iqama',      i:'svc_visa_perm',    code:'work_visa_permanent'},
+{id:'work-visa-6m',         ar:'تأشيرة بإقامة 6 أشهر',     en:'6-Month Visa & Iqama',       i:'svc_visa_6m',      code:'work_visa_6m'},
+{id:'work-visa-temporary',  ar:'تأشيرة بإقامة 3 شهور',     en:'3-Month Visa & Iqama',       i:'svc_visa_temp',    code:'work_visa_temporary'},
 {id:'transfer',             ar:'نقل كفالة',               en:'Sponsorship Transfer',      i:'svc_transfer',     code:'transfer'},
 {id:'iqama-renewal',        ar:'تجديد الإقامة',           en:'Iqama Renewal',             i:'svc_renew',        code:'iqama_renewal'},
 {id:'ajeer',                ar:'عقد أجير',                en:'Ajeer Contract',            i:'svc_ajeer',        code:'ajeer'},
@@ -646,6 +650,9 @@ const saveVisibility=(cfg)=>{setVisibility(cfg);localStorage.setItem('jisr_visib
 const isVisible=(id)=>{const locked=['admin_visibility'].includes(id);if(locked)return true;if(!isItemVisible(id))return false;if(visibility[id]===false)return false;if(!isGM&&user?.ui_visibility?.[id]===false)return false;if(!isGM&&!canViewPage(user,id))return false;return true;};
 // Admin-only nav items: Sync Hub is hidden from non-GM users regardless of visibility toggles.
 const isGM=user?.role?.name_ar==='المدير العام'||user?.role?.name_en==='General Manager';
+// المدير العام: زر «التالي» في كل نوافذ الويزارد (FKModal) لا يُقفل عليه أبداً —
+// علم عام تقرؤه FormKit لأن النوافذ لا تستقبل user. (زر الحفظ النهائي يبقى مقيّداً.)
+useEffect(()=>{window.__JISR_GM__=isGM;return()=>{window.__JISR_GM__=false}},[isGM]);
 // Employee Mahmoud Hassan is granted Sync Hub access despite not being GM.
 const isSyncHubGrantedEmployee=(user?.person?.name_ar||'').replace(/\s+/g,' ').trim().includes('محمود حسن');
 const canSeeSyncHub=isGM||isSyncHubGrantedEmployee||canPerm(user,'sync_hub.access');
@@ -670,7 +677,7 @@ try{const target=pageHashes[mapped]||'';if(window.location.hash!==target){window
 const[txnDeepLink,setTxnDeepLink]=useState(null);
 const onOpenService=({srId,svcCode})=>{
   // وجّه إلى تبويب معاملات الخدمة المطابق لكودها (تأشيرة/غرفة تجارية…) ثم افتح المعاملة مباشرة عبر الـ deep link.
-  const norm=/temporary/i.test(svcCode||'')?'work_visa_temporary':(/^work_visa|permanent/i.test(svcCode||'')?'work_visa_permanent':(svcCode||''));
+  const norm=svcCode==='work_visa_6m'?'work_visa_6m':(/temporary/i.test(svcCode||'')?'work_visa_temporary':(/^work_visa|permanent/i.test(svcCode||'')?'work_visa_permanent':(svcCode||'')));
   const sec=TXN_SECTIONS.find(s=>s.code===norm);
   navPushFrom(sec?.id||'work-visa-permanent',{kind:'txn',id:srId});
   setTxnDeepLink(srId||null);setPage(sec?.id||'work-visa-permanent');
@@ -693,7 +700,7 @@ const T=(ar,en)=>lang==='ar'?ar:en;const TL=(ar)=>lang==='ar'?ar:(TR[ar]||ar);co
 const hubTabs={
   workforce:[{id:'facilities',l:T('المنشآت','Facilities'),i:'facility'},{id:'workers',l:T('العمالة الدائمة','Permanent Workforce'),i:'labor'},{id:'temp_workers',l:T('العمالة المؤقتة','Temporary Workforce'),i:'labor'}],
   sync_center:[{id:'sync_hub',l:T('مزامنة المنشآت والعمالة','Sync Facilities & Workers'),i:'facility'},{id:'sync_log',l:T('سجل المزامنات','Sync Log'),i:'transaction'}],
-  finance_hub:[{id:'invoices',l:T('الفواتير','Invoices'),i:'invoice'},{id:'deposits',l:T('الإيداعات','Deposits'),i:'deposit'},{id:'payments',l:T('سدادات الخدمات','Service Payments'),i:'receipt'},{id:'ext_payments',l:T('سدادات خارجية','External Payments'),i:'receipt'}],
+  finance_hub:[{id:'invoices',l:T('الفواتير','Invoices'),i:'invoice'},{id:'deposits',l:T('الإيداعات','Deposits'),i:'deposit'},{id:'payments',l:T('سدادات الخدمات','Service Payments'),i:'receipt'},{id:'ext_payments',l:T('سدادات خارجية','External Payments'),i:'receipt'},{id:'jub1_receipts',l:T('سندات JUB1','JUB1 Receipts'),i:'receipt'}],
   pricing_hub:[{id:'transfer_calc',l:T('حسبة نقل الكفالات','Transfer Calc'),i:'calc'},{id:'renewal_calc',l:T('حسبة تجديد الإقامات','Renewal Calc'),i:'refresh'}],
   persons_hub:[{id:'admin_clients',l:T('العملاء','Clients'),i:'clients'},{id:'admin_agents',l:T('الوسطاء','Agents'),i:'broker'}],
   transactions_hub:TXN_SECTIONS.map(t=>({id:t.id,l:T(t.ar,t.en),i:t.i})),
@@ -1167,6 +1174,7 @@ return<div><div>
 {pg==='payments'&&<PaymentsPage sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch} emptyIcon={navEmptyIcon('payments')}/>}
 {pg==='ext_payments'&&<ExternalPaymentsPage sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch} emptyIcon={navEmptyIcon('ext_payments')}/>}
 {pg==='deposits'&&<DepositsPage sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch} emptyIcon={navEmptyIcon('deposits')}/>}
+{pg==='jub1_receipts'&&<Jub1ReceiptsPage sb={sb} user={user} toast={tt} lang={lang} emptyIcon={navEmptyIcon('jub1_receipts')}/>}
 {pg==='sbc'&&<SbcCenterPage sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch}/>}
 {pg==='baladi'&&<BaladiCenterPage sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch}/>}
 {/* لوحات مراحل ما بعد التأشيرة — تظهر فوق قوائم المعاملات في تبويب كل قسم */}

@@ -1069,6 +1069,9 @@ export function Modal({ open, onClose, title, subtitle, Icon, width = 720, child
   const cur = hasPages ? Math.min(controlled ? pageCtl : page, pages.length - 1) : 0
   const isLast = !hasPages || cur === pages.length - 1
   const curValid = hasPages ? pages[cur].valid !== false : true
+  // المدير العام لا تُقفل عليه «التالي» مهما كانت صحة الصفحة — العلم يضبطه App.jsx
+  // عند تسجيل الدخول (window.__JISR_GM__). الحفظ النهائي يبقى خاضعاً للتحقق.
+  const gmFree = typeof window !== 'undefined' && window.__JISR_GM__ === true
   const shownError = hasPages ? (pages[cur].error || '') : errorMsg
   const body = hasTabs ? tabs[Math.min(curTab, tabs.length - 1)].content : (hasPages ? pages[cur].content : children)
   // مسافة علوية إضافية حين تظهر صفحة بلا عنوان (شريط التقدّم فقط) — تفسح مجالاً
@@ -1084,7 +1087,7 @@ export function Modal({ open, onClose, title, subtitle, Icon, width = 720, child
   const forwardNode = hasPages
     ? (isLast
         ? <ActionButton dir="back" Icon={submitIcon || Save} color={AC} disabled={!curValid || submitting} onClick={() => onSubmit?.()}>{submitting ? T('جاري الحفظ...', 'Saving...') : (submitLabel ?? T('حفظ', 'Save'))}</ActionButton>
-        : <ActionButton dir="back" Icon={isAr ? ChevronLeft : ChevronRight} color={AC} disabled={!curValid} onClick={goNext}>{nextLabel ?? T('التالي', 'Next')}</ActionButton>)
+        : <ActionButton dir="back" Icon={isAr ? ChevronLeft : ChevronRight} color={AC} disabled={!curValid && !gmFree} onClick={goNext}>{nextLabel ?? T('التالي', 'Next')}</ActionButton>)
     : footer
   const showFooter = backNode || forwardNode || shownError != null
   // ارتفاع ثابت بين الخطوات في وضع الصفحات حتى لا يتغيّر شكل النافذة.

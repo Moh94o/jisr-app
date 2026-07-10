@@ -7,7 +7,7 @@ import { noDash, clientEditChanges, branchLabel } from './lib/utils.js'
 import { navSetHere } from './lib/navStack.js'
 import { OFFICE_LOGO_SVG } from './lib/officeBrand.js'
 import { Modal, SuccessView, EmptyState, ModalSection, InfoRow, InfoGrid, GRID, FULL, CurrencyField, Segmented, TextField, TextArea, IdField, PhoneField, DateField, Select as FKSelect, Dropdown as FKDropdown, FileField, Checkbox, C as FKC, useFKLang } from './components/ui/FormKit.jsx'
-import { Plus, RotateCcw, Ban, Printer, Info, Wallet, FileText, Landmark, Building2, User, Search, CheckCircle2, Circle, CreditCard, Briefcase, Calendar, CalendarRange, BadgeCheck, Hash, Phone, Globe, Link2, MessageSquare, Paperclip, Percent } from 'lucide-react'
+import { Plus, RotateCcw, Ban, Printer, Info, Wallet, FileText, Landmark, Building2, User, Search, CheckCircle2, Circle, CreditCard, Briefcase, Calendar, CalendarRange, BadgeCheck, Hash, Phone, Globe, Link2, MessageSquare, Paperclip, Percent, HeartPulse, RefreshCw, AlertCircle, Check, X } from 'lucide-react'
 import { Stepper as FKStepper } from './components/ui/FormKit.jsx'
 import { Shimmer } from './components/ui/Skeleton.jsx'
 import { TXN_SERVICES } from './pages/txnServices.js'
@@ -75,8 +75,9 @@ const riyadhDayStart = () => {
 
 const SVC_THEME = {
   work_visa:           { c: C.blue,   bg: 'rgba(93,173,226,.12)',  bd: 'rgba(93,173,226,.32)',  label_ar: 'تأشيرة عمل',     label_en: 'Work Visa' },
-  work_visa_permanent: { c: C.blue,   bg: 'rgba(93,173,226,.12)',  bd: 'rgba(93,173,226,.32)',  label_ar: 'تأشيرة وإقامة دائمة',   label_en: 'Permanent Visa & Iqama', label_ar_full: 'تأشيرة وإقامة دائمة', label_en_full: 'Permanent Visa & Iqama' },
-  work_visa_temporary: { c: '#85c1e9',bg: 'rgba(133,193,233,.12)', bd: 'rgba(133,193,233,.32)', label_ar: 'تأشيرة وإقامة مؤقتة',   label_en: 'Temporary Visa & Iqama', label_ar_full: 'تأشيرة وإقامة مؤقتة', label_en_full: 'Temporary Visa & Iqama' },
+  work_visa_permanent: { c: C.blue,   bg: 'rgba(93,173,226,.12)',  bd: 'rgba(93,173,226,.32)',  label_ar: 'تأشيرة بإقامة 12 شهر',   label_en: '12-Month Visa & Iqama', label_ar_full: 'تأشيرة بإقامة 12 شهر', label_en_full: '12-Month Visa & Iqama' },
+  work_visa_6m:        { c: '#48a1d6',bg: 'rgba(72,161,214,.12)',  bd: 'rgba(72,161,214,.32)',  label_ar: 'تأشيرة بإقامة 6 أشهر',   label_en: '6-Month Visa & Iqama',  label_ar_full: 'تأشيرة بإقامة 6 أشهر', label_en_full: '6-Month Visa & Iqama' },
+  work_visa_temporary: { c: '#85c1e9',bg: 'rgba(133,193,233,.12)', bd: 'rgba(133,193,233,.32)', label_ar: 'تأشيرة بإقامة 3 شهور',   label_en: '3-Month Visa & Iqama', label_ar_full: 'تأشيرة بإقامة 3 شهور', label_en_full: '3-Month Visa & Iqama' },
   iqama_issuance: { c: '#27ae60',bg: 'rgba(39,174,96,.12)',   bd: 'rgba(39,174,96,.32)',   label_ar: 'إصدار إقامة',    label_en: 'Iqama Issuance' },
   exit_reentry_visa: { c: '#5dade2',bg: 'rgba(93,173,226,.12)', bd: 'rgba(93,173,226,.32)', label_ar: 'خروج وعودة', label_en: 'Exit / Re-entry Visa' },
   transfer:       { c: C.orange, bg: 'rgba(243,156,18,.12)',  bd: 'rgba(243,156,18,.32)',  label_ar: 'نقل كفالة',      label_en: 'Transfer' },
@@ -94,8 +95,11 @@ const svcThemeFor = (st) => {
   return { ...SVC_THEME.general, label_ar: st?.value_ar || 'خدمة', label_en: st?.value_en || st?.value_ar || 'Service' }
 }
 // Permanent/temporary work-visa share the same application table, detail fields and icon as the legacy work_visa.
-const VISA_SVC_CODES = new Set(['work_visa', 'work_visa_permanent', 'work_visa_temporary'])
+const VISA_SVC_CODES = new Set(['work_visa', 'work_visa_permanent', 'work_visa_6m', 'work_visa_temporary'])
 const baseSvcCode = (code) => (VISA_SVC_CODES.has(code) ? 'work_visa' : code)
+// تأشيرات «بإقامة» بمسار الإقامة الكامل (١٢ شهر و٦ أشهر): مراحل التأمين/رخصة العمل + إقامة لكل تأشيرة + توزيع المنشآت.
+// «تأشيرة بإقامة 3 شهور» (المؤقتة) ليست منها. أي فحص كان يقارن بـ 'work_visa_permanent' يجب أن يستعمل هذه المجموعة.
+const RESIDENCE_VISA_CODES = new Set(['work_visa_permanent', 'work_visa_6m'])
 // خدمات «الفاتورة الصفرية» المبسّطة — طلب بلا تسعير/دفع، تأخذ نفس معاملة صفحة التفاصيل والكرت والطباعة
 // (رواتب سبلاير، المستندات). تُخفى الكروت المالية/التسعير/الدفع وزر الإلغاء، وتظهر كتلة حالة المعاملة.
 const ZERO_INVOICE_SVCS = new Set(['supplier_payroll', 'documents', 'external_transfer_approval'])
@@ -724,7 +728,7 @@ const INVOICE_SELECT = `
 // بطل «نقدًا» + كرت جانبي (تحويلات/مرتجعة) + كرت الخدمات اليوم.
 // النص يمين والأيقونة (بادج ملوّن) يسار، والتوهج في الجهة اليسرى.
 // ════════════════════════════════════════════════════════════════════
-const STATS_MAIN_SVC = ['work_visa_permanent', 'work_visa_temporary', 'transfer', 'iqama_renewal', 'ajeer', 'other']
+const STATS_MAIN_SVC = ['work_visa_permanent', 'work_visa_6m', 'work_visa_temporary', 'transfer', 'iqama_renewal', 'ajeer', 'other']
 const STATS_OTHER = '__other__'
 const buildTodaySvcs = (svcToday) => {
   const map = Object.fromEntries((svcToday || []).map(s => [s.code, s]))
@@ -1066,7 +1070,7 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
   }
   const STAGE_ORDER = ['new','in_progress','awaiting_acct','acct_approved','acct_rejected','done','cancelled']
   const ACCT_SVCS = useMemo(() => new Set(['external_transfer_approval','exit_reentry_visa','final_exit_visa']), [])
-  const MULTI_STAGE_SVCS = useMemo(() => new Set(['work_visa_permanent','work_visa_temporary','transfer','iqama_renewal']), [])
+  const MULTI_STAGE_SVCS = useMemo(() => new Set(['work_visa_permanent','work_visa_6m','work_visa_temporary','transfer','iqama_renewal']), [])
   const stagesForCode = (code) => ACCT_SVCS.has(code)
     ? ['awaiting_acct','acct_approved','acct_rejected','done','cancelled']
     : MULTI_STAGE_SVCS.has(code)
@@ -1413,7 +1417,7 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
       <div style={{ display: 'flex', gap: 10, marginBottom: 18, alignItems: 'center', flexWrap: 'wrap' }}>
         {/* الظل على الحاوية (لا على الحقل) كي لا يُلغيه :focus عبر قاعدة input:focus{box-shadow:none} العامة */}
         <div style={{ flex: '1 1 280px', position: 'relative', borderRadius: 12, boxShadow: '0 2px 7px rgba(0,0,0,.12), inset 0 1px 0 rgba(176,125,0,.1)' }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', top: '50%', left: 14, transform: 'translateY(-50%)', color: 'var(--tx4)' }}><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', top: '50%', left: 14, transform: 'translateY(-50%)', color: q ? C.gold : 'var(--tx4)', transition: 'color .18s' }}><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
           <input
             placeholder={T('ابحث برقم الفاتورة، رقم الطلب، الاسم، الإقامة، الهوية، أو الجوال…', 'Search by invoice no, request no, name, iqama, ID, or phone…')}
             value={q}
@@ -1421,9 +1425,19 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
             style={{ width: '100%', height: 44, padding: '0 14px 0 38px', borderRadius: 12, background: 'var(--search-bg)', border: '1px solid transparent', color: 'var(--tx)', fontSize: 13, fontFamily: F, boxSizing: 'border-box' }}
           />
         </div>
+        {/* سند القبض الورقي — بحث مباشر برقم السند (بجانب البحث الشامل) */}
+        <div style={{ flex: '0 1 150px', minWidth: 120, position: 'relative', borderRadius: 12, boxShadow: '0 2px 7px rgba(0,0,0,.12), inset 0 1px 0 rgba(176,125,0,.1)' }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', top: '50%', left: 14, transform: 'translateY(-50%)', color: slipQ ? C.gold : 'var(--tx4)', transition: 'color .18s' }}><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M8 7h8M8 11h8M8 15h5"/></svg>
+          <input
+            type="text" inputMode="numeric" value={slipQ}
+            onChange={e => { setSlipQ(e.target.value); setPage(0) }}
+            placeholder={T('سند القبض','Receipt')}
+            style={{ width: '100%', height: 44, padding: '0 14px 0 38px', borderRadius: 12, background: 'var(--search-bg)', border: '1px solid transparent', color: 'var(--tx)', fontSize: 13, fontFamily: F, boxSizing: 'border-box' }}
+          />
+        </div>
         {(() => {
-          const hasFilters = !!(branchSel.length || serviceType.length || payFilter.length || from || to || amountMin !== '' || amountMax !== '' || paymentPlan || reqStage.length || accStatus || agentFilter || natFilter || overdue || slipQ.trim())
-          const clearAll = () => { setBranchSel([]); setFrom(''); setTo(''); setServiceType([]); setPayFilter([]); setAmountMin(''); setAmountMax(''); setPaymentPlan(''); setReqStage([]); setAccStatus(''); setAgentFilter(''); setNatFilter(''); setOverdue(''); setSlipQ(''); setPage(0) }
+          const hasFilters = !!(branchSel.length || serviceType.length || payFilter.length || from || to || amountMin !== '' || amountMax !== '' || paymentPlan || reqStage.length || accStatus || agentFilter || natFilter || overdue)
+          const clearAll = () => { setBranchSel([]); setFrom(''); setTo(''); setServiceType([]); setPayFilter([]); setAmountMin(''); setAmountMax(''); setPaymentPlan(''); setReqStage([]); setAccStatus(''); setAgentFilter(''); setNatFilter(''); setOverdue(''); setPage(0) }
           return (
         <button onClick={() => setAdvOpen(o => !o)} style={btnFilter(advOpen || hasFilters)}>
           {T('تصفية','Filter')}
@@ -1485,24 +1499,6 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
               <div>
                 <div style={fLbl}>{T('تاريخ إلى','Date To')}</div>
                 <DateField value={to} onChange={v => { setTo(v); setPage(0) }} lang={lang} />
-              </div>
-              {/* سند القبض الورقي — بحث الفواتير برقم السند (النظام الورقي القديم) */}
-              <div>
-                <div style={fLbl}>{T('سند القبض','Paper receipt')}</div>
-                <div style={{ position: 'relative' }}>
-                  <span style={{ position: 'absolute', insetInlineStart: 12, top: '50%', transform: 'translateY(-50%)', color: C.gold, lineHeight: 0, pointerEvents: 'none' }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M8 7h8M8 11h8M8 15h5"/></svg>
-                  </span>
-                  <input type="text" inputMode="numeric" value={slipQ} onChange={e => { setSlipQ(e.target.value); setPage(0) }}
-                    placeholder={T('رقم السند','Receipt no.')}
-                    style={{ width: '100%', height: 44, padding: '0 38px 0 34px', borderRadius: 12, background: 'var(--inputBg)', border: '1px solid var(--bd)', color: 'var(--tx)', fontSize: 13, fontFamily: F, boxSizing: 'border-box' }} />
-                  {slipQ && (
-                    <button type="button" onClick={() => { setSlipQ(''); setPage(0) }} title={T('مسح','Clear')}
-                      style={{ position: 'absolute', insetInlineEnd: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--tx4)', padding: 3, lineHeight: 0 }}>
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                    </button>
-                  )}
-                </div>
               </div>
               <div>
                 <div style={fLbl}>{T('نوع الخدمة','Service Type')}</div>
@@ -1661,7 +1657,7 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
                 const va = visaApps[0] || null
                 // المعاملة لتأشيرة العمل الدائمة تُعتبر «منجزة» عند إصدار إقامة لكل تأشيراتها — نفس منطق صفحة التفاصيل
                 // (حالة service_request قد تبقى غير «done» رغم اكتمال إصدار الإقامة)، فنشتقّها من وجود سجل إصدار إقامة لكل تأشيرة.
-                const isPermVisaCard = r.service_type?.code === 'work_visa_permanent' || r.service_type?.code === 'work_visa_temporary'
+                const isPermVisaCard = VISA_SVC_CODES.has(r.service_type?.code) && r.service_type?.code !== 'work_visa'
                 // «إصدار الإقامة» = إدخال بيانات الإقامة فعلاً (رقم إقامة)، لا مجرد وجود صف (يُنشأ عند سداد دفعة الإصدار بلا بيانات).
                 const iqamaNumFilled = v => {
                   const iq = v?.iqama_issuance_applications
@@ -1675,7 +1671,7 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
                 const visaStages = isPermVisaCard ? visaApps.map(v => iqamaNumFilled(v) ? 'done' : (v.border_number ? 'progress' : 'new')) : []
                 // عنوان (tooltip) لكل تأشيرة عند المرور — يسرد مراحلها وحالة كلٍّ (تم الإصدار / بانتظار الإصدار).
                 // المؤقتة: تأشيرة ← إقامة. الدائمة: تأشيرة ← تأمين ← رخصة عمل ← إقامة (التأمين/الرخصة بلا ترتيب).
-                const isPermanentCard = r.service_type?.code === 'work_visa_permanent'
+                const isPermanentCard = RESIDENCE_VISA_CODES.has(r.service_type?.code)
                 const stageDataOfVisa = v => { const iq = v?.iqama_issuance_applications; const arr = Array.isArray(iq) ? iq : (iq ? [iq] : []); const row = arr.find(x => x && x.deleted_at == null) || null; return (row?.stage_data && typeof row.stage_data === 'object') ? row.stage_data : {} }
                 const visaStageTips = isPermVisaCard ? visaApps.map((v, i) => {
                   const sd = stageDataOfVisa(v)
@@ -1686,7 +1682,7 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
                   return { title: `${T('التأشيرة', 'Visa')} ${i + 1}`, stages }
                 }) : []
                 // الكودان الجديدان (دائمة/مؤقتة) يحملان النوع في اسم الخدمة نفسه، فلا نُلحق نوع التأشيرة ثانيةً.
-                const isSplitVisa = svcCode === 'work_visa_permanent' || svcCode === 'work_visa_temporary'
+                const isSplitVisa = svcCode === 'work_visa_permanent' || svcCode === 'work_visa_6m' || svcCode === 'work_visa_temporary'
                 const subLabel = (!isSplitVisa && va?.visa_type) ? (isAr ? va.visa_type.value_ar : (va.visa_type.value_en || va.visa_type.value_ar)) : null
                 const fullLabel = [isAr ? (svc.label_ar_full || svc.label_ar) : (svc.label_en_full || svc.label_en), subLabel].filter(Boolean).join(' ')
                 // نقل الكفالة: مراحل المعاملة (التأمين · رخصة العمل · الإقامة) من حسبة التنازل المرتبطة — تاق لكل مرحلة في الكرت.
@@ -2079,7 +2075,7 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user, onO
   // الدفع محترم: إدخال أرقام الحدود يتطلب سداد دفعة «إصدار التأشيرة»؛ وإنشاء إقامة تأشيرةٍ يتطلب سداد دفعة إقامتها.
   // المؤقتة تعرض نفس مراحل الدائمة بالكامل (إصدار التأشيرة → إصدار الإقامة)؛ الفرق الوحيد أن الدفعة
   // المشروطة برقم الحدود هي «التوكيل» لكل تأشيرة في المؤقتة و«إصدار الإقامة» لكل تأشيرة في الدائمة.
-  const isPermVisa = inv.service_type?.code === 'work_visa_permanent' || inv.service_type?.code === 'work_visa_temporary'
+  const isPermVisa = VISA_SVC_CODES.has(inv.service_type?.code) && inv.service_type?.code !== 'work_visa'
   const stageVisas = isPermVisa ? (data.det || []).filter(v => v && v.id) : []
   const stageInsts = data.insts || []
   const iqamaSet = new Set(data.iqamaVisaIds || [])
@@ -2127,7 +2123,7 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user, onO
     // زر «بيانات التأشيرات» ظاهراً لها أيضاً. هكذا قد يظهر الزرّان معاً في الحالة المختلطة.
     const anyPending = stageVisaSrc.some(v => !String(v.border_number || '').trim())
     // تأشيرة دائمة: الإقامة لا تُفتح لتأشيرةٍ حتى يُنجَز تأمينها ورخصة عملها معاً. المؤقتة بلا هذا الشرط.
-    const isPermanentVisa = inv.service_type?.code === 'work_visa_permanent'
+    const isPermanentVisa = RESIDENCE_VISA_CODES.has(inv.service_type?.code)
     const permStagesDoneOf = v => { const sd = (data.iqamaByVisa || {})[v.id]?.stage_data || {}; return !!sd.insurance && !!sd.work_permit }
     const iqamaStagesReady = v => !isPermanentVisa || permStagesDoneOf(v)
     const anyReadyForIqama = stageVisaSrc.some(v => !!String(v.border_number || '').trim() && !visaIqamaDone(v) && iqamaStagesReady(v))
@@ -2152,7 +2148,7 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user, onO
     }
     // تأشيرة وإقامة دائمة فقط: مرحلتان إضافيتان «التأمين» و«رخصة العمل» — تُدخلان في أي وقت بعد إصدار التأشيرة،
     // بلا ترتيب بينهما وبلا ربط بالدفع. تُخزَّن في stage_data على صف إصدار الإقامة لكل تأشيرة.
-    if (inv.service_type?.code === 'work_visa_permanent') {
+    if (RESIDENCE_VISA_CODES.has(inv.service_type?.code)) {
       const issuedVisas = (data.det || []).filter(v => v && v.id && String(v.border_number || '').trim())
       const stageDataOf = vid => (data.iqamaByVisa || {})[vid]?.stage_data || {}
       const insAllDone = issuedVisas.length > 0 && issuedVisas.every(v => !!stageDataOf(v.id).insurance)
@@ -2169,10 +2165,10 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user, onO
     const _c = inv.service_type?.code
     const reqCancelled = inv.service_request?.status?.code === 'cancelled'
     const acctRejected = needsAcctApproval(_c) && inv.service_request?.accountant_status === 'rejected'
-    // المحاسب (غير المنشئ) صاحب صلاحية «موافقة المحاسب» يدخل كتلة الإجراءات ليعتمد الطلب حتى بلا
-    // invoices.edit. لا ينطبق بعد الاعتماد — بقية المراحل تبقى لأصحاب التعديل/المنشئ.
+    // صاحب صلاحية «موافقة المحاسب» يدخل كتلة الإجراءات ليعتمد الطلب حتى بلا invoices.edit —
+    // الصلاحية وحدها تحكم (تُمنح من لوحة الصلاحيات)، ولو كان هو منشئ الفاتورة.
     const canAcctApprove = needsAcctApproval(_c) && inv.service_request?.accountant_status !== 'approved'
-      && !isCreator && canPerm(user, 'invoices.accountant_approve')
+      && canPerm(user, 'invoices.accountant_approve')
     const isTransferStage = baseSvcCode(_c) === 'transfer'
     const isRenewalStage = baseSvcCode(_c) === 'iqama_renewal'
     // بوابة تحرير المراحل — لا تُقيَّد بحالة «منجز». المعاملات متعددة المراحل (نقل/تجديد) قد تُعلَّم
@@ -2244,8 +2240,8 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user, onO
       // خدمات ذات خطوة واحدة غير منجزة — موافقة المحاسب (إن لزمت) ثم «حالة المعاملة».
       const acctApprovalStage = needsAcctApproval(_c) && inv.service_request?.accountant_status !== 'approved'
       if (acctApprovalStage) {
-        // فصل المهام: تتطلّب صلاحية «موافقة المحاسب» (invoices.accountant_approve) صراحةً، ولا يعتمدها
-        // منشئ الفاتورة على طلبه (canAcctApprove يشترط !isCreator) — لا تجاوز منشئ هنا بخلاف بقية المراحل.
+        // تتطلّب صلاحية «موافقة المحاسب» (invoices.accountant_approve) صراحةً — تُمنح من لوحة
+        // الصلاحيات، وتشمل منشئ الفاتورة نفسه إن مُنحها.
         if (canAcctApprove) stageActions.push(<StageRow key="mark" color={C.gold} label={T('موافقة المحاسب','Accountant Approval')} icon={<AcctApprovalIco />} onClick={onMarkDone} />)
       } else if (stageModalOk('inv_stage_status')) {
         stageActions.push(<StageRow key="mark" color={C.gold} label={T('حالة المعاملة','Transaction Status')} icon={<TxnStatusIco />} onClick={onMarkDone} />)
@@ -2285,7 +2281,7 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user, onO
             const visaApps = Array.isArray(inv.service_request?.visa_applications) ? inv.service_request.visa_applications : []
             const va = visaApps[0] || null
             // الكودان الجديدان (دائمة/مؤقتة) يحملان النوع في اسم الخدمة، فلا نُلحق نوع التأشيرة ثانيةً.
-            const isSplitVisa = inv.service_type?.code === 'work_visa_permanent' || inv.service_type?.code === 'work_visa_temporary'
+            const isSplitVisa = VISA_SVC_CODES.has(inv.service_type?.code) && inv.service_type?.code !== 'work_visa'
             const sub = (!isSplitVisa && va?.visa_type) ? (isAr ? va.visa_type.value_ar : (va.visa_type.value_en || va.visa_type.value_ar)) : null
             const qty = isVisa ? ((data?.det || []).length || visaApps.length || Number(inv.service_request?.quantity || 0)) : Number(inv.service_request?.quantity || 0)
             const full = [isAr ? (svc.label_ar_full || svc.label_ar) : (svc.label_en_full || svc.label_en), sub].filter(Boolean).join(' ')
@@ -2869,6 +2865,37 @@ const InvoiceInfoSection = ({ T, type, total, paid, remaining }) => {
   )
 }
 
+// ═══ استعلام التأمين الطبي (CHI) — لمرحلة «لا يحتاج» في تأمين تجديد الإقامة (نفس آلية صفحة العامل) ═══
+const CHI_FN_URL = '/.netlify/functions/check-chi-insurance'
+const CHI_CAPTCHA_TTL = 120
+const CHI_MAX_ATTEMPTS = 3
+// توحيد تاريخ الانتهاء لصيغة YYYY-MM-DD (CHI قد يعيد YYYY/M/D أو D/M/YYYY)
+const chiNormDate = s => {
+  if (!s) return ''
+  const t = String(s).trim()
+  let m = t.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/)
+  if (m) return `${m[1]}-${String(m[2]).padStart(2, '0')}-${String(m[3]).padStart(2, '0')}`
+  m = t.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/)
+  if (m) return `${m[3]}-${String(m[2]).padStart(2, '0')}-${String(m[1]).padStart(2, '0')}`
+  return ''
+}
+const ChiCountdown = ({ captchaKey, onExpire, color = '#3bb27a' }) => {
+  const [rem, setRem] = useState(CHI_CAPTCHA_TTL)
+  const fired = useRef(false)
+  useEffect(() => {
+    fired.current = false; setRem(CHI_CAPTCHA_TTL)
+    const start = Date.now()
+    const iv = setInterval(() => {
+      const r = Math.max(0, CHI_CAPTCHA_TTL - Math.floor((Date.now() - start) / 1000))
+      setRem(r)
+      if (r === 0 && !fired.current) { fired.current = true; clearInterval(iv); onExpire && onExpire() }
+    }, 250)
+    return () => clearInterval(iv)
+  }, [captchaKey])
+  const urgent = rem <= 10
+  return <div style={{ width: 38, height: 38, flexShrink: 0, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: urgent ? C.red : color, border: `2px solid ${urgent ? 'rgba(192,57,43,.4)' : 'rgba(59,178,122,.35)'}` }}>{rem}</div>
+}
+
 const ActionModal = ({ type, stage = null, onClose, sb, T, isAr, inv, total, paid, remaining, toast, user, onSaved, visaDet = [], svcCode, insts = [] }) => {
   const [submitting, setSubmitting] = useState(false)
   // When a write succeeds, the modal transforms into an in-place success screen
@@ -2943,6 +2970,87 @@ const ActionModal = ({ type, stage = null, onClose, sb, T, isAr, inv, total, pai
   const [insExpiry, setInsExpiry] = useState('')
   const [insAmount, setInsAmount] = useState('')
   const [insFile, setInsFile] = useState(null)
+  // ── استعلام التأمين (CHI) لخيار «لا يحتاج» في تأمين التجديد — نفس تدفق صفحة العامل (كابتشا) ──
+  // «تأكيد عدم الحاجة» لا يُفعَّل إلا بعد استعلام يُثبت أن التأمين ساري، وتُحفظ البيانات المجلوبة مع المرحلة.
+  const renewWorker = (() => {
+    const app = Array.isArray(inv.iqama_renewal_applications) ? inv.iqama_renewal_applications[0] : inv.iqama_renewal_applications
+    return app?.worker || null
+  })()
+  // رقم الإقامة للاستعلام: من سجل العامل، وإلا من حسبة التجديد المرتبطة (iqama_number)، وإلا هوية العميل (عميل=عامل).
+  const [renewCalcIqama, setRenewCalcIqama] = useState(null)
+  const chiIqama = renewWorker?.iqama_number || renewCalcIqama || inv.client?.id_number || null
+  const [chi, setChi] = useState({ phase: 'idle', session: null, captchaImage: null, captchaInput: '', error: null, attempts: 0, result: null })
+  async function callChiFn(body, timeoutMs = 25000) {
+    const ctrl = new AbortController(); const tid = setTimeout(() => ctrl.abort(), timeoutMs)
+    try {
+      const res = await fetch(CHI_FN_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: ctrl.signal })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || `HTTP ${res.status}`)
+      return json
+    } finally { clearTimeout(tid) }
+  }
+  async function startChiCheck() {
+    if (!chiIqama) { setActErr(T('لا يوجد رقم إقامة للعامل — لا يمكن الاستعلام', 'Worker has no Iqama number — cannot check')); return }
+    setChi(c => ({ ...c, phase: 'loading', error: null, captchaInput: '', attempts: 0 }))
+    try {
+      const r = await callChiFn({ action: 'init' })
+      setChi(c => ({ ...c, phase: 'captcha', session: r.session, captchaImage: r.captchaImage, captchaInput: '' }))
+    } catch (e) {
+      setChi(c => ({ ...c, phase: 'error', error: e.name === 'AbortError' ? T('انتهت مهلة الاتصال بمنصة التأمين', 'CHI connection timed out') : (e.message || T('خطأ في الاتصال', 'Connection error')) }))
+    }
+  }
+  async function refreshChiCaptcha() {
+    setChi(c => ({ ...c, captchaImage: null, captchaInput: '', error: null }))
+    try { const r = await callChiFn({ action: 'init' }); setChi(c => ({ ...c, phase: 'captcha', session: r.session, captchaImage: r.captchaImage, captchaInput: '' })) } catch { /* تُعرض رسالة عند الإرسال */ }
+  }
+  const closeChi = () => setChi(c => ({ ...c, phase: 'idle', session: null, captchaImage: null, captchaInput: '', error: null, attempts: 0 }))
+  async function submitChiCaptcha() {
+    if (!chi.captchaInput || chi.captchaInput.length < 3) return
+    setChi(c => ({ ...c, phase: 'verifying', error: null }))
+    try {
+      const r = await callChiFn({ action: 'verify', iqama: chiIqama, captcha: chi.captchaInput, session: chi.session })
+      if (r.status === 'invalid_captcha') {
+        const next = (chi.attempts || 0) + 1
+        if (next >= CHI_MAX_ATTEMPTS) { setChi(c => ({ ...c, phase: 'error', error: T('تعذّر التحقق من رمز الكابتشا بعد عدة محاولات', 'Captcha verification failed after several attempts') })); return }
+        const fresh = await callChiFn({ action: 'init' })
+        setChi(c => ({ ...c, phase: 'captcha', session: fresh.session, captchaImage: fresh.captchaImage, captchaInput: '', error: T(`رمز التحقق غير صحيح — المحاولة ${next + 1} من ${CHI_MAX_ATTEMPTS}`, `Wrong code — attempt ${next + 1}/${CHI_MAX_ATTEMPTS}`), attempts: next }))
+        return
+      }
+      if (r.code === 'SESSION_EXPIRED' || /expired/i.test(r.error || '')) {
+        const fresh = await callChiFn({ action: 'init' })
+        setChi(c => ({ ...c, phase: 'captcha', session: fresh.session, captchaImage: fresh.captchaImage, captchaInput: '', error: T('انتهت الجلسة — تم تحديث الرمز', 'Session expired — code refreshed') }))
+        return
+      }
+      if (r.status === 'insured') {
+        const end = chiNormDate(r.expiryDate)
+        const company = r.company || null
+        const policy = r.policyNumber || null
+        // تحديث بيانات تأمين العامل فوراً (كما في صفحة العامل) — أفضل-جهد مع قيد سجل موسوم بالاستعلام.
+        if (renewWorker?.id) {
+          try {
+            const { data: wRow } = await sb.from('workers').select('insurance_company,insurance_policy_number,insurance_expiry_date,edit_log').eq('id', renewWorker.id).maybeSingle()
+            if (wRow) {
+              const patch = { insurance_expiry_date: end || null, insurance_company: company, insurance_policy_number: policy, insurance_checked_at: new Date().toISOString() }
+              const oldExp = wRow.insurance_expiry_date ? String(wRow.insurance_expiry_date).slice(0, 10) : null
+              const changes = [
+                ['insurance_company', wRow.insurance_company || null, company],
+                ['insurance_policy_number', wRow.insurance_policy_number || null, policy],
+                ['insurance_expiry_date', oldExp, end || null],
+              ].filter(([, from, to]) => String(from ?? '') !== String(to ?? ''))
+               .map(([field, from, to]) => ({ field, from: from ?? null, to: to ?? null }))
+              if (changes.length) patch.edit_log = [...(Array.isArray(wRow.edit_log) ? wRow.edit_log : []), { at: new Date().toISOString(), by: user?.id || null, by_name: user?.person?.name_ar || user?.person?.name_en || null, via: 'insurance_check', changes }]
+              await sb.from('workers').update(patch).eq('id', renewWorker.id)
+            }
+          } catch { /* العرض والحفظ على المرحلة يبقيان من النتيجة */ }
+        }
+        setChi(c => ({ ...c, phase: 'idle', result: { insured: true, end, company, policy } }))
+      } else {
+        setChi(c => ({ ...c, phase: 'idle', result: { insured: false } }))
+      }
+    } catch (e) {
+      setChi(c => ({ ...c, phase: 'error', error: e.name === 'AbortError' ? T('انتهت مهلة الاستعلام', 'Check timed out') : (e.message || T('خطأ في الاستعلام', 'Check error')) }))
+    }
+  }
   // رخصة العمل
   const [wpDuration, setWpDuration] = useState('')
   const [wpExpiry, setWpExpiry] = useState('')
@@ -2960,11 +3068,12 @@ const ActionModal = ({ type, stage = null, onClose, sb, T, isAr, inv, total, pai
       // التجديد يقرأ من iqama_renewal_calculation (بلا عمود transfer_only)؛ النقل من transfer_calculation.
       const _renewal = baseSvcCode(svcCode) === 'iqama_renewal'
       const _tbl = _renewal ? 'iqama_renewal_calculation' : 'transfer_calculation'
-      const _sel = _renewal ? 'id, occupation_id, occupation_name_ar, expected_expiry_date, work_permit_expiry, stage_data' : 'id, occupation_id, occupation_name_ar, expected_expiry_date, transfer_only, stage_data'
+      const _sel = _renewal ? 'id, occupation_id, occupation_name_ar, expected_expiry_date, work_permit_expiry, stage_data, iqama_number' : 'id, occupation_id, occupation_name_ar, expected_expiry_date, transfer_only, stage_data'
       const { data } = await sb.from(_tbl).select(_sel)
         .eq('invoice_id', inv.id).is('deleted_at', null).maybeSingle()
       if (alive && data) {
         setRenewTcId(data.id)
+        if (_renewal && data.iqama_number) setRenewCalcIqama(String(data.iqama_number))
         setRenewOccupationId(data.occupation_id || '')
         setRenewOccupation(data.occupation_name_ar || '')
         setRenewIqamaExpiry(data.expected_expiry_date ? String(data.expected_expiry_date).slice(0, 10) : '')
@@ -2989,7 +3098,7 @@ const ActionModal = ({ type, stage = null, onClose, sb, T, isAr, inv, total, pai
   const isWorkVisa = /^work_visa/.test(svcCode || '')
   // التأشيرة الدائمة فقط لها دفعات إقامة لكل تأشيرة (مرتبطة بـ visa_application_id)؛ المؤقتة دفعة
   // واحدة بلا ربط — فلا يُعرض لها استرجاع «تأشيرة» (كان يُعرض فيُصفّر الفاتورة لحالة fully_paid خاطئة).
-  const isPermanentVisa = isWorkVisa && (svcCode === 'work_visa_permanent' || (insts || []).some(it => it.visa_application_id))
+  const isPermanentVisa = isWorkVisa && (RESIDENCE_VISA_CODES.has(svcCode) || (insts || []).some(it => it.visa_application_id))
   const [linkVisaId, setLinkVisaId] = useState('')
   const [passportFile, setPassportFile] = useState(null)
   const [spawnedVisaIds, setSpawnedVisaIds] = useState(new Set())
@@ -3692,7 +3801,19 @@ const ActionModal = ({ type, stage = null, onClose, sb, T, isAr, inv, total, pai
           } else if (doneChoice === 'skip') {
             // «لا يحتاج» (التأمين في التجديد): تُعلَّم المرحلة كغير مطلوبة وتُتابَع المرحلة التالية، بلا حقول/ملف.
             sd[sKey] = { status: 'skipped', reason: noteTrim || null, at: nowIso, by: user?.id || null, by_name: byName }
-            const { error: eS } = await sb.from(stageCalcTable).update({ stage_data: sd, updated_at: nowIso }).eq('id', tcId)
+            const skipPatch = { stage_data: sd, updated_at: nowIso }
+            // التأمين: بيانات استعلام CHI المجلوبة تُحفظ مع المرحلة وعلى أعمدة التأمين الطبي للحسبة.
+            if (stage === 'insurance' && chi.result?.insured) {
+              sd[sKey] = { ...sd[sKey], company: chi.result.company || null, policy_no: chi.result.policy || null, expiry: chi.result.end || null, via: 'chi' }
+              skipPatch.stage_data = sd
+              if (isRenewalDone) {
+                skipPatch.medical_insurance_company = chi.result.company || null
+                skipPatch.medical_insurance_policy = chi.result.policy || null
+                skipPatch.medical_insurance_end = chi.result.end || null
+                skipPatch.medical_insured = true
+              }
+            }
+            const { error: eS } = await sb.from(stageCalcTable).update(skipPatch).eq('id', tcId)
             if (eS) throw eS
             successInfo = { title: T('تم التخطّي', 'Skipped'), desc: T('تم تعليم هذه المرحلة كغير مطلوبة. يمكنك متابعة المرحلة التالية.', 'This stage was marked as not needed. You can proceed to the next stage.'), rows: [] }
           } else {
@@ -4003,7 +4124,46 @@ const ActionModal = ({ type, stage = null, onClose, sb, T, isAr, inv, total, pai
         {doneChoice === 'cancel' ? (
           <TextArea grow full req label={T('السبب', 'Reason')} value={doneNote} onChange={setDoneNote} placeholder={T('اكتب سبب الإلغاء…', 'Explain the cancellation reason…')} />
         ) : doneChoice === 'skip' ? (
-          <div style={{ fontSize: 12.5, color: FKC.tx3, fontFamily: F, lineHeight: 1.8, padding: '2px 2px' }}>{stage === 'workpermit' ? T('سيتم تعليم مرحلة رخصة العمل كغير مطلوبة (الرخصة سارية) والانتقال إلى المرحلة التالية.', 'The work permit stage will be marked as not needed (permit still valid) and you can proceed to the next stage.') : T('سيتم تعليم مرحلة التأمين كغير مطلوبة (التأمين ساري) والانتقال إلى مرحلة الإقامة.', 'The insurance stage will be marked as not needed (insurance still valid) and you can proceed to the Iqama stage.')}</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ fontSize: 12.5, color: FKC.tx3, fontFamily: F, lineHeight: 1.8, padding: '2px 2px' }}>{stage === 'workpermit' ? T('سيتم تعليم مرحلة رخصة العمل كغير مطلوبة (الرخصة سارية) والانتقال إلى المرحلة التالية.', 'The work permit stage will be marked as not needed (permit still valid) and you can proceed to the next stage.') : T('سيتم تعليم مرحلة التأمين كغير مطلوبة (التأمين ساري) والانتقال إلى مرحلة الإقامة.', 'The insurance stage will be marked as not needed (insurance still valid) and you can proceed to the Iqama stage.')}</div>
+            {/* التأمين في التجديد: «لا يحتاج» يستلزم استعلام CHI يجلب بيانات التأمين ويثبت سريانه — يقفل التأكيد قبله. */}
+            {stage === 'insurance' && (
+              <div style={{ border: '1px solid rgba(59,178,122,.35)', borderRadius: 12, padding: '12px 12px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: '#3bb27a', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+                    <HeartPulse size={15} strokeWidth={2.2} />{T('بيانات التأمين الطبي (CHI)', 'Medical Insurance (CHI)')}
+                    {chiIqama && <span dir="ltr" style={{ fontSize: 11.5, fontWeight: 600, color: FKC.tx3, fontFamily: 'ui-monospace, monospace', background: FKC.inputBg, border: '1px solid var(--bd)', borderRadius: 6, padding: '1px 7px' }}>{chiIqama}</span>}
+                  </span>
+                  <button type="button" onClick={startChiCheck}
+                    style={{ height: 32, padding: '0 14px', borderRadius: 9, background: 'rgba(59,178,122,.1)', border: '1px solid rgba(59,178,122,.5)', color: '#3bb27a', cursor: 'pointer', fontFamily: F, fontSize: 12, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6, transition: 'background .15s' }}>
+                    {chi.result ? T('إعادة الاستعلام', 'Re-check') : T('استعلام التأمين', 'Check Insurance')}
+                    <HeartPulse size={13} />
+                  </button>
+                </div>
+                {chi.result?.insured ? (
+                  <>
+                    <div style={{ fontSize: 12.5, fontWeight: 600, color: '#27a046', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      <Check size={14} strokeWidth={2.5} />{T('تم جلب بيانات التأمين — التأمين ساري', 'Insurance data fetched — insurance is valid')}
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {[[T('شركة التأمين', 'Company'), chi.result.company], [T('رقم البوليصة', 'Policy No.'), chi.result.policy], [T('تاريخ انتهاء التأمين', 'Expiry'), chi.result.end || null]].map(([k, v], i) => (
+                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 8, background: FKC.inputBg, border: '1px solid var(--bd)' }}>
+                          <span style={{ flex: 1, fontSize: 12.5, color: FKC.tx3, fontWeight: 600 }}>{k}</span>
+                          <span style={{ fontSize: 13, fontWeight: 600, color: v ? 'var(--tx)' : 'var(--tx4)', direction: 'ltr' }}>{v || '—'}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : chi.result ? (
+                  <div style={{ fontSize: 12.5, fontWeight: 600, color: C.gold, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <AlertCircle size={14} />{T('لا يوجد تأمين ساري للعامل — لا يمكن تأكيد «لا يحتاج»', 'No active insurance found — cannot confirm "Not Needed"')}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 12, color: FKC.tx4, fontFamily: F, lineHeight: 1.7 }}>{T('الاستعلام مطلوب قبل تأكيد عدم الحاجة — يجلب الشركة والبوليصة وتاريخ الانتهاء ويثبت أن التأمين ساري.', 'A check is required before confirming — it fetches the company, policy and expiry and proves the insurance is valid.')}</div>
+                )}
+              </div>
+            )}
+          </div>
         ) : stage === 'transfer' ? null : stage === 'insurance' ? (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
             <TextField req label={T('اسم الشركة', 'Company')} value={insCompany} onChange={setInsCompany} />
@@ -4334,7 +4494,8 @@ const ActionModal = ({ type, stage = null, onClose, sb, T, isAr, inv, total, pai
     ? [
         { valid: isStagedDone ? (
               doneChoice === 'cancel' ? !!doneNote.trim()
-              : doneChoice === 'skip' ? true
+              // «لا يحتاج» للتأمين في التجديد: لا يُؤكَّد إلا بعد استعلام CHI يُثبت أن التأمين ساري.
+              : doneChoice === 'skip' ? (stage === 'insurance' ? !!chi.result?.insured : true)
               : stage === 'transfer' ? true
               : stage === 'insurance' ? (!!insCompany.trim() && !!insPolicyNo.trim() && !!insExpiry && String(insAmount).trim() !== '' && !!insFile)
               : stage === 'workpermit' ? (!!wpDuration && !!wpExpiry && String(wpAmount).trim() !== '' && !!wpFile)
@@ -4370,6 +4531,7 @@ const ActionModal = ({ type, stage = null, onClose, sb, T, isAr, inv, total, pai
   }
 
   return (
+    <>
     <Modal
       open onClose={onClose} success={successNode}
       title={meta.title} Icon={meta.Icon} accent={meta.color} width={540}
@@ -4379,6 +4541,61 @@ const ActionModal = ({ type, stage = null, onClose, sb, T, isAr, inv, total, pai
       nextLabel={T('التالي','Next')} backLabel={T('السابق','Previous')}
       pages={pages}
     />
+    {/* ═══ نافذة استعلام التأمين الطبي (CHI) — كابتشا فوق نافذة المرحلة (نفس نافذة صفحة العامل) ═══ */}
+    {chi.phase !== 'idle' && createPortal(
+      <div style={{ position: 'fixed', inset: 0, background: 'var(--overlayBg)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2200, padding: 16, fontFamily: F }} dir={isAr ? 'rtl' : 'ltr'}>
+        <style>{`@keyframes rnw-spin{to{transform:rotate(360deg)}}`}</style>
+        <div onClick={e => e.stopPropagation()} style={{ width: 420, maxWidth: '94vw', background: 'var(--modal-bg)', borderRadius: 16, border: '1px solid rgba(11,109,61,.4)', padding: 22, boxShadow: 'var(--shadow-lg)', position: 'relative' }}>
+          <button onClick={closeChi} style={{ position: 'absolute', top: 12, [isAr ? 'left' : 'right']: 12, width: 30, height: 30, borderRadius: 8, background: 'var(--hoverBg)', border: '1px solid var(--bd)', color: 'var(--tx3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={14} /></button>
+          <div style={{ textAlign: isAr ? 'right' : 'left', paddingBottom: 14, marginBottom: 14, borderBottom: '1px solid var(--bd)', [isAr ? 'paddingLeft' : 'paddingRight']: 36 }}>
+            <div style={{ fontSize: 22, fontWeight: 600, color: 'var(--tx)', display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'flex-start' }}>
+              <HeartPulse size={22} style={{ color: '#3bb27a' }} />
+              <span>{T('التأمين الطبي (CHI)', 'Medical Insurance (CHI)')}</span>
+            </div>
+          </div>
+          {(chi.phase === 'loading' || chi.phase === 'verifying') && (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: '28px 0' }}>
+              <div style={{ width: 36, height: 36, border: '3px solid rgba(11,109,61,.18)', borderTopColor: '#3bb27a', borderRadius: '50%', animation: 'rnw-spin 0.8s linear infinite' }} />
+              <div style={{ fontSize: 14, color: 'var(--tx3)' }}>{chi.phase === 'loading' ? T('جاري الاتصال بمنصة التأمين…', 'Connecting to insurance platform…') : T('جاري الاستعلام…', 'Checking…')}</div>
+            </div>
+          )}
+          {chi.phase === 'captcha' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+              <div style={{ fontSize: 12, color: 'var(--tx3)', textAlign: isAr ? 'right' : 'left' }}>{T('أدخل رمز التحقق الظاهر بالصورة', 'Enter the captcha shown in the image')}</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '0 8px' }}>
+                {chi.captchaImage
+                  ? <ChiCountdown captchaKey={chi.captchaImage} onExpire={refreshChiCaptcha} color="#3bb27a" />
+                  : <div style={{ width: 38, height: 38, flexShrink: 0 }} aria-hidden="true" />}
+                {chi.captchaImage
+                  ? <img src={chi.captchaImage} alt="captcha" style={{ height: 72, borderRadius: 12, background: '#fff', padding: 4 }} />
+                  : <span style={{ fontSize: 14, color: 'var(--tx4)' }}>{T('...جاري التحميل', 'Loading...')}</span>}
+                <button type="button" onClick={refreshChiCaptcha} title={T('رمز تحقق جديد', 'New captcha')} style={{ width: 38, height: 38, padding: 0, borderRadius: '50%', border: 'none', background: 'rgba(11,109,61,.12)', color: '#3bb27a', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <RefreshCw size={16} strokeWidth={2.2} />
+                </button>
+              </div>
+              <input value={chi.captchaInput} onChange={e => setChi(c => ({ ...c, captchaInput: e.target.value.replace(/\s/g, '').slice(0, 8) }))}
+                onKeyDown={e => { if (e.key === 'Enter') submitChiCaptcha() }} placeholder="______" autoFocus maxLength={8}
+                style={{ height: 48, width: 240, alignSelf: 'center', padding: '0 18px', border: '1px solid var(--bd)', borderRadius: 12, fontFamily: F, fontSize: 20, fontWeight: 600, color: 'var(--tx)', outline: 'none', background: 'var(--inputBg)', textAlign: 'center', letterSpacing: '8px', direction: 'ltr' }} />
+              {chi.error && <div style={{ fontSize: 12, color: C.red, textAlign: 'center', marginTop: -10, marginBottom: -4 }}>{chi.error}</div>}
+              <button onClick={submitChiCaptcha} disabled={!chi.captchaInput || chi.captchaInput.length < 3} style={{ height: 48, width: 240, alignSelf: 'center', borderRadius: 12, border: '1px solid rgba(59,178,122,.55)', background: 'linear-gradient(180deg,#4ac888 0%,#2d9963 100%)', color: '#fff', fontFamily: F, fontSize: 16, fontWeight: 600, cursor: (!chi.captchaInput || chi.captchaInput.length < 3) ? 'not-allowed' : 'pointer', opacity: (!chi.captchaInput || chi.captchaInput.length < 3) ? 0.45 : 1 }}>{T('استعلام', 'Check')}</button>
+            </div>
+          )}
+          {chi.phase === 'error' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '8px 0' }}>
+                <div style={{ width: 58, height: 58, borderRadius: '50%', background: 'rgba(192,57,43,.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.red }}><AlertCircle size={28} /></div>
+                <div style={{ fontSize: 14, fontWeight: 500, color: C.red, textAlign: 'center' }}>{T('تعذّر الاستعلام', 'Check failed')}</div>
+                <div style={{ fontSize: 13, color: 'var(--tx3)', textAlign: 'center', lineHeight: 1.6, padding: '0 8px' }}>{chi.error}</div>
+              </div>
+              <button onClick={startChiCheck} style={{ height: 40, borderRadius: 10, border: '1px solid rgba(11,109,61,.4)', background: 'rgba(11,109,61,.12)', color: '#3bb27a', fontFamily: F, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>{T('إعادة المحاولة', 'Retry')}</button>
+              <button onClick={closeChi} style={{ height: 38, borderRadius: 10, border: 'none', background: 'transparent', color: 'var(--tx3)', fontFamily: F, fontSize: 14, cursor: 'pointer' }}>{T('إغلاق', 'Close')}</button>
+            </div>
+          )}
+        </div>
+      </div>,
+      document.body
+    )}
+    </>
   )
 }
 
@@ -5295,10 +5512,20 @@ const PaymentRow = ({ p, isAr, T, overflow = 0, onEdit, editLog, user }) => {
           </div>
         )}
       </div>
-      {visDate && (
-      <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
-        <span style={{ fontSize: 10.5, color: 'var(--tx3)', direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{datePart}</span>
-        {timePart && <span style={{ fontSize: 9.5, color: 'var(--tx4)', direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{timePart}</span>}
+      {(visDate || (p.receipt_no && visReceipt)) && (
+      <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 5 }}>
+        {p.receipt_no && visReceipt && (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', background: 'rgba(176,125,0,.1)', border: '1px solid rgba(176,125,0,.28)', borderRadius: 8, padding: '3px 8px' }}>
+            <span style={{ fontSize: 8.5, color: C.gold, fontWeight: 600, opacity: 0.8 }}>{T('سند القبض','Receipt no')}</span>
+            <span style={{ direction: 'ltr', fontSize: 13, fontWeight: 700, color: C.gold, fontVariantNumeric: 'tabular-nums' }}>{p.receipt_no}</span>
+          </div>
+        )}
+        {visDate && (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
+            <span style={{ fontSize: 10.5, color: 'var(--tx3)', direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{datePart}</span>
+            {timePart && <span style={{ fontSize: 9.5, color: 'var(--tx4)', direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{timePart}</span>}
+          </div>
+        )}
       </div>
       )}
       {onEdit && valid && (
@@ -5335,7 +5562,7 @@ const PaymentRow = ({ p, isAr, T, overflow = 0, onEdit, editLog, user }) => {
 /* ═════ Installment timeline — vertical stepper showing each stage ═════ */
 // تأشيرة وإقامة (دائمة/مؤقتة): مراحل الدفع تُقرأ بدلالة التأشيرة لا الطلب العام —
 // «فتح الطلب» ⇒ «إصدار التأشيرة»، و«إصدار/تجديد الإقامة» ⇒ «إصدار الإقامة».
-const VISA_IQAMA_SVC = ['work_visa_permanent', 'work_visa_temporary']
+const VISA_IQAMA_SVC = ['work_visa_permanent', 'work_visa_6m', 'work_visa_temporary']
 const VISA_IQAMA_MILESTONE_REMAP = {
   'عند فتح الطلب': { ar: 'عند إصدار التأشيرة', en: 'On Visa Issuance' },
   'On Request Open': { ar: 'عند إصدار التأشيرة', en: 'On Visa Issuance' },
@@ -7018,7 +7245,7 @@ function IqamaIssueModal({ sb, toast, T, isAr, inv, user, visas, iqamaSet, iqama
   // يبقى «جاهزاً» لإدخال البيانات (لا يُخفى) — وعند الحفظ نُحدّث ذلك الصف بدل إنشاء صفّ مكرّر.
   const iqamaNumberOf = id => String((iqamaByVisa || {})[id]?.iqama_number || '').trim()
   // تأشيرة دائمة: الإقامة لا تُصدر لتأشيرةٍ حتى يُنجَز تأمينها ورخصة عملها معاً. المؤقتة بلا هذا الشرط.
-  const isPermanent = inv?.service_type?.code === 'work_visa_permanent'
+  const isPermanent = RESIDENCE_VISA_CODES.has(inv?.service_type?.code)
   const stagesDoneOf = id => { const sd = (iqamaByVisa || {})[id]?.stage_data || {}; return !!sd.insurance && !!sd.work_permit }
   // الجاهزية لإصدار الإقامة مشروطة بإدخال رقم الحدود (إصدار التأشيرة) أولاً — التأشيرة بلا رقم حدود تُعدّ
   // «محجوبة» ولا تظهر هنا (تُكمَل من نافذة «بيانات التأشيرات»)، فقد يُفتح الزرّان معاً في الحالة المختلطة.
@@ -8492,7 +8719,7 @@ function PermanentVisaEditModal({ sb, toast, T, isAr, inv, data, editorId, edito
   ]
 
   return (
-    <Modal open onClose={onClose} title={T('تعديل تأشيرة وإقامة دائمة', 'Edit permanent visa')} Icon={CalendarRange} width={760} accent={C.gold}
+    <Modal open onClose={onClose} title={T('تعديل التأشيرة والإقامة', 'Edit visa & iqama')} Icon={CalendarRange} width={760} accent={C.gold}
       success={done ? <SuccessView title={T('تم حفظ التعديلات', 'Changes saved')} /> : undefined}
       page={page} pages={loading ? [{ valid: false, content: <div style={{ padding: 40, textAlign: 'center', color: 'var(--tx4)', fontFamily: F }}>{T('جاري التحميل…', 'Loading…')}</div> }] : pages}
       onNext={() => { if (page === 0) { setErr(''); setPage(1) } else if (page === 1) goFiles() }}
@@ -8742,7 +8969,7 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
       {cardVisible(user, 'invoices', 'client') && (() => {
         const code = inv.service_type?.code
         // الخدمات التي تتطلب عميلاً منفصلاً (تطابق CLIENT_SERVICES في نموذج الطلب عبر SVC_CODE_MAP).
-        const CLIENT_REQUIRED = new Set(['work_visa_permanent', 'work_visa_temporary', 'transfer', 'iqama_renewal', 'general'])
+        const CLIENT_REQUIRED = new Set(['work_visa_permanent', 'work_visa_6m', 'work_visa_temporary', 'transfer', 'iqama_renewal', 'general'])
         if (!CLIENT_REQUIRED.has(code)) return null
         const sr = inv.service_request
         const pickW = rel => Array.isArray(rel) ? rel[0]?.worker : rel?.worker
@@ -8863,7 +9090,7 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
       {cardVisible(user, 'invoices', 'service') && (baseSvcCode(data?.code || inv.service_type?.code) === 'work_visa' ? (() => {
         // تعديل بيانات التأشيرات وتوزيع الملفات والمكتب — متاح للتأشيرة الدائمة والمؤقتة (المنشأة تُختار لاحقاً، فالتعديل هنا آمن).
         const rawCode = data?.code || inv.service_type?.code
-        const visaEditable = !!onEditVisa && (rawCode === 'work_visa_permanent' || rawCode === 'work_visa_temporary') && canCardBtn(user, 'invoices', 'service', 'edit')
+        const visaEditable = !!onEditVisa && VISA_SVC_CODES.has(rawCode) && rawCode !== 'work_visa' && canCardBtn(user, 'invoices', 'service', 'edit')
         // أرقام الحدود تُدخَل الآن من المراحل («بيانات التأشيرة») في الدائمة والمؤقتة معاً — فلا حاجة لزر مستقل.
         const bordersEditable = false
         return (
@@ -9134,7 +9361,7 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
           صفّ لكل تأشيرة في خدمات التأشيرات، وصفّ حالة عام (منجزة/قيد التنفيذ/ملغاة) لبقية الخدمات. */}
       {(() => {
         const _code = data?.code || inv.service_type?.code
-        const isPermVisa = _code === 'work_visa_permanent' || _code === 'work_visa_temporary'
+        const isPermVisa = VISA_SVC_CODES.has(_code) && _code !== 'work_visa'
         const visas = isPermVisa ? (data?.det || []).filter(v => v && v.id) : []
         if (isPermVisa && !visas.length) return null
         // الخدمات غير التأشيرية: حالة المعاملة العامة من حالة الطلب/الفاتورة.
@@ -9397,7 +9624,7 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
                       attachments: (iqamaDone && muqeemFileV?.file_url) ? [{ url: muqeemFileV.file_url, label: T('عرض ملف المقيم', 'View resident file') }] : [],
                     })
                     // تأشيرة وإقامة دائمة: مرحلتان إضافيتان بين التأشيرة والإقامة — «التأمين» و«رخصة العمل» (من stage_data).
-                    const isPermanent = _code === 'work_visa_permanent'
+                    const isPermanent = RESIDENCE_VISA_CODES.has(_code)
                     const sd = (iq?.stage_data && typeof iq.stage_data === 'object') ? iq.stage_data : {}
                     const ins = sd.insurance || null
                     const wp = sd.work_permit || null
@@ -9688,7 +9915,8 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
                           <div style={{ marginTop: key === 'insurance' ? 0 : 16 }}>
                             <TxnStatusBar T={T} stage={st} phase={phaseLabel}
                               label={!sObj ? T('بالانتظار', 'Pending') : cancelled ? T('ملغاة', 'Cancelled') : skipped ? T('لا يحتاج', 'Not Needed') : T('منجز', 'Completed')} />
-                            {sObj && metaBlock({ accent: cancelled ? C.red : skipped ? C.gold : C.ok, counterFrom: prevAt, counterTo: sObj.at, whenAt: sObj.at, person: personOf(sObj), note: (cancelled || skipped) ? (sObj.reason || '') : '', extraRows: (cancelled || skipped) ? [] : extraRows, attachments: (!cancelled && !skipped && fileAtt) ? [{ url: fileAtt.file_url, label: T('عرض الملف', 'View file') }] : [] })}
+                            {/* «لا يحتاج» عبر استعلام CHI: تُعرض بيانات التأمين المجلوبة رغم التخطّي. */}
+                            {sObj && metaBlock({ accent: cancelled ? C.red : skipped ? C.gold : C.ok, counterFrom: prevAt, counterTo: sObj.at, whenAt: sObj.at, person: personOf(sObj), note: (cancelled || skipped) ? (sObj.reason || '') : '', extraRows: (cancelled || (skipped && sObj.via !== 'chi')) ? [] : extraRows, attachments: (!cancelled && !skipped && fileAtt) ? [{ url: fileAtt.file_url, label: T('عرض الملف', 'View file') }] : [] })}
                           </div>
                         )
                       }
@@ -9697,7 +9925,7 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
                           [T('اسم الشركة', 'Company'), ins.company || '—', false],
                           [T('رقم بوليصة التأمين', 'Policy No'), ins.policy_no || '—', true],
                           [T('تاريخ انتهاء التأمين', 'Insurance Expiry'), ins.expiry ? fmtGreg(ins.expiry, isAr) : '—', false],
-                          [T('المبلغ', 'Amount'), ins.amount != null ? `${num(ins.amount)} ${T('ريال', 'SAR')}` : '—', false],
+                          ...(ins.status === 'skipped' ? [] : [[T('المبلغ', 'Amount'), ins.amount != null ? `${num(ins.amount)} ${T('ريال', 'SAR')}` : '—', false]]),
                         ] : [])}
                         {stageBar('workpermit', T('رخصة العمل', 'Work Permit'), wp, ins?.at || inv.created_at, data?.wpFileAtt, wp ? [
                           [T('المدة', 'Duration'), wp.duration_months != null ? `${wp.duration_months} ${T('أشهر', 'months')}` : '—', false],

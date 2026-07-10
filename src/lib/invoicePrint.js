@@ -20,8 +20,9 @@ const fmtPhone = (phone) => {
 }
 const SVC_THEME = {
   work_visa:           { c: C.blue,   bg: 'rgba(93,173,226,.12)',  bd: 'rgba(93,173,226,.32)',  label_ar: 'تأشيرة عمل',     label_en: 'Work Visa' },
-  work_visa_permanent: { c: C.blue,   bg: 'rgba(93,173,226,.12)',  bd: 'rgba(93,173,226,.32)',  label_ar: 'تأشيرة وإقامة دائمة',   label_en: 'Permanent Visa & Iqama', label_ar_full: 'تأشيرة وإقامة دائمة', label_en_full: 'Permanent Visa & Iqama' },
-  work_visa_temporary: { c: '#85c1e9',bg: 'rgba(133,193,233,.12)', bd: 'rgba(133,193,233,.32)', label_ar: 'تأشيرة وإقامة مؤقتة',   label_en: 'Temporary Visa & Iqama', label_ar_full: 'تأشيرة وإقامة مؤقتة', label_en_full: 'Temporary Visa & Iqama' },
+  work_visa_permanent: { c: C.blue,   bg: 'rgba(93,173,226,.12)',  bd: 'rgba(93,173,226,.32)',  label_ar: 'تأشيرة بإقامة 12 شهر',   label_en: '12-Month Visa & Iqama', label_ar_full: 'تأشيرة بإقامة 12 شهر', label_en_full: '12-Month Visa & Iqama' },
+  work_visa_6m:        { c: '#48a1d6',bg: 'rgba(72,161,214,.12)',  bd: 'rgba(72,161,214,.32)',  label_ar: 'تأشيرة بإقامة 6 أشهر',   label_en: '6-Month Visa & Iqama',  label_ar_full: 'تأشيرة بإقامة 6 أشهر', label_en_full: '6-Month Visa & Iqama' },
+  work_visa_temporary: { c: '#85c1e9',bg: 'rgba(133,193,233,.12)', bd: 'rgba(133,193,233,.32)', label_ar: 'تأشيرة بإقامة 3 شهور',   label_en: '3-Month Visa & Iqama', label_ar_full: 'تأشيرة بإقامة 3 شهور', label_en_full: '3-Month Visa & Iqama' },
   iqama_issuance: { c: '#27ae60',bg: 'rgba(39,174,96,.12)',   bd: 'rgba(39,174,96,.32)',   label_ar: 'إصدار إقامة',    label_en: 'Iqama Issuance' },
   exit_reentry_visa: { c: '#5dade2',bg: 'rgba(93,173,226,.12)', bd: 'rgba(93,173,226,.32)', label_ar: 'خروج وعودة', label_en: 'Exit / Re-entry Visa' },
   transfer:       { c: C.orange, bg: 'rgba(243,156,18,.12)',  bd: 'rgba(243,156,18,.32)',  label_ar: 'نقل كفالة',      label_en: 'Transfer' },
@@ -35,7 +36,7 @@ const svcThemeFor = (st) => {
   if (t) return t
   return { ...SVC_THEME.general, label_ar: st?.value_ar || 'خدمة', label_en: st?.value_en || st?.value_ar || 'Service' }
 }
-const VISA_SVC_CODES = new Set(['work_visa', 'work_visa_permanent', 'work_visa_temporary'])
+const VISA_SVC_CODES = new Set(['work_visa', 'work_visa_permanent', 'work_visa_6m', 'work_visa_temporary'])
 const baseSvcCode = (code) => (VISA_SVC_CODES.has(code) ? 'work_visa' : code)
 
 export function buildInvoiceDoc(inv, data, printLang = 'ar') {
@@ -300,7 +301,7 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
   const agent = inv.agent || sr.service_request_agents?.[0]?.agent || null
   const qty = isVisa ? (det.length || Number(sr.quantity || 0)) : Number(sr.quantity || 0)
   // الكمية تُعرض فقط لتأشيرة وإقامة دائمة/مؤقتة (حيث تتعدد التأشيرات)؛ لبقية الخدمات هي 1 دائماً فلا تظهر.
-  const showQty = (code === 'work_visa_permanent' || code === 'work_visa_temporary') && qty > 0
+  const showQty = (VISA_SVC_CODES.has(code) && code !== 'work_visa') && qty > 0
   // اسم الخدمة الكامل (نفس ما يظهر في الشاشة): «خدمة عامة» وليس قيمة اللوكاب «عام».
   const svcTheme = svcThemeFor(inv.service_type)
   const svcName = (printLang === 'ar' || printLang === 'ur') ? (svcTheme.label_ar_full || svcTheme.label_ar) : (svcTheme.label_en_full || svcTheme.label_en)
@@ -368,7 +369,7 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
     if (it.visa_application_id) return 'mIqamaIssue'   // احتياط: دفعة لكل تأشيرة بلا ملاحظة واضحة
     return null
   }
-  const isStagedVisa = code === 'work_visa_permanent' || code === 'work_visa_temporary'
+  const isStagedVisa = VISA_SVC_CODES.has(code) && code !== 'work_visa'
   const milestoneOf = (it, i) => {
     const ord = it.installment_order || (i + 1)
     const k = isStagedVisa ? milestoneKeyFor(it) : null
@@ -651,7 +652,7 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
   const descText = code === 'exit_reentry_visa' ? `- ${svcName}` : (descIsSvcName ? svcName : ((d0 && d0.description && d0.description !== svcName) ? d0.description : ''))
   // قسم «الخدمة» يكرّر اسم الخدمة الظاهر كعنوان رئيسي في الصفحة الأولى — يُعرض فقط عند وجود عدد تأشيرات لبيان الكمية، وإلا يُحذف.
   // التأشيرة (دائمة/مؤقتة): الاسم والكمية يظهران أصلاً في العنوان الرئيسي (×العدد)، فالقسم مكرّر بالكامل ويُحذف.
-  const serviceBlk = (showQty && code !== 'work_visa_temporary' && code !== 'work_visa_permanent') ? secTitle('service') + `<div class="card full"><div class="service-row"><div><div class="service-name">${esc(svcName || '—')}</div></div><div class="qty-badge"><span class="lbl">${lab('quantity')}</span>${num2(qty)}</div></div></div>` : ''
+  const serviceBlk = (showQty && !(VISA_SVC_CODES.has(code) && code !== 'work_visa')) ? secTitle('service') + `<div class="card full"><div class="service-row"><div><div class="service-name">${esc(svcName || '—')}</div></div><div class="qty-badge"><span class="lbl">${lab('quantity')}</span>${num2(qty)}</div></div></div>` : ''
   // تاغ حالة الطلب — يُعرض في رأس كرت «الخدمة» (جديد · قيد التنفيذ · منجز · ملغي) بألوان الـ pill.
   const reqStatusCode = sr?.status?.code || ''
   const acct = sr?.accountant_status

@@ -163,9 +163,20 @@ function DateInput({value,onChange,disabled,readOnly,style}){
   )
 }
 
+// أيقونة مدّة الإقامة — رقم الأشهر داخل شارة (بدل التقويم) للتأشيرات «بإقامة N».
+const durationIcon=(label)=>function DurationIcon({size=22,color='currentColor',strokeWidth=1.5}){
+  return(
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="3" y="3.5" width="18" height="17" rx="5.5"/>
+      <text x="12" y="12.2" textAnchor="middle" dominantBaseline="central" fontSize={label.length>1?9.5:12} fontWeight="800" fill={color} stroke="none" style={{fontFamily:"'Cairo','Tajawal',sans-serif"}}>{label}</text>
+    </svg>
+  )
+}
+const Visa12Icon=durationIcon('12'),Visa6Icon=durationIcon('6'),Visa3Icon=durationIcon('3')
 const ALL_SERVICES=[
-{id:'work_visa_permanent',name_ar:'تأشيرة وإقامة دائمة',Icon:CalendarRange,defaultBillable:true,group:'main'},
-{id:'work_visa_temporary',name_ar:'تأشيرة وإقامة مؤقتة',Icon:CalendarClock,defaultBillable:true,group:'main'},
+{id:'work_visa_permanent',name_ar:'تأشيرة بإقامة 12 شهر',Icon:Visa12Icon,defaultBillable:true,group:'main'},
+{id:'work_visa_6m',name_ar:'تأشيرة بإقامة 6 أشهر',Icon:Visa6Icon,defaultBillable:true,group:'main'},
+{id:'work_visa_temporary',name_ar:'تأشيرة بإقامة 3 شهور',Icon:Visa3Icon,defaultBillable:true,group:'main'},
 {id:'kafala_transfer',name_ar:'حسبة نقل الكفالة',Icon:ArrowLeftRight,defaultBillable:true,group:'main'},
 {id:'iqama_renewal',name_ar:'تسعيرة تجديد الإقامة',Icon:RefreshCw,defaultBillable:true,group:'main'},
 {id:'ajeer_contract',name_ar:'عقد أجير',Icon:Users,defaultBillable:true,group:'main'},
@@ -308,8 +319,9 @@ const IQAMA_STEP_NOTES={
   'رسوم المكتب':'«السعر العام» يظهر ثابتًا عند رفع الطلب. «سعر اليوم» هو الحد الأدنى المسموح للخصم عند التصديق (لا يظهر للموظف المُصدّق)، ويُحتسب أيضًا للأيام الزائدة عن «الحد الشهري».',
 }
 const PRICING_SCHEMA={
-work_visa_permanent:{store:'visaPricingMin_permanent',fields:VISA_FIELDS,note:'الحدود الدنيا لدفعات تأشيرة العمل الدائمة'},
-work_visa_temporary:{store:'visaPricingMin_temporary',fields:VISA_TEMP_FIELDS,note:'الحدود الدنيا لتأشيرة العمل المؤقتة (إصدار + توكيل)'},
+work_visa_permanent:{store:'visaPricingMin_permanent',fields:VISA_FIELDS,note:'الحدود الدنيا لدفعات تأشيرة بإقامة 12 شهر'},
+work_visa_6m:{store:'visaPricingMin_6m',fields:VISA_FIELDS,note:'الحدود الدنيا لدفعات تأشيرة بإقامة 6 أشهر'},
+work_visa_temporary:{store:'visaPricingMin_temporary',fields:VISA_TEMP_FIELDS,note:'الحدود الدنيا لتأشيرة بإقامة 3 شهور (إصدار + توكيل)'},
 kafala_transfer:{store:'kafalaPricingConfig',fields:KAFALA_FIELDS,note:'إعدادات نقل الكفالة فقط'},
 iqama_renewal:{store:'iqamaRenewalPricingConfig',fields:IQAMA_FIELDS,note:'إعدادات تجديد الإقامة فقط'},
 ajeer_contract:{store:'servicesPricingConfig',sub:'ajeer',fields:[

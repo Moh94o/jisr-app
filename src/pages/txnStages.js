@@ -130,6 +130,7 @@ export const STAGE_DEFS = {
 // service_type.code → ordered stage codes (use the real code, not the normalized data.code).
 export const SERVICE_STAGES = {
   work_visa_permanent: ['visa_issuance', 'iqama_issuance'],
+  work_visa_6m:        ['visa_issuance', 'iqama_issuance'],
   work_visa_temporary: ['visa_issuance', 'iqama_issuance'],
   transfer:            ['iqama_issuance'],
   iqama_renewal:       ['iqama_issuance'],

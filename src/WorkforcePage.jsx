@@ -4,6 +4,7 @@ import { can as canPerm, cardVisible, canCardBtn } from './lib/permissions.js'
 import { navSetHere } from './lib/navStack.js'
 import { UserPlus, Building2, Search, X, Hash, FileText, ShieldCheck, Users, MapPin, Check, Plus, Pencil, Trash2, Phone, ChevronLeft, ChevronRight, HeartPulse, RefreshCw, AlertCircle, LogOut } from 'lucide-react'
 import { Modal as FKModal, ModalSection, ActionButton, SuccessView, GRID, TextField, IdField, DateField, Select, FileField, PhoneField, PhoneListField, EmptyState } from './components/ui/FormKit.jsx'
+import InvoiceReceiptCard from './components/ui/InvoiceReceiptCard.jsx'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = {
@@ -1085,7 +1086,7 @@ export default function WorkforcePage({ sb, toast, lang, user, onTabChange }) {
           <div style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600, letterSpacing: '.2px' }}>{T('انتهاء الإقامات','Iqama Status')}</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, flex: 1 }}>
             <div style={{ position: 'relative', width: 112, height: 112, flexShrink: 0 }}>
-              <svg width="112" height="112" viewBox="0 0 112 112" style={{ filter: 'drop-shadow(0 6px 18px rgba(0,0,0,.4))' }}>
+              <svg width="112" height="112" viewBox="0 0 112 112">
                 <defs>
                   <radialGradient id="iq-donut-core" cx="50%" cy="50%" r="50%">
                     <stop offset="0%" stopColor="rgba(255,255,255,.06)" />
@@ -2051,34 +2052,9 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
                   <div style={{ fontSize: 12, color: 'var(--tx4)', textAlign: 'center', padding: '8px 0' }}>{T('جارٍ التحميل…', 'Loading…')}</div>
                 ) : facListRows.length === 0 ? (
                   <div style={{ fontSize: 12, color: 'var(--tx4)', textAlign: 'center', padding: '8px 0' }}>{T('لا توجد فواتير أو خدمات مرتبطة', 'No invoices or services linked')}</div>
-                ) : facListRows.map((r, i) => {
-                  const cancelled = r.invoice_status === 'cancelled'
-                  const paidUp = r.invoice_id && Number(r.remaining_amount) <= 0 && !cancelled
-                  const stt = cancelled ? { t: T('ملغاة', 'Cancelled'), c: C.red } : paidUp ? { t: T('مدفوعة', 'Paid'), c: C.ok } : r.invoice_id ? { t: `${num(Math.round(Number(r.remaining_amount) || 0))} ${T('متبقٍ', 'Due')}`, c: C.red } : null
-                  return (
-                    <div key={i} onClick={r.invoice_id ? () => goInvoice(r.invoice_id) : undefined} title={r.invoice_id ? T('عرض تفاصيل الفاتورة', 'View invoice') : ''}
-                      style={{ position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '10px 12px', background: cancelled ? 'rgba(232,114,101,.07)' : 'rgba(0,0,0,.18)', border: `1px solid ${cancelled ? 'rgba(232,114,101,.28)' : 'rgba(255,255,255,.05)'}`, borderRadius: 10, cursor: r.invoice_id ? 'pointer' : 'default', transition: 'border-color .15s' }}
-                      onMouseEnter={e => { if (r.invoice_id) e.currentTarget.style.borderColor = cancelled ? 'rgba(232,114,101,.7)' : 'rgba(176,125,0,.5)' }}
-                      onMouseLeave={e => { e.currentTarget.style.borderColor = cancelled ? 'rgba(232,114,101,.28)' : 'rgba(255,255,255,.05)' }}>
-                      {cancelled && (
-                        <div aria-hidden="true" style={{ position: 'absolute', top: '50%', insetInlineStart: '50%', transform: 'translate(-50%, -50%) rotate(-16deg)', fontSize: 30, fontWeight: 600, letterSpacing: 2, color: 'rgba(232,114,101,.13)', border: '3px solid rgba(232,114,101,.16)', borderRadius: 10, padding: '2px 24px', pointerEvents: 'none', whiteSpace: 'nowrap', fontFamily: F }}>{T('ملغاة', 'Cancelled')}</div>
-                      )}
-                      <div style={{ position: 'relative', minWidth: 0 }}>
-                        <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.service_ar || T('خدمة', 'Service')}</div>
-                        <div style={{ fontSize: 10.5, color: 'var(--tx4)', fontFamily: 'ui-monospace, monospace', direction: 'ltr', marginTop: 2 }}>{T('مرجع', 'Ref')}: {r.request_ref_no || '—'}</div>
-                      </div>
-                      <div style={{ position: 'relative', textAlign: 'end', flexShrink: 0 }}>
-                        {r.invoice_no ? (
-                          <div style={{ fontSize: 11.5, fontWeight: 600, color: cancelled ? C.red : C.gold, direction: 'ltr', display: 'inline-flex', alignItems: 'center', gap: 5, justifyContent: 'flex-end' }}>
-                            {r.invoice_no}
-                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg>
-                          </div>
-                        ) : <span style={{ fontSize: 11, color: 'var(--tx5)' }}>{T('بدون فاتورة', 'No invoice')}</span>}
-                        {stt && !cancelled && <div style={{ fontSize: 10.5, fontWeight: 600, color: stt.c, marginTop: 2, direction: 'rtl' }}>{stt.t}</div>}
-                      </div>
-                    </div>
-                  )
-                })}
+                ) : facListRows.map((r, i) => (
+                  <InvoiceReceiptCard key={i} r={r} workerName={w.name_ar || w.name_en} onOpen={goInvoice} T={T} />
+                ))}
               </div>
             </div>
           </div>
