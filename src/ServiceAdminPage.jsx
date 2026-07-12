@@ -272,7 +272,7 @@ const IQAMA_EXTRA_FIELDS=[
   {k:'iqamaOfficeFeeMode',l:'طريقة حساب رسوم المكتب',d:'flat',t:'mode'},
   {k:'iqamaWpBasis',l:'أساس احتساب رخصة العمل',d:'iqama',t:'mode'},
   {k:'iqamaExemptionMode',l:'سياسة الإعفاء في الحاسبة',d:'free',t:'mode'},
-  {k:'iqamaOfficeDiscountEnabled',l:'السماح بخصم المكتب عند التصديق',d:true,t:'bool'},
+  {k:'iqamaOfficeDiscountEnabled',l:'السماح بالخصم الإضافي عند التصديق',d:true,t:'bool'},
   {k:'iqamaFloorMode',l:'أرضية خصم المكتب',d:'daily',t:'mode'},
   {k:'iqamaFloorFixed',l:'مبلغ الأرضية الثابت',d:0,sfx:'ريال'},
   {k:'iqamaApprovalDiscountCap3M',l:'سقف الخصم · ٣ أشهر',d:25,sfx:'ريال'},
@@ -1859,8 +1859,8 @@ const renderIqamaDiscountBody=()=>{
   return(
     <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,padding:'16px',borderRadius:12,background:discOn?'rgba(176,125,0,.06)':'var(--bd2)',border:`1px solid ${discOn?C.gold+'55':'var(--bd)'}`}}>
       <div style={{display:'flex',flexDirection:'column',gap:4,minWidth:0}}>
-        <span style={{fontSize:13,fontWeight:600,color:discOn?C.gold:'var(--tx2)'}}>السماح بخصم المكتب عند التصديق</span>
-        <span style={{fontSize:11,color:'var(--tx4)',fontWeight:600,lineHeight:1.8}}>عند التفعيل: يظهر حقل «خصم المكتب» (مبلغ بالريال) في نافذة التصديق بحدّ أدنى لا ينزل تحت سعر اليوم × أيام التجديد. عند التعطيل: لا يُتاح أي خصم.</span>
+        <span style={{fontSize:13,fontWeight:600,color:discOn?C.gold:'var(--tx2)'}}>السماح بالخصم الإضافي عند التصديق</span>
+        <span style={{fontSize:11,color:'var(--tx4)',fontWeight:600,lineHeight:1.8}}>عند التفعيل: يظهر حقل «خصم إضافي» (مبلغ بالريال) في نافذة التصديق بحدّ أدنى لا ينزل تحت سعر اليوم × أيام التجديد. عند التعطيل: لا يُتاح أي خصم.</span>
       </div>
       <button type="button" onClick={()=>setPriceState(p=>({...p,iqamaOfficeDiscountEnabled:!discOn}))} title={discOn?'اضغط للتعطيل':'اضغط للتفعيل'} style={{width:46,height:24,borderRadius:999,border:'none',background:discOn?C.ok:'rgba(192,57,43,.7)',cursor:'pointer',position:'relative',flexShrink:0,padding:0,boxShadow:'0 2px 6px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.12)'}}>
         <span style={{position:'absolute',width:18,height:18,borderRadius:'50%',background:'#fff',top:3,right:discOn?3:25,transition:'.2s'}}/>
@@ -1985,7 +1985,7 @@ const renderIqamaInlineEditor=(s,opts={})=>{
     if(title==='رسوم المكتب'){const daily=v.iqamaOfficeFeeMode==='daily';return(<div style={{display:'flex',flexDirection:'column',gap:12}}>
       {sub('طريقة الحساب')}{ed?seg('iqamaOfficeFeeMode',[{val:'flat',l:'سعر ثابت',sub:'نفس المبلغ'},{val:'daily',l:'يومي',sub:'سعر اليوم × الأيام'}]):pill(daily?'الوضع: يومي':'الوضع: سعر ثابت',C.gold)}
       {ed?grid(2,[fld('officeFee',1),fld('officeDailyRate',1)]):grid(2,[Stat('السعر الثابت',fmtThousands(v.officeFee??0),'ريال'),Stat('سعر اليوم',fmtThousands(v.officeDailyRate??0),'ريال/يوم')])}
-      {sub('الخصم عند التصديق')}{ed?sw('iqamaOfficeDiscountEnabled','مسموح بخصم المكتب','خصم المكتب معطّل'):pill(v.iqamaOfficeDiscountEnabled!==false?'خصم المكتب: مسموح':'خصم المكتب: غير مسموح',v.iqamaOfficeDiscountEnabled!==false?C.ok:C.red)}
+      {sub('الخصم الإضافي عند التصديق')}{ed?sw('iqamaOfficeDiscountEnabled','مسموح بالخصم الإضافي','الخصم الإضافي معطّل'):pill(v.iqamaOfficeDiscountEnabled!==false?'الخصم الإضافي: مسموح':'الخصم الإضافي: غير مسموح',v.iqamaOfficeDiscountEnabled!==false?C.ok:C.red)}
       {v.iqamaOfficeDiscountEnabled!==false&&<>
         {sub('أرضية الخصم — الحد الأدنى لرسوم المكتب بعد الخصم (لا يراها المُصدِّق)')}
         {ed?seg('iqamaFloorMode',[{val:'none',l:'بدون',sub:'حتى صفر'},{val:'fixed',l:'مبلغ ثابت',sub:'حدّ ثابت'},{val:'daily',l:'يومي',sub:'سعر اليوم × الأيام'}]):pill(v.iqamaFloorMode==='fixed'?'الأرضية: مبلغ ثابت':v.iqamaFloorMode==='none'?'الأرضية: بدون':'الأرضية: يومي',C.gold)}

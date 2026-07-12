@@ -5845,12 +5845,19 @@ const PricingCard = ({ breakdown, total = 0, paid = 0, remaining = 0, absher = 0
             <div style={{ borderRadius: 12, border: '1px solid var(--bd)', background: 'var(--inputBg)', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 9 }}>
               {visBreakdown && lineItems.map((it, i) => <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', minHeight: 26 }}><span style={{ fontSize: 12, color: 'var(--tx4)', fontWeight: 600 }}>{it[0]}</span><span style={{ fontSize: 12.5, color: it[2] || 'var(--tx2)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{nmSar(it[1])}</span></div>)}
               {officeFeeV > 0 && visOfficeFee && <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', minHeight: 26 }}><span style={{ fontSize: 12, color: 'var(--tx4)', fontWeight: 600 }}>{T('رسوم المكتب', 'Office Fees')}</span><span style={{ fontSize: 12.5, color: 'var(--tx2)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{nmSar(officeFeeV)}</span></div>}
+              {/* «خصم المكتب» = تغطية المكتب للرسوم الحكومية (office_cover) · «خصم إضافي» = المُدخل عند التصديق (manual_discount) · «خصم المدير» = تخفيض المدير العام على الفاتورة (gmExtra). أسماء مميزة فلا تكرار. */}
               {cover > 0 && visOfficeDisc && <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', minHeight: 26 }}><span style={{ fontSize: 12, color: '#27a046', fontWeight: 600 }}>{T('خصم المكتب', 'Office Discount')}</span><span style={{ fontSize: 12.5, color: '#27a046', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{nmSar(cover)}</span></div>}
-              {((Number(tc.absher_discount || 0) > 0 && visAbsher) || (Number(tc.manual_discount || 0) > 0 && visOfficeDisc)) && <div style={{ marginTop: 4, borderTop: '1px solid var(--bd)', paddingTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {Number(tc.absher_discount || 0) > 0 && visAbsher && <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: 13, color: '#27a046', fontWeight: 600 }}>{T('خصم أبشر', 'Absher Discount')}</span><span style={{ fontSize: 14, color: '#27a046', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{nmSar(Number(tc.absher_discount || 0))}</span></div>}
-                {Number(tc.manual_discount || 0) > 0 && visOfficeDisc && <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: 13, color: '#27a046', fontWeight: 600 }}>{T('خصم المكتب', 'Office Discount')}</span><span style={{ fontSize: 14, color: '#27a046', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{nmSar(Number(tc.manual_discount || 0))}</span></div>}
-              </div>}
-              {gmExtra > 0.005 && visOfficeDisc && <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', minHeight: 26 }}><span style={{ fontSize: 13, color: '#27a046', fontWeight: 600 }}>{T('خصم إضافي', 'Extra Discount')}</span><span style={{ fontSize: 14, color: '#27a046', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{nmSar(gmExtra)}</span></div>}
+              {(() => {
+                const manualD = Number(tc.manual_discount || 0)
+                const showAbsherRow = Number(tc.absher_discount || 0) > 0 && visAbsher
+                const showManualRow = manualD > 0.005 && visOfficeDisc
+                const showGmRow = gmExtra > 0.005 && visOfficeDisc
+                return (showAbsherRow || showManualRow || showGmRow) && <div style={{ marginTop: 4, borderTop: '1px solid var(--bd)', paddingTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {showAbsherRow && <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: 13, color: '#27a046', fontWeight: 600 }}>{T('خصم أبشر', 'Absher Discount')}</span><span style={{ fontSize: 14, color: '#27a046', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{nmSar(Number(tc.absher_discount || 0))}</span></div>}
+                  {showManualRow && <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: 13, color: '#27a046', fontWeight: 600 }}>{T('خصم إضافي', 'Extra Discount')}</span><span style={{ fontSize: 14, color: '#27a046', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{nmSar(manualD)}</span></div>}
+                  {showGmRow && <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: 13, color: '#27a046', fontWeight: 600 }}>{T('خصم المدير', 'Manager Discount')}</span><span style={{ fontSize: 14, color: '#27a046', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{nmSar(gmExtra)}</span></div>}
+                </div>
+              })()}
               {visTotal && <div style={{ marginTop: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', background: 'var(--inputBg)', borderRadius: 10, border: '1px solid var(--bd)' }}><span style={{ fontSize: 14.5, color: C.gold, fontWeight: 600 }}>{T('الإجمالي النهائي', 'Final Total')}</span><span style={{ fontSize: 18, color: C.gold, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(total)}</span></div>}
             </div>
           )
@@ -7740,8 +7747,8 @@ function TcPricingEditModal({ sb, toast, T, inv, paid = 0, tc, onClose, onSaved,
       <ModalSection Icon={Percent} label={T('الخصومات', 'Discounts')}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {showAbsher && feeRow(T('خصم أبشر', 'Absher Discount'), absher, v => { setErr(''); setAbsher(v) }, 'absher', '#27a046')}
-          {feeRow(T('خصم المكتب', 'Office Discount'), manual, v => { setErr(''); setManual(v) }, 'manual', '#27a046')}
-          {feeRow(T('خصم إضافي', 'Extra Discount'), extraDisc, v => { setErr(''); setExtraDisc(v) }, 'extra', '#27a046')}
+          {feeRow(T('خصم إضافي', 'Extra Discount'), manual, v => { setErr(''); setManual(v) }, 'manual', '#27a046')}
+          {feeRow(T('خصم المدير', 'Manager Discount'), extraDisc, v => { setErr(''); setExtraDisc(v) }, 'extra', '#27a046')}
         </div>
       </ModalSection>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '12px 14px', background: 'var(--inputBg)', borderRadius: 12, border: '1px solid var(--bd)' }}>
@@ -7828,8 +7835,8 @@ function RenewalPricingEditModal({ sb, toast, T, inv, paid = 0, tc, onClose, onS
       const push = (label, from, to) => { if (r2(from) !== r2(to)) changes.push({ label, from: Number(from) || 0, to: Number(to) || 0 }) }
       FEE_FIELDS.forEach(f => push(f.label, Number(initFees[f.key]) || 0, Number(fees[f.key]) || 0))
       push(T('خصم أبشر', 'Absher Discount'), Number(initAbsher) || 0, Number(absher) || 0)
-      push(T('خصم المكتب', 'Office Discount'), Number(initManual) || 0, Number(manual) || 0)
-      push(T('خصم إضافي', 'Extra Discount'), Number(initExtra) || 0, extraV)
+      push(T('خصم إضافي', 'Extra Discount'), Number(initManual) || 0, Number(manual) || 0)
+      push(T('خصم المدير', 'Manager Discount'), Number(initExtra) || 0, extraV)
       await syncInvoicePricing(sb, inv.id, newFinal, { logEntry: { by: user?.id || null, by_name: user?.person?.name_ar || user?.person?.name_en || null, total: { from: invTotal0, to: newFinal }, changes } })
       onSaved?.(); setDone(true)
     } catch { setErr(T('تعذر الحفظ', 'Save failed')) }
