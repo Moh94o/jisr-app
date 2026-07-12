@@ -1217,7 +1217,8 @@ ${noticeBlk}
             const pricedAtMs = r.priced_at ? new Date(r.priced_at).getTime() : 0
             const expired = pricedAtMs ? (Date.now() - pricedAtMs) > 5 * 86400000 : false
             const showApprove = r.status === 'priced' && canApprove && modalAllowed(user, 'renewal_calc', 'approve_quote')
-            const showCancel = ['priced', 'approved'].includes(r.status) && canApprove && canCardBtn(user, 'renewal_calc', 'actions_print', 'cancel') && modalAllowed(user, 'renewal_calc', 'cancel_quote')
+            // حسبة منتهية بدون فاتورة = ملغاة فعلياً ⇒ يختفي زر الإلغاء
+            const showCancel = ['priced', 'approved'].includes(r.status) && canApprove && canCardBtn(user, 'renewal_calc', 'actions_print', 'cancel') && modalAllowed(user, 'renewal_calc', 'cancel_quote') && !(expired && !r.invoice_id)
             return <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {(showApprove || showCancel) && <div style={{ display: 'flex', gap: 8 }}>
               {showApprove && <button onClick={() => { if (expired) { toast(T('انتهت صلاحية التسعيرة — لا يمكن التصديق', 'Quote expired')); return } setApproveSaved(false); const _rc = getIqamaRenewalPricingConfig(r.branch_id || null); setApproveForm({ _id: r.id, _workerName: r.worker_name, _quoteNo: r.quote_no, _total: Number(r.total_amount || 0), _officeFee: Number(r.office_fee || 0), _renewalMonths: Number(r.renewal_months || 0), _discCap: renewalApprovalDiscountCap(_rc, r.renewal_months), discValue: '', floorMode: _rc.iqamaOfficeDiscountEnabled === false ? 'none' : 'daily', floorFixed: '', floorDaily: String(_rc.officeDailyRate || cfg.officeDailyRate || ''), approval_note: '' }) }} disabled={expired}
