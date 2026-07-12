@@ -318,27 +318,26 @@ export const landsOnInvoices = (user) => isInvoiceIssuer(user) || isAccountant(u
 // 'specific' ⇒ the chosen ids, 'inherit' ⇒ the account's own offices.
 export const tabOffices = (user, tabId) => {
   if (isGM(user)) return null
-  // An explicit per-user office override (advanced) wins.
   const { mode, ids } = tabOfficePolicy(user, tabId)
-  // Permanent rule: invoice issuers (all three tabs) and pricers (the quote tabs)
-  // are always capped to their own office(s), regardless of an all-branches role
-  // assignment or an 'all' office policy — so a single-office holder never sees
-  // other offices' calculations. Mirrored in the DB RLS (current_user_quote_offices).
-  const officeBound = isInvoiceIssuer(user) || (isPricer(user) && ['transfer_calc', 'renewal_calc'].includes(tabId))
-  if (['invoices', 'transfer_calc', 'renewal_calc'].includes(tabId) && officeBound) {
-    const own = userOffices(user)
-    if (own.length) return (mode === 'specific' && ids.length) ? own.filter(id => ids.includes(id)) : own
-    // No assigned office → fall through to the normal logic (never lock out).
-  }
+  const own = userOffices(user)
+  // Explicit admin override to WIDEN a user to every office.
   if (mode === 'all') return null
-  // 'specific' with at least one office ⇒ those offices. An empty specific list
-  // is a misconfiguration (restrict-to-nothing) — treat it as "not set" and fall
-  // through to the account's own offices so the user is never locked out.
-  if (mode === 'specific' && ids.length) return ids
-  // Default: the branches where the user's role(s) grant this tab's view/access.
+  // Explicit 'specific' list ⇒ those offices, kept within the user's own offices
+  // when they have any. An empty specific list is a misconfiguration → ignored.
+  if (mode === 'specific' && ids.length) {
+    return own.length ? ids.filter(id => own.includes(id)) : ids
+  }
+  // DEFAULT (inherit): a non-GM user is automatically scoped to their ASSIGNED
+  // office(s) on EVERY page — independent of role name or how the role's branch
+  // grant was configured. The assigned office (users.branch_ids / primary_branch_id)
+  // is the single source of truth for office scope, so an all-branches role grant
+  // never widens a single-office user. Mirrored in the DB RLS
+  // (current_user_invoice_office_scope / current_user_quote_offices).
+  if (own.length) return own
+  // No assigned office → never lock out; fall back to the role's per-branch grant.
   const mod = tabModule(tabId)
-  let scope = permBranchScope(user, mod, 'view')
-  if (scope === undefined) return userOffices(user)        // legacy session
+  const scope = permBranchScope(user, mod, 'view')
+  if (scope === undefined) return null            // legacy session — RLS still guards
   if (Array.isArray(scope) && scope.length === 0) {
     const acc = permBranchScope(user, mod, 'access')
     if (acc === null) return null
