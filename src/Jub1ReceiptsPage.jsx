@@ -838,6 +838,8 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, T, sb, tt, u
     if (perm === 'any') return can(user, 'jub1_receipts.mark_complete') || can(user, 'jub1_receipts.mark_reviewed')
     return can(user, 'jub1_receipts.' + perm)
   }
+  // enforcement: التحرير المباشر (بيانات/دفعات/ربط السندات) يتطلب صلاحية jub1_receipts.edit
+  const canEditReceipt = can(user, 'jub1_receipts.edit')
   // انتقالات كل حالة: [الحالة الهدف، الصلاحية المطلوبة]
   const STATUS_FLOW = {
     draft:        [['complete', 'mark_complete'], ['needs_review', 'mark_complete'], ['cancelled', 'mark_complete']],
@@ -940,6 +942,7 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, T, sb, tt, u
   }, [sb, allShown])
 
   const toggleLink = async (targetId, link) => {
+    if (!canEditReceipt) return
     setLinkBusy(targetId)
     await onLinkToggle?.(e.id, targetId, link)
     setLinkBusy(null)
@@ -960,7 +963,7 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, T, sb, tt, u
   }
 
   const doSave = async () => {
-    if (saving) return
+    if (saving || !canEditReceipt) return
     setSaving(true)
     const patch = {
       client_name: f.client_name || null, client_phone: f.client_phone || null, client_id_no: f.client_id_no || null,
@@ -1076,8 +1079,8 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, T, sb, tt, u
             <span style={{ direction: 'ltr' }}>{fmt(num(r.primary_receipt_amount) || paidOf(r))}</span><span>·</span>
             <span style={{ direction: 'ltr' }}>{dt(r.receipt_date)}</span>
           </div>
-          <button onClick={() => toggleLink(r.id, !on)} disabled={busy}
-            style={{ marginTop: 3, height: 32, borderRadius: 8, cursor: busy ? 'default' : 'pointer', fontFamily: 'Cairo, Tajawal, sans-serif', fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, opacity: busy ? .6 : 1,
+          <button onClick={() => toggleLink(r.id, !on)} disabled={busy || !canEditReceipt}
+            style={{ marginTop: 3, height: 32, borderRadius: 8, cursor: (busy || !canEditReceipt) ? 'default' : 'pointer', fontFamily: 'Cairo, Tajawal, sans-serif', fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, opacity: (busy || !canEditReceipt) ? .6 : 1,
               border: on ? '1px solid rgba(192,57,43,.35)' : '1px solid rgba(31,122,69,.45)',
               background: on ? 'rgba(192,57,43,.06)' : 'rgba(31,122,69,.1)',
               color: on ? '#c0392b' : 'var(--ok,#1f7a45)' }}>
@@ -1223,10 +1226,16 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, T, sb, tt, u
               <span style={{ fontSize: 12.5, fontWeight: 700, color: e.review_status === 'cancelled' ? '#c0392b' : 'var(--tx2)' }}>{T('السند ملغي', 'Receipt cancelled')}</span>
               <span style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 600 }}>{T('فعّله إذا كان مكتوباً على السند «ملغي» أو عليه X بالأحمر', 'Turn on if marked cancelled / red X')}</span>
             </div>
-            <button onClick={() => onStatus?.(e.review_status === 'cancelled' ? 'draft' : 'cancelled')} title={T('تبديل حالة الإلغاء', 'Toggle cancelled')}
-              style={{ position: 'relative', width: 46, height: 26, borderRadius: 20, border: 'none', cursor: 'pointer', flexShrink: 0, direction: 'ltr', transition: '.15s', background: e.review_status === 'cancelled' ? '#c0392b' : 'rgba(120,120,120,.35)' }}>
+            {(() => {
+              // enforcement: الإلغاء يتطلب mark_complete، وإلغاء الإلغاء (→مسودة) يتطلب any — نفس بوّابة نافذة الحالة
+              const canToggleCancel = e.review_status === 'cancelled' ? canDo('any') : canDo('mark_complete')
+              return (
+            <button onClick={() => { if (!canToggleCancel) return; onStatus?.(e.review_status === 'cancelled' ? 'draft' : 'cancelled') }} disabled={!canToggleCancel} title={T('تبديل حالة الإلغاء', 'Toggle cancelled')}
+              style={{ position: 'relative', width: 46, height: 26, borderRadius: 20, border: 'none', cursor: canToggleCancel ? 'pointer' : 'not-allowed', flexShrink: 0, direction: 'ltr', transition: '.15s', opacity: canToggleCancel ? 1 : .5, background: e.review_status === 'cancelled' ? '#c0392b' : 'rgba(120,120,120,.35)' }}>
               <span style={{ position: 'absolute', top: 3, left: e.review_status === 'cancelled' ? 23 : 3, width: 20, height: 20, borderRadius: '50%', background: '#fff', transition: 'left .15s', boxShadow: '0 1px 3px rgba(0,0,0,.3)' }} />
             </button>
+              )
+            })()}
           </div>
         </div>
 
@@ -1436,7 +1445,7 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, T, sb, tt, u
       </div>
 
       {/* شريط الحفظ العائم — يظهر فقط عند وجود تعديلات غير محفوظة */}
-      {dirty && (
+      {dirty && canEditReceipt && (
         <div style={{ position: 'sticky', bottom: 14, zIndex: 30, display: 'flex', justifyContent: 'center', marginTop: 18 }}>
           <div style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '10px 16px', borderRadius: 14, background: 'var(--modal-bg)', border: '1px solid rgba(176,125,0,.4)', boxShadow: '0 12px 34px rgba(0,0,0,.28)' }}>
             <span style={{ fontSize: 12, color: 'var(--tx3)', fontWeight: 700 }}>{T('تعديلات غير محفوظة', 'Unsaved changes')}</span>

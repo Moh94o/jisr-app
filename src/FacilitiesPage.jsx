@@ -4160,6 +4160,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
     } finally { clearTimeout(t) }
   }
   const startNitaqFetch = async (row) => {
+    if (!canPerm(user, 'facilities.sync')) return   // enforcement: النطاق يُجلب ويُكتب فقط بصلاحية المزامنة
     setNitaqFetch({ phase: 'loading', row, sessionToken: null, captchaImage: null, captchaInput: '', error: null, result: null })
     try {
       const r = await callNitaqFn({ action: 'init' })
@@ -5443,7 +5444,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                         // زر جلب/تحديث النطاق — أيقونة فقط، يظهر دائماً (سواء وُجد
                         // نطاق أم لا) متى توفّر شطرا رقم الموارد البشرية
                         // (مكتب العمل + التسلسل) المطلوبان للاستعلام.
-                        const canFetch = r.hrsd_labor_office_id != null && r.hrsd_sequence_number != null
+                        const canFetch = r.hrsd_labor_office_id != null && r.hrsd_sequence_number != null && canPerm(user, 'facilities.sync')
                         const fetchBtn = canFetch ? (
                           <button type="button" className="sbcv-chip-btn icon-only"
                             onClick={e => { e.stopPropagation(); startNitaqFetch(r) }}

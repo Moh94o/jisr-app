@@ -285,7 +285,7 @@ const StageTimelineTip = ({ title, stages, T }) => { const { dir } = useFKLang()
   </div>
 ) }
 
-function InvCard({ d, row, sb, T, isAr, toast, onClick }) {
+function InvCard({ d, row, sb, T, isAr, toast, onClick, user }) {
   const S = CARD_S
   // ── إجراءات الكرت: نسخ رسالة الواتساب (نفس صيغة القروب) + طباعة الفاتورة ──
   const [waCopied, setWaCopied] = useState(false)
@@ -345,7 +345,7 @@ function InvCard({ d, row, sb, T, isAr, toast, onClick }) {
       <ActBtn title={T('نسخ رسالة الواتساب', 'Copy WhatsApp message')} onClick={copyWa} color={waCopied ? C.ok : '#25D366'}>
         {waCopied ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg> : WaIco}
       </ActBtn>
-      <ActBtn title={T('طباعة الفاتورة', 'Print invoice')} onClick={doPrint} color={C.gold} busy={printing}>{PrintIco}</ActBtn>
+      {canPerm(user, 'invoices.print') && <ActBtn title={T('طباعة الفاتورة', 'Print invoice')} onClick={doPrint} color={C.gold} busy={printing}>{PrintIco}</ActBtn>}
     </span>
   ) : null
   // ── حالة المعاملة الموحَّدة — مصدر واحد يقود تاق الكرت + لون الحدود عند المرور + البوتوم بار ──
@@ -1748,7 +1748,7 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
                     ? ((Array.isArray(sr?.other_applications) ? sr.other_applications[0] : sr?.other_applications)?.details?.salary_phase || null)
                     : null,
                 }
-                return <InvCard key={r.id} d={d} row={r} sb={sb} T={T} isAr={isAr} toast={toast} onClick={() => setDetail(r)} />
+                return <InvCard key={r.id} d={d} row={r} sb={sb} T={T} isAr={isAr} toast={toast} onClick={() => setDetail(r)} user={user} />
               })}
             </div>
           </div>
