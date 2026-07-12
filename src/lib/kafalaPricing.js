@@ -28,7 +28,10 @@ export const KAFALA_DEFAULTS={
   // وضع حساب رسوم المكتب لتجديد الإقامة: 'flat' سعر ثابت · 'daily' سعر اليوم × أيام التجديد
   iqamaOfficeFeeMode:'flat',
   medicalGraceMonths:2,medicalGraceDays:10,medGovCover:1000,
-  medicalBrackets:[{min:20,max:30,rate:400},{min:30,max:40,rate:500},{min:40,max:50,rate:600},{min:50,max:60,rate:700},{min:60,max:70,rate:900}]
+  medicalBrackets:[{min:20,max:30,rate:400},{min:30,max:40,rate:500},{min:40,max:50,rate:600},{min:50,max:60,rate:700},{min:60,max:70,rate:900}],
+  // حاسبة تاريخ الانتهاء (مطابقة قوى) — أيام تُضاف لكل مدة + تعويض تأخير الإقامات المنتهية.
+  expiryDays3:90,expiryDays6:178,expiryDays9:267,expiryDays12:355,
+  overdueEnabled:true,overdueQuarterDays:90,
 }
 
 // ── Per-branch (office) pricing overrides ──

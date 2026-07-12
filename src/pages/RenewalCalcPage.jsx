@@ -336,7 +336,7 @@ export default function RenewalCalcPage({ sb, toast, user, lang, emptyIcon, onNe
       const note = (approveForm.approval_note || '').trim()
       if (note) patch.approval_note = note
       // إعادة تجميد القيم المشتقّة بعد خصم المكتب (يتأثّر صافي رسوم المكتب)
-      Object.assign(patch, computeRenewalDerived({ ...detailsRow, ...patch }))
+      Object.assign(patch, computeRenewalDerived({ ...detailsRow, ...patch }, getIqamaRenewalPricingConfig(detailsRow?.branch_id || null)))
       const { error } = await sb.from('iqama_renewal_calculation').update(patch).eq('id', approveForm._id).is('deleted_at', null)
       if (error) throw error
       setApproveSaved(true)
@@ -412,7 +412,7 @@ export default function RenewalCalcPage({ sb, toast, user, lang, emptyIcon, onNe
       }
       if (!auditRows.length) { setCardEdit(null); setCardSaving(false); return }
       // إعادة تجميد القيم المشتقّة بعد التعديل (الرسوم/مدة التجديد/انتهاء الإقامة كلها تؤثّر عليها)
-      Object.assign(patch, computeRenewalDerived({ ...r, ...patch }))
+      Object.assign(patch, computeRenewalDerived({ ...r, ...patch }, getIqamaRenewalPricingConfig(r?.branch_id || null)))
       patch.updated_at = now; patch.updated_by = user?.id || null
       const { error } = await sb.from('iqama_renewal_calculation').update(patch).eq('id', r.id).is('deleted_at', null)
       if (error) throw error

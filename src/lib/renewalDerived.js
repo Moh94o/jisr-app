@@ -14,9 +14,11 @@
 //   expected_duration_months  المدة المتوقعة (= مدة التجديد)
 //   expected_expiry_date    تاريخ انتهاء الإقامة المتوقع بعد التجديد
 
+import { computeRenewalExpiryYMD } from './expiryDuration.js'
+
 const num = v => Number(v || 0)
 
-export function computeRenewalDerived(row = {}) {
+export function computeRenewalDerived(row = {}, cfg = null) {
   const iqamaFee = num(row.iqama_renewal_fee)
   const wpFee = num(row.work_permit_fee)
   const medFee = num(row.medical_fee)
@@ -38,25 +40,22 @@ export function computeRenewalDerived(row = {}) {
   // أشهر تجديد الإقامة المحتسبة — المدى من انتهاء الإقامة حتى (المرجع + أشهر التجديد) عند انتهاء الإقامة.
   // رسوم الإقامة تُباع بمضاعفات 3 أشهر — أي كسر يُقرّب لأعلى لأقرب مضاعف لـ3 (4→6) — مطابقةً لحسبة نقل الكفالة.
   const ceil3 = n => n > 0 ? Math.ceil(n / 3) * 3 : 0
+  // تاريخ الانتهاء الجديد — قاعدة قوى (أيام ثابتة + تعويض تأخير المنتهية). مصدر موحّد للعرض والرسوم.
+  const expected_expiry_date = (row.iqama_expiry_gregorian && renMo > 0)
+    ? (computeRenewalExpiryYMD(row.iqama_expiry_gregorian, renMo, cfg, { asOf: refDate }) || null)
+    : null
   let billed_renewal_months = ceil3(renMo)
   const exp = row.iqama_expiry_gregorian ? new Date(row.iqama_expiry_gregorian) : null
   if (exp && !isNaN(exp)) {
     const ref = new Date(refDate); ref.setHours(0, 0, 0, 0); exp.setHours(0, 0, 0, 0)
     if (exp < ref) {
-      const end = new Date(ref); end.setMonth(end.getMonth() + renMo)
+      // إقامة منتهية → الفوترة على المدى من الانتهاء القديم إلى الانتهاء الجديد (قاعدة قوى)
+      const end = expected_expiry_date ? new Date(expected_expiry_date) : (() => { const e = new Date(ref); e.setMonth(e.getMonth() + renMo); return e })()
       let m = (end.getFullYear() - exp.getFullYear()) * 12 + (end.getMonth() - exp.getMonth())
       let d = end.getDate() - exp.getDate()
       if (d < 0) { m -= 1; d += new Date(end.getFullYear(), end.getMonth(), 0).getDate() }
       billed_renewal_months = ceil3(d > 0 ? m + 1 : m)
     }
-  }
-
-  // تاريخ الانتهاء المتوقع = (انتهاء الإقامة إن كان مستقبلاً، وإلا المرجع) + أشهر التجديد
-  let expected_expiry_date = null
-  if (renMo > 0) {
-    const iqExp = row.iqama_expiry_gregorian ? new Date(row.iqama_expiry_gregorian) : null
-    const base = (iqExp && !isNaN(iqExp) && iqExp > refDate) ? new Date(iqExp) : new Date(refDate)
-    if (!isNaN(base)) { base.setMonth(base.getMonth() + renMo); expected_expiry_date = base.toISOString().slice(0, 10) }
   }
 
   return {

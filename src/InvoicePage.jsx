@@ -17,6 +17,7 @@ import { DONE_INPUTS, SALARY_RETURN_INPUTS, SELF_PARTY_DONE_SVCS, DONE_FILE_NOTE
 import { swrGet, swrSet, useLiveRefresh, emitDataChanged } from './lib/liveData.js'
 import { syncInvoicePricing } from './lib/invoicePricingSync.js'
 import { computeRenewalDerived } from './lib/renewalDerived.js'
+import { getIqamaRenewalPricingConfig } from './lib/kafalaPricing.js'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = {
@@ -7816,7 +7817,7 @@ function RenewalPricingEditModal({ sb, toast, T, inv, paid = 0, tc, onClose, onS
       setPatch('manual_discount', Number(manual) || 0)
       patch.subtotal = subtotal
       patch.total_amount = quoteTotal
-      Object.assign(patch, computeRenewalDerived({ ...tc, ...patch }))
+      Object.assign(patch, computeRenewalDerived({ ...tc, ...patch }, getIqamaRenewalPricingConfig(tc.branch_id || null)))
       patch.updated_at = now; patch.updated_by = user?.id || null
       const { error } = await sb.from('iqama_renewal_calculation').update(patch).eq('id', tc.id).is('deleted_at', null)
       if (error) throw error

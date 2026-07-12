@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom'
 import { User, FileText, Calculator, Tag, ChevronRight, ChevronLeft, Plus, Trash2, Check, X, AlertCircle, Briefcase, Phone, Calendar, ArrowLeftRight, Search, Shield, CreditCard, Clock, Building2, CheckCircle2, Circle, Info, Printer, Database, FileCheck, Send, Lock, RefreshCw, Wallet, Copy } from 'lucide-react'
 import { getSupabase } from '../lib/supabase.js'
 import { getKafalaPricingConfig } from '../lib/kafalaPricing.js'
+import { computeRenewalExpiryYMD, overdueQuarters } from '../lib/expiryDuration.js'
 import { noDash } from '../lib/utils.js'
 import { Modal as FKModal, Select as FKSelect, Flag, ActionButton } from '../components/ui/FormKit.jsx'
 import { stageVisible, fieldVisible, isGM } from '../lib/permissions.js'
@@ -748,8 +749,18 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
     return Math.max(0, Math.ceil((now - exp) / (30 * 86400000)))
   }, [f.iqamaExpiry])
 
+  // ── تاريخ الانتهاء الجديد المتوقع — قاعدة قوى (أيام ثابتة لكل مدة + تعويض تأخير المنتهية) ──
+  // مصدر موحّد للعرض والرسوم بدل الحساب الميلادي البسيط. راجع lib/expiryDuration.js.
+  const newExpiryYMD = useMemo(() => {
+    if (!f.iqamaExpiry) return null
+    if (!f.renewIqama) return f.iqamaExpiry
+    const months = parseInt(f.renewalMonths) || 0
+    if (!months) return null
+    return computeRenewalExpiryYMD(f.iqamaExpiry, months, cfg, { asOf: new Date() })
+  }, [f.iqamaExpiry, f.renewIqama, f.renewalMonths, cfg])
+
   // Expected iqama duration in CALENDAR DAYS — mirrors the tab-3 display ("المدة المتوقعة في الإقامة")
-  // and drives the hidden office discount floor. Picks procDays from المدة المتوقعة cases.
+  // and drives the hidden office discount floor. النهاية = تاريخ الانتهاء الجديد (قاعدة قوى).
   const expectedIqamaDays = useMemo(() => {
     if (!f.iqamaExpiry) return 0
     const exp = new Date(f.iqamaExpiry); if (isNaN(exp)) return 0
@@ -761,19 +772,11 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
     const procDays = !f.renewIqama
       ? (parseInt(cfg.procDaysCase1) || 7)
       : daysSinceExpiry >= threshold ? (parseInt(cfg.procDaysCase2) || 7) : (parseInt(cfg.procDaysCase3) || 7)
-    const renewalMos = f.renewIqama ? (parseInt(f.renewalMonths) || 0) : 0
-    // expected expiry — ignores old expiry when renewing a long-expired iqama (case 2)
-    let expectedExpiry
-    if (!f.renewIqama) expectedExpiry = exp
-    else if (daysSinceExpiry >= threshold) {
-      expectedExpiry = new Date(today); expectedExpiry.setDate(expectedExpiry.getDate() + (parseInt(cfg.procDaysCase2) || 7))
-      expectedExpiry.setMonth(expectedExpiry.getMonth() + renewalMos)
-    } else {
-      expectedExpiry = new Date(exp); expectedExpiry.setMonth(expectedExpiry.getMonth() + renewalMos)
-    }
+    const expectedExpiry = newExpiryYMD ? new Date(newExpiryYMD) : exp
+    if (isNaN(expectedExpiry)) return 0
     const base = new Date(today); base.setDate(base.getDate() + procDays)
     return Math.max(0, Math.round((expectedExpiry - base) / 86400000))
-  }, [f.iqamaExpiry, f.renewIqama, f.renewalMonths, cfg])
+  }, [f.iqamaExpiry, f.renewIqama, f.renewalMonths, cfg, newExpiryYMD])
 
   // ═══ Auto-sync effects ═══
   // Medical fee ← age bracket from DOB (always charged on an age basis)
@@ -810,13 +813,15 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
     if (!exp || isNaN(exp)) return ceil3(renewalMos)
     const today = new Date(); today.setHours(0, 0, 0, 0)
     exp.setHours(0, 0, 0, 0)
-    if (exp >= today) return ceil3(renewalMos)
-    const end = new Date(today); end.setMonth(end.getMonth() + renewalMos)
+    if (exp >= today) return ceil3(renewalMos)   // إقامة سارية → الأشهر المختارة فقط
+    // إقامة منتهية → الفوترة على المدى من الانتهاء القديم إلى الانتهاء الجديد (قاعدة قوى)
+    const end = newExpiryYMD ? new Date(newExpiryYMD) : (() => { const e = new Date(today); e.setMonth(e.getMonth() + renewalMos); return e })()
+    if (isNaN(end)) return ceil3(renewalMos)
     let m = (end.getFullYear() - exp.getFullYear()) * 12 + (end.getMonth() - exp.getMonth())
     let d = end.getDate() - exp.getDate()
     if (d < 0) { m -= 1; d += new Date(end.getFullYear(), end.getMonth(), 0).getDate() }
     return ceil3(d > 0 ? m + 1 : m)
-  }, [f.iqamaExpiry, f.renewalMonths])
+  }, [f.iqamaExpiry, f.renewalMonths, newExpiryYMD])
   useEffect(() => {
     const renewalBase = billedRenewalMonths * (parseFloat(cfg.iqamaPerMonth) || 0)
     const fine = iqamaInGracePeriod
@@ -1190,22 +1195,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
     const renewalMos = parseInt(f.renewalMonths) || 0
     const officeMos = iqamaRemainderParts.months + renewalMos
     const officeDays = iqamaRemainderParts.days
-    const expectedExpiry = (() => {
-      if (!f.iqamaExpiry) return null
-      const exp = new Date(f.iqamaExpiry); if (isNaN(exp)) return null
-      const today = new Date(); today.setHours(0,0,0,0)
-      // Case 1: no renewal → end = current expiry
-      if (!f.renewIqama) return f.iqamaExpiry
-      const threshold = parseInt(cfg.thresholdCase2) || 30
-      const daysSinceExpiry = Math.floor((today - exp) / 86400000)
-      // Case 2: expired ≥ threshold — use case-2 processing days from today
-      // Case 3: still valid or recently expired — use current expiry
-      const start = daysSinceExpiry >= threshold
-        ? (() => { const d = new Date(today); d.setDate(d.getDate() + (parseInt(cfg.procDaysCase2) || 7)); return d })()
-        : new Date(exp)
-      start.setMonth(start.getMonth() + renewalMos)
-      return start.toISOString().slice(0, 10)
-    })()
+    const expectedExpiry = newExpiryYMD
     const rows = [
       [T('رسوم نقل الكفالة','Sponsorship Transfer Fee'), transferFee],
       !f.transferOnly && renewalMos > 0 ? [T('تجديد الإقامة','Iqama Renewal'), iqamaRenewalFee] : null,
@@ -1748,18 +1738,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
                 const daysSinceExpiry = Math.floor((today - exp) / 86400000)
                 return daysSinceExpiry >= threshold ? (parseInt(cfg.procDaysCase2) || 7) : (parseInt(cfg.procDaysCase3) || 7)
               })()
-              const expectedExpiry = (() => {
-                if (!f.iqamaExpiry) return null
-                const exp = new Date(f.iqamaExpiry); if (isNaN(exp)) return null
-                const today = new Date(); today.setHours(0,0,0,0)
-                if (!f.renewIqama) return f.iqamaExpiry
-                const daysSinceExpiry = Math.floor((today - exp) / 86400000)
-                const start = daysSinceExpiry >= threshold
-                  ? (() => { const d = new Date(today); d.setDate(d.getDate() + (parseInt(cfg.procDaysCase2) || 7)); return d })()
-                  : new Date(exp)
-                start.setMonth(start.getMonth() + renewalMonthsNum)
-                return start.toISOString().slice(0, 10)
-              })()
+              const expectedExpiry = newExpiryYMD
               // Expected iqama duration expressed as months + days, measured from (today − 7 days) to the expected expiry.
               // The −7 day offset accounts for the processing buffer before the renewal actually takes effect.
               const expectedIqamaDuration = (() => {

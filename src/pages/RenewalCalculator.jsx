@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react'
 import { RefreshCw, User, Search, Calendar, Briefcase, Building2, Calculator, Plus, X, Check, Send, ChevronLeft, ChevronRight, AlertCircle, ArrowLeftRight, ShieldAlert, BadgeCheck, IdCard, Copy, Hash, CheckCircle2, Circle, Phone, Globe, HeartPulse, Wallet, Lock } from 'lucide-react'
 import { Modal as FKModal, C, F, ActionButton, Select } from '../components/ui/FormKit.jsx'
 import { getIqamaRenewalPricingConfig } from '../lib/kafalaPricing.js'
+import { computeRenewalExpiryYMD } from '../lib/expiryDuration.js'
 import { noDash } from '../lib/utils.js'
 import { computeRenewalDerived } from '../lib/renewalDerived.js'
 import { stageVisible, fieldVisible, fieldEditable } from '../lib/permissions.js'
@@ -336,11 +337,17 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
     const exp = worker.iqama_expiry_date ? new Date(worker.iqama_expiry_date) : null
     if (exp && !isNaN(exp)) exp.setHours(0, 0, 0, 0)
     const expired = !!(exp && !isNaN(exp) && exp < today)
+    // تاريخ الانتهاء الجديد المتوقع — قاعدة قوى (أيام ثابتة + تعويض تأخير المنتهية). مصدر موحّد للعرض والرسوم.
+    const newExpiryYMD = (exp && !isNaN(exp) && renewalMonths)
+      ? computeRenewalExpiryYMD(worker.iqama_expiry_date, renewalMonths, cfg, { asOf: today })
+      : null
+    const newExpiryDate = newExpiryYMD ? new Date(newExpiryYMD) : null
     // رسوم الإقامة تُباع بمضاعفات 3 أشهر — أي كسر يُقرّب لأعلى لأقرب مضاعف لـ3 (4→6، 7→9…) — مطابقةً لحسبة نقل الكفالة.
     const ceil3 = n => n > 0 ? Math.ceil(n / 3) * 3 : 0
     let billedMonths = ceil3(renewalMonths)
     if (expired) {
-      const end = new Date(today); end.setMonth(end.getMonth() + renewalMonths)
+      // الفوترة على المدى من الانتهاء القديم إلى الانتهاء الجديد (قاعدة قوى)
+      const end = (newExpiryDate && !isNaN(newExpiryDate)) ? newExpiryDate : (() => { const e = new Date(today); e.setMonth(e.getMonth() + renewalMonths); return e })()
       let m = (end.getFullYear() - exp.getFullYear()) * 12 + (end.getMonth() - exp.getMonth())
       let d = end.getDate() - exp.getDate()
       if (d < 0) { m -= 1; d += new Date(end.getFullYear(), end.getMonth(), 0).getDate() }
@@ -436,10 +443,12 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
     const govExcess = iqamaExcess + wpExcess + medExcess
     const extrasTotal = (f.extras || []).reduce((s, e) => s + (parseFloat(e.amount) || 0), 0)
     const subtotal = officeFee + govExcess + fine + profChange + extrasTotal
-    // المدة المتوقعة في الإقامة بعد التجديد
-    const expBase = (exp && !isNaN(exp) && exp > today) ? new Date(exp) : new Date(today)
-    const expectedExpiryDate = new Date(expBase); expectedExpiryDate.setMonth(expectedExpiryDate.getMonth() + renewalMonths)
-    const expectedExpiry = expectedExpiryDate.toISOString().slice(0, 10)
+    // تاريخ الانتهاء الجديد المتوقع بعد التجديد — قاعدة قوى (fallback ميلادي للمدد غير المعيارية)
+    const expectedExpiry = newExpiryYMD || (() => {
+      const expBase = (exp && !isNaN(exp) && exp > today) ? new Date(exp) : new Date(today)
+      const d = new Date(expBase); d.setMonth(d.getMonth() + renewalMonths)
+      return d.toISOString().slice(0, 10)
+    })()
     return { expired, inGrace, renewalBase, fine, workPermit, medical, officeFee, profChange, iqamaExcess, wpExcess, medExcess, govExcess, extrasTotal, subtotal, billedMonths, expectedExpiry, coverIqama, coverWorkPermit, medGovCover, medInsuredValid, medDaysLeft, wpBilledMonths, wpExpired, wpBasisFellBack, wpLongExpired, disabledPeriods, profChangeIsFree, officeMode, officeDays, officeDailyRate, officeFloor }
   }, [worker, f, cfg])
 
@@ -483,7 +492,7 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
         branch_id: user?.branch_id || user?.primary_branch_id || null,
       }
       // لقطة مجمّدة للقيم المشتقّة — تُخزَّن مع الصف فلا تتغيّر القيم التاريخية لاحقًا
-      Object.assign(row, computeRenewalDerived(row))
+      Object.assign(row, computeRenewalDerived(row, cfg))
       const { data, error } = await sb.from('iqama_renewal_calculation').insert(row).select('quote_no').maybeSingle()
       if (error) throw error
       const warnings = []
