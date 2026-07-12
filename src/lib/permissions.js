@@ -17,7 +17,7 @@
 //   • office:<tab>      → { mode:'inherit'|'all'|'specific', ids:[branchId…] }
 //                         per-tab office scope (default 'inherit' = account offices).
 
-import { tabModule, MODULE_ACTIONS } from './permCatalog.js'
+import { tabModule, MODULE_ACTIONS, TAB_MODULE } from './permCatalog.js'
 export { tabModule }
 
 // Merge several roles' granular ui_visibility maps into one effective map for a
@@ -103,7 +103,12 @@ export const can = (user, code) => {
 }
 
 // Sidebar page id → the "view"/"access" permission code that gates it.
-// Pages absent from this map are never permission-gated (always allowed).
+// This map only holds the pages whose gating permission DIFFERS from their own
+// module (e.g. temp_workers/work_visas share workers.view; admin_roles shares
+// admin_permissions.view). Every other real leaf tab is gated automatically by
+// its own module's view/access action (see canViewPage) — so a page absent here
+// is NOT "always allowed": if it's a real tab (present in TAB_MODULE) it still
+// requires that module's grant. Only non-tab ids (hub parents, home) are open.
 // Note: the transfer-calc tab is gated by the `quotations` module (the active
 // quote/transfer domain); the standalone `transfer_calc` module is a legacy
 // duplicate and is intentionally not used here.
@@ -133,10 +138,23 @@ export const PAGE_VIEW_PERM = {
 }
 
 // Does the user have view/access permission for a sidebar page id? GM ⇒ always.
+// Resolution order:
+//   1. home → always viewable (universal landing; a user is never dropped on a
+//      "no access" screen at login).
+//   2. an explicit PAGE_VIEW_PERM override (page gated by a DIFFERENT module).
+//   3. a real leaf tab (present in TAB_MODULE) → gated by its OWN module's
+//      view/access grant. This is what stops ungated service/task/admin tabs
+//      (الخدمات/المهام/الحسابات البنكية/الرسوم/السدادات الخارجية…) from leaking
+//      into the sidebar for a role that was never granted them.
+//   4. anything else (hub parents like finance_hub, unknown ids) → open; the
+//      sidebar only renders a hub when at least one of its children is viewable.
 export const canViewPage = (user, pageId) => {
   if (isGM(user)) return true
+  if (pageId === 'home') return true
   const code = PAGE_VIEW_PERM[pageId]
-  return code ? can(user, code) : true
+  if (code) return can(user, code)
+  if (Object.prototype.hasOwnProperty.call(TAB_MODULE, pageId)) return sectionViewable(user, pageId)
+  return true
 }
 
 // ── Tab-scoped action check ─────────────────────────────────────────────
