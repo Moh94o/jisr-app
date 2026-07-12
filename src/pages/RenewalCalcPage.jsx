@@ -1423,6 +1423,7 @@ ${noticeBlk}
   const brIco = ico(<><path d="M3 21h18" /><path d="M5 21V7l8-4v18" /><path d="M19 21V11l-6-4" /></>)
   const svcIco = ico(<><rect x="2" y="7" width="20" height="14" rx="2" /><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" /></>)
   const invIco = ico(<><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" /><path d="M16 13H8M16 17H8M10 9H8" /></>)
+  const dateIco = ico(<><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></>)
   const gcell = (icon, label, value) => value ? <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0, alignItems: 'flex-start' }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 9, color: 'var(--tx4)', fontWeight: 600, letterSpacing: '.2px' }}>{icon}{label}</span><span style={{ display: 'inline-flex', minWidth: 0, maxWidth: '100%' }}>{value}</span></div> : null
 
   const hasAdv = Object.values(advFilter).some(Boolean)
@@ -1570,7 +1571,7 @@ ${noticeBlk}
                   {gcell(idIco, T('رقم الإقامة', 'Iqama No'), r.iqama_number ? <span style={{ fontSize: 11.5, color: 'var(--tx2)', fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums', fontFamily: 'monospace' }}>{r.iqama_number}</span> : null)}
                   {gcell(phIco, T('الجوال', 'Phone'), phoneVal ? <span style={{ fontSize: 11.5, color: 'var(--tx2)', fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums', fontFamily: 'monospace' }}>{phoneVal}</span> : null)}
                   {gcell(brIco, T('المكتب', 'Branch'), branchCode ? <span style={{ fontSize: 11.5, color: 'var(--tx2)', fontWeight: 600, direction: 'ltr' }}>{branchCode}</span> : null)}
-                  {gcell(svcIco, T('الخدمة', 'Service'), svcPrimary ? <span style={{ fontSize: 11.5, color: C.gold, fontWeight: 600 }}>{svcPrimary}</span> : null)}
+                  {gcell(dateIco, T('تاريخ الإنشاء', 'Created'), r.created_at ? <span style={{ fontSize: 11.5, color: 'var(--tx2)', fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{(() => { const d = new Date(r.created_at); return isNaN(d) ? '—' : d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') })()}</span> : null)}
                   {gcell(invIco, invoiceNo ? T('رقم الفاتورة', 'Invoice no') : T('رقم التسعيرة', 'Quote no'), <span style={{ fontSize: 11.5, color: invoiceNo ? C.ok : C.gold, fontWeight: 600, direction: 'ltr', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }}>{noDash(invoiceNo || r.quote_no || '')}</span>)}
                 </div>
               </div>
