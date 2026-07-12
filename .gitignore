@@ -33,3 +33,7 @@ tmp/
 qr.txt
 qr.dataurl.txt
 status.txt
+
+# JUB1 bulk OCR — أسرار وحالة محلية
+scripts/.env.jub1
+scripts/jub1-ocr-state.json

@@ -358,7 +358,7 @@ export const Dropdown = ({ value, onChange, options, placeholder, getKey, getLab
 }
 
 /* ════════════════════════════ التقويم (الكلايندر) ═════════════════════ */
-const CalendarPopup = ({ value, onPick, onClose, anchor, min, max }) => {
+export const CalendarPopup = ({ value, onPick, onClose, anchor, min, max }) => {
   const { dir } = useFKLang()
   const ac = useContext(AccentContext)
   const today = new Date()
@@ -1130,7 +1130,7 @@ export function Modal({ open, onClose, title, subtitle, Icon, width = 720, child
 
           {/* الترويسة — تُخفى عبر hideHeader عند تضمين مكوّن له ترويسته الخاصة */}
           {!hideHeader && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 20px 12px', flexShrink: 0 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 20px 4px', flexShrink: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               {Icon && <Icon size={26} color={AC} strokeWidth={1.8} style={{ flexShrink: 0 }} />}
               <div>
@@ -1191,7 +1191,7 @@ export function Modal({ open, onClose, title, subtitle, Icon, width = 720, child
 
           {/* التذييل: السابق (يمين) · رسالة خطأ (وسط) · التالي/حفظ (يسار) */}
           {showFooter && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 20px 12px', flexShrink: 0, gap: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 20px 6px', flexShrink: 0, gap: 12 }}>
               <div style={{ minWidth: 90, display: 'flex', justifyContent: 'flex-start' }}>{backNode}</div>
               <div style={{ flex: 1, minHeight: 18, fontSize: 12, fontWeight: 600, color: C.red, transition: '.15s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                 {shownError && <AlertTriangle size={14} strokeWidth={2.4} style={{ flexShrink: 0 }} />}

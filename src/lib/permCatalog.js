@@ -75,6 +75,14 @@ export const MODULE_ACTIONS = {
     A('view', 'عرض المدفوعات', 'view'), A('pay', 'تسجيل سداد خدمة', 'special'),
     A('edit', 'تعديل السداد', 'edit'),
   ],
+  // سندات JUB1 — مرحلة إدخال أولية على مرحلتين: «مكتمل» (يتحقق المدخِل أن البيانات صحيحة)
+  // ثم «مُراجَع» (يتأكد المراجع أن ربط السندات صحيح). كل مرحلة صلاحية مستقلة تُسنَد لدور مختلف.
+  jub1_receipts: [
+    A('view', 'عرض سندات JUB1', 'view'), A('create', 'إضافة سند', 'create'),
+    A('edit', 'تعديل سند', 'edit'), A('delete', 'حذف سند', 'delete'),
+    A('mark_complete', 'اعتماد السند كمكتمل', 'special'),
+    A('mark_reviewed', 'مراجعة السند (تأكيد الربط)', 'special'),
+  ],
   ext_payments: [
     A('view', 'عرض السدادات الخارجية', 'view'), A('create', 'إضافة حوالة بنكية', 'create'),
     A('edit', 'تعديل السداد الخارجي', 'edit'),
@@ -194,6 +202,7 @@ export const TAB_MODULE = {
   home: 'home',
   facilities: 'facilities', workers: 'workers', temp_workers: 'temp_workers', work_visas: 'work_visas',
   invoices: 'invoices', deposits: 'deposits', payments: 'payments', ext_payments: 'ext_payments',
+  jub1_receipts: 'jub1_receipts',
   transfer_calc: 'quotations', renewal_calc: 'renewal_calc',
   sync_hub: 'sync_hub', sync_log: 'sync_hub',
   saudization: 'saudization',
@@ -215,6 +224,7 @@ export const MODULE_META = {
   deposits: { label_ar: 'الإيداعات', icon: 'deposit', sort: 41 },
   payments: { label_ar: 'سدادات الخدمات', icon: 'receipt', sort: 42 },
   ext_payments: { label_ar: 'سدادات خارجية', icon: 'receipt', sort: 43 },
+  jub1_receipts: { label_ar: 'سندات JUB1', icon: 'receipt', sort: 46 },
   quotations: { label_ar: 'تسعيرات التنازل', icon: 'calc', sort: 50 },
   renewal_calc: { label_ar: 'تسعيرات التجديد', icon: 'refresh', sort: 51 },
   sync_hub: { label_ar: 'مركز المزامنة', icon: 'facility', sort: 110 },
@@ -306,6 +316,14 @@ export const TAB_CARDS = {
   ],
   payments: [C('payment_summary', 'ملخص السداد'), C('confirm_payment', 'تأكيد السداد', 'core', [ca('pay', 'توثيق السداد')])],
   ext_payments: [],
+  // سندات JUB1 — بطاقات صفحة تفاصيل السند (إظهار/إخفاء لكل دور)
+  jub1_receipts: [
+    C('receipt_image', 'صورة السند'), C('client', 'العميل', 'core', EDIT),
+    C('receipt_voucher', 'سند القبض', 'core', EDIT), C('service', 'الخدمة', 'core', EDIT),
+    C('installment_plan', 'توزيع الدفعات المقترح', 'core', EDIT),
+    C('linked_receipts', 'ربط السندات', 'core', [ca('link', 'ربط/فكّ سند', 'edit')]),
+    C('totals', 'الحساب'), C('agent', 'الوسيط', 'core', EDIT),
+  ],
   deposits: [
     C('operation_details', 'الحوالة / الإيداع'), C('attachments', 'المرفقات'),
     C('verification_details', 'بيانات التحقق', 'core', [ca('edit', 'تعبئة / تعديل البيانات', 'edit')]),
