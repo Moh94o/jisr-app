@@ -699,6 +699,8 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
         const cancelledInv = new Set((invRows || []).filter(r => r.status?.code === 'cancelled').map(r => r.id))
         candidates = candidates.filter(c => !c.invoice_id || !cancelledInv.has(c.invoice_id))
       }
+      // حسبة منتهية الصلاحية (>5 أيام من التسعير) بلا فاتورة = ملغاة فعلياً ⇒ لا تحجب إصدار حسبة جديدة
+      candidates = candidates.filter(c => !(!c.invoice_id && c.priced_at && (Date.now() - new Date(c.priced_at).getTime()) > (5 * 86400000)))
       // كود المكتب باستعلام منفصل — لا يوجد FK يسمح بالتضمين المباشر
       let dq = candidates[0] || null
       if (dq?.branch_id) {

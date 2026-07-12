@@ -191,6 +191,8 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
       // حسبة عمرها أكثر من شهرين لا تُعدّ «سارية» — لا تحجب إصدار حسبة جديدة (لا تظهر الملاحظة ويعمل «التالي»).
       const twoMonthsAgo = new Date(); twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2)
       candidates = candidates.filter(c => { const t = c.priced_at || c.created_at; return t ? new Date(t) >= twoMonthsAgo : true })
+      // حسبة منتهية الصلاحية (>5 أيام من التسعير) بلا فاتورة = ملغاة فعلياً ⇒ لا تحجب إصدار حسبة جديدة
+      candidates = candidates.filter(c => !(!c.invoice_id && c.priced_at && (Date.now() - new Date(c.priced_at).getTime()) > (5 * 86400000)))
       // كود المكتب باستعلام منفصل — لا يوجد FK يسمح بالتضمين المباشر
       let dq = candidates[0] || null
       if (dq?.branch_id) {

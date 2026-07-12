@@ -184,15 +184,22 @@ export default function RenewalCalcPage({ sb, toast, user, lang, emptyIcon, onNe
     const userMap = Object.fromEntries((uRes.data || []).map(u => [u.id, u]))
     const branchMap = Object.fromEntries((bRes.data || []).map(b => [b.id, b.code]))
     const flat = u => u ? { id: u.id, name_ar: u.person?.name_ar || null, name_en: u.person?.name_en || null, branch: u.branch ? { code: u.branch.code } : null } : null
-    const list = (rRes.data || []).map(r => ({
-      ...r,
-      priced_user: flat(userMap[r.priced_by]),
-      approved_user: flat(userMap[r.approved_by]),
-      invoiced_user: flat(userMap[r.invoiced_by]),
-      created_user: flat(userMap[r.created_by]),
-      cancelled_user: flat(userMap[r.cancelled_by]),
-      _branchCode: (r.branch_id && branchMap[r.branch_id]) || null,
-    }))
+    const list = (rRes.data || []).map(r => {
+      // حسبة منتهية الصلاحية (>5 أيام من التسعير) بلا فاتورة = تُعتبر ملغاة
+      const _autoExp = !!r.priced_at && !r.invoice_id && !['cancelled', 'invoiced', 'completed'].includes(r.status) && (Date.now() - new Date(r.priced_at).getTime()) > (5 * 86400000)
+      return {
+        ...r,
+        status: _autoExp ? 'cancelled' : r.status,
+        _autoExpired: _autoExp,
+        cancel_reason: _autoExp ? (r.cancel_reason || 'انتهت صلاحية التسعيرة دون إصدار فاتورة') : r.cancel_reason,
+        priced_user: flat(userMap[r.priced_by]),
+        approved_user: flat(userMap[r.approved_by]),
+        invoiced_user: flat(userMap[r.invoiced_by]),
+        created_user: flat(userMap[r.created_by]),
+        cancelled_user: flat(userMap[r.cancelled_by]),
+        _branchCode: (r.branch_id && branchMap[r.branch_id]) || null,
+      }
+    })
     setRows(list)
     setUsersById(Object.fromEntries((uRes.data || []).map(u => [u.id, flat(u)])))
     setNationalities(nRes.data || [])
