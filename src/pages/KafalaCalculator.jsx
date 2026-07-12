@@ -855,7 +855,12 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
       const s = new Date(today); s.setDate(s.getDate() + procDays)
       return s
     })()
-    const end = new Date(start); end.setMonth(end.getMonth() + months)
+    // نهاية فترة الرخصة = تاريخ الانتهاء المتوقع نفسه (قاعدة قوى) بدل الحساب الميلادي البسيط،
+    // كي يتطابق الجزء اليومي (بعد تاريخ التفعيل) مع تاريخ الانتهاء ورسوم تجديد الإقامة.
+    // يُحسب على نفس أساس الرخصة (إقامة/كرت عمل) عبر baseStr.
+    const endStr = computeRenewalExpiryYMD(baseStr, months, cfg, { asOf: today })
+    const end = endStr ? new Date(endStr) : (() => { const e = new Date(start); e.setMonth(e.getMonth() + months); return e })()
+    if (!isNaN(end)) end.setHours(0, 0, 0, 0)
     const cutoff = new Date(cfg.workPermitCutoffDate)
     const bracketKey = `workPermit${months}M`
     const bracketFee = parseFloat(cfg[bracketKey]) || 0
