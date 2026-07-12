@@ -165,6 +165,7 @@ const SVC_ACTIONS = (extra = []) => [
 // tab id → service module
 export const SVC_TAB_MODULE = {
   'work-visa-permanent': 'svc_work_visa_permanent',
+  'work-visa-9m': 'svc_work_visa_9m',
   'work-visa-6m': 'svc_work_visa_6m',
   'work-visa-temporary': 'svc_work_visa_temporary',
   'transfer': 'svc_transfer',
@@ -192,7 +193,7 @@ Object.values(SVC_TAB_MODULE).forEach(m => {
     ]
   } else {
     MODULE_ACTIONS[m] = SVC_ACTIONS(
-      m === 'svc_work_visa_permanent' || m === 'svc_work_visa_6m' || m === 'svc_work_visa_temporary'
+      m === 'svc_work_visa_permanent' || m === 'svc_work_visa_9m' || m === 'svc_work_visa_6m' || m === 'svc_work_visa_temporary'
         ? [A('issue_visa', 'إصدار التأشيرة', 'special'), A('register_iqama', 'تسجيل الإقامة', 'special')]
         : []
     )
@@ -231,6 +232,7 @@ export const MODULE_META = {
   renewal_calc: { label_ar: 'تسعيرات التجديد', icon: 'refresh', sort: 51 },
   sync_hub: { label_ar: 'مركز المزامنة', icon: 'facility', sort: 110 },
   svc_work_visa_permanent: { label_ar: 'تأشيرة بإقامة 12 شهر', icon: 'transaction', sort: 60 },
+  svc_work_visa_9m: { label_ar: 'تأشيرة بإقامة 9 أشهر', icon: 'transaction', sort: 60.3 },
   svc_work_visa_6m: { label_ar: 'تأشيرة بإقامة 6 أشهر', icon: 'transaction', sort: 60.5 },
   svc_work_visa_temporary: { label_ar: 'تأشيرة بإقامة 3 شهور', icon: 'transaction', sort: 61 },
   svc_transfer: { label_ar: 'نقل كفالة', icon: 'transaction', sort: 62 },

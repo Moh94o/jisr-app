@@ -78,6 +78,7 @@ const fmtDuration = (fromIso, toIso, ar = true) =>
 const SVC_THEME = {
   work_visa:            { c: C.blue,   bg: 'rgba(93,173,226,.12)',  bd: 'rgba(93,173,226,.32)',  label_ar: 'تأشيرة عمل',         label_en: 'Work Visa' },
   work_visa_permanent:  { c: C.blue,   bg: 'rgba(93,173,226,.12)',  bd: 'rgba(93,173,226,.32)',  label_ar: 'تأشيرة بإقامة 12 شهر',   label_en: '12-Month Visa & Iqama' },
+  work_visa_9m:         { c: '#5b8def',bg: 'rgba(91,141,239,.12)',  bd: 'rgba(91,141,239,.32)',  label_ar: 'تأشيرة بإقامة 9 أشهر',   label_en: '9-Month Visa & Iqama' },
   work_visa_6m:         { c: '#48a1d6',bg: 'rgba(72,161,214,.12)',  bd: 'rgba(72,161,214,.32)',  label_ar: 'تأشيرة بإقامة 6 أشهر',   label_en: '6-Month Visa & Iqama' },
   work_visa_temporary:  { c: C.blue,   bg: 'rgba(93,173,226,.12)',  bd: 'rgba(93,173,226,.32)',  label_ar: 'تأشيرة بإقامة 3 شهور',   label_en: '3-Month Visa & Iqama' },
   iqama_issuance: { c: '#27ae60',bg: 'rgba(39,174,96,.12)',   bd: 'rgba(39,174,96,.32)',   label_ar: 'إصدار إقامة', label_en: 'Iqama Issuance' },
@@ -111,6 +112,7 @@ const SVC_ICON_WORK_VISA = <svg width="11" height="11" viewBox="0 0 24 24" fill=
 const SVC_ICON = {
   work_visa: SVC_ICON_WORK_VISA,
   work_visa_permanent: SVC_ICON_WORK_VISA,
+  work_visa_9m: SVC_ICON_WORK_VISA,
   work_visa_6m: SVC_ICON_WORK_VISA,
   work_visa_temporary: SVC_ICON_WORK_VISA,
   iqama_issuance: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h10M7 12h6M7 16h4"/><path d="m17 14 2 2 3-3"/></svg>,
@@ -483,6 +485,7 @@ export default function TransactionsPage({ sb, lang, user, tabId, branchId, toas
         const HERO = {
           general: { ar: 'خدمة عامة', en: 'General', dAr: 'الطلبات المصنّفة ضمن «الخدمة العامة» — أي معاملة لا تندرج تحت خدمة محدّدة — ومتابعة حالتها', dEn: 'Requests categorized under the “General” service — any transaction not tied to a specific service — tracked by status' },
           work_visa_permanent: { ar: 'تأشيرة بإقامة 12 شهر', en: '12-Month Visa & Iqama', dAr: 'إصدار ومتابعة طلبات التأشيرات بإقامة 12 شهر للمنشآت', dEn: 'Issue and track 12-month visa & iqama requests for facilities' },
+          work_visa_9m: { ar: 'تأشيرة بإقامة 9 أشهر', en: '9-Month Visa & Iqama', dAr: 'إصدار ومتابعة طلبات التأشيرات بإقامة 9 أشهر للمنشآت', dEn: 'Issue and track 9-month visa & iqama requests for facilities' },
           work_visa_6m: { ar: 'تأشيرة بإقامة 6 أشهر', en: '6-Month Visa & Iqama', dAr: 'إصدار ومتابعة طلبات التأشيرات بإقامة 6 أشهر للمنشآت', dEn: 'Issue and track 6-month visa & iqama requests for facilities' },
           work_visa_temporary: { ar: 'تأشيرة بإقامة 3 شهور', en: '3-Month Visa & Iqama', dAr: 'إصدار ومتابعة طلبات التأشيرات بإقامة 3 شهور للمنشآت', dEn: 'Issue and track 3-month visa & iqama requests for facilities' },
           supplier_payroll: { ar: 'طلب رواتب سبلاير', en: 'Supplier Payroll Requests', dAr: 'إصدار ومتابعة طلبات رواتب السبلاير غير المدفوعة للعمّال', dEn: 'Issue and track unpaid supplier-worker payroll requests' },

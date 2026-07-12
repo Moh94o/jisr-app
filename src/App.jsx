@@ -98,6 +98,7 @@ const DT = (clr) => ({
   calendar: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="18" rx="2" fill={clr} fillOpacity=".12" stroke={clr} strokeWidth="1.5"/><line x1="16" y1="2" x2="16" y2="6" stroke={clr} strokeWidth="1.5" opacity=".5"/><line x1="8" y1="2" x2="8" y2="6" stroke={clr} strokeWidth="1.5" opacity=".5"/><line x1="3" y1="10" x2="21" y2="10" stroke={clr} strokeWidth="1.5" opacity=".4"/><path d="M8 14h2v2H8z" fill={clr} opacity=".5"/><path d="M12 14h2v2h-2z" fill={clr} opacity=".3"/></svg>,
   // ── أيقونات تبويبات المعاملات — نفس أيقونات الفاتورة (lucide) ──
   svc_visa_perm:    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={clr} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3.5" width="18" height="17" rx="5.5"/><text x="12" y="12.2" textAnchor="middle" dominantBaseline="central" fontSize="9.5" fontWeight="800" fill={clr} stroke="none" fontFamily="Cairo,sans-serif">12</text></svg>,
+  svc_visa_9m:      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={clr} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3.5" width="18" height="17" rx="5.5"/><text x="12" y="12.2" textAnchor="middle" dominantBaseline="central" fontSize="12" fontWeight="800" fill={clr} stroke="none" fontFamily="Cairo,sans-serif">9</text></svg>,
   svc_visa_6m:      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={clr} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3.5" width="18" height="17" rx="5.5"/><text x="12" y="12.2" textAnchor="middle" dominantBaseline="central" fontSize="12" fontWeight="800" fill={clr} stroke="none" fontFamily="Cairo,sans-serif">6</text></svg>,
   svc_visa_temp:    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={clr} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3.5" width="18" height="17" rx="5.5"/><text x="12" y="12.2" textAnchor="middle" dominantBaseline="central" fontSize="12" fontWeight="800" fill={clr} stroke="none" fontFamily="Cairo,sans-serif">3</text></svg>,
   svc_transfer:     <ArrowLeftRight color={clr} size={18} strokeWidth={1.7} />,
@@ -560,6 +561,7 @@ return(<div style={{minHeight:'100vh',display:'flex',alignItems:'center',justify
 // `code` is the service_type lookup code each page filters the transactions list by.
 const TX_TYPES=[
 {id:'tx_work_visa_permanent',code:'work_visa_permanent',ar:'تأشيرة بإقامة 12 شهر',en:'12-Month Visa & Iqama',i:'calendar'},
+{id:'tx_work_visa_9m',code:'work_visa_9m',ar:'تأشيرة بإقامة 9 أشهر',en:'9-Month Visa & Iqama',i:'calendar'},
 {id:'tx_work_visa_6m',code:'work_visa_6m',ar:'تأشيرة بإقامة 6 أشهر',en:'6-Month Visa & Iqama',i:'calendar'},
 {id:'tx_work_visa_temporary',code:'work_visa_temporary',ar:'تأشيرة بإقامة 3 شهور',en:'3-Month Visa & Iqama',i:'calendar'},
 {id:'tx_transfer',code:'transfer',ar:'نقل كفالة',en:'Sponsorship Transfer',i:'broker'},
@@ -585,6 +587,7 @@ const TX_TYPES=[
 const TXN_SECTIONS=[
 // — الخدمات الرئيسية (تأشيرات/إقامات/نقل) —
 {id:'work-visa-permanent',  ar:'تأشيرة بإقامة 12 شهر',     en:'12-Month Visa & Iqama',      i:'svc_visa_perm',    code:'work_visa_permanent'},
+{id:'work-visa-9m',         ar:'تأشيرة بإقامة 9 أشهر',     en:'9-Month Visa & Iqama',       i:'svc_visa_9m',      code:'work_visa_9m'},
 {id:'work-visa-6m',         ar:'تأشيرة بإقامة 6 أشهر',     en:'6-Month Visa & Iqama',       i:'svc_visa_6m',      code:'work_visa_6m'},
 {id:'work-visa-temporary',  ar:'تأشيرة بإقامة 3 شهور',     en:'3-Month Visa & Iqama',       i:'svc_visa_temp',    code:'work_visa_temporary'},
 {id:'transfer',             ar:'نقل كفالة',               en:'Sponsorship Transfer',      i:'svc_transfer',     code:'transfer'},
@@ -677,7 +680,7 @@ try{const target=pageHashes[mapped]||'';if(window.location.hash!==target){window
 const[txnDeepLink,setTxnDeepLink]=useState(null);
 const onOpenService=({srId,svcCode})=>{
   // وجّه إلى تبويب معاملات الخدمة المطابق لكودها (تأشيرة/غرفة تجارية…) ثم افتح المعاملة مباشرة عبر الـ deep link.
-  const norm=svcCode==='work_visa_6m'?'work_visa_6m':(/temporary/i.test(svcCode||'')?'work_visa_temporary':(/^work_visa|permanent/i.test(svcCode||'')?'work_visa_permanent':(svcCode||'')));
+  const norm=svcCode==='work_visa_6m'?'work_visa_6m':(svcCode==='work_visa_9m'?'work_visa_9m':(/temporary/i.test(svcCode||'')?'work_visa_temporary':(/^work_visa|permanent/i.test(svcCode||'')?'work_visa_permanent':(svcCode||''))));
   const sec=TXN_SECTIONS.find(s=>s.code===norm);
   navPushFrom(sec?.id||'work-visa-permanent',{kind:'txn',id:srId});
   setTxnDeepLink(srId||null);setPage(sec?.id||'work-visa-permanent');

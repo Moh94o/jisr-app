@@ -21,6 +21,7 @@ const fmtPhone = (phone) => {
 const SVC_THEME = {
   work_visa:           { c: C.blue,   bg: 'rgba(93,173,226,.12)',  bd: 'rgba(93,173,226,.32)',  label_ar: 'تأشيرة عمل',     label_en: 'Work Visa' },
   work_visa_permanent: { c: C.blue,   bg: 'rgba(93,173,226,.12)',  bd: 'rgba(93,173,226,.32)',  label_ar: 'تأشيرة بإقامة 12 شهر',   label_en: '12-Month Visa & Iqama', label_ar_full: 'تأشيرة بإقامة 12 شهر', label_en_full: '12-Month Visa & Iqama' },
+  work_visa_9m:        { c: '#5b8def',bg: 'rgba(91,141,239,.12)',  bd: 'rgba(91,141,239,.32)',  label_ar: 'تأشيرة بإقامة 9 أشهر',   label_en: '9-Month Visa & Iqama',  label_ar_full: 'تأشيرة بإقامة 9 أشهر', label_en_full: '9-Month Visa & Iqama' },
   work_visa_6m:        { c: '#48a1d6',bg: 'rgba(72,161,214,.12)',  bd: 'rgba(72,161,214,.32)',  label_ar: 'تأشيرة بإقامة 6 أشهر',   label_en: '6-Month Visa & Iqama',  label_ar_full: 'تأشيرة بإقامة 6 أشهر', label_en_full: '6-Month Visa & Iqama' },
   work_visa_temporary: { c: '#85c1e9',bg: 'rgba(133,193,233,.12)', bd: 'rgba(133,193,233,.32)', label_ar: 'تأشيرة بإقامة 3 شهور',   label_en: '3-Month Visa & Iqama', label_ar_full: 'تأشيرة بإقامة 3 شهور', label_en_full: '3-Month Visa & Iqama' },
   iqama_issuance: { c: '#27ae60',bg: 'rgba(39,174,96,.12)',   bd: 'rgba(39,174,96,.32)',   label_ar: 'إصدار إقامة',    label_en: 'Iqama Issuance' },
@@ -36,7 +37,7 @@ const svcThemeFor = (st) => {
   if (t) return t
   return { ...SVC_THEME.general, label_ar: st?.value_ar || 'خدمة', label_en: st?.value_en || st?.value_ar || 'Service' }
 }
-const VISA_SVC_CODES = new Set(['work_visa', 'work_visa_permanent', 'work_visa_6m', 'work_visa_temporary'])
+const VISA_SVC_CODES = new Set(['work_visa', 'work_visa_permanent', 'work_visa_9m', 'work_visa_6m', 'work_visa_temporary'])
 const baseSvcCode = (code) => (VISA_SVC_CODES.has(code) ? 'work_visa' : code)
 
 export function buildInvoiceDoc(inv, data, printLang = 'ar') {

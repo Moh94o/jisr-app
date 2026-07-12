@@ -13,6 +13,7 @@ export const SVC_ADMIN_KEY_MAP = {
   jisr_service_overrides:     'svc_admin_service_overrides',
   jisr_branch_overrides:      'svc_admin_branch_overrides',
   visaPricingMin_permanent:   'svc_admin_pricing_visa_permanent',
+  visaPricingMin_9m:          'svc_admin_pricing_visa_9m',
   visaPricingMin_6m:          'svc_admin_pricing_visa_6m',
   visaPricingMin_temporary:   'svc_admin_pricing_visa_temporary',
   kafalaPricingConfig:        'svc_admin_pricing_kafala',

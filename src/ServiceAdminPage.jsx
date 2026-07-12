@@ -178,9 +178,10 @@ const durationIcon=(label)=>function DurationIcon({size=22,color='currentColor',
     </svg>
   )
 }
-const Visa12Icon=durationIcon('12'),Visa6Icon=durationIcon('6'),Visa3Icon=durationIcon('3')
+const Visa12Icon=durationIcon('12'),Visa9Icon=durationIcon('9'),Visa6Icon=durationIcon('6'),Visa3Icon=durationIcon('3')
 const ALL_SERVICES=[
 {id:'work_visa_permanent',name_ar:'تأشيرة بإقامة 12 شهر',Icon:Visa12Icon,defaultBillable:true,group:'main'},
+{id:'work_visa_9m',name_ar:'تأشيرة بإقامة 9 أشهر',Icon:Visa9Icon,defaultBillable:true,group:'main'},
 {id:'work_visa_6m',name_ar:'تأشيرة بإقامة 6 أشهر',Icon:Visa6Icon,defaultBillable:true,group:'main'},
 {id:'work_visa_temporary',name_ar:'تأشيرة بإقامة 3 شهور',Icon:Visa3Icon,defaultBillable:true,group:'main'},
 {id:'kafala_transfer',name_ar:'حسبة نقل الكفالة',Icon:ArrowLeftRight,defaultBillable:true,group:'main'},
@@ -339,6 +340,7 @@ const IQAMA_STEP_NOTES={
 }
 const PRICING_SCHEMA={
 work_visa_permanent:{store:'visaPricingMin_permanent',fields:VISA_FIELDS,note:'الحدود الدنيا لدفعات تأشيرة بإقامة 12 شهر'},
+work_visa_9m:{store:'visaPricingMin_9m',fields:VISA_FIELDS,note:'الحدود الدنيا لدفعات تأشيرة بإقامة 9 أشهر'},
 work_visa_6m:{store:'visaPricingMin_6m',fields:VISA_FIELDS,note:'الحدود الدنيا لدفعات تأشيرة بإقامة 6 أشهر'},
 work_visa_temporary:{store:'visaPricingMin_temporary',fields:VISA_TEMP_FIELDS,note:'الحدود الدنيا لتأشيرة بإقامة 3 شهور (إصدار + توكيل)'},
 kafala_transfer:{store:'kafalaPricingConfig',fields:KAFALA_FIELDS,note:'إعدادات نقل الكفالة فقط'},

@@ -53,6 +53,7 @@ export const STAGES = [
 // ── Service labels (mirrors TX_TYPES in App.jsx) ──
 export const SERVICE_LABELS = {
   work_visa_permanent: { ar: 'تأشيرة بإقامة 12 شهر',         en: '12-Month Visa & Iqama' },
+  work_visa_9m:        { ar: 'تأشيرة بإقامة 9 أشهر',         en: '9-Month Visa & Iqama' },
   work_visa_6m:        { ar: 'تأشيرة بإقامة 6 أشهر',         en: '6-Month Visa & Iqama' },
   work_visa_temporary: { ar: 'تأشيرة بإقامة 3 شهور',         en: '3-Month Visa & Iqama' },
   transfer:            { ar: 'نقل كفالة',                    en: 'Sponsorship Transfer' },
@@ -75,6 +76,7 @@ export const SERVICE_LABELS = {
 // TransactionsPage.jsx. The rest are first-draft and pending the user's review.
 export const PIPELINES = {
   work_visa_permanent: ['intake_invoice', 'visa_issuance', 'wakalah', 'medical_exam', 'work_permit', 'medical_insurance', 'iqama_issuance', 'iqama_delivery', 'review_close'],
+  work_visa_9m:        ['intake_invoice', 'visa_issuance', 'wakalah', 'medical_exam', 'work_permit', 'medical_insurance', 'iqama_issuance', 'iqama_delivery', 'review_close'],
   work_visa_6m:        ['intake_invoice', 'visa_issuance', 'wakalah', 'medical_exam', 'work_permit', 'medical_insurance', 'iqama_issuance', 'iqama_delivery', 'review_close'],
   work_visa_temporary: ['intake_invoice', 'visa_issuance', 'ajeer_contract', 'review_close'],
   transfer:            ['intake_invoice', 'transfer_request', 'transfer_approval', 'iqama_issuance', 'review_close'],

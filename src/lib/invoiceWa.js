@@ -105,6 +105,7 @@ const svcLabel = inv => {
   const visaApps = inv.service_request?.visa_applications
   const qty = (Array.isArray(visaApps) ? visaApps.length : 0) || Number(inv.service_request?.quantity || 0) || 1
   if (code === 'work_visa_permanent') return `${qty} x تأشيرة بإقامة 12 شهر`
+  if (code === 'work_visa_9m')        return `${qty} x تأشيرة بإقامة 9 أشهر`
   if (code === 'work_visa_6m')        return `${qty} x تأشيرة بإقامة 6 أشهر`
   if (code === 'work_visa_temporary') return `${qty} x تأشيرة بإقامة 3 شهور`
   return inv.service_type?.value_ar || inv.service_type?.value_en || 'خدمة'
@@ -342,7 +343,7 @@ export function buildDaySummaryWaMessage({ dateStr, title, scopeLine, newCount =
 }
 
 // ── per-service `data` for buildInvoiceDoc (port of bot's fetchInvoiceData) ──
-const VISA = new Set(['work_visa', 'work_visa_permanent', 'work_visa_6m', 'work_visa_temporary'])
+const VISA = new Set(['work_visa', 'work_visa_permanent', 'work_visa_9m', 'work_visa_6m', 'work_visa_temporary'])
 const baseSvcCode = c => (VISA.has(c) ? 'work_visa' : c)
 const SELECTS = {
   work_visa: `id,visa_number,visa_cost,border_number,worker_name,wakalah_number,wakalah_date,wakalah_office,visa_used,visa_used_date_check,gender,file_number,

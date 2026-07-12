@@ -32,6 +32,7 @@ function svcSynonymCode(txt) {
     const hasMonth = /شهر|شهور|اشهر|أشهر/.test(t)
     if (hasMonth && /(^|[^0-9])3([^0-9]|$)|ثلاث/.test(t)) return 'work_visa_temporary'
     if (hasMonth && /(^|[^0-9])6([^0-9]|$)|ست/.test(t)) return 'work_visa_6m'
+    if (hasMonth && /(^|[^0-9])9([^0-9]|$)|تسع/.test(t)) return 'work_visa_9m'
     return 'work_visa_permanent'   // الافتراضي: تأشيرة بإقامة 12 شهر
   }
   return null

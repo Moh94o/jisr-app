@@ -111,9 +111,10 @@ const durationIcon=(label)=>function DurationIcon({size=22,color='currentColor',
     </svg>
   )
 }
-const Visa12Icon=durationIcon('12'),Visa6Icon=durationIcon('6'),Visa3Icon=durationIcon('3')
+const Visa12Icon=durationIcon('12'),Visa9Icon=durationIcon('9'),Visa6Icon=durationIcon('6'),Visa3Icon=durationIcon('3')
 const MAIN_SERVICES=[
 {id:'work_visa_permanent',name_ar:'تأشيرة بإقامة 12 شهر',name_en:'12-Month Visa & Iqama',Icon:Visa12Icon,featured:true,billable:true},
+{id:'work_visa_9m',name_ar:'تأشيرة بإقامة 9 أشهر',name_en:'9-Month Visa & Iqama',Icon:Visa9Icon,billable:true},
 {id:'work_visa_6m',name_ar:'تأشيرة بإقامة 6 أشهر',name_en:'6-Month Visa & Iqama',Icon:Visa6Icon,billable:true},
 {id:'work_visa_temporary',name_ar:'تأشيرة بإقامة 3 شهور',name_en:'3-Month Visa & Iqama',Icon:Visa3Icon,billable:true},
 {id:'kafala_transfer',name_ar:'نقل كفالة',name_en:'Sponsorship Transfer',Icon:ArrowLeftRight,billable:true},
@@ -157,7 +158,7 @@ export const ALL_SERVICES=[...MAIN_SERVICES,...OTHER_SERVICES]
 
 // خريطة: معرّف الخدمة في المعالج → كود service_type في lookup_items. (مُصدَّرة لإعادة استخدامها في فلتر الفواتير.)
 export const SVC_CODE_MAP={
-  work_visa_permanent:'work_visa_permanent',work_visa_temporary:'work_visa_temporary',work_visa_6m:'work_visa_6m',
+  work_visa_permanent:'work_visa_permanent',work_visa_temporary:'work_visa_temporary',work_visa_9m:'work_visa_9m',work_visa_6m:'work_visa_6m',
   kafala_transfer:'transfer',iqama_renewal:'iqama_renewal',ajeer_contract:'ajeer',
   supplier_payroll:'supplier_payroll',external_transfer_approval:'external_transfer_approval',
   // ids whose service_type code differs from the wizard id, or that have no registry entry of their own:
@@ -170,15 +171,15 @@ export const SVC_CODE_MAP={
 }
 
 // ═══════ Visa services (custom inputs) ═══════
-const VISA_SERVICES=new Set(['work_visa_permanent','work_visa_6m','work_visa_temporary'])
+const VISA_SERVICES=new Set(['work_visa_permanent','work_visa_9m','work_visa_6m','work_visa_temporary'])
 // تأشيرات «بإقامة» بمسار الإقامة الكامل (١٢ شهر و٦ أشهر): ثلاث دفعات + مراحل التأمين/رخصة العمل + توزيع المنشآت.
 // المؤقتة (٣ شهور) خارج هذه المجموعة (مسار دفعتين بلا إقامة لكل تأشيرة). أي تأشيرة «بإقامة» جديدة تُضاف هنا.
-const RESIDENCE_VISA_SERVICES=new Set(['work_visa_permanent','work_visa_6m'])
+const RESIDENCE_VISA_SERVICES=new Set(['work_visa_permanent','work_visa_9m','work_visa_6m'])
 
 // ═══════ Client step applies ONLY to these services ═══════
 // Every other service skips the client step and opens step 2 directly on worker selection —
 // for them the client IS the worker, so there is no separate client party to pick.
-const CLIENT_SERVICES=new Set(['work_visa_permanent','work_visa_6m','work_visa_temporary','kafala_transfer','iqama_renewal','custom'])
+const CLIENT_SERVICES=new Set(['work_visa_permanent','work_visa_9m','work_visa_6m','work_visa_temporary','kafala_transfer','iqama_renewal','custom'])
 // Quote-driven services: the invoice does NOT price anything itself — it picks a certified calculation
 // (نقل الكفالة → transfer_calculation · تجديد الإقامة → iqama_renewal_calculation) and attaches an invoice to it.
 // Both reorder the wizard (quote = step 2 «التفاصيل», client = step 3 «العميل») and share the same party/payment UI.
@@ -2211,6 +2212,11 @@ input[type=number]{-moz-appearance:textfield}
 .bill-dot[data-tip]:hover::after,.bill-dot[data-tip]:hover::before{opacity:1;transform:translateY(0)}
 .bento-card:hover .bill-dot,.bento-card.selected .bill-dot,.sub-card:hover .bill-dot,.sub-card.selected .bill-dot{border-color:rgba(60,192,101,.8);color:#4cd075}
 .sub-card .bill-dot{padding:0 5px;font-size:7px;top:6px;left:6px}
+/* كل كروت الخدمة تملأ إطار «اختر الخدمة» بلا سكرول: الصفوف تتقلّص لتلائم الارتفاع المتاح */
+/* نُثبّت 3 كروت بكل صف — نتجاوز قاعدة الطي العامة (repeat(3)→عمودين) في App.jsx عبر تخصيص أعلى + !important */
+.svc-grid.svc-grid{grid-template-columns:repeat(3,1fr)!important}
+.svc-grid>.bento-card{min-height:0;padding:8px;gap:6px}
+.svc-grid>.bento-card>.bento-icon{flex-shrink:0}
 .sub-card{position:relative;padding:10px 6px;border-radius:12px;cursor:pointer;transition:all .2s;background:var(--card-grad2);border:1px solid var(--bd);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:74px;box-shadow:var(--shadow-sm)}
 .sub-card:hover{background:rgba(176,125,0,.09);border-color:rgba(176,125,0,.3)}
 .sub-card:hover .sub-label{color:var(--tx)}
@@ -2230,11 +2236,11 @@ input[type=number]{-moz-appearance:textfield}
 
 {/* Animated view container — fills available space */}
 <ModalSection flex Icon={FileStack} label={T('اختر الخدمة','Select service')} hint={T('الخدمة المطلوبة في الفاتورة','The service requested on the invoice')} style={{marginTop:0}}>
-<div style={{position:'relative',flex:1,minHeight:260}}>
+<div style={{position:'relative',flex:1,minHeight:0}}>
 
 {/* ─── Main Bento Grid View ─── */}
 <div style={{position:'absolute',inset:0,opacity:showOthers?0:1,transform:showOthers?'translateX(20px)':'translateX(0)',transition:'opacity .3s, transform .3s',pointerEvents:showOthers?'none':'auto'}}>
-<div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,height:'100%',gridAutoRows:'1fr'}}>
+<div className="svc-grid" style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,height:'100%',gridAutoRows:'minmax(0,1fr)'}}>
 {MAIN_SERVICES.map(s=>{const I=s.Icon;const sel=selSvc===s.id;const active=gm?true:isServiceActive(s.id);const billable=isServiceBillable(s.id)
 return<div key={s.id} className={`bento-card${sel?' selected':''}${!active?' disabled-card':''}`} onClick={()=>{if(active)setSelSvc(s.id)}} style={!active?{opacity:.45,cursor:'not-allowed',filter:'grayscale(.6)'}:{}}>
 {!active&&<div className="bill-dot" style={{borderColor:'rgba(192,57,43,.6)',color:'#e66659'}} data-tip={T('معطّلة','Disabled')}>{T('معطّلة','Disabled')}</div>}
@@ -2251,7 +2257,7 @@ return<div key={s.id} className={`bento-card${sel?' selected':''}${!active?' dis
 
 {/* ─── Others View (3-column grid) ─── */}
 <div style={{position:'absolute',inset:0,opacity:showOthers?1:0,transform:showOthers?'translateX(0)':'translateX(-20px)',transition:'opacity .3s, transform .3s',pointerEvents:showOthers?'auto':'none',display:'flex',flexDirection:'column',gap:6}}>
-<div style={{flex:1,minHeight:0,display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,gridAutoRows:'1fr'}}>
+<div className="svc-grid" style={{flex:1,minHeight:0,display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,gridAutoRows:'minmax(0,1fr)'}}>
 {/* رجوع للخدمات الرئيسية — نفس حجم/مكان كرت الخدمة، بألوان خطوط وأيقونة خافتة مثل كرت "خدمات أخرى" */}
 <div onClick={()=>setShowOthers(false)} className="bento-card bento-nav">
 <div className="bento-icon"><ArrowRight size={22} color="var(--accent)" strokeWidth={1.5}/></div>

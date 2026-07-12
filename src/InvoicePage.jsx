@@ -77,6 +77,7 @@ const riyadhDayStart = () => {
 const SVC_THEME = {
   work_visa:           { c: C.blue,   bg: 'rgba(93,173,226,.12)',  bd: 'rgba(93,173,226,.32)',  label_ar: 'تأشيرة عمل',     label_en: 'Work Visa' },
   work_visa_permanent: { c: C.blue,   bg: 'rgba(93,173,226,.12)',  bd: 'rgba(93,173,226,.32)',  label_ar: 'تأشيرة بإقامة 12 شهر',   label_en: '12-Month Visa & Iqama', label_ar_full: 'تأشيرة بإقامة 12 شهر', label_en_full: '12-Month Visa & Iqama' },
+  work_visa_9m:        { c: '#5b8def',bg: 'rgba(91,141,239,.12)',  bd: 'rgba(91,141,239,.32)',  label_ar: 'تأشيرة بإقامة 9 أشهر',   label_en: '9-Month Visa & Iqama',  label_ar_full: 'تأشيرة بإقامة 9 أشهر', label_en_full: '9-Month Visa & Iqama' },
   work_visa_6m:        { c: '#48a1d6',bg: 'rgba(72,161,214,.12)',  bd: 'rgba(72,161,214,.32)',  label_ar: 'تأشيرة بإقامة 6 أشهر',   label_en: '6-Month Visa & Iqama',  label_ar_full: 'تأشيرة بإقامة 6 أشهر', label_en_full: '6-Month Visa & Iqama' },
   work_visa_temporary: { c: '#85c1e9',bg: 'rgba(133,193,233,.12)', bd: 'rgba(133,193,233,.32)', label_ar: 'تأشيرة بإقامة 3 شهور',   label_en: '3-Month Visa & Iqama', label_ar_full: 'تأشيرة بإقامة 3 شهور', label_en_full: '3-Month Visa & Iqama' },
   iqama_issuance: { c: '#27ae60',bg: 'rgba(39,174,96,.12)',   bd: 'rgba(39,174,96,.32)',   label_ar: 'إصدار إقامة',    label_en: 'Iqama Issuance' },
@@ -96,11 +97,11 @@ const svcThemeFor = (st) => {
   return { ...SVC_THEME.general, label_ar: st?.value_ar || 'خدمة', label_en: st?.value_en || st?.value_ar || 'Service' }
 }
 // Permanent/temporary work-visa share the same application table, detail fields and icon as the legacy work_visa.
-const VISA_SVC_CODES = new Set(['work_visa', 'work_visa_permanent', 'work_visa_6m', 'work_visa_temporary'])
+const VISA_SVC_CODES = new Set(['work_visa', 'work_visa_permanent', 'work_visa_9m', 'work_visa_6m', 'work_visa_temporary'])
 const baseSvcCode = (code) => (VISA_SVC_CODES.has(code) ? 'work_visa' : code)
 // تأشيرات «بإقامة» بمسار الإقامة الكامل (١٢ شهر و٦ أشهر): مراحل التأمين/رخصة العمل + إقامة لكل تأشيرة + توزيع المنشآت.
 // «تأشيرة بإقامة 3 شهور» (المؤقتة) ليست منها. أي فحص كان يقارن بـ 'work_visa_permanent' يجب أن يستعمل هذه المجموعة.
-const RESIDENCE_VISA_CODES = new Set(['work_visa_permanent', 'work_visa_6m'])
+const RESIDENCE_VISA_CODES = new Set(['work_visa_permanent', 'work_visa_9m', 'work_visa_6m'])
 // خدمات «الفاتورة الصفرية» المبسّطة — طلب بلا تسعير/دفع، تأخذ نفس معاملة صفحة التفاصيل والكرت والطباعة
 // (رواتب سبلاير، المستندات). تُخفى الكروت المالية/التسعير/الدفع وزر الإلغاء، وتظهر كتلة حالة المعاملة.
 const ZERO_INVOICE_SVCS = new Set(['supplier_payroll', 'documents', 'external_transfer_approval'])
@@ -729,7 +730,7 @@ const INVOICE_SELECT = `
 // بطل «نقدًا» + كرت جانبي (تحويلات/مرتجعة) + كرت الخدمات اليوم.
 // النص يمين والأيقونة (بادج ملوّن) يسار، والتوهج في الجهة اليسرى.
 // ════════════════════════════════════════════════════════════════════
-const STATS_MAIN_SVC = ['work_visa_permanent', 'work_visa_6m', 'work_visa_temporary', 'transfer', 'iqama_renewal', 'ajeer', 'other']
+const STATS_MAIN_SVC = ['work_visa_permanent', 'work_visa_9m', 'work_visa_6m', 'work_visa_temporary', 'transfer', 'iqama_renewal', 'ajeer', 'other']
 const STATS_OTHER = '__other__'
 const buildTodaySvcs = (svcToday) => {
   const map = Object.fromEntries((svcToday || []).map(s => [s.code, s]))
@@ -1071,7 +1072,7 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
   }
   const STAGE_ORDER = ['new','in_progress','awaiting_acct','acct_approved','acct_rejected','done','cancelled']
   const ACCT_SVCS = useMemo(() => new Set(['external_transfer_approval','exit_reentry_visa','final_exit_visa']), [])
-  const MULTI_STAGE_SVCS = useMemo(() => new Set(['work_visa_permanent','work_visa_6m','work_visa_temporary','transfer','iqama_renewal']), [])
+  const MULTI_STAGE_SVCS = useMemo(() => new Set(['work_visa_permanent','work_visa_9m','work_visa_6m','work_visa_temporary','transfer','iqama_renewal']), [])
   const stagesForCode = (code) => ACCT_SVCS.has(code)
     ? ['awaiting_acct','acct_approved','acct_rejected','done','cancelled']
     : MULTI_STAGE_SVCS.has(code)
@@ -1691,7 +1692,7 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
                   return { title: `${T('التأشيرة', 'Visa')} ${i + 1}`, stages }
                 }) : []
                 // الكودان الجديدان (دائمة/مؤقتة) يحملان النوع في اسم الخدمة نفسه، فلا نُلحق نوع التأشيرة ثانيةً.
-                const isSplitVisa = svcCode === 'work_visa_permanent' || svcCode === 'work_visa_6m' || svcCode === 'work_visa_temporary'
+                const isSplitVisa = svcCode === 'work_visa_permanent' || svcCode === 'work_visa_9m' || svcCode === 'work_visa_6m' || svcCode === 'work_visa_temporary'
                 const subLabel = (!isSplitVisa && va?.visa_type) ? (isAr ? va.visa_type.value_ar : (va.visa_type.value_en || va.visa_type.value_ar)) : null
                 const fullLabel = [isAr ? (svc.label_ar_full || svc.label_ar) : (svc.label_en_full || svc.label_en), subLabel].filter(Boolean).join(' ')
                 // نقل الكفالة: مراحل المعاملة (التأمين · رخصة العمل · الإقامة) من حسبة التنازل المرتبطة — تاق لكل مرحلة في الكرت.
@@ -5574,7 +5575,7 @@ const PaymentRow = ({ p, isAr, T, overflow = 0, onEdit, editLog, user }) => {
 /* ═════ Installment timeline — vertical stepper showing each stage ═════ */
 // تأشيرة وإقامة (دائمة/مؤقتة): مراحل الدفع تُقرأ بدلالة التأشيرة لا الطلب العام —
 // «فتح الطلب» ⇒ «إصدار التأشيرة»، و«إصدار/تجديد الإقامة» ⇒ «إصدار الإقامة».
-const VISA_IQAMA_SVC = ['work_visa_permanent', 'work_visa_6m', 'work_visa_temporary']
+const VISA_IQAMA_SVC = ['work_visa_permanent', 'work_visa_9m', 'work_visa_6m', 'work_visa_temporary']
 const VISA_IQAMA_MILESTONE_REMAP = {
   'عند فتح الطلب': { ar: 'عند إصدار التأشيرة', en: 'On Visa Issuance' },
   'On Request Open': { ar: 'عند إصدار التأشيرة', en: 'On Visa Issuance' },
@@ -8988,7 +8989,7 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
       {cardVisible(user, 'invoices', 'client') && (() => {
         const code = inv.service_type?.code
         // الخدمات التي تتطلب عميلاً منفصلاً (تطابق CLIENT_SERVICES في نموذج الطلب عبر SVC_CODE_MAP).
-        const CLIENT_REQUIRED = new Set(['work_visa_permanent', 'work_visa_6m', 'work_visa_temporary', 'transfer', 'iqama_renewal', 'general'])
+        const CLIENT_REQUIRED = new Set(['work_visa_permanent', 'work_visa_9m', 'work_visa_6m', 'work_visa_temporary', 'transfer', 'iqama_renewal', 'general'])
         if (!CLIENT_REQUIRED.has(code)) return null
         const sr = inv.service_request
         const pickW = rel => Array.isArray(rel) ? rel[0]?.worker : rel?.worker
