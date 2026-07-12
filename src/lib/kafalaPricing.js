@@ -19,9 +19,6 @@ export const KAFALA_DEFAULTS={
   // سقف خصم المكتب عند التصديق حسب مدة التجديد (سياسة الأدمن — الإدارة ← الخدمات ← تجديد الإقامة).
   // الحد الأعلى للخصم الذي يُدخله المُصدِّق لكل مدة (٣/٦/٩/١٢ شهرًا). لمدد غير معيارية يُحسب تناسبيًا من فئة ١٢.
   iqamaApprovalDiscountCap3M:25,iqamaApprovalDiscountCap6M:51,iqamaApprovalDiscountCap9M:76,iqamaApprovalDiscountCap12M:102,
-  // أرضية خصم المكتب لتصديق تجديد الإقامة (سياسة الأدمن — تُختار من الإدارة، ولا يراها المُصدِّق):
-  // 'none' بدون أرضية (يُسمح حتى صفر) · 'fixed' مبلغ ثابت=iqamaFloorFixed · 'daily' سعر اليوم (officeDailyRate) × أيام التجديد.
-  iqamaFloorMode:'daily',iqamaFloorFixed:0,
   // سياسات نقل الكفالة (مطابقة للتجديد): أساس رخصة العمل · قاعدة المنتهية من مدة طويلة · وضع رسوم المكتب · الخصم
   kafalaWpBasis:'iqama',kafalaWpResetEnabled:false,kafalaWpResetAfterDays:365,kafalaWpIssuanceDays:5,kafalaOfficeFeeMode:'flat',kafalaOfficeDiscountEnabled:true,
   // أرضية الخصم الافتراضية (سياسة الأدمن): تُملأ في نافذة تصديق نقل الكفالة وتُفرض كحدّ أدنى لرسوم المكتب بعد الخصم.

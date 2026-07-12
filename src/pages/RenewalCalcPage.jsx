@@ -150,22 +150,14 @@ export default function RenewalCalcPage({ sb, toast, user, lang, emptyIcon, onNe
   // الأرضية = الحد الأدنى لرسوم المكتب بعد الخصم؛ فأقصى خصم = رسوم المكتب − الأرضية.
   const computeApprovalDiscount = (af) => {
     const officeFee = Number(af?._officeFee || 0)
-    const renewalMonths = Number(af?._renewalMonths || 0)
-    const floorDays = renewalMonths * 30
-    const dailyRate = parseFloat(af?.floorDaily) || 0
-    const mode = af?.floorMode || 'none'
-    const floor = mode === 'fixed' ? Math.max(0, Math.round(parseFloat(af?.floorFixed) || 0))
-      : mode === 'daily' ? Math.round(dailyRate * floorDays)
-      : 0
-    const floorMax = discountEnabled ? Math.max(0, officeFee - Math.min(floor, officeFee)) : 0
-    // سقف الخصم حسب مدة التجديد (سياسة الأدمن) — يُحسب عند فتح النافذة ويُخزَّن في _discCap.
+    // سقف الخصم حسب مدة التجديد (سياسة الأدمن: ٣ش=25، ٦ش=51 …) — يُحسب عند فتح النافذة ويُخزَّن في _discCap.
     const durationCap = Math.max(0, Number(af?._discCap ?? Infinity))
-    // الحد الأقصى الفعلي = الأصغر بين حدّ الأرضية وسقف المدة.
-    const maxDiscount = Math.min(floorMax, durationCap)
+    // الحد الأقصى للخصم = سقف المدة، مقيّدًا برسوم المكتب (لمنع خصمٍ أكبر من الرسوم = إجمالي سالب).
+    const maxDiscount = discountEnabled ? Math.min(durationCap, officeFee) : 0
     const want = Math.round(parseFloat(af?.discValue) || 0)
     const applied = Math.min(Math.max(0, want), maxDiscount)
     const newTotal = Math.max(0, Math.round(Number(af?._total || 0)) - applied)
-    return { officeFee, floor, floorDays, dailyRate, mode, floorMax, durationCap, maxDiscount, want, applied, capped: want > maxDiscount, newTotal }
+    return { officeFee, durationCap, maxDiscount, want, applied, capped: want > maxDiscount, newTotal }
   }
 
   // ── خريطة الحالات (لون + اسم) ──
@@ -1229,7 +1221,7 @@ ${noticeBlk}
             const showCancel = ['priced', 'approved'].includes(r.status) && canApprove && canCardBtn(user, 'renewal_calc', 'actions_print', 'cancel') && modalAllowed(user, 'renewal_calc', 'cancel_quote') && !(expired && !r.invoice_id)
             return <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {(showApprove || showCancel) && <div style={{ display: 'flex', gap: 8 }}>
-              {showApprove && <button onClick={() => { if (expired) { toast(T('انتهت صلاحية التسعيرة — لا يمكن التصديق', 'Quote expired')); return } setApproveSaved(false); const _rc = getIqamaRenewalPricingConfig(r.branch_id || null); setApproveForm({ _id: r.id, _workerName: r.worker_name, _quoteNo: r.quote_no, _total: Number(r.total_amount || 0), _officeFee: Number(r.office_fee || 0), _renewalMonths: Number(r.renewal_months || 0), _discCap: renewalApprovalDiscountCap(_rc, r.renewal_months), discValue: '', floorMode: _rc.iqamaOfficeDiscountEnabled === false ? 'none' : (_rc.iqamaFloorMode || 'daily'), floorFixed: String(_rc.iqamaFloorFixed || ''), floorDaily: String(_rc.officeDailyRate || cfg.officeDailyRate || ''), approval_note: '' }) }} disabled={expired}
+              {showApprove && <button onClick={() => { if (expired) { toast(T('انتهت صلاحية التسعيرة — لا يمكن التصديق', 'Quote expired')); return } setApproveSaved(false); const _rc = getIqamaRenewalPricingConfig(r.branch_id || null); setApproveForm({ _id: r.id, _workerName: r.worker_name, _quoteNo: r.quote_no, _total: Number(r.total_amount || 0), _officeFee: Number(r.office_fee || 0), _renewalMonths: Number(r.renewal_months || 0), _discCap: renewalApprovalDiscountCap(_rc, r.renewal_months), discValue: '', approval_note: '' }) }} disabled={expired}
                 onMouseEnter={e => { if (!expired) e.currentTarget.style.filter = 'brightness(.93)' }} onMouseLeave={e => { e.currentTarget.style.filter = 'none' }}
                 style={{ flex: 1, height: 38, padding: '0 14px', borderRadius: 9, background: C.blue, border: '1px solid ' + C.blue, boxShadow: '0 2px 7px rgba(0,0,0,.12), inset 0 1px 0 rgba(176,125,0,.1)', color: '#fff', cursor: expired ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7, fontFamily: F, fontSize: 12.5, fontWeight: 600, opacity: expired ? .55 : 1, whiteSpace: 'nowrap', transition: 'filter .15s ease' }}>
                 <span>{T('تصديق الحسبة', 'Approve Quote')}</span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
