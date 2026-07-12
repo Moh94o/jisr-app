@@ -6,6 +6,7 @@ import {getSupabase} from './lib/supabase.js'
 import {hydrateSvcAdminFromDb,saveSvcAdminSetting} from './lib/serviceAdminSync.js'
 import {EmptyState,Modal,SuccessView,ActionButton,ModalSection,CurrencyField,NumberField,Select,ScrollBox,GRID,DateField} from './components/ui/FormKit.jsx'
 import {can,cardVisible,canCardBtn} from './lib/permissions.js'
+import ExpiryDurationCard from './components/ExpiryDurationCard.jsx'
 
 // Shared Kafala pricing config — drives both the service-request kafala modal AND the Kafala Calculator modal
 export const KAFALA_DEFAULTS={
@@ -21,6 +22,10 @@ export const KAFALA_DEFAULTS={
   iqamaApprovalDiscountCap3M:25,iqamaApprovalDiscountCap6M:51,iqamaApprovalDiscountCap9M:76,iqamaApprovalDiscountCap12M:102,
   kafalaWpBasis:'iqama',kafalaWpResetEnabled:false,kafalaWpResetAfterDays:365,kafalaWpIssuanceDays:5,kafalaOfficeFeeMode:'flat',kafalaOfficeDiscountEnabled:true,
   kafalaFloorMode:'daily',kafalaFloorFixed:0,
+  // حاسبة تاريخ الانتهاء — أيام تُضاف على تاريخ الانتهاء الحالي لكل مدة (مطابقة قوى).
+  expiryDays3:90,expiryDays6:178,expiryDays9:267,expiryDays12:355,
+  // الإقامات المنتهية: تعويض التأخير = floor(أيام التأخير ÷ overdueQuarterDays) ربع، يُضاف هجرياً قبل المدة.
+  overdueEnabled:true,overdueQuarterDays:90,
   profChange:1000,profChangeFreeOccupations:['2381e970-e939-4c6b-a7a9-8862f2133d41','1b4568be-0ea5-4079-bc90-ecca71d30adb'],officeFee:6500,officeDailyRate:18.06,iqamaOfficeFeeMode:'flat',
   medicalGraceMonths:2,medicalGraceDays:10,medGovCover:1000,
   medicalBrackets:[{min:20,max:30,rate:400},{min:30,max:40,rate:500},{min:40,max:50,rate:600},{min:50,max:60,rate:700},{min:60,max:70,rate:900}]
@@ -228,7 +233,16 @@ const KAFALA_SECTIONS=[
     {k:'officeDailyRate',l:'سعر اليوم (الحد الأدنى للخصم)',d:18.06,sfx:'ريال/يوم'}
   ]}
 ]
-const KAFALA_FIELDS=KAFALA_SECTIONS.flatMap(s=>s.fields)
+// حقول حاسبة تاريخ الانتهاء — تُخزَّن ضمن إعدادات التسعير (لا تظهر في أقسام التسعير؛ لها قسمها الخاص).
+const EXPIRY_DATE_FIELDS=[
+  {k:'expiryDays3',l:'٣ أشهر',d:90,sfx:'يوم'},
+  {k:'expiryDays6',l:'٦ أشهر',d:178,sfx:'يوم'},
+  {k:'expiryDays9',l:'٩ أشهر',d:267,sfx:'يوم'},
+  {k:'expiryDays12',l:'١٢ شهر',d:355,sfx:'يوم'},
+  {k:'overdueEnabled',l:'احتساب تأخير الإقامات المنتهية',d:true,t:'bool'},
+  {k:'overdueQuarterDays',l:'طول فترة التعويض (يوم)',d:90,sfx:'يوم'},
+]
+const KAFALA_FIELDS=[...KAFALA_SECTIONS.flatMap(s=>s.fields),...EXPIRY_DATE_FIELDS]
 const VISA_FIELDS=[
 {k:'issuance',l:'الحد الأدنى لدفعة إصدار التأشيرة',d:2000,sfx:'ريال/تأشيرة'},
 {k:'authorization',l:'الحد الأدنى لدفعة الوكالة',d:2000,sfx:'ريال/تأشيرة'},
@@ -2398,6 +2412,15 @@ if(selectedSvc){
         </div>
       )
     })()}
+
+    {/* Section: حاسبة تاريخ الانتهاء — نقل الكفالة + تجديد الإقامة فقط */}
+    {cardVisible(user,'admin_services','default_pricing')&&(s.id==='kafala_transfer'||s.id==='iqama_renewal')&&st.billable&&(
+      <ExpiryDurationCard
+        pricing={getPricing(s.id)}
+        canEdit={canCardBtn(user,'admin_services','default_pricing','edit')}
+        onSave={(patch)=>{setPricing(s.id,patch);setPriceState(p=>({...p,...patch}))}}
+      />
+    )}
 
     {/* Section: Document types (only for the «مستندات» service) — admin-managed dropdown options */}
     {cardVisible(user,'admin_services','document_types')&&s.id==='documents'&&(
