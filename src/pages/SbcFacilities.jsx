@@ -3848,7 +3848,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
               </button>
             )}
             <div style={{ fontSize: 24, fontWeight: 600, color: 'var(--tx)', letterSpacing: '-.3px', lineHeight: 1.2 }}>
-              {T('المنشآت', 'Facilities')}
+              {T('مركز مزامنة المنشآت والعمالة', 'Facilities & Workforce Sync Hub')}
             </div>
           </div>
           <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 12, lineHeight: 1.6 }}>

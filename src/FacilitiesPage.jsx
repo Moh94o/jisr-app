@@ -431,6 +431,28 @@ function fmtDateTime(iso) {
   } catch { return '—' }
 }
 
+// تاريخ آخر جلب للنطاق: «يوم-شهر» + وسم الأسبوع (الأسبوع يبدأ السبت). النطاقات
+// تُحدَّث أسبوعياً، فمعرفة الأسبوع الذي جاء منه الرقم أهم من الوقت الدقيق.
+function nitaqSyncBadge(iso) {
+  if (!iso) return null
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return null
+  const p = (n) => String(n).padStart(2, '0')
+  const text = `${p(d.getMonth() + 1)}-${p(d.getDate())}`
+  // بداية أسبوع أي تاريخ = السبت السابق له (الأحد=1 يوم بعد السبت … الجمعة=6).
+  const weekStart = (x) => {
+    const s = new Date(x.getFullYear(), x.getMonth(), x.getDate() - ((x.getDay() + 1) % 7))
+    s.setHours(0, 0, 0, 0)
+    return s
+  }
+  const wk = Math.round((weekStart(new Date()) - weekStart(d)) / 6048e5)
+  let rel
+  if (wk <= 0) rel = ['هذا الأسبوع', 'This week']
+  else if (wk === 1) rel = ['الأسبوع الماضي', 'Last week']
+  else rel = [`قبل ${wk} أسابيع`, `${wk} weeks ago`]
+  return { text, rel }
+}
+
 // تسميات حقول المنشأة لعرضها في سجل التعديلات.
 const FAC_LBL = {
   name_ar: ['الاسم بالعربي', 'Arabic name'],
@@ -4223,11 +4245,12 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
         return
       }
       // حفظ النتيجة: على السجل الأساسي دائماً، وعلى صف المزامنة إن وُجد.
-      await sb.from('facilities').update({ hrsd_nitaq_name: r.nitaq, hrsd_nitaq_synced_at: new Date().toISOString() }).eq('id', row.id)
+      const syncedAt = new Date().toISOString()
+      await sb.from('facilities').update({ hrsd_nitaq_name: r.nitaq, hrsd_nitaq_synced_at: syncedAt }).eq('id', row.id)
       if (row.sbc_facility_id) {
         sb.from('sbc_facilities').update({ hrsd_nitaq_name: r.nitaq }).eq('id', row.sbc_facility_id).then(() => {}, () => {})
       }
-      setRows(rs => rs.map(x => x.id === row.id ? { ...x, hrsd_nitaq_name: r.nitaq } : x))
+      setRows(rs => rs.map(x => x.id === row.id ? { ...x, hrsd_nitaq_name: r.nitaq, hrsd_nitaq_synced_at: syncedAt } : x))
       setNitaqFetch(c => ({ ...c, phase: 'done', result: r }))
     } catch (e) {
       setNitaqFetch(c => ({ ...c, phase: 'error', error: e.name === 'AbortError' ? T('انتهت مهلة التحقق', 'Verification timed out') : (e.message || T('خطأ في التحقق', 'Verification error')) }))
@@ -5481,13 +5504,22 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                         // بلاتيني: خلفية بلون البلاتين المعدني وخط أسود (لا يوجد
                         // «لون نص بلاتيني» مقروء، فالتاق نفسه يحمل اللون).
                         const plat = nq.includes('بلاتيني')
+                        const sync = nitaqSyncBadge(r.hrsd_nitaq_synced_at)
                         return (
-                          <span style={{ display: 'inline-flex', alignItems: 'stretch', gap: 6, maxWidth: '100%' }}>
-                            <span title={nq} style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1, height: 46, boxSizing: 'border-box', borderInlineStart: '3px solid ' + (plat ? '#8f96a3' : c), background: plat ? 'linear-gradient(135deg, #e6e9ee, #bfc5cf)' : c + '10', padding: '4px 13px', color: plat ? '#16181d' : c, fontSize: 12, fontWeight: 600, minWidth: 0, lineHeight: 1.5 }}>
-                              <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}>{main}</span>
-                              {qual && <span style={{ fontSize: 10, fontWeight: 600, opacity: .75, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%', letterSpacing: '.2px' }}>{qual}</span>}
+                          <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 3, maxWidth: '100%' }}>
+                            <span style={{ display: 'inline-flex', alignItems: 'stretch', gap: 6, maxWidth: '100%' }}>
+                              <span title={nq} style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1, height: 46, boxSizing: 'border-box', borderInlineStart: '3px solid ' + (plat ? '#8f96a3' : c), background: plat ? 'linear-gradient(135deg, #e6e9ee, #bfc5cf)' : c + '10', padding: '4px 13px', color: plat ? '#16181d' : c, fontSize: 12, fontWeight: 600, minWidth: 0, lineHeight: 1.5 }}>
+                                <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}>{main}</span>
+                                {qual && <span style={{ fontSize: 10, fontWeight: 600, opacity: .75, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%', letterSpacing: '.2px' }}>{qual}</span>}
+                              </span>
+                              {fetchBtn}
                             </span>
-                            {fetchBtn}
+                            {sync && (
+                              <span title={T('تاريخ جلب النطاق', 'Nitaq fetch date')} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 600, color: 'var(--tx4)', whiteSpace: 'nowrap', letterSpacing: '.2px' }}>
+                                <span style={{ opacity: .7 }}>{T(sync.rel[0], sync.rel[1])} ·</span>
+                                <span style={{ direction: 'ltr' }}>{sync.text}</span>
+                              </span>
+                            )}
                           </span>
                         )
                       })()}

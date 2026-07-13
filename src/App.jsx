@@ -702,7 +702,7 @@ const T=(ar,en)=>lang==='ar'?ar:en;const TL=(ar)=>lang==='ar'?ar:(TR[ar]||ar);co
 ];
 const hubTabs={
   workforce:[{id:'facilities',l:T('المنشآت','Facilities'),i:'facility'},{id:'workers',l:T('العمالة الدائمة','Permanent Workforce'),i:'labor'},{id:'temp_workers',l:T('العمالة المؤقتة','Temporary Workforce'),i:'labor'}],
-  sync_center:[{id:'sync_hub',l:T('المنشآت','Facilities'),i:'facility'}],
+  sync_center:[{id:'sync_hub',l:T('مركز المزامنة','Sync Hub'),i:'refresh'}],
   finance_hub:[{id:'invoices',l:T('الفواتير','Invoices'),i:'invoice'},{id:'deposits',l:T('الإيداعات','Deposits'),i:'deposit'},{id:'payments',l:T('سدادات الخدمات','Service Payments'),i:'receipt'},{id:'ext_payments',l:T('سدادات خارجية','External Payments'),i:'receipt'},{id:'jub1_receipts',l:T('سندات JUB1','JUB1 Receipts'),i:'receipt'}],
   pricing_hub:[{id:'transfer_calc',l:T('حسبة نقل الكفالات','Transfer Calc'),i:'calc'},{id:'renewal_calc',l:T('حسبة تجديد الإقامات','Renewal Calc'),i:'refresh'}],
   persons_hub:[{id:'admin_clients',l:T('العملاء','Clients'),i:'clients'},{id:'admin_agents',l:T('الوسطاء','Agents'),i:'broker'}],

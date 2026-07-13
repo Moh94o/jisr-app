@@ -722,14 +722,14 @@ if(cancelled)return
 setAutoWorker(m)
 // عميل موجود: قرّر «هو نفسه العميل / شخص مختلف» تلقائياً مرة واحدة لكل عميل (التبديل اليدوي بعدها يبقى).
 // (لا يُطبَّق على خدمات التسعيرة QUOTE_SVCS لأنها تربط العميل/العامل بمنطقها الخاص.)
-if(isExisting&&!QUOTE_SVCS.has(selSvc)&&autoDecidedRef.current!==idn){autoDecidedRef.current=idn;setWorkerIsClient(!!m);setSelWorker(m||null)}
+if(isExisting&&!QUOTE_SVCS.has(selSvc)&&selSvc!=='custom'&&autoDecidedRef.current!==idn){autoDecidedRef.current=idn;setWorkerIsClient(!!m);setSelWorker(m||null)}
 })()
 return()=>{cancelled=true}
 },[clientMode,selClient?.id_number,newClient.id_number,workers,sb,selSvc])
 
 // «هو نفسه العميل»: يبقى selWorker متزامناً مع العامل المطابق آلياً، ويُملأ اسم/جنسية العميل الجديد منه.
 useEffect(()=>{
-if(!workerIsClient||QUOTE_SVCS.has(selSvc))return
+if(!workerIsClient||QUOTE_SVCS.has(selSvc)||selSvc==='custom')return
 setSelWorker(autoWorker||null)
 if(autoWorker&&clientMode==='new')setNewClient(p=>({...p,name_ar:autoWorker.name_ar||'',name_en:autoWorker.name_en||'',nationality_id:autoWorker.nationality_id||p.nationality_id||null}))
 },[workerIsClient,autoWorker,clientMode,selSvc])
@@ -1011,7 +1011,8 @@ if(selSvc==='chamber_certification'){
   return{lines:[{label:sub==='printed'?'تصديق المطبوعات':(sub==='open_request'?'تصديق طلب مفتوح':'الغرفة التجارية'),amount:fee},...(ccOfficeFee>0?[{label:'رسوم مكتب',amount:ccOfficeFee}]:[])]}
 }
 if(selSvc==='custom'){
-  return{lines:[{label:customName.trim()||'خدمة عامة',amount:0}]}
+  // خدمة عامة: لا بند أساسي — يبدأ الجدول فارغاً ويضيف المستخدم البنود عبر «إضافة بند جديد».
+  return{lines:[]}
 }
 return null
 },[selSvc,fields,selWorker,customName,ajeerWorkerCount,user,branchId,svcBranch])
@@ -1262,10 +1263,12 @@ return{price,govFee,vatRate,vat,subtotal,total,rules}
 useEffect(()=>{
 if(step!==5)return
 if(VISA_SERVICES.has(selSvc)||selSvc==='kafala_transfer'||selSvc==='iqama_renewal')return
+// خدمة عامة بدفعات متعددة: كل الدفعات مجدولة بتواريخ، فلا يُفترض دفع مقدّم — يبدأ المبلغ المدفوع فارغاً ويُدخله المستخدم.
+if(selSvc==='custom'&&kafalaPayMode==='split'){setPaidAmount('');return}
 const t=Number(pricing.total)||0
 if(t>0)setPaidAmount(String(t))
 // eslint-disable-next-line react-hooks/exhaustive-deps
-},[step,selSvc])
+},[step,selSvc,kafalaPayMode])
 
 // Installments breakdown
 const installmentsList=useMemo(()=>{
@@ -1453,13 +1456,13 @@ if(issuanceVal>total+0.01){setErr(T('دفعة «عند إصدار التأشير
 }
 }
 // Step 4 (invoice) — the general/custom service has free-form pricing; a billable request can't total zero.
-if(step===4&&selSvc==='custom'&&(Number(pricing?.price)||0)<=0){setErr(T('يرجى إدخال مبلغ خدمة عامة — البند الأساسي','Please enter the general-service amount — the main item'));return false}
-// Kafala/Iqama payment plan: the first installment must cover everything except the office fee.
-if(step===4&&(selSvc==='kafala_transfer'||selSvc==='iqama_renewal')&&kafalaPayStep&&kafalaPayMode==='split'){
+if(step===4&&selSvc==='custom'&&(Number(pricing?.total)||0)<=0){setErr(T('يرجى إضافة بند واحد على الأقل للفاتورة','Please add at least one invoice item'));return false}
+// Kafala/Iqama/خدمة عامة payment plan: the first installment must cover everything except the office fee.
+if(step===4&&(selSvc==='kafala_transfer'||selSvc==='iqama_renewal'||selSvc==='custom')&&kafalaPayStep&&kafalaPayMode==='split'){
 const total=Number(pricing.total)||0
-const officeFee=(selSvc==='iqama_renewal'||selSvc==='kafala_transfer')?Number(selKafalaQuote?.office_fee||0):Number((kafalaLines&&kafalaLines.officeFee)||0)
-// الدفعة الأولى يجب ألا تقل عن الرسوم الحكومية. تجديد الإقامة = نفس قيمة صفحة التفاصيل (government_fees)؛ نقل الكفالة = subtotal − رسوم المكتب − خصم أبشر.
-const minFirst=selSvc==='iqama_renewal'?iqamaQuoteGovFees(selKafalaQuote):((Number(selKafalaQuote?.subtotal||0)>0)?Math.max(0,Number(selKafalaQuote.subtotal)-Number(selKafalaQuote?.office_fee||0)-Number(selKafalaQuote?.absher_discount||0)):Math.max(0,total-officeFee))
+const officeFee=selSvc==='custom'?0:((selSvc==='iqama_renewal'||selSvc==='kafala_transfer')?Number(selKafalaQuote?.office_fee||0):Number((kafalaLines&&kafalaLines.officeFee)||0))
+// الدفعة الأولى يجب ألا تقل عن الرسوم الحكومية. تجديد الإقامة = نفس قيمة صفحة التفاصيل (government_fees)؛ نقل الكفالة = subtotal − رسوم المكتب − خصم أبشر. خدمة عامة بلا حد أدنى.
+const minFirst=selSvc==='custom'?0:(selSvc==='iqama_renewal'?iqamaQuoteGovFees(selKafalaQuote):((Number(selKafalaQuote?.subtotal||0)>0)?Math.max(0,Number(selKafalaQuote.subtotal)-Number(selKafalaQuote?.office_fee||0)-Number(selKafalaQuote?.absher_discount||0)):Math.max(0,total-officeFee)))
 const rows=kafalaInstallments
 const first=parseFloat(rows[0]?.amount)||0
 // «دفعات متعددة» تتطلب دفعتين على الأقل — وإلا فهي دفعة واحدة
@@ -1470,8 +1473,8 @@ const oneTimeBypass=new Date().toISOString().slice(0,10)==='2026-07-03'
 if(first<minFirst&&!oneTimeBypass&&!gm){setErr(T(`الدفعة الأولى يجب ألا تقل عن ${fmtAmt(minFirst.toFixed(2))} ريال (مجموع الرسوم الحكومية)`,`The first installment must be at least ${fmtAmt(minFirst.toFixed(2))} SAR (total government fees)`));return false}
 // كل دفعة يجب أن تحمل مبلغاً موجباً
 if(rows.some(r=>(parseFloat(r.amount)||0)<=0)){setErr(T('يرجى إدخال مبلغ لكل دفعة','Please enter an amount for each installment'));return false}
-// كل دفعة بعد الأولى تحتاج تاريخاً
-if(rows.slice(1).some(r=>!r.date)){setErr(T('يرجى تحديد تاريخ لكل دفعة بعد الأولى','Please set a date for each installment after the first'));return false}
+// خدمة عامة: الدفعة الأولى تاريخ عادي مثل البقية فتُطلب تواريخ الكل؛ باقي الخدمات الأولى «عند الإصدار» فتُستثنى.
+if((selSvc==='custom'?rows:rows.slice(1)).some(r=>!r.date)){setErr(selSvc==='custom'?T('يرجى تحديد تاريخ لكل دفعة','Please set a date for each installment'):T('يرجى تحديد تاريخ لكل دفعة بعد الأولى','Please set a date for each installment after the first'));return false}
 // مجموع الدفعات يجب أن يساوي الإجمالي النهائي
 const sum=rows.reduce((s,x)=>s+(parseFloat(x.amount)||0),0)
 if(Math.abs(sum-total)>0.01){setErr(T(`مجموع الدفعات (${fmtAmt(sum.toFixed(2))}) يجب أن يساوي الإجمالي النهائي (${fmtAmt(total.toFixed(2))} ريال)`,`Installments total (${fmtAmt(sum.toFixed(2))}) must equal the final total (${fmtAmt(total.toFixed(2))} SAR)`));return false}
@@ -1494,6 +1497,7 @@ const paid=Number(paidAmount)||0
 if(paid<govFees-0.01&&!gm){setErr(T(`المبلغ المدفوع يجب ألا يقل عن الرسوم الحكومية (${fmtAmt(govFees.toFixed(2))} ريال)`,`The paid amount must not be less than the government fees (${fmtAmt(govFees.toFixed(2))} SAR)`));return false}
 }
 // Step 5 (payment entry) — نقل كفالة/تجديد (دفعات متعددة): المبلغ المدفوع (الدفعة المقدّمة) يجب ألا يقل عن الدفعة الأولى «عند الإصدار».
+// خدمة عامة مستثناة: دفعاتها كلها بتواريخ مجدولة (لا دفعة «عند الإصدار») فلا حدّ أدنى على المدفوع.
 if(step===5&&!showSummaryScreen&&!showBrokerNoteScreen&&(selSvc==='kafala_transfer'||selSvc==='iqama_renewal')&&kafalaPayMode==='split'){
 const first=parseFloat((kafalaInstallments||[])[0]?.amount)||0
 const paid=Number(paidAmount)||0
@@ -1552,7 +1556,8 @@ return
 }
 }
 // Step 2 sub-flow: client → (if worker not same and not visa/kafala service) worker → next step
-if(step===2&&step2Mode==='client'&&!VISA_SERVICES.has(selSvc)&&!QUOTE_SVCS.has(selSvc)){setStep2Mode('worker');setErr('');return}
+// خدمة عامة (custom): لا خطوة عامل إطلاقاً — من العميل مباشرةً إلى تفاصيل الخدمة.
+if(step===2&&step2Mode==='client'&&!VISA_SERVICES.has(selSvc)&&!QUOTE_SVCS.has(selSvc)&&selSvc!=='custom'){setStep2Mode('worker');setErr('');return}
 // If the service's single field is merged into Step 2, skip Step 3 entirely
 if(step===2&&hasMergedField){setStep(4);return}
 // Step 3 sub-flow (visa services): groups → [auto: skip to step 4] or [custom: files distribution → step 4]
@@ -1584,8 +1589,8 @@ if(step===3&&isFreeSvc){setStep(5);setShowBrokerNoteScreen(true);setErr('');retu
 // التأمين الطبي / تعديل الراتب / خروج نهائي: السعر محسوب تلقائياً (رسم ثابت) — نتخطّى خطوة التسعيرة (الفاتورة) وننتقل من التفاصيل (3) مباشرة للدفع (5).
 // نُعبّئ «المبلغ المدفوع» بالكامل ضمن نفس التحديث حتى لا تومض حالة «المتبقّي» قبل أن يملأه التأثير بعد الرسم.
 if(step===3&&(selSvc==='medical_insurance'||selSvc==='name_translation'||selSvc==='final_exit_visa')){setPaidAmount(String(Number(pricing.total)||0));setStep(5);setErr('');return}
-// Step 4 kafala/iqama sub-flow: pricing → payment-plan screen (before moving to step 5)
-if(step===4&&(selSvc==='kafala_transfer'||selSvc==='iqama_renewal')&&!kafalaPayStep){setKafalaPayStep(true);setErr('');return}
+// Step 4 kafala/iqama/خدمة عامة sub-flow: pricing → payment-plan screen (before moving to step 5)
+if(step===4&&(selSvc==='kafala_transfer'||selSvc==='iqama_renewal'||selSvc==='custom')&&!kafalaPayStep){setKafalaPayStep(true);setErr('');return}
 // Step 5 sub-flow: payment → note (every service) → summary
 if(step===5&&!showSummaryScreen&&!showBrokerNoteScreen){
 setShowBrokerNoteScreen(true);setErr('');return
@@ -1626,6 +1631,8 @@ if(step===3&&step3Mode==='files'){setStep3Mode('groups');return}
 // Step 4 quote-driven sub-flow: payment-plan → step 3 (no pricing entry — prices come from the quote).
 // تجديد الإقامة يتخطّى خطوة العميل، فالرجوع من الدفع يعود مباشرة للتفاصيل (الخطوة 2).
 if(step===4&&QUOTE_SVCS.has(selSvc)&&kafalaPayStep){setKafalaPayStep(false);setStep(selSvc==='iqama_renewal'?2:3);return}
+// خدمة عامة: من خطة الدفع رجوعاً إلى جدول التسعيرة (نفس الخطوة 4).
+if(step===4&&selSvc==='custom'&&kafalaPayStep){setKafalaPayStep(false);return}
 // Coming back from step 4 into step 3: visa → restore sub-mode, quote-driven → client party step
 if(step===4&&VISA_SERVICES.has(selSvc)){setStep(3);setStep3Mode(visaDistMode==='auto'?'groups':'files');return}
 if(step===4&&QUOTE_SVCS.has(selSvc)){setStep(selSvc==='iqama_renewal'?2:3);return}
@@ -1634,8 +1641,8 @@ if(step===4&&selSvc==='passport_update'){setStep(3);setPassportPage(2);return}
 if(step===5&&showSummaryScreen){setShowSummaryScreen(false);setShowBrokerNoteScreen(true);return}
 // Note → back: free services have no payment step, so return to details (step 3)
 if(step===5&&showBrokerNoteScreen){setShowBrokerNoteScreen(false);if(isFreeSvc)setStep(3);return}
-// Coming back from step 5 into step 4: kafala/iqama → restore payment-plan screen
-if(step===5&&(selSvc==='kafala_transfer'||selSvc==='iqama_renewal')){setStep(4);setKafalaPayStep(true);return}
+// Coming back from step 5 into step 4: kafala/iqama/خدمة عامة → restore payment-plan screen
+if(step===5&&(selSvc==='kafala_transfer'||selSvc==='iqama_renewal'||selSvc==='custom')){setStep(4);setKafalaPayStep(true);return}
 // التأمين الطبي / تعديل الراتب / خروج نهائي: الرجوع من الدفع (5) يعود مباشرة للتفاصيل (3) — لا خطوة تسعيرة.
 if(step===5&&!showSummaryScreen&&!showBrokerNoteScreen&&(selSvc==='medical_insurance'||selSvc==='name_translation'||selSvc==='final_exit_visa')){setStep(3);return}
 // Mirror the skip on the way back
@@ -1913,9 +1920,9 @@ const residenceVal=visaHasInstallments?r2(Math.max(0,total-issuanceVal-authVal))
 // نقل الكفالة (transfer) وتجديد الإقامة (iqama_renewal) وحدهما يمكن تقسيمهما لعدّة دفعات — وذلك
 // فقط إذا اختار المستخدم «دفعات متعددة». التأشيرة الدائمة تستخدم مراحلها الثلاث أعلاه. وكل خدمة
 // أخرى لها فاتورة تُنشئ دفعة واحدة بكامل المبلغ (وليس صفراً).
-const installmentSvc=selSvc==='kafala_transfer'||selSvc==='iqama_renewal'
+const installmentSvc=selSvc==='kafala_transfer'||selSvc==='iqama_renewal'||selSvc==='custom'
 const splitChosen=installmentSvc&&kafalaPayMode==='split'
-const splitRows=splitChosen?kafalaInstallments.map(rw=>({amount:r2(parseFloat(rw.amount)||0),date:rw.date||null})).filter(rw=>rw.amount>0):[]
+const splitRows=splitChosen?kafalaInstallments.map(rw=>({amount:r2(parseFloat(rw.amount)||0),date:rw.date||null,label:(rw.label||'').trim()||null})).filter(rw=>rw.amount>0):[]
 const planCount=visaHasInstallments?((hasResidence?2:1)+(createdVisaIds.length||1)):(splitRows.length>1?splitRows.length:1)
 
 // Snapshot the التسعيرة line items (service lines + extras) so the invoice detail can show the
@@ -1990,6 +1997,8 @@ const amounts=splitRows.length>1
 :[r2(total)]
 // Split rows use the date the user entered; a single full-amount دفعة has no schedulable future date.
 const dates=splitRows.length>1?splitRows.map(rw=>rw.date||null):[null]
+// خدمة عامة: اسم الدفعة الذي كتبه المستخدم يُحفظ في notes ليظهر في جدول الدفعات.
+const noteLabels=splitRows.length>1?splitRows.map(rw=>rw.label||null):[null]
 let leftover=paidNum
 insts=amounts.map((amt,i)=>{
 const instPaid=Math.min(leftover,amt)
@@ -2004,7 +2013,7 @@ paid_amount:instPaid,
 expected_date:dates[i]||null,
 paid_date:instPaid>=amt?nowIso:null,
 payment_method_id:instPaid>0?pmId:null,
-notes:null,
+notes:noteLabels[i]||null,
 }
 })
 }
@@ -2389,8 +2398,8 @@ style={{cursor:'pointer',position:'relative',border:`1px solid ${G.baseB}`,backg
 </div>}
 </div>}
 
-{/* ─── العامل (ربط ذكي) — يظهر بعد اختيار العميل للخدمات التي تتطلب عاملاً ─── */}
-{selClient&&clientMode==='existing'&&!VISA_SERVICES.has(selSvc)&&!QUOTE_SVCS.has(selSvc)&&(()=>{
+{/* ─── العامل (ربط ذكي) — يظهر بعد اختيار العميل للخدمات التي تتطلب عاملاً (خدمة عامة بلا عامل) ─── */}
+{selClient&&clientMode==='existing'&&!VISA_SERVICES.has(selSvc)&&!QUOTE_SVCS.has(selSvc)&&selSvc!=='custom'&&(()=>{
 const matched=autoWorker
 const setSame=(val)=>{setWorkerIsClient(val);if(val){setSelWorker(matched||null);setClientMode('existing')}else{setSelWorker(null)}}
 return<div style={{marginTop:12,display:'flex',flexDirection:'column',gap:8}}>
@@ -2454,8 +2463,8 @@ return <div style={{marginTop:6,background:'linear-gradient(135deg,rgba(176,125,
 </div>
 })()}
 
-{/* العامل لعميل جديد — نفس منطق العميل المسجّل: يبحث عن عامل مسجّل بنفس رقم الهوية/الإقامة (لا يُنشئ عاملاً جديداً) */}
-{clientMode==='new'&&!VISA_SERVICES.has(selSvc)&&!QUOTE_SVCS.has(selSvc)&&(()=>{
+{/* العامل لعميل جديد — نفس منطق العميل المسجّل: يبحث عن عامل مسجّل بنفس رقم الهوية/الإقامة (لا يُنشئ عاملاً جديداً) — خدمة عامة بلا عامل */}
+{clientMode==='new'&&!VISA_SERVICES.has(selSvc)&&!QUOTE_SVCS.has(selSvc)&&selSvc!=='custom'&&(()=>{
 const validId=newClient.id_number&&newClient.id_number.length===10
 const matched=validId?autoWorker:null
 const setSame=(val)=>{setWorkerIsClient(val);if(val){setSelWorker(matched||null)}else{setSelWorker(null)}}
@@ -3808,17 +3817,21 @@ return<div style={{marginTop:10,borderRadius:12,border:'1.5px solid rgba(176,125
 })()}
 
 {/* ═══ Kafala / Iqama-renewal Payment Plan: separate sub-step after pricing ═══ */}
-{(selSvc==='kafala_transfer'||selSvc==='iqama_renewal')&&kafalaPayStep&&(()=>{
+{(selSvc==='kafala_transfer'||selSvc==='iqama_renewal'||selSvc==='custom')&&kafalaPayStep&&(()=>{
 const total=Number(pricing.total)||0
-const officeFee=(selSvc==='iqama_renewal'||selSvc==='kafala_transfer')?Number(selKafalaQuote?.office_fee||0):Number((kafalaLines&&kafalaLines.officeFee)||0)
-// First payment must cover the government fees (subtotal − office fee − Absher); only the office fee may be deferred to later installments.
-const minFirst=(Number(selKafalaQuote?.subtotal||0)>0)?Math.max(0,Number(selKafalaQuote.subtotal)-Number(selKafalaQuote?.office_fee||0)-Number(selKafalaQuote?.absher_discount||0)):Math.max(0,total-officeFee)
+const officeFee=selSvc==='custom'?0:((selSvc==='iqama_renewal'||selSvc==='kafala_transfer')?Number(selKafalaQuote?.office_fee||0):Number((kafalaLines&&kafalaLines.officeFee)||0))
+// First payment must cover the government fees (subtotal − office fee − Absher); only the office fee may be deferred to later installments. خدمة عامة بلا حد أدنى.
+const minFirst=selSvc==='custom'?0:((Number(selKafalaQuote?.subtotal||0)>0)?Math.max(0,Number(selKafalaQuote.subtotal)-Number(selKafalaQuote?.office_fee||0)-Number(selKafalaQuote?.absher_discount||0)):Math.max(0,total-officeFee))
+// خدمة عامة: حتى 12 دفعة واسم الدفعة قابل للكتابة؛ باقي الخدمات تبقى 5 دفعات بأسماء ترتيبية.
+const isCustom=selSvc==='custom'
+const maxInst=isCustom?12:5
+const gridCols=isCustom?'120px 1fr 1fr 26px':'64px 1fr 1fr 26px'
 const inst=kafalaInstallments
 const sumPaid=inst.reduce((s,x)=>s+(parseFloat(x.amount)||0),0)
 const remaining=Math.max(0,total-sumPaid)
 // تواريخ الدفعات لا تقبل أيّ يوم سابق — تبدأ من اليوم
 const todayStr=(()=>{const t=new Date();return`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`})()
-const addInst=()=>setKafalaInstallments(p=>p.length>=5?p:[...p,{amount:'',date:''}])
+const addInst=()=>setKafalaInstallments(p=>p.length>=maxInst?p:[...p,{amount:'',date:''}])
 const rmInst=(i)=>setKafalaInstallments(p=>p.filter((_,idx)=>idx!==i))
 const setIF=(i,k,v)=>setKafalaInstallments(p=>p.map((x,idx)=>idx===i?{...x,[k]:v}:x))
 return<div style={{flex:1,minHeight:0,borderRadius:12,border:'1.5px solid rgba(176,125,0,.35)',padding:'16px 14px 12px',position:'relative',marginTop:11,display:'flex',flexDirection:'column',gap:10}}>
@@ -3832,13 +3845,14 @@ return<div style={{flex:1,minHeight:0,borderRadius:12,border:'1.5px solid rgba(1
 options={[{v:'single',l:T('دفعة واحدة','Single payment')},{v:'split',l:T('دفعات متعددة','Multiple installments')}]}/>
 {kafalaPayMode==='split'&&<div style={{display:'flex',flexDirection:'column',gap:6,flex:1,minHeight:0,paddingTop:8}}>
 {/* رأس الجدول — عناوين الأعمدة */}
-<div style={{display:'grid',gridTemplateColumns:'64px 1fr 1fr 26px',gap:8,alignItems:'center',padding:'0 2px 3px'}}>
+<div style={{display:'grid',gridTemplateColumns:gridCols,gap:8,alignItems:'center',padding:'0 2px 3px'}}>
 <span style={{fontSize:10,fontWeight:600,color:'var(--tx5)'}}>{T('الدفعة','Installment')}</span>
 <span style={{fontSize:10,fontWeight:600,color:'var(--tx5)',textAlign:'center'}}>{T('المبلغ','Amount')}</span>
 <span style={{fontSize:10,fontWeight:600,color:'var(--tx5)',textAlign:'center'}}>{T('التاريخ','Date')}</span>
 <span/>
 </div>
-{inst.map((row,i)=>{
+{/* صفوف الدفعات — خدمة عامة فقط: تُلَفّ بشريط تمرير ذهبي داخل الإطار؛ باقي الخدمات تبقى بلا غلاف كما كانت تماماً */}
+{(()=>{const rowsEls=inst.map((row,i)=>{
 const idxLbl=isAr?(['الأولى','الثانية','الثالثة','الرابعة','الخامسة'][i]||`${i+1}`):`${i+1}`
 const val=parseFloat(row.amount)||0
 const isFirst=i===0
@@ -3847,16 +3861,19 @@ const under=isFirst&&val>0&&val<minFirst
 const sumOthers=inst.reduce((s,x,idx)=>idx===i?s:s+(parseFloat(x.amount)||0),0)
 const maxForRow=Math.max(0,total-sumOthers)
 // صف جدول لكل دفعة: الدفعة | المبلغ | التاريخ | حذف
-return<div key={i} style={{display:'grid',gridTemplateColumns:'64px 1fr 1fr 26px',gap:8,alignItems:'center'}}>
-<span style={{fontSize:11.5,fontWeight:600,color:isFirst?C.gold:'var(--tx2)',fontFamily:F}}>{idxLbl}</span>
+return<div key={i} style={{display:'grid',gridTemplateColumns:gridCols,gap:8,alignItems:'center'}}>
+{isCustom
+?<input type="text" value={row.label||''} onChange={e=>setIF(i,'label',e.target.value)} placeholder={idxLbl} style={{...fS,height:42,fontSize:12,fontWeight:600,textAlign:'center',color:isFirst?C.gold:'var(--tx2)'}}/>
+:<span style={{fontSize:11.5,fontWeight:600,color:isFirst?C.gold:'var(--tx2)',fontFamily:F}}>{idxLbl}</span>}
 <input type="text" inputMode="decimal" value={fmtAmt(row.amount)} onChange={e=>{const raw=e.target.value.replace(/[^0-9.]/g,'');setIF(i,'amount',raw!==''&&Number(raw)>maxForRow?String(maxForRow):raw)}} onBlur={e=>{const raw=e.target.value.replace(/[^0-9.]/g,'');if(raw!==''&&Number(raw)>maxForRow)setIF(i,'amount',String(maxForRow))}} placeholder={T('المبلغ','Amount')} style={{...fS,height:42,fontSize:12,direction:'ltr',textAlign:'center',borderColor:under?C.red+'66':'rgba(255,255,255,.1)'}}/>
-{isFirst?<div style={{height:42,borderRadius:9,border:'1px solid rgba(176,125,0,.18)',background:'var(--fk-input-bg)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:11.5,fontWeight:600,color:'var(--tx2)'}}>{T('عند الإصدار','On issuance')}</div>
+{isFirst&&!isCustom?<div style={{height:42,borderRadius:9,border:'1px solid rgba(176,125,0,.18)',background:'var(--fk-input-bg)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:11.5,fontWeight:600,color:'var(--tx2)'}}>{T('عند الإصدار','On issuance')}</div>
 :<CompactDatePicker value={row.date||''} onChange={(v)=>{if(v&&v<todayStr)return;setIF(i,'date',v)}} width={'100%'} min={todayStr}/>}
 {inst.length>2&&!isFirst?<button type="button" onClick={()=>rmInst(i)} title={T('حذف الدفعة','Delete installment')} style={{width:26,height:26,borderRadius:7,border:'1px solid rgba(192,57,43,.25)',background:'rgba(192,57,43,.1)',color:C.red,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',transition:'.15s'}} onMouseEnter={e=>{e.currentTarget.style.background='rgba(192,57,43,.2)';e.currentTarget.style.borderColor='rgba(192,57,43,.55)'}} onMouseLeave={e=>{e.currentTarget.style.background='rgba(192,57,43,.1)';e.currentTarget.style.borderColor='rgba(192,57,43,.25)'}}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></button>:<span/>}
 </div>
-})}
+})
+return isCustom?<div className="sr-scroll" style={{display:'flex',flexDirection:'column',gap:6,flex:1,minHeight:0,overflowY:'auto',overflowX:'hidden',paddingLeft:4}}>{rowsEls}</div>:<>{rowsEls}</>})()}
 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:8,marginBottom:6}}>
-{inst.length<5&&remaining>0?<button type="button" onClick={addInst} onMouseEnter={e=>{e.currentTarget.style.background='rgba(176,125,0,.12)';e.currentTarget.style.borderColor='rgba(176,125,0,.85)'}} onMouseLeave={e=>{e.currentTarget.style.background='rgba(176,125,0,.06)';e.currentTarget.style.borderColor='rgba(176,125,0,.55)'}} style={{height:30,padding:'0 12px',borderRadius:8,border:'1.3px dashed rgba(176,125,0,.55)',background:'rgba(176,125,0,.06)',color:C.gold,fontFamily:F,fontSize:11.5,fontWeight:600,cursor:'pointer',whiteSpace:'nowrap',display:'inline-flex',alignItems:'center',justifyContent:'center',gap:5,transition:'.15s'}}>
+{inst.length<maxInst&&remaining>0?<button type="button" onClick={addInst} onMouseEnter={e=>{e.currentTarget.style.background='rgba(176,125,0,.12)';e.currentTarget.style.borderColor='rgba(176,125,0,.85)'}} onMouseLeave={e=>{e.currentTarget.style.background='rgba(176,125,0,.06)';e.currentTarget.style.borderColor='rgba(176,125,0,.55)'}} style={{height:30,padding:'0 12px',borderRadius:8,border:'1.3px dashed rgba(176,125,0,.55)',background:'rgba(176,125,0,.06)',color:C.gold,fontFamily:F,fontSize:11.5,fontWeight:600,cursor:'pointer',whiteSpace:'nowrap',display:'inline-flex',alignItems:'center',justifyContent:'center',gap:5,transition:'.15s'}}>
 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
 <span>{T('إضافة دفعة','Add installment')}</span>
 </button>:<span/>}
@@ -4394,8 +4411,8 @@ return<div style={{flex:1,minHeight:0,display:'flex',flexDirection:'column',gap:
 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg>
 <span>{T('المبلغ المدفوع','Amount Paid')}</span>
 </div>
-{/* الخدمات ذات الدفعة الواحدة: المبلغ المدفوع = الإجمالي دائماً، فيُعرض كقيمة لا كحقل إدخال */}
-{(VISA_SERVICES.has(selSvc)||selSvc==='kafala_transfer'||selSvc==='iqama_renewal')
+{/* الخدمات ذات الدفعة الواحدة: المبلغ المدفوع = الإجمالي دائماً، فيُعرض كقيمة لا كحقل إدخال — عدا خدمة عامة فحقل إدخال */}
+{(VISA_SERVICES.has(selSvc)||selSvc==='kafala_transfer'||selSvc==='iqama_renewal'||selSvc==='custom')
 ?<><FKCurrency full big value={paidAmount} placeholder="0.00"
 onChange={v=>{if(v===''){setPaidAmount('');return}let n=Number(v);if(isNaN(n))return;if(n<0)n=0;const cap=(VISA_SERVICES.has(selSvc)&&totalOverride!==null)?totalOverride:pricing.total;if(n>cap)n=cap;setPaidAmount(String(n))}}/>
 {(()=>{const eff=(VISA_SERVICES.has(selSvc)&&totalOverride!==null)?totalOverride:pricing.total;const p=Number(paidAmount)||0;
