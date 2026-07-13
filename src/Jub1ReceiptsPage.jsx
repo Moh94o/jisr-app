@@ -1499,16 +1499,14 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, T, sb, tt, u
           </div>
         )}
 
-        {/* حذف السند — إجراء خطر في آخر الصفحة (نُقل من الأعلى) */}
+        {/* حذف السند — إجراء خطر بعرض كامل في آخر الصفحة (نُقل من الأعلى) */}
         {onDelete && (isGmUser(user) || can(user, 'jub1_receipts.delete')) && modalAllowed(user, TAB, 'receipt_delete') && (
-          <div style={{ display: 'flex', justifyContent: 'center', marginTop: 6 }}>
-            <button onClick={() => setDelModal(true)}
-              onMouseEnter={ev => { ev.currentTarget.style.background = 'rgba(192,57,43,.12)' }}
-              onMouseLeave={ev => { ev.currentTarget.style.background = 'rgba(192,57,43,.06)' }}
-              style={{ cursor: 'pointer', fontFamily: 'Cairo, Tajawal, sans-serif', display: 'inline-flex', alignItems: 'center', gap: 8, height: 38, padding: '0 18px', borderRadius: 10, background: 'rgba(192,57,43,.06)', border: '1px solid rgba(192,57,43,.35)', color: '#c0392b', fontSize: 12, fontWeight: 700, transition: '.15s' }}>
-              <Trash2 size={14} /><span>{T('حذف السند', 'Delete receipt')}</span>
-            </button>
-          </div>
+          <button onClick={() => setDelModal(true)}
+            onMouseEnter={ev => { ev.currentTarget.style.background = 'rgba(192,57,43,.12)' }}
+            onMouseLeave={ev => { ev.currentTarget.style.background = 'rgba(192,57,43,.06)' }}
+            style={{ width: '100%', boxSizing: 'border-box', cursor: 'pointer', fontFamily: 'Cairo, Tajawal, sans-serif', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 9, height: 48, padding: '0 18px', borderRadius: 14, background: 'rgba(192,57,43,.06)', border: '1px solid rgba(192,57,43,.35)', color: '#c0392b', fontSize: 13.5, fontWeight: 700, letterSpacing: '.2px', transition: '.15s' }}>
+            <Trash2 size={16} /><span>{T('حذف السند', 'Delete receipt')}</span>
+          </button>
         )}
       </div>
 
