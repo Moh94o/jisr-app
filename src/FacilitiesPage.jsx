@@ -2643,6 +2643,23 @@ function _GosiWagesCell({ contributors }) {
   )
 }
 
+// عدّاد العمّال (أجنبي/سعودي) مع رواتب كل عامل بين قوسين تحته — الرقم الكبير
+// بلون العدّاد، ثم راتب كل مشترك نشط على حدة (من التأمينات) مرتّباً تصاعدياً.
+function WageCountCell({ n, wages, color, T }) {
+  const list = Array.isArray(wages) ? wages : []
+  const shown = list.slice(0, _GOSI_CELL_MAX)
+  const extra = list.length - shown.length
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, minWidth: 0, width: '100%' }}>
+      <span className="sbcv-count" style={{ color: n > 0 ? color : 'var(--tx5)' }}>{Number(n || 0).toLocaleString('en-US')}</span>
+      {shown.map((w, i) => (
+        <span key={i} className="num" title={T('راتب المشترك (تأمينات)', 'Subscriber wage (GOSI)')} style={{ fontSize: 10, fontWeight: 600, color: 'var(--tx4)', lineHeight: 1.3, whiteSpace: 'nowrap' }}>({Math.round(w).toLocaleString('en-US')})</span>
+      ))}
+      {extra > 0 && <span style={{ fontSize: 9.5, color: 'var(--tx5)', fontWeight: 600 }}>+{extra}</span>}
+    </div>
+  )
+}
+
 // Shared person-row helper used by Owners / Admins / Contributors.
 // Mirrors SBC's PersonRow density: single-line by default, click to expand
 // the metadata strip. Always an "individual" icon — GOSI owners/admins are
@@ -3511,6 +3528,10 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
   // عدد السعوديين المشتركين (اشتراك نشط في التأمينات) لكل منشأة — مفتاحها
   // registration_no لأن الربط مع المنشأة يتم عبر gosi_registration_number.
   const [saudiByReg, setSaudiByReg] = useState({})
+  // رواتب المشتركين النشطين (wage_total من التأمينات) لكل عامل على حدة، مقسّمة
+  // سعودي/غير سعودي، مفتاحها registration_no — تُعرَض كقائمة تحت عدّادي أجنبي وسعودي.
+  const [saudiWagesByReg, setSaudiWagesByReg] = useState({})
+  const [nonSaudiWagesByReg, setNonSaudiWagesByReg] = useState({})
   // Qiwa company row — populated by the Qiwa bookmarklet (qiwaSyncBookmarklet.js)
   // and matched here by cr_number when a facility detail opens.
   const [qiwaCompany, setQiwaCompany] = useState(null)
@@ -4116,7 +4137,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
       // نشط فعلياً = status ACTIVE + has_live_engagement، وسعودي = له هوية وطنية
       // أو جنسيته سعودية.
       sb.from('gosi_establishment_contributors')
-        .select('registration_no, status_type, has_live_engagement_in_establishment, national_id, nationality_ar, nationality_en'),
+        .select('registration_no, status_type, has_live_engagement_in_establishment, national_id, nationality_ar, nationality_en, wage_total'),
     ])
     if (!wk.error && Array.isArray(wk.data)) {
       const isSaudi = (n) => { const s = (n || '').trim().replace(/^ال/, ''); return s === 'سعودي' || s === 'سعودية' || s === 'سعوديه' }
@@ -4130,15 +4151,24 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
     }
     if (!gc.error && Array.isArray(gc.data)) {
       const isSaudiC = (c) => !!c.national_id || /السعودية|saudi/i.test(String(c.nationality_ar || '') + ' ' + String(c.nationality_en || ''))
-      const s = {}
+      const s = {}, sWages = {}, nsWages = {}
       for (const c of gc.data) {
         if (String(c.status_type || '').toUpperCase() !== 'ACTIVE') continue
         if (c.has_live_engagement_in_establishment !== true) continue
-        if (!isSaudiC(c)) continue
         const k = String(c.registration_no)
-        s[k] = (s[k] || 0) + 1
+        const wage = c.wage_total != null ? Number(c.wage_total) : 0
+        if (isSaudiC(c)) {
+          s[k] = (s[k] || 0) + 1
+          if (wage > 0) (sWages[k] || (sWages[k] = [])).push(wage)
+        } else {
+          if (wage > 0) (nsWages[k] || (nsWages[k] = [])).push(wage)
+        }
       }
+      for (const k in sWages) sWages[k].sort((a, b) => a - b)
+      for (const k in nsWages) nsWages[k].sort((a, b) => a - b)
       setSaudiByReg(s)
+      setSaudiWagesByReg(sWages)
+      setNonSaudiWagesByReg(nsWages)
     }
   }, [sb])
 
@@ -5347,12 +5377,12 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
         <div style={{ borderRadius: 10 }}>
           <table className="sbcv-tbl">
             <colgroup>
-              <col style={{ width: '24%' }} />
-              <col style={{ width: '15%' }} />
-              <col style={{ width: '12%' }} />
-              <col style={{ width: '17%' }} />
-              <col style={{ width: '6%' }} />
-              <col style={{ width: '6%' }} />
+              <col style={{ width: '23%' }} />
+              <col style={{ width: '14%' }} />
+              <col style={{ width: '11%' }} />
+              <col style={{ width: '16%' }} />
+              <col style={{ width: '8%' }} />
+              <col style={{ width: '8%' }} />
               <col style={{ width: '11%' }} />
               <col style={{ width: '9%' }} />
             </colgroup>
@@ -5471,7 +5501,8 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                     <td>
                       {(() => {
                         const n = nonSaudiByFacility[r.id] || 0
-                        return <span className="sbcv-count" style={{ color: n > 0 ? C.gold : 'var(--tx5)' }}>{num(n)}</span>
+                        const wages = (gosiNo && nonSaudiWagesByReg[String(gosiNo)]) || []
+                        return <WageCountCell n={n} wages={wages} color={C.gold} T={T} />
                       })()}
                     </td>
                     <td>
@@ -5479,7 +5510,8 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                         // سعودي — المشتركون السعوديون النشطون في التأمينات؛ أخضر
                         // تمييزاً له عن عدّاد غير السعوديين الذهبي.
                         const n = (gosiNo && saudiByReg[String(gosiNo)]) || 0
-                        return <span className="sbcv-count" style={{ color: n > 0 ? '#22c55e' : 'var(--tx5)' }}>{num(n)}</span>
+                        const wages = (gosiNo && saudiWagesByReg[String(gosiNo)]) || []
+                        return <WageCountCell n={n} wages={wages} color="#22c55e" T={T} />
                       })()}
                     </td>
                     <td>
