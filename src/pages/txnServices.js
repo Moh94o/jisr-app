@@ -203,21 +203,19 @@ export const TXN_SERVICES = {
     theme: { c: '#16a085', label_ar: 'السعودة', label_en: 'Saudization' },
     hero: { ar: 'السعودة', en: 'Saudization', dAr: 'إصدار ومتابعة طلبات السعودة ونطاقات المنشآت', dEn: 'Issue and track Saudization & Nitaqat requests' },
     party: 'worker', billable: true, listMode: 'facility',
-    inputs: [
-      { key: 'current_pct', label_ar: 'نسبة السعودة الحالية %', type: 'number' },
-      { key: 'target_pct', label_ar: 'نسبة السعودة المستهدفة %', type: 'number', required: true },
-      { key: 'nitaqat_band', label_ar: 'النطاق', type: 'select', options: [
-        { value: 'platinum', label: 'بلاتيني' }, { value: 'high_green', label: 'أخضر مرتفع' },
-        { value: 'mid_green', label: 'أخضر متوسط' }, { value: 'low_green', label: 'أخضر منخفض' },
-        { value: 'yellow', label: 'أصفر' }, { value: 'red', label: 'أحمر' },
-      ] },
-    ],
+    // الإنشاء عبر معالج مخصّص (SaudizationRequestPage)؛ هذه الحقول لعرض التفاصيل فقط.
+    inputs: [],
     detail: [
       { src: 'f_name', l_ar: 'المنشأة', l_en: 'Facility' },
       { src: 'f_unified', l_ar: 'الرقم الموحد', l_en: 'Unified No', mono: true },
-      { src: 'd:current_pct', l_ar: 'النسبة الحالية', l_en: 'Current %', mono: true, suffix: '%' },
-      { src: 'd:target_pct', l_ar: 'النسبة المستهدفة', l_en: 'Target %', mono: true, suffix: '%', color: '#2ecc71' },
-      { src: 'd:nitaqat_band', l_ar: 'النطاق', l_en: 'Nitaqat Band', opts: { platinum: 'بلاتيني', high_green: 'أخضر مرتفع', mid_green: 'أخضر متوسط', low_green: 'أخضر منخفض', yellow: 'أصفر', red: 'أحمر' } },
+      { src: 'd:saudi_name', l_ar: 'اسم السعودي', l_en: 'Saudi name' },
+      { src: 'd:saudi_national_id', l_ar: 'رقم الهوية', l_en: 'National ID', mono: true },
+      { src: 'd:birth_date_hijri', l_ar: 'تاريخ الميلاد (هجري)', l_en: 'Birth date (Hijri)', mono: true },
+      { src: 'd:registration_date', l_ar: 'تاريخ التسجيل', l_en: 'Registration date', mono: true },
+      { src: 'd:invoice_or_receipt_no', l_ar: 'رقم الفاتورة / السند', l_en: 'Invoice / receipt no.', mono: true },
+      { src: 'd:muaqqib_name', l_ar: 'المعقب', l_en: 'Muaqqib' },
+      { src: 'd:bank', l_ar: 'البنك', l_en: 'Bank' },
+      { src: 'd:iban', l_ar: 'الآيبان', l_en: 'IBAN', mono: true },
     ],
   },
   general: {

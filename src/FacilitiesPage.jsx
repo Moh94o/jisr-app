@@ -3528,10 +3528,9 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
   // عدد السعوديين المشتركين (اشتراك نشط في التأمينات) لكل منشأة — مفتاحها
   // registration_no لأن الربط مع المنشأة يتم عبر gosi_registration_number.
   const [saudiByReg, setSaudiByReg] = useState({})
-  // رواتب المشتركين النشطين (wage_total من التأمينات) لكل عامل على حدة، مقسّمة
-  // سعودي/غير سعودي، مفتاحها registration_no — تُعرَض كقائمة تحت عدّادي أجنبي وسعودي.
+  // رواتب المشتركين السعوديين النشطين (wage_total من التأمينات) لكل عامل على حدة،
+  // مفتاحها registration_no — تُعرَض كقائمة تحت عدّاد السعوديين.
   const [saudiWagesByReg, setSaudiWagesByReg] = useState({})
-  const [nonSaudiWagesByReg, setNonSaudiWagesByReg] = useState({})
   // Qiwa company row — populated by the Qiwa bookmarklet (qiwaSyncBookmarklet.js)
   // and matched here by cr_number when a facility detail opens.
   const [qiwaCompany, setQiwaCompany] = useState(null)
@@ -4151,24 +4150,19 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
     }
     if (!gc.error && Array.isArray(gc.data)) {
       const isSaudiC = (c) => !!c.national_id || /السعودية|saudi/i.test(String(c.nationality_ar || '') + ' ' + String(c.nationality_en || ''))
-      const s = {}, sWages = {}, nsWages = {}
+      const s = {}, sWages = {}
       for (const c of gc.data) {
         if (String(c.status_type || '').toUpperCase() !== 'ACTIVE') continue
         if (c.has_live_engagement_in_establishment !== true) continue
+        if (!isSaudiC(c)) continue
         const k = String(c.registration_no)
+        s[k] = (s[k] || 0) + 1
         const wage = c.wage_total != null ? Number(c.wage_total) : 0
-        if (isSaudiC(c)) {
-          s[k] = (s[k] || 0) + 1
-          if (wage > 0) (sWages[k] || (sWages[k] = [])).push(wage)
-        } else {
-          if (wage > 0) (nsWages[k] || (nsWages[k] = [])).push(wage)
-        }
+        if (wage > 0) (sWages[k] || (sWages[k] = [])).push(wage)
       }
       for (const k in sWages) sWages[k].sort((a, b) => a - b)
-      for (const k in nsWages) nsWages[k].sort((a, b) => a - b)
       setSaudiByReg(s)
       setSaudiWagesByReg(sWages)
-      setNonSaudiWagesByReg(nsWages)
     }
   }, [sb])
 
@@ -5380,8 +5374,8 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
               <col style={{ width: '23%' }} />
               <col style={{ width: '14%' }} />
               <col style={{ width: '11%' }} />
-              <col style={{ width: '16%' }} />
-              <col style={{ width: '8%' }} />
+              <col style={{ width: '18%' }} />
+              <col style={{ width: '6%' }} />
               <col style={{ width: '8%' }} />
               <col style={{ width: '11%' }} />
               <col style={{ width: '9%' }} />
@@ -5501,8 +5495,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                     <td>
                       {(() => {
                         const n = nonSaudiByFacility[r.id] || 0
-                        const wages = (gosiNo && nonSaudiWagesByReg[String(gosiNo)]) || []
-                        return <WageCountCell n={n} wages={wages} color={C.gold} T={T} />
+                        return <span className="sbcv-count" style={{ color: n > 0 ? C.gold : 'var(--tx5)' }}>{num(n)}</span>
                       })()}
                     </td>
                     <td>

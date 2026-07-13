@@ -9,6 +9,8 @@ import { Wallet, Building2, FileText as FileTextIco, MessageSquare, Send, CheckC
 import { TXN_SERVICES, TXN_REGISTRY_CODES, txnServiceFor } from './txnServices.js'
 import { docTypeLabel } from '../ServiceAdminPage.jsx'
 import { can, cardVisible, canCardBtn, tabModule } from '../lib/permissions.js'
+import ServiceRequestPage from '../ServiceRequestPage.jsx'
+import SaudizationRequestPage from './SaudizationRequestPage.jsx'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = {
@@ -222,6 +224,10 @@ export default function TransactionsPage({ sb, lang, user, tabId, branchId, toas
 
   const [detail, setDetail] = useState(null)
 
+  // زر «طلب جديد» على صفحات الخدمة المقفلة — يفتح معالج الفاتورة مُختاراً الخدمة مسبقاً.
+  const [showNewReq, setShowNewReq] = useState(false)
+  const [refreshTick, setRefreshTick] = useState(0)
+
   // Lookups
   const [branches, setBranches] = useState([])
   const [services, setServices] = useState([])
@@ -363,7 +369,7 @@ export default function TransactionsPage({ sb, lang, user, tabId, branchId, toas
       setRows(data || []); setTotal(count || 0); setLoading(false)
     })()
     return () => { alive = false }
-  }, [sb, page, branchFilter, branchId, serviceType, lockedServiceId, lockedService, status, q, from, to, accountantMode])
+  }, [sb, page, branchFilter, branchId, serviceType, lockedServiceId, lockedService, status, q, from, to, accountantMode, refreshTick])
 
   // فتح مباشر (deep-link) من الفاتورة عبر الرقم المرجعي: نُحضر صفّ الطلب بمعرّفه ونفتح تفاصيله مباشرة،
   // متجاوزين فلاتر القائمة (الفرع/الحالة/الصفحة) كي يعمل أياً كان موضع الطلب في القائمة.
@@ -479,6 +485,15 @@ export default function TransactionsPage({ sb, lang, user, tabId, branchId, toas
   /* ─────── Render ─────── */
   return (
     <div style={{ fontFamily: F, paddingTop: 0 }}>
+      {/* معالج «طلب جديد» — السعودة لها تدفّق مخصّص؛ بقية الخدمات تفتح معالج الفاتورة مُختاراً الخدمة مسبقاً. يُحدَّث القائمة عند الإغلاق */}
+      {showNewReq && (lockedService === 'saudization' ? (
+        <SaudizationRequestPage sb={sb} toast={toast} user={user} lang={lang} branchId={branchId}
+          onClose={() => { setShowNewReq(false); setRefreshTick(t => t + 1) }} />
+      ) : (
+        <ServiceRequestPage sb={sb} toast={toast} user={user} lang={lang} branchId={branchId}
+          preselectedService={lockedService}
+          onClose={() => { setShowNewReq(false); setRefreshTick(t => t + 1) }} />
+      ))}
       {/* Hero */}
       {(() => {
         // Per-service hero overrides (title + description). Falls back to the generic lockedLabel hero.
@@ -496,10 +511,23 @@ export default function TransactionsPage({ sb, lang, user, tabId, branchId, toas
         const desc = accountantMode
           ? T('الطلبات المُرسَلة لموافقة المحاسب (النقل الخارجي والخروج النهائي) — راجِع الطلب ووافِق أو ارفض ليُكمل الموظف الإجراءات.','Requests sent for accountant approval (external transfer & final exit) — review and approve or reject so staff can complete the procedure.')
           : (hero ? T(hero.dAr, hero.dEn) : (lockedService ? T(`جميع طلبات «${lockedLabel}» ومتابعة حالتها`, `All “${lockedLabel}” requests — tracked by status and branch`) : T('سجل الطلبات الرئيسية ومتابعة حالتها بحسب الخدمة والمكتب','Main service requests log — tracked by service type, branch and status')))
+        // زر «طلب جديد» — يظهر على صفحات الخدمة المقفلة (لا في صندوق المحاسب) لمن يملك صلاحية الإنشاء،
+        // ويفتح معالج الفاتورة مُختاراً الخدمة الحالية مسبقاً (نفس زر «فاتورة جديدة»).
+        const showNewBtn = !!lockedService && !accountantMode && can(user, 'invoices.create')
         return (
-          <div style={{ marginBottom: 22 }}>
-            <div style={{ fontSize: 24, fontWeight: 600, color: 'var(--tx)', letterSpacing: '-.3px', lineHeight: 1.2 }}>{title}</div>
-            <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 12, lineHeight: 1.6 }}>{desc}</div>
+          <div style={{ marginBottom: 22, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 14, flexWrap: 'wrap' }}>
+            <div style={{ flex: '1 1 0%', minWidth: 0 }}>
+              <div style={{ fontSize: 24, fontWeight: 600, color: 'var(--tx)', letterSpacing: '-.3px', lineHeight: 1.2 }}>{title}</div>
+              <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 12, lineHeight: 1.6 }}>{desc}</div>
+            </div>
+            {showNewBtn && (
+              <button onClick={() => setShowNewReq(true)} className="btn-primary-modal"
+                title={T(`طلب ${lockedLabel} جديد`, `New ${lockedLabel} request`)}
+                style={{ height: 42, padding: '0 18px', borderRadius: 11, fontFamily: F, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0, transition: 'background .15s ease, border-color .15s ease, box-shadow .15s ease' }}>
+                {lockedLabel}
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              </button>
+            )}
           </div>
         )
       })()}

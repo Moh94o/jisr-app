@@ -25,6 +25,7 @@ import AgentsPage from './pages/admin/AgentsPage.jsx'
 import PermissionsPage from './pages/admin/PermissionsPage.jsx'
 import RolesAdminPage from './pages/admin/RolesAdminPage.jsx'
 import TransactionsPage from './pages/TransactionsPage.jsx'
+import SaudizationRequestsPage from './pages/SaudizationRequestsPage.jsx'
 import SbcCenterPage from './pages/SbcCenterPage.jsx'
 import BaladiCenterPage from './pages/BaladiCenterPage.jsx'
 import SectionStub from './pages/SectionStub.jsx'
@@ -36,7 +37,6 @@ import StampBadge from './components/ui/StampBadge.jsx'
 import OfficialStampBadge from './components/ui/OfficialStampBadge.jsx'
 import WelcomeToast from './components/WelcomeToast.jsx'
 import { Modal as FKModal, ModalSection, ActionButton, SuccessView, ConfirmDialog, ScrollBox, InfoRow, InfoGrid, GRID, TextField, TextArea, FileField, CurrencyField, PhoneField, IdField, Select as FKSelect, DateField as FKDateField, TimeField as FKTimeField, Segmented, YesNo, EmptyState, C as FKC, FKLang } from './components/ui/FormKit.jsx'
-import SyncHub, { SyncActivitiesPage } from './pages/SyncHub.jsx'
 import VisibilityAdmin, { getVisibility, isItemVisible } from './pages/VisibilityAdmin.jsx'
 import { FileText, Sparkles, Tag, Lock, Mail, Send, User, UserPlus, ShieldCheck, Pencil, Eye, Calendar, Wallet, Banknote, ArrowLeftRight, BadgeCheck, Calculator, Trash2, CalendarRange, CalendarClock, RefreshCw, Users, FileCheck, HeartPulse, UserCog, Plane, PlaneTakeoff, IdCard, Printer, FileStack, Coins, Percent, MessageSquare, Paperclip, Plus, AlertCircle, Phone, Globe } from 'lucide-react'
 
@@ -702,7 +702,7 @@ const T=(ar,en)=>lang==='ar'?ar:en;const TL=(ar)=>lang==='ar'?ar:(TR[ar]||ar);co
 ];
 const hubTabs={
   workforce:[{id:'facilities',l:T('المنشآت','Facilities'),i:'facility'},{id:'workers',l:T('العمالة الدائمة','Permanent Workforce'),i:'labor'},{id:'temp_workers',l:T('العمالة المؤقتة','Temporary Workforce'),i:'labor'}],
-  sync_center:[{id:'sync_hub',l:T('مزامنة المنشآت والعمالة','Sync Facilities & Workers'),i:'facility'},{id:'sync_log',l:T('سجل المزامنات','Sync Log'),i:'transaction'}],
+  sync_center:[{id:'sync_hub',l:T('المنشآت','Facilities'),i:'facility'}],
   finance_hub:[{id:'invoices',l:T('الفواتير','Invoices'),i:'invoice'},{id:'deposits',l:T('الإيداعات','Deposits'),i:'deposit'},{id:'payments',l:T('سدادات الخدمات','Service Payments'),i:'receipt'},{id:'ext_payments',l:T('سدادات خارجية','External Payments'),i:'receipt'},{id:'jub1_receipts',l:T('سندات JUB1','JUB1 Receipts'),i:'receipt'}],
   pricing_hub:[{id:'transfer_calc',l:T('حسبة نقل الكفالات','Transfer Calc'),i:'calc'},{id:'renewal_calc',l:T('حسبة تجديد الإقامات','Renewal Calc'),i:'refresh'}],
   persons_hub:[{id:'admin_clients',l:T('العملاء','Clients'),i:'clients'},{id:'admin_agents',l:T('الوسطاء','Agents'),i:'broker'}],
@@ -1169,9 +1169,8 @@ return<div><div>
 {pg==='worker_leaves'&&<WorkerLeavesPage sb={sb} toast={tt} user={user} lang={lang}/>}
 {pg==='transfer_calc'&&<TransferCalcPage sb={sb} toast={tt} user={user} lang={lang} emptyIcon={navEmptyIcon('transfer_calc')} onNewCalc={()=>setShowKafalaCalc(true)}/>}
 {pg==='renewal_calc'&&<RenewalCalcPage sb={sb} toast={tt} user={user} lang={lang} emptyIcon={navEmptyIcon('renewal_calc')} onNewCalc={()=>setShowRenewalCalc(true)}/>}
-{/* مركز المزامنة */}
-{pg==='sync_hub'&&canSeeSyncHub&&<SyncHub sb={sb} toast={tt} user={user} lang={lang} initialFocus="sbc"/>}
-{pg==='sync_log'&&<SyncActivitiesPage sb={sb} lang={lang}/>}
+{/* مركز المزامنة — صفحة المنشآت مباشرة (بلا لوحة المزامنة/الأنشطة) */}
+{pg==='sync_hub'&&canSeeSyncHub&&<SbcFacilities sb={sb} toast={tt} user={user} lang={lang}/>}
 {/* العمليات */}
 {pg==='invoices'&&<InvoicePageFull sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch} emptyIcon={navEmptyIcon('invoices')} onNewInvoice={()=>setShowServiceRequest(true)} onOpenService={onOpenService}/>}
 {pg==='payments'&&<PaymentsPage sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch} emptyIcon={navEmptyIcon('payments')}/>}
@@ -1185,11 +1184,12 @@ return<div><div>
 {pg==='work-cards'&&<WorkCardsStagePage sb={sb} user={user} toast={tt} lang={lang}/>}
 {pg==='iqama'&&<IqamaIssuanceStagePage sb={sb} user={user} toast={tt} lang={lang}/>}
 {pg==='iqama-print'&&<IqamaPrintStagePage sb={sb} user={user} toast={tt} lang={lang}/>}
-{TXN_SECTIONS.filter(s=>s.code&&s.id===pg).map(s=><TransactionsPage key={s.id} tabId={s.id} sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch} lockedService={s.code} lockedLabel={T(s.ar,s.en)} emptyIcon={navEmptyIcon(s.id)} initialDetailId={txnDeepLink} onConsumeInitialDetail={()=>setTxnDeepLink(null)}/>)}
+{pg==='saudization'&&<SaudizationRequestsPage sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch} emptyIcon={navEmptyIcon('saudization')}/>}
+{TXN_SECTIONS.filter(s=>s.code&&s.id===pg&&s.id!=='saudization').map(s=><TransactionsPage key={s.id} tabId={s.id} sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch} lockedService={s.code} lockedLabel={T(s.ar,s.en)} emptyIcon={navEmptyIcon(s.id)} initialDetailId={txnDeepLink} onConsumeInitialDetail={()=>setTxnDeepLink(null)}/>)}
 {TXN_SECTIONS.filter(s=>s.accountant&&s.id===pg).map(s=><TransactionsPage key={s.id} tabId={s.id} accountantMode sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch} lockedLabel={T(s.ar,s.en)} emptyIcon={navEmptyIcon(s.id)}/>)}
 {TXN_SECTIONS.filter(s=>!s.code&&!s.page&&!s.accountant&&s.id===pg).map(s=><SectionStub key={s.id} title={T(s.ar,s.en)} lang={lang}/>)}
 {/* المهام */}
-{TASK_SECTIONS.filter(s=>s.code&&s.id===pg).map(s=><TransactionsPage key={s.id} tabId={s.id} sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch} lockedService={s.code} lockedLabel={T(s.ar,s.en)} emptyIcon={navEmptyIcon(s.id)}/>)}
+{TASK_SECTIONS.filter(s=>s.code&&s.id===pg&&s.id!=='saudization').map(s=><TransactionsPage key={s.id} tabId={s.id} sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch} lockedService={s.code} lockedLabel={T(s.ar,s.en)} emptyIcon={navEmptyIcon(s.id)}/>)}
 {/* الإدارة */}
 {pg==='admin_offices'&&<BranchesPage key={navResetKey} sb={sb} toast={tt} user={user} lang={lang} showStaff={false} singleTab="branches" AdminPage={AdminPageFull} adminProps={{sb,toast:tt,user,lang,onTabChange:setSTabInfo,defaultTab:'users',branchId:dashBranch}}/>}
 {pg==='admin_bank_accounts'&&<BankAccountsPage key={navResetKey} sb={sb} toast={tt} user={user} lang={lang}/>}

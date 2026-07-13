@@ -1274,12 +1274,13 @@ export default function WorkforcePage({ sb, toast, lang, user, onTabChange }) {
           <div style={{ borderRadius: 10 }}>
             <table className="wf-tbl">
               <colgroup>
-                <col style={{ width: '22%' }} />
+                <col style={{ width: '20%' }} />
+                <col style={{ width: '15%' }} />
+                <col style={{ width: '11%' }} />
                 <col style={{ width: '16%' }} />
-                <col style={{ width: '13%' }} />
-                <col style={{ width: '18%' }} />
-                <col style={{ width: '18%' }} />
-                <col style={{ width: '13%' }} />
+                <col style={{ width: '10%' }} />
+                <col style={{ width: '16%' }} />
+                <col style={{ width: '12%' }} />
               </colgroup>
               <thead>
                 <tr>
@@ -1287,6 +1288,7 @@ export default function WorkforcePage({ sb, toast, lang, user, onTabChange }) {
                   <th>{T('رقم الإقامة','Iqama')}</th>
                   <th>{T('الجنسية','Nationality')}</th>
                   <th>{T('المهنة الرسمية','Official Occupation')}</th>
+                  <th>{T('الراتب','Salary')}</th>
                   <th>{T('انتهاء الإقامة','Iqama Expiry')}</th>
                   <th>{T('الفرع','Branch')}</th>
                 </tr>
@@ -1328,6 +1330,11 @@ export default function WorkforcePage({ sb, toast, lang, user, onTabChange }) {
                           <div className="name-marquee" style={{ fontSize: 11.5, color: 'var(--tx2)', fontWeight: 600 }}>
                             <span className="marquee-inner">{w.occupation_ar}</span>
                           </div>
+                        ) : <span className="muted">—</span>}
+                      </td>
+                      <td>
+                        {w.wage_total != null && Number(w.wage_total) > 0 ? (
+                          <span className="num" style={{ fontSize: 13.5, fontWeight: 600, color: Number(w.wage_total) > 410 ? C.red : C.ok, fontVariantNumeric: 'tabular-nums', direction: 'ltr' }}>{Number(w.wage_total).toLocaleString('en-US')}</span>
                         ) : <span className="muted">—</span>}
                       </td>
                       <td><IqamaCell iso={w.iqama_expiry_date} T={T} /></td>
