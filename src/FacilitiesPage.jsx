@@ -5347,13 +5347,13 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
         <div style={{ borderRadius: 10 }}>
           <table className="sbcv-tbl">
             <colgroup>
-              <col style={{ width: '25%' }} />
-              <col style={{ width: '16%' }} />
+              <col style={{ width: '24%' }} />
+              <col style={{ width: '15%' }} />
               <col style={{ width: '12%' }} />
-              <col style={{ width: '12%' }} />
-              <col style={{ width: '7%' }} />
-              <col style={{ width: '7%' }} />
-              <col style={{ width: '12%' }} />
+              <col style={{ width: '17%' }} />
+              <col style={{ width: '6%' }} />
+              <col style={{ width: '6%' }} />
+              <col style={{ width: '11%' }} />
               <col style={{ width: '9%' }} />
             </colgroup>
             <thead>
