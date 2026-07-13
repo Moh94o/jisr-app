@@ -867,10 +867,16 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, T, sb, tt, u
   }
   // خيار الانتقال يظهر فقط إن مُنِحت صلاحيته وكانت مرحلته الهدف ظاهرة لهذا الدور
   const statusOptions = (STATUS_FLOW[e.review_status] || []).filter(([to, perm]) => canDo(perm) && stageVisible(user, TAB, to))
+  // تغيير الحالة يعيد تحميل السند من القاعدة، فتضيع أي تعديلات معلّقة في الكروت.
+  // لذا نحفظ التعديلات غير المحفوظة أولاً (إن وُجدت وكان يملك صلاحية التعديل) ثم نغيّر الحالة.
+  const commitThenStatus = async (to) => {
+    if (dirty && canEditReceipt) await doSave()
+    await onStatus(to)
+  }
   const applyStatus = async (to) => {
     if (statusBusy) return
     setStatusBusy(true)
-    await onStatus(to)
+    await commitThenStatus(to)
     setStatusBusy(false)
     setStatusOk(true)
     setTimeout(() => { setStatusOk(false); setStatusModal(false); setStatusPick(null) }, 1000)
@@ -1260,7 +1266,7 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, T, sb, tt, u
               const canToggleCancel = (e.review_status === 'cancelled' ? canDo('stage_reopen') : canDo('stage_cancel'))
                 && canCardBtn(user, TAB, 'receipt_voucher', 'stage_cancel')
               return (
-            <button onClick={() => { if (!canToggleCancel) return; onStatus?.(e.review_status === 'cancelled' ? 'draft' : 'cancelled') }} disabled={!canToggleCancel} title={T('تبديل حالة الإلغاء', 'Toggle cancelled')}
+            <button onClick={() => { if (!canToggleCancel) return; commitThenStatus(e.review_status === 'cancelled' ? 'draft' : 'cancelled') }} disabled={!canToggleCancel} title={T('تبديل حالة الإلغاء', 'Toggle cancelled')}
               style={{ position: 'relative', width: 46, height: 26, borderRadius: 20, border: 'none', cursor: canToggleCancel ? 'pointer' : 'not-allowed', flexShrink: 0, direction: 'ltr', transition: '.15s', opacity: canToggleCancel ? 1 : .5, background: e.review_status === 'cancelled' ? '#c0392b' : 'rgba(120,120,120,.35)' }}>
               <span style={{ position: 'absolute', top: 3, left: e.review_status === 'cancelled' ? 23 : 3, width: 20, height: 20, borderRadius: '50%', background: '#fff', transition: 'left .15s', boxShadow: '0 1px 3px rgba(0,0,0,.3)' }} />
             </button>
