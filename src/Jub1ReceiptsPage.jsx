@@ -340,7 +340,7 @@ export default function Jub1ReceiptsPage({ sb, user, toast, lang = 'ar', emptyIc
   if (detail) return (
     <div style={{ fontFamily: 'Cairo, Tajawal, sans-serif', paddingBottom: 60 }}>
       <ReceiptDetail e={detail} atts={detailAtts} services={services} methods={methods} agents={agents} flags={flagsOf(detail)} T={T} sb={sb} tt={tt} user={user}
-        entries={entries} onOpenId={(id) => setViewId(id)} onLinkToggle={toggleLink}
+        entries={entries} orderedIds={filtered.map(x => x.id)} onOpenId={(id) => setViewId(id)} onLinkToggle={toggleLink}
         onBack={() => setViewId(null)} onEditModal={() => openEdit(detail)} onStatus={(s) => setReviewStatus(detail.id, s)}
         onSave={saveInline} onOpenByNo={openByNo} onAttsChanged={() => setAttsTick(t => t + 1)} onDelete={deleteEntry} />
       {editing && (
@@ -821,7 +821,12 @@ function DateBox({ label, value, onChange }) {
   )
 }
 
-function ReceiptDetail({ e, atts, services, methods, agents, flags, T, sb, tt, user, entries = [], onOpenId, onLinkToggle, onBack, onEditModal, onStatus, onSave, onOpenByNo, onAttsChanged, onDelete }) {
+function ReceiptDetail({ e, atts, services, methods, agents, flags, T, sb, tt, user, entries = [], orderedIds = [], onOpenId, onLinkToggle, onBack, onEditModal, onStatus, onSave, onOpenByNo, onAttsChanged, onDelete }) {
+  // الانتقال لسند القبض التالي — بنفس ترتيب القائمة التي يراها المستخدم (تصفية + فرز)،
+  // ويسقط إلى ترتيب التحميل الكامل إن لم يكن السند ضمن القائمة المصفّاة حالياً.
+  const navIds = (orderedIds.length ? orderedIds : entries.map(x => x.id))
+  const curIdx = navIds.indexOf(e.id)
+  const nextId = (curIdx >= 0 && curIdx < navIds.length - 1) ? navIds[curIdx + 1] : null
   // ── مراحل حالة السند ─────────────────────────────────────────────────
   // مسودة (افتراضية عند رفع الصور) → المدخِل يعتمدها «مكتمل» أو يعلّمها «يحتاج مراجعة»؛
   // ثم المراجع يدقّقها «مدقق» أو يعيدها «يحتاج مراجعة». كل انتقال يُحكَم بصلاحية المرحلة.
@@ -1124,20 +1129,19 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, T, sb, tt, u
 
   return (
     <div>
-      {/* رجوع + حذف السند (على الجهة اليسرى) */}
+      {/* رجوع + الانتقال لسند القبض التالي (على الجهة اليسرى) */}
       <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
         <button onClick={onBack} style={{ cursor: 'pointer', fontFamily: 'Cairo, Tajawal, sans-serif', display: 'inline-flex', alignItems: 'center', gap: 8, height: 38, padding: '0 16px', borderRadius: 10, background: 'transparent', border: '1px dashed var(--bd)', color: 'var(--tx3)', fontSize: 12, fontWeight: 600, boxShadow: 'var(--shadow-sm)' }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>
           <span>{T('رجوع', 'Back')}</span>
         </button>
-        {onDelete && (isGmUser(user) || can(user, 'jub1_receipts.delete')) && modalAllowed(user, TAB, 'receipt_delete') && (
-          <button onClick={() => setDelModal(true)}
-            onMouseEnter={ev => { ev.currentTarget.style.background = 'rgba(192,57,43,.12)' }}
-            onMouseLeave={ev => { ev.currentTarget.style.background = 'rgba(192,57,43,.06)' }}
-            style={{ cursor: 'pointer', fontFamily: 'Cairo, Tajawal, sans-serif', display: 'inline-flex', alignItems: 'center', gap: 8, height: 38, padding: '0 16px', borderRadius: 10, background: 'rgba(192,57,43,.06)', border: '1px solid rgba(192,57,43,.35)', color: '#c0392b', fontSize: 12, fontWeight: 700, transition: '.15s' }}>
-            <Trash2 size={14} /><span>{T('حذف السند', 'Delete receipt')}</span>
-          </button>
-        )}
+        <button onClick={() => { if (nextId) onOpenId?.(nextId) }} disabled={!nextId} title={T('الانتقال لسند القبض التالي', 'Go to next receipt')}
+          onMouseEnter={ev => { if (nextId) ev.currentTarget.style.background = 'rgba(176,125,0,.10)' }}
+          onMouseLeave={ev => { ev.currentTarget.style.background = 'transparent' }}
+          style={{ cursor: nextId ? 'pointer' : 'not-allowed', opacity: nextId ? 1 : .45, fontFamily: 'Cairo, Tajawal, sans-serif', display: 'inline-flex', alignItems: 'center', gap: 8, height: 38, padding: '0 16px', borderRadius: 10, background: 'transparent', border: '1px solid rgba(176,125,0,.5)', color: '#B07D00', fontSize: 12, fontWeight: 700, boxShadow: 'var(--shadow-sm)', transition: '.15s' }}>
+          <span>{T('السند التالي', 'Next receipt')}</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5" /><path d="m12 19-7-7 7-7" /></svg>
+        </button>
       </div>
 
       {/* الترويسة */}
@@ -1492,6 +1496,18 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, T, sb, tt, u
                 {tcEditable && <button onClick={addTcField} style={addBtn}><Plus size={14} /> {T('إضافة بند', 'Add item')}</button>}
               </div>
             )}
+          </div>
+        )}
+
+        {/* حذف السند — إجراء خطر في آخر الصفحة (نُقل من الأعلى) */}
+        {onDelete && (isGmUser(user) || can(user, 'jub1_receipts.delete')) && modalAllowed(user, TAB, 'receipt_delete') && (
+          <div style={{ display: 'flex', justifyContent: 'center', marginTop: 6 }}>
+            <button onClick={() => setDelModal(true)}
+              onMouseEnter={ev => { ev.currentTarget.style.background = 'rgba(192,57,43,.12)' }}
+              onMouseLeave={ev => { ev.currentTarget.style.background = 'rgba(192,57,43,.06)' }}
+              style={{ cursor: 'pointer', fontFamily: 'Cairo, Tajawal, sans-serif', display: 'inline-flex', alignItems: 'center', gap: 8, height: 38, padding: '0 18px', borderRadius: 10, background: 'rgba(192,57,43,.06)', border: '1px solid rgba(192,57,43,.35)', color: '#c0392b', fontSize: 12, fontWeight: 700, transition: '.15s' }}>
+              <Trash2 size={14} /><span>{T('حذف السند', 'Delete receipt')}</span>
+            </button>
           </div>
         )}
       </div>
