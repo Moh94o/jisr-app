@@ -5347,8 +5347,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
         <div style={{ borderRadius: 10 }}>
           <table className="sbcv-tbl">
             <colgroup>
-              <col style={{ width: '17%' }} />
-              <col style={{ width: '8%' }} />
+              <col style={{ width: '25%' }} />
               <col style={{ width: '16%' }} />
               <col style={{ width: '12%' }} />
               <col style={{ width: '12%' }} />
@@ -5360,7 +5359,6 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
             <thead>
               <tr>
                 <th>{T('المنشأة','Facility')}</th>
-                <th>{T('النوع','Type')}</th>
                 <th>{T('أرقام المنشأة','Facility Numbers')}</th>
                 <th>{T('المدير','Manager')}</th>
                 <th>{T('النطاق','Nitaq')}</th>
@@ -5387,27 +5385,22 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                         <div className="name-marquee">
                           <span className="marquee-inner">{r.entity_full_name_ar || '—'}</span>
                         </div>
-                        {r.entity_full_name_en && (
-                          <span style={{ fontSize: 10.5, fontWeight: 500, color: 'var(--tx4)', direction: 'ltr', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{r.entity_full_name_en}</span>
-                        )}
+                        {(() => {
+                          const entity = r._entity || (lang === 'en' ? r.entity_type_en : r.entity_type_ar) || r.entity_type_ar || r.entity_type_en
+                          const form = (lang === 'en' ? r.company_form_en : r.company_form_ar) || r.company_form_ar || r.company_form_en
+                          const formDiffers = form && entity && form !== entity
+                          const roleColor = branch ? C.blue : null
+                          const roleText = branch ? T('فرع','Branch') : null
+                          if (!entity && !form && !roleText) return null
+                          return (
+                            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: '2px 6px', minWidth: 0, maxWidth: '100%' }}>
+                              {entity && <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx3)', whiteSpace: 'nowrap' }}>{entity}</span>}
+                              {formDiffers && <span style={{ fontSize: 10.5, fontWeight: 500, color: 'var(--tx4)', whiteSpace: 'nowrap' }} title={form}>· {form}</span>}
+                              {roleText && <span style={{ fontSize: 10.5, fontWeight: 600, color: roleColor, letterSpacing: '.3px', whiteSpace: 'nowrap' }}>{roleText}</span>}
+                            </div>
+                          )
+                        })()}
                       </div>
-                    </td>
-                    <td>
-                      {(() => {
-                        const entity = r._entity || (lang === 'en' ? r.entity_type_en : r.entity_type_ar) || r.entity_type_ar || r.entity_type_en
-                        const form = (lang === 'en' ? r.company_form_en : r.company_form_ar) || r.company_form_ar || r.company_form_en
-                        const formDiffers = form && entity && form !== entity
-                        const roleColor = branch ? C.blue : null
-                        const roleText = branch ? T('فرع','Branch') : null
-                        if (!entity && !form && !roleText) return <span className="muted">—</span>
-                        return (
-                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, minWidth: 0, maxWidth: '100%' }}>
-                            {entity && <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx)', whiteSpace: 'nowrap' }}>{entity}</span>}
-                            {formDiffers && <span style={{ fontSize: 10.5, fontWeight: 500, color: 'var(--tx3)', whiteSpace: 'nowrap' }} title={form}>{form}</span>}
-                            {roleText && <span style={{ fontSize: 10.5, fontWeight: 600, color: roleColor, letterSpacing: '.3px', whiteSpace: 'nowrap' }}>{roleText}</span>}
-                          </div>
-                        )
-                      })()}
                     </td>
                     <td onClick={e => e.stopPropagation()}>
                       <div style={{ display: 'flex', justifyContent: 'center', minWidth: 0, width: '100%' }}>
@@ -5605,9 +5598,21 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                         <div className="name-marquee">
                           <span className="marquee-inner">{r.entity_full_name_ar || '—'}</span>
                         </div>
-                        {r.entity_full_name_en && (
-                          <span style={{ fontSize: 9.5, fontWeight: 500, color: 'var(--tx4)', direction: 'ltr', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{r.entity_full_name_en}</span>
-                        )}
+                        {(() => {
+                          const entity = r._entity || (lang === 'en' ? r.entity_type_en : r.entity_type_ar) || r.entity_type_ar || r.entity_type_en
+                          const form = (lang === 'en' ? r.company_form_en : r.company_form_ar) || r.company_form_ar || r.company_form_en
+                          const formDiffers = form && entity && form !== entity
+                          const roleColor = branch ? C.blue : null
+                          const roleText = branch ? T('فرع','Branch') : null
+                          if (!entity && !form && !roleText) return null
+                          return (
+                            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: '2px 6px', minWidth: 0, maxWidth: '100%' }}>
+                              {entity && <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx3)', whiteSpace: 'nowrap' }}>{entity}</span>}
+                              {formDiffers && <span style={{ fontSize: 10.5, fontWeight: 500, color: 'var(--tx4)', whiteSpace: 'nowrap' }} title={form}>· {form}</span>}
+                              {roleText && <span style={{ fontSize: 10.5, fontWeight: 600, color: roleColor, letterSpacing: '.3px', whiteSpace: 'nowrap' }}>{roleText}</span>}
+                            </div>
+                          )
+                        })()}
                       </div>
                     </td>
                     {/* Numbers — same as SBC view */}
