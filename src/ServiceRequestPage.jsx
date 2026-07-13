@@ -1830,7 +1830,9 @@ const passportDetails=selSvc==='passport_update'?{
 const exitReentryDetails=selSvc==='exit_reentry_visa'?{op_mode:fields.op_mode||'issue',...(fields.op_mode==='extend'&&fields.visa_number?{visa_number:fields.visa_number}:{})}:null
 // تغيير المهنة: التقط المهنة الحالية للعامل لحظة الطلب (snapshot) لتُعرض في تفصيل الفاتورة بجانب المهنة الجديدة.
 const profChangeDetails=selSvc==='profession_change'&&selWorker?.occupation?.value_ar?{current_occupation:selWorker.occupation.value_ar}:null
-const mergedDetails={...(regDetails||{}),...(chamberDetails||{}),...(ajeerDetails||{}),...(iqamaPrintDetails||{}),...(passportDetails||{}),...(exitReentryDetails||{}),...(profChangeDetails||{})}
+// خروج نهائي: احفظ نوع الطلب (إنشاء/إلغاء خروج نهائي) ضمن details ليقرأه تفصيل الفاتورة والطباعة.
+const finalExitDetails=selSvc==='final_exit_visa'?{exit_action:fields.exit_action||'create'}:null
+const mergedDetails={...(regDetails||{}),...(chamberDetails||{}),...(ajeerDetails||{}),...(iqamaPrintDetails||{}),...(passportDetails||{}),...(exitReentryDetails||{}),...(profChangeDetails||{}),...(finalExitDetails||{})}
 // مسار التجديد المعتمد على التسعيرة لا يمرّ بمنتقي العامل (selWorker فارغ)، فنجلب منشأة العامل الحالية من سجلّه لتُخزَّن وتظهر بطاقة المنشأة بالفاتورة.
 let renewalFacilityId=selWorker?.facility?.id||null
 if(svcCode==='iqama_renewal'&&!renewalFacilityId){const wid=selKafalaQuote?.worker_id||finalWorkerId;if(wid){try{const{data:wRow}=await sb.from('workers').select('current_facility_id').eq('id',wid).maybeSingle();renewalFacilityId=wRow?.current_facility_id||null}catch{/* جلب منشأة العامل أفضل جهد */}}}
@@ -3384,16 +3386,20 @@ onChange={v=>setFields(p=>({...p,duration_months:v}))}/>
 if(selSvc==='final_exit_visa'){
 const legend={position:'absolute',top:-9,right:14,background:'var(--modal-bg)',padding:'0 8px',fontSize:12,fontWeight:600,color:C.bentoGold,fontFamily:F,display:'inline-flex',alignItems:'center',gap:5}
 const fieldset={borderRadius:12,border:'1.5px solid rgba(176,125,0,.35)',padding:'16px 12px 12px',position:'relative',display:'flex',flexDirection:'column',gap:10}
+const exitAction=fields.exit_action||'create'
+const isCancel=exitAction==='cancel'
 return<div style={{flex:1,minHeight:0,display:'flex',flexDirection:'column',gap:10,marginTop:10}}>
 
-{/* ═══ سبب طلب الخروج النهائي ═══ */}
+{/* ═══ نوع الطلب (إنشاء/إلغاء خروج نهائي) + سببه ═══ */}
 <div style={{...fieldset,flex:1,minHeight:0}}>
 <div style={legend}>
 <FileText size={12} strokeWidth={2.2}/>
-<span>{T('سبب طلب الخروج النهائي','Reason for the final-exit request')}</span>
+<span>{isCancel?T('سبب إلغاء الخروج النهائي','Reason for cancelling the final exit'):T('سبب طلب الخروج النهائي','Reason for the final-exit request')}</span>
 </div>
+<FKSegmented value={exitAction} onChange={v=>setFields(p=>({...p,exit_action:v}))} height={54}
+options={[{v:'create',l:T('إنشاء خروج نهائي','Create Final Exit'),sub:T('إصدار تأشيرة خروج نهائي','Issue a final-exit visa')},{v:'cancel',l:T('إلغاء خروج نهائي','Cancel Final Exit'),sub:T('إلغاء تأشيرة خروج نهائي قائمة','Cancel an existing final-exit visa')}]}/>
 <textarea value={fields.reason||''} onChange={e=>setFields(p=>({...p,reason:e.target.value}))}
-placeholder={T('اكتب سبب طلب تأشيرة الخروج النهائي...','Reason for the final-exit visa request...')}
+placeholder={isCancel?T('اكتب سبب إلغاء تأشيرة الخروج النهائي...','Reason for cancelling the final-exit visa...'):T('اكتب سبب طلب تأشيرة الخروج النهائي...','Reason for the final-exit visa request...')}
 style={{...fS,flex:1,minHeight:0,height:'auto',padding:'12px 14px',resize:'none',textAlign:isAr?'right':'left'}}/>
 </div>
 
@@ -4276,9 +4282,10 @@ return<span key={f.id} style={{display:'inline-flex',alignItems:'center',gap:4,p
 </div>}
 
 {/* Final exit visa details */}
-{selSvc==='final_exit_visa'&&fields.reason&&<div>
+{selSvc==='final_exit_visa'&&<div>
 <SectionTitle>{T('بيانات الخروج النهائي','Final-exit data')}</SectionTitle>
-<Row label={T('السبب','Reason')} value={fields.reason}/>
+<Row label={T('نوع الطلب','Request Type')} value={(fields.exit_action||'create')==='cancel'?T('إلغاء خروج نهائي','Cancel Final Exit'):T('إنشاء خروج نهائي','Create Final Exit')}/>
+{fields.reason&&<Row label={T('السبب','Reason')} value={fields.reason}/>}
 </div>}
 
 {/* Occupation change details */}

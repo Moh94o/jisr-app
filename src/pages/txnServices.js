@@ -105,6 +105,7 @@ export const TXN_SERVICES = {
       { src: 'w_name', l_ar: 'العامل', l_en: 'Worker' },
       { src: 'w_iqama', l_ar: 'رقم الإقامة', l_en: 'Iqama No', mono: true },
       { src: 'f_name', l_ar: 'المنشأة', l_en: 'Facility' },
+      { src: 'd:exit_action', l_ar: 'نوع الطلب', l_en: 'Request Type', opts: { create: 'إنشاء خروج نهائي', cancel: 'إلغاء خروج نهائي' } },
       { src: 'd:reason', l_ar: 'السبب', l_en: 'Reason', wide: true },
     ],
   },
