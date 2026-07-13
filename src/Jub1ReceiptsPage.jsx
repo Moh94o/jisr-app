@@ -122,7 +122,7 @@ export default function Jub1ReceiptsPage({ sb, user, toast, lang = 'ar', emptyIc
   const loadEntries = useCallback(async () => {
     setLoading(true)
     const { data: rows } = await sb.from('jub1_receipts')
-      .select('*').is('deleted_at', null).order('created_at', { ascending: false }).limit(3000)
+      .select('*').is('deleted_at', null).order('created_at', { ascending: false }).limit(5000)
     const ids = (rows || []).map(r => r.id)
     let pays = []
     if (ids.length) {
