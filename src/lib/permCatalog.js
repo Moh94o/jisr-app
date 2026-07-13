@@ -77,13 +77,18 @@ export const MODULE_ACTIONS = {
     A('view', 'عرض المدفوعات', 'view'), A('pay', 'تسجيل سداد خدمة', 'special'),
     A('edit', 'تعديل السداد', 'edit'),
   ],
-  // سندات JUB1 — مرحلة إدخال أولية على مرحلتين: «مكتمل» (يتحقق المدخِل أن البيانات صحيحة)
-  // ثم «مُراجَع» (يتأكد المراجع أن ربط السندات صحيح). كل مرحلة صلاحية مستقلة تُسنَد لدور مختلف.
+  // سندات JUB1 — دورة حياة السند على مراحل، كل انتقال حالة صلاحية مستقلة تُسنَد لدور مختلف
+  // (مثل مراحل المعاملة في الفواتير): مسودة → «مكتمل» (يتحقق المدخِل) → «مدقق» (يتأكد المراجع من
+  // ربط السندات)، مع «يحتاج مراجعة» و«الإلغاء» و«الإرجاع لمسودة» كصلاحيات مستقلة.
   jub1_receipts: [
     A('view', 'عرض سندات JUB1', 'view'), A('create', 'إضافة سند', 'create'),
-    A('edit', 'تعديل سند', 'edit'), A('delete', 'حذف سند', 'delete'),
-    A('mark_complete', 'اعتماد السند كمكتمل', 'special'),
-    A('mark_reviewed', 'مراجعة السند (تأكيد الربط)', 'special'),
+    A('edit', 'تعديل بيانات السند', 'edit'), A('delete', 'حذف سند', 'delete'),
+    A('mark_complete', 'مرحلة: اعتماد «مكتمل»', 'special'),
+    A('mark_reviewed', 'مرحلة: تدقيق «مدقق»', 'special'),
+    A('stage_flag', 'مرحلة: تعليم «يحتاج مراجعة»', 'special'),
+    A('stage_cancel', 'مرحلة: إلغاء السند', 'special'),
+    A('stage_reopen', 'مرحلة: إرجاع إلى مسودة', 'special'),
+    A('link', 'ربط / فكّ السندات', 'special'),
   ],
   ext_payments: [
     A('view', 'عرض السدادات الخارجية', 'view'), A('create', 'إضافة حوالة بنكية', 'create'),
@@ -323,10 +328,13 @@ export const TAB_CARDS = {
   // سندات JUB1 — بطاقات صفحة تفاصيل السند (إظهار/إخفاء لكل دور)
   jub1_receipts: [
     C('receipt_image', 'صورة السند'), C('client', 'العميل', 'core', EDIT),
-    C('receipt_voucher', 'سند القبض', 'core', EDIT), C('service', 'الخدمة', 'core', EDIT),
+    C('receipt_voucher', 'سند القبض', 'core', [ca('edit', 'تعديل', 'edit'), ca('stage_cancel', 'تبديل الإلغاء', 'stage_cancel')]),
+    C('service', 'الخدمة', 'core', EDIT),
     C('installment_plan', 'توزيع الدفعات المقترح', 'core', EDIT),
-    C('linked_receipts', 'ربط السندات', 'core', [ca('link', 'ربط/فكّ سند', 'edit')]),
+    C('linked_receipts', 'ربط السندات', 'core', [ca('link', 'ربط/فكّ سند', 'link')]),
+    C('details', 'التفاصيل', 'core', EDIT),
     C('totals', 'الحساب'), C('agent', 'الوسيط', 'core', EDIT),
+    C('transfer_calc', 'حسبة التنازل', 'core', [ca('edit', 'تعديل', 'edit'), ca('read', 'قراءة الحسبة آلياً', 'read')]),
   ],
   deposits: [
     C('operation_details', 'الحوالة / الإيداع'), C('attachments', 'المرفقات'),
@@ -656,8 +664,43 @@ export const TAB_FIELDS = {
     F('fin_quote_ref', 'مرجع التسعيرة', 'financial_summary'),
     F('fin_office_fee_net', 'الرسوم المكتبية', 'financial_summary'), F('fin_government_fees', 'الرسوم الحكومية', 'financial_summary'),
   ],
+  // ── سندات JUB1 (jub1_receipts, direct writes) — DB-locked scalar columns via
+  //    field_lock_map; jsonb/array fields (installment_plan, transfer_calc,
+  //    linked numbers) are UI-locked only to avoid false positives on re-serialization.
+  jub1_receipts: [
+    // العميل
+    F('client_name', 'الاسم', 'client', { edit: true, table: 'jub1_receipts', col: 'client_name' }),
+    F('client_phone', 'الجوال', 'client', { edit: true, table: 'jub1_receipts', col: 'client_phone' }),
+    F('client_id_no', 'الهوية', 'client', { edit: true, table: 'jub1_receipts', col: 'client_id_no' }),
+    // سند القبض
+    F('primary_receipt_amount', 'مبلغ السند المقبوض', 'receipt_voucher', { edit: true, table: 'jub1_receipts', col: 'primary_receipt_amount' }),
+    F('primary_receipt_no', 'رقم السند', 'receipt_voucher', { edit: true, table: 'jub1_receipts', col: 'primary_receipt_no' }),
+    F('receipt_date', 'تاريخ السند', 'receipt_voucher', { edit: true, table: 'jub1_receipts', col: 'receipt_date' }),
+    // الخدمة
+    F('service_type', 'نوع الخدمة', 'service', { edit: true, table: 'jub1_receipts', cols: ['service_item_id', 'service_code'] }),
+    F('quantity', 'الكمية', 'service', { edit: true, table: 'jub1_receipts', col: 'quantity' }),
+    F('total_amount', 'المبلغ الإجمالي للخدمة', 'service', { edit: true, table: 'jub1_receipts', col: 'total_amount' }),
+    // توزيع الدفعات المقترح (jsonb — UI-lock only)
+    F('installment_plan', 'بنود التوزيع', 'installment_plan', { edit: true }),
+    // ربط السندات (نص السندات السابقة — UI-lock only)
+    F('linked_numbers', 'أرقام السندات المرتبطة', 'linked_receipts', { edit: true }),
+    // التفاصيل (مربّع نصّي حر)
+    F('notes', 'التفاصيل', 'details', { edit: true, table: 'jub1_receipts', col: 'notes' }),
+    // الحساب (عرض فقط)
+    F('totals_total', 'الإجمالي', 'totals'), F('totals_received', 'المقبوض', 'totals'),
+    F('totals_remaining', 'المتبقي', 'totals'),
+    // الوسيط
+    F('agent_name', 'اسم الوسيط', 'agent', { edit: true, table: 'jub1_receipts', col: 'agent_name' }),
+    // حسبة التنازل (jsonb — UI-lock only)
+    F('tc_fields', 'بنود الحسبة', 'transfer_calc', { edit: true }),
+  ],
 }
 export const TAB_MODALS = {
+  // سندات JUB1 — النوافذ المنبثقة (فتحها يُتحكَّم به لكل دور)
+  jub1_receipts: [
+    M('receipt_status', 'نافذة حالة السند (المراحل)'), M('receipt_delete', 'نافذة حذف السند'),
+    M('receipt_new', 'نافذة سند قبض جديد'),
+  ],
   admin_clients: [M('client_edit', 'تعديل بيانات العميل')],
   invoices: [
     M('inv_action_payment', 'تسجيل دفعة'), M('inv_action_refund', 'استرجاع دفعة'),
@@ -686,6 +729,12 @@ export const TAB_MODALS = {
   ],
 }
 export const TAB_STAGES = {
+  // سندات JUB1 — مراحل دورة حياة السند (إظهار/إخفاء كل مرحلة في نافذة الحالة لكل دور).
+  // إخفاء المرحلة يمنع ظهور خيار الانتقال إليها حتى لو مُنِحت صلاحية الانتقال.
+  jub1_receipts: [
+    S('draft', 'مسودة'), S('complete', 'مكتمل'), S('needs_review', 'يحتاج مراجعة'),
+    S('reviewed', 'مدقق'), S('cancelled', 'ملغي'),
+  ],
   // حاسبة نقل الكفالة (KafalaCalculator) — 4 steps
   transfer_calc: [
     S('w_worker_data', 'بيانات العامل'), S('w_worker_details', 'تفاصيل العامل'),

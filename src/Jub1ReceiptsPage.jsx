@@ -15,7 +15,9 @@ import {
   ChevronDown, Calendar, User, Tag, Coins, Wallet,
 } from 'lucide-react'
 import { ALL_SERVICES, SVC_CODE_MAP } from './ServiceRequestPage.jsx'
-import { can, isGM as isGmUser } from './lib/permissions.js'
+import { can, isGM as isGmUser, cardVisible, canCardBtn, fieldVisible, fieldEditable, modalAllowed, stageVisible } from './lib/permissions.js'
+
+const TAB = 'jub1_receipts'
 
 const JUB1_ENTITY = 'jub1_receipt'
 
@@ -331,7 +333,7 @@ export default function Jub1ReceiptsPage({ sb, user, toast, lang = 'ar', emptyIc
   }
 
   // سند جديد — نافذة رفع صور فقط: تُقرأ آلياً وتُحفظ كمسودة (التحرير الكامل لاحقاً من صفحة التفاصيل)
-  const canCreate = isGM || can(user, 'jub1_receipts.create')
+  const canCreate = (isGM || can(user, 'jub1_receipts.create')) && modalAllowed(user, TAB, 'receipt_new')
   const openNew = () => setCreating(true)
 
   // ═══ صفحة التفاصيل (تحل محل القائمة عند فتح سند) ═══
@@ -696,6 +698,7 @@ const initDetailForm = (e) => ({
   primary_receipt_amount: e.primary_receipt_amount != null ? String(num(e.primary_receipt_amount)) : '',
   primary_receipt_no: e.primary_receipt_no || '',
   receipt_date: e.receipt_date || '',
+  notes: e.notes || '',
   prevNos: String(e.previous_receipt_nos || '').split(/[،,;\s]+/).filter(Boolean),
   plan: Array.isArray(e.installment_plan) ? e.installment_plan.map(p => ({ _k: rid(), label: p.label || '', amount: p.amount != null && p.amount !== '' ? String(p.amount) : '', paid: !!p.paid })) : [],
   payments: (e.payments || []).map(p => ({ _k: rid(), sanad_no: p.sanad_no || '', pay_date: p.pay_date || '', amount: p.amount != null ? String(num(p.amount)) : '', method_code: p.method_code || '', is_previous: !!p.is_previous, notes: p.notes || '' })),
@@ -834,20 +837,26 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, T, sb, tt, u
     await onDelete?.(e.id)
     setDelBusy(false)
   }
+  // بوّابات الصلاحيات — كل مرحلة صلاحية مستقلة (نفس نمط مراحل المعاملة في الفواتير)
   const canDo = (perm) => {
     if (isGmUser(user)) return true
-    if (perm === 'any') return can(user, 'jub1_receipts.mark_complete') || can(user, 'jub1_receipts.mark_reviewed')
+    if (perm === 'any') return can(user, 'jub1_receipts.stage_reopen')
     return can(user, 'jub1_receipts.' + perm)
   }
   // enforcement: التحرير المباشر (بيانات/دفعات/ربط السندات) يتطلب صلاحية jub1_receipts.edit
   const canEditReceipt = can(user, 'jub1_receipts.edit')
-  // انتقالات كل حالة: [الحالة الهدف، الصلاحية المطلوبة]
+  // بوّابات البطاقات والحقول والنوافذ (فعّالة — تُخفي/تُقفل فعلياً لا مجرد عرض في اللوحة)
+  const cardOn = (k) => cardVisible(user, TAB, k)
+  const fVis = (k) => fieldVisible(user, TAB, k)
+  const fEdit = (k) => fieldEditable(user, TAB, k)
+  const canLink = canCardBtn(user, TAB, 'linked_receipts', 'link')
+  // انتقالات كل حالة: [الحالة الهدف، الصلاحية المطلوبة] — كل انتقال بصلاحيته الدقيقة
   const STATUS_FLOW = {
-    draft:        [['complete', 'mark_complete'], ['needs_review', 'mark_complete'], ['cancelled', 'mark_complete']],
-    complete:     [['reviewed', 'mark_reviewed'], ['needs_review', 'mark_reviewed'], ['cancelled', 'mark_complete']],
-    needs_review: [['complete', 'mark_complete'], ['reviewed', 'mark_reviewed'], ['draft', 'any'], ['cancelled', 'mark_complete']],
-    reviewed:     [['needs_review', 'mark_reviewed'], ['draft', 'any'], ['cancelled', 'mark_complete']],
-    cancelled:    [['draft', 'any']],
+    draft:        [['complete', 'mark_complete'], ['needs_review', 'stage_flag'], ['cancelled', 'stage_cancel']],
+    complete:     [['reviewed', 'mark_reviewed'], ['needs_review', 'stage_flag'], ['cancelled', 'stage_cancel']],
+    needs_review: [['complete', 'mark_complete'], ['reviewed', 'mark_reviewed'], ['draft', 'stage_reopen'], ['cancelled', 'stage_cancel']],
+    reviewed:     [['needs_review', 'stage_flag'], ['draft', 'stage_reopen'], ['cancelled', 'stage_cancel']],
+    cancelled:    [['draft', 'stage_reopen']],
   }
   const STATUS_DESC = {
     complete:     T('البيانات صحيحة ومكتملة — جاهز للمراجعة', 'Data verified & complete — ready for review'),
@@ -856,7 +865,8 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, T, sb, tt, u
     draft:        T('إرجاع إلى مسودة', 'Send back to draft'),
     cancelled:    T('السند ملغى — لا يُحتسب في الإجماليات', 'Cancelled — excluded from totals'),
   }
-  const statusOptions = (STATUS_FLOW[e.review_status] || []).filter(([, perm]) => canDo(perm))
+  // خيار الانتقال يظهر فقط إن مُنِحت صلاحيته وكانت مرحلته الهدف ظاهرة لهذا الدور
+  const statusOptions = (STATUS_FLOW[e.review_status] || []).filter(([to, perm]) => canDo(perm) && stageVisible(user, TAB, to))
   const applyStatus = async (to) => {
     if (statusBusy) return
     setStatusBusy(true)
@@ -943,7 +953,7 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, T, sb, tt, u
   }, [sb, allShown])
 
   const toggleLink = async (targetId, link) => {
-    if (!canEditReceipt) return
+    if (!canLink) return
     setLinkBusy(targetId)
     await onLinkToggle?.(e.id, targetId, link)
     setLinkBusy(null)
@@ -975,6 +985,7 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, T, sb, tt, u
       primary_receipt_amount: f.primary_receipt_amount ? num(f.primary_receipt_amount) : null,
       primary_receipt_no: f.primary_receipt_no || null,
       receipt_date: f.receipt_date || null,
+      notes: f.notes || null,
       previous_receipt_nos: f.prevNos.join('، ') || null,
       installment_plan: f.plan.map(({ _k, ...p }) => ({ label: p.label, amount: p.amount ? num(p.amount) : null, paid: !!p.paid })),
       transfer_calc: f.transfer_calc
@@ -1028,6 +1039,12 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, T, sb, tt, u
 
   // ── أدوات عرض/إدخال (دوال تُستدعى — لا مكوّنات متداخلة كي لا يفقد الإدخال التركيز) ──
   const card = { borderRadius: 16, background: 'var(--card-grad2)', border: '1px solid var(--bd)', boxShadow: 'var(--shadow-sm)', padding: '16px 18px' }
+  // بطاقة تُخفى فعلياً للأدوار الممنوعة من رؤيتها (بوّابة cardVisible) — لا مجرد عرض في اللوحة
+  const cardStyle = (k) => (cardOn(k) ? card : { display: 'none' })
+  const planEditable = fEdit('installment_plan')
+  const tcEditable = fEdit('tc_fields')
+  const numsEditable = fEdit('linked_numbers')
+  const tcCanRead = canCardBtn(user, TAB, 'transfer_calc', 'read')
   const cardTitle = (label, hint) => (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, gap: 10 }}>
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 13.5, fontWeight: 700, color: 'var(--tx)' }}>
@@ -1041,12 +1058,19 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, T, sb, tt, u
   // كل الحقول تبدأ من اليمين: العربية بحكم الاتجاه (start=يمين)، والأرقام/الجوال/التاريخ نُبقي direction:ltr
   // لصحّة ترتيب الأرقام لكن نحاذيها لليمين (textAlign:right) فتبدأ من الحافة اليمنى مثل بقية الحقول.
   const inpS = (ltr) => ({ width: '100%', background: 'transparent', border: 'none', outline: 'none', fontSize: 13.5, fontWeight: 600, color: 'var(--tx)', fontFamily: 'Cairo, Tajawal, sans-serif', direction: ltr ? 'ltr' : undefined, textAlign: ltr ? 'right' : 'start', padding: 0, fontVariantNumeric: 'tabular-nums' })
-  const inp = (k, key, { ltr, type = 'text', placeholder, list } = {}) => (
-    <div style={box}>
-      <div style={lblS}>{k}</div>
-      <input type={type} value={f[key] ?? ''} onChange={ev => set(key, ev.target.value)} placeholder={placeholder || '—'} list={list} style={inpS(ltr)} />
-    </div>
-  )
+  // fld = مفتاح الحقل في كتالوج الصلاحيات (افتراضياً = مفتاح الحالة). يُخفى إن مُنِع عرضه،
+  // ويصبح للقراءة فقط إن قُفِل تعديله لهذا الدور (fieldEditable يتحقق أيضاً من صلاحية التعديل).
+  const inp = (k, key, { ltr, type = 'text', placeholder, list, fld = key } = {}) => {
+    if (fld && !fVis(fld)) return null
+    const ro = fld ? !fEdit(fld) : !canEditReceipt
+    return (
+      <div style={box}>
+        <div style={lblS}>{k}</div>
+        <input type={type} value={f[key] ?? ''} onChange={ev => { if (!ro) set(key, ev.target.value) }} readOnly={ro}
+          placeholder={placeholder || '—'} list={list} style={{ ...inpS(ltr), opacity: ro ? .65 : 1, cursor: ro ? 'not-allowed' : 'text' }} />
+      </div>
+    )
+  }
   const roField = (k, v, strong) => (
     <div style={box}>
       <div style={lblS}>{k}</div>
@@ -1080,8 +1104,8 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, T, sb, tt, u
             <span style={{ direction: 'ltr' }}>{fmt(num(r.primary_receipt_amount) || paidOf(r))}</span><span>·</span>
             <span style={{ direction: 'ltr' }}>{dt(r.receipt_date)}</span>
           </div>
-          <button onClick={() => toggleLink(r.id, !on)} disabled={busy || !canEditReceipt}
-            style={{ marginTop: 3, height: 32, borderRadius: 8, cursor: (busy || !canEditReceipt) ? 'default' : 'pointer', fontFamily: 'Cairo, Tajawal, sans-serif', fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, opacity: (busy || !canEditReceipt) ? .6 : 1,
+          <button onClick={() => toggleLink(r.id, !on)} disabled={busy || !canLink}
+            style={{ marginTop: 3, height: 32, borderRadius: 8, cursor: (busy || !canLink) ? 'default' : 'pointer', fontFamily: 'Cairo, Tajawal, sans-serif', fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, opacity: (busy || !canLink) ? .6 : 1,
               border: on ? '1px solid rgba(192,57,43,.35)' : '1px solid rgba(31,122,69,.45)',
               background: on ? 'rgba(192,57,43,.06)' : 'rgba(31,122,69,.1)',
               color: on ? '#c0392b' : 'var(--ok,#1f7a45)' }}>
@@ -1100,7 +1124,7 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, T, sb, tt, u
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>
           <span>{T('رجوع', 'Back')}</span>
         </button>
-        {onDelete && isGmUser(user) && (
+        {onDelete && (isGmUser(user) || can(user, 'jub1_receipts.delete')) && modalAllowed(user, TAB, 'receipt_delete') && (
           <button onClick={() => setDelModal(true)}
             onMouseEnter={ev => { ev.currentTarget.style.background = 'rgba(192,57,43,.12)' }}
             onMouseLeave={ev => { ev.currentTarget.style.background = 'rgba(192,57,43,.06)' }}
@@ -1124,7 +1148,8 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, T, sb, tt, u
             </div>
           </div>
         </div>
-        {/* حالة السند — زر واحد يفتح نافذة اختيار المرحلة */}
+        {/* حالة السند — زر واحد يفتح نافذة اختيار المرحلة (يظهر فقط إن سُمح بنافذة الحالة) */}
+        {modalAllowed(user, TAB, 'receipt_status') && (
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
           <button onClick={() => { setStatusOk(false); setStatusPick(null); setStatusModal(true) }}
             onMouseEnter={e => { e.currentTarget.style.filter = 'brightness(.93)' }}
@@ -1133,6 +1158,7 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, T, sb, tt, u
             <span>{T('الحالة', 'Status')}</span>
           </button>
         </div>
+        )}
       </div>
 
       {/* ملاحظات القراءة/الفحص */}
@@ -1149,7 +1175,7 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, T, sb, tt, u
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         {/* صورة السند */}
-        <div style={card}>
+        <div style={cardStyle('receipt_image')}>
           {cardTitle(T('صورة السند', 'Receipt image'))}
           {atts.length === 0 ? (
             <div style={{ fontSize: 12, color: 'var(--tx4)', padding: '10px 0' }}>{T('لا توجد صور مرفقة — من «الصور والقراءة الآلية» أعلاه', 'No images — use "Images & OCR" above')}</div>
@@ -1204,7 +1230,7 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, T, sb, tt, u
         )}
 
         {/* العميل — تحرير مباشر */}
-        <div style={card}>
+        <div style={cardStyle('client')}>
           {cardTitle(T('العميل', 'Client'), T('عدّل مباشرة ثم احفظ من الشريط السفلي', 'Edit inline, save below'))}
           <div style={grid2}>
             {inp(T('الاسم', 'Name'), 'client_name')}
@@ -1214,12 +1240,14 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, T, sb, tt, u
         </div>
 
         {/* سند القبض — تحرير مباشر + أرقام السندات السابقة كرقائق */}
-        <div style={card}>
+        <div style={cardStyle('receipt_voucher')}>
           {cardTitle(T('سند القبض', 'Receipt voucher'))}
           <div style={grid2}>
             {inp(T('مبلغ السند المقبوض', 'Receipt amount'), 'primary_receipt_amount', { ltr: true })}
             {inp(T('رقم السند', 'Receipt no'), 'primary_receipt_no', { ltr: true })}
-            <DateBox label={T('تاريخ السند', 'Date')} value={f.receipt_date} onChange={v => set('receipt_date', v)} />
+            {fVis('receipt_date') && (fEdit('receipt_date')
+              ? <DateBox label={T('تاريخ السند', 'Date')} value={f.receipt_date} onChange={v => set('receipt_date', v)} />
+              : roField(T('تاريخ السند', 'Date'), dt(f.receipt_date)))}
           </div>
           {/* السند ملغي — مفتاح يدوي يضبط حالة السند (ملغي ⇄ مسودة) */}
           <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '10px 12px', borderRadius: 12, background: e.review_status === 'cancelled' ? 'rgba(192,57,43,.06)' : 'var(--inputBg)', border: `1px solid ${e.review_status === 'cancelled' ? 'rgba(192,57,43,.3)' : 'var(--bd)'}`, transition: '.15s' }}>
@@ -1228,8 +1256,9 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, T, sb, tt, u
               <span style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 600 }}>{T('فعّله إذا كان مكتوباً على السند «ملغي» أو عليه X بالأحمر', 'Turn on if marked cancelled / red X')}</span>
             </div>
             {(() => {
-              // enforcement: الإلغاء يتطلب mark_complete، وإلغاء الإلغاء (→مسودة) يتطلب any — نفس بوّابة نافذة الحالة
-              const canToggleCancel = e.review_status === 'cancelled' ? canDo('any') : canDo('mark_complete')
+              // enforcement: الإلغاء يتطلب stage_cancel، وإلغاء الإلغاء (→مسودة) يتطلب stage_reopen — نفس بوّابة نافذة الحالة
+              const canToggleCancel = (e.review_status === 'cancelled' ? canDo('stage_reopen') : canDo('stage_cancel'))
+                && canCardBtn(user, TAB, 'receipt_voucher', 'stage_cancel')
               return (
             <button onClick={() => { if (!canToggleCancel) return; onStatus?.(e.review_status === 'cancelled' ? 'draft' : 'cancelled') }} disabled={!canToggleCancel} title={T('تبديل حالة الإلغاء', 'Toggle cancelled')}
               style={{ position: 'relative', width: 46, height: 26, borderRadius: 20, border: 'none', cursor: canToggleCancel ? 'pointer' : 'not-allowed', flexShrink: 0, direction: 'ltr', transition: '.15s', opacity: canToggleCancel ? 1 : .5, background: e.review_status === 'cancelled' ? '#c0392b' : 'rgba(120,120,120,.35)' }}>
@@ -1241,12 +1270,14 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, T, sb, tt, u
         </div>
 
         {/* الخدمة — تحرير مباشر */}
-        <div style={card}>
+        <div style={cardStyle('service')}>
           {cardTitle(T('الخدمة', 'Service'))}
           <div style={grid2}>
-            <ServiceBox label={T('نوع الخدمة', 'Service type')} value={f.service_item_id}
-              options={popupServices(services, f.service_item_id)}
-              onChange={o => setF(p => ({ ...p, service_item_id: o.id, service_code: o.code || '' }))} />
+            {fVis('service_type') && (fEdit('service_type')
+              ? <ServiceBox label={T('نوع الخدمة', 'Service type')} value={f.service_item_id}
+                  options={popupServices(services, f.service_item_id)}
+                  onChange={o => setF(p => ({ ...p, service_item_id: o.id, service_code: o.code || '' }))} />
+              : roField(T('نوع الخدمة', 'Service type'), services.find(s => s.id === f.service_item_id)?.value_ar || '—'))}
             {/* لا يظهر خيار «بلا خدمة» بعد الاختيار — الفراغ يظهر كـ placeholder فقط */}
             {inp(T('الكمية', 'Quantity'), 'quantity', { ltr: true })}
             {inp(T('المبلغ الإجمالي للخدمة', 'Service total'), 'total_amount', { ltr: true })}
@@ -1254,18 +1285,18 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, T, sb, tt, u
         </div>
 
         {/* توزيع الدفعات — تحرير مباشر */}
-        <div style={card}>
+        <div style={cardStyle('installment_plan')}>
           {cardTitle(T('توزيع الدفعات المقترح', 'Suggested installment plan'), planSum ? `${T('المجموع', 'Sum')}: ${fmt(planSum)}` : null)}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {f.plan.map(p => (
               <div key={p._k} style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-                <input value={p.label} onChange={ev => set('plan', f.plan.map(x => x._k === p._k ? { ...x, label: ev.target.value } : x))}
-                  placeholder={T('وصف (مثال: الدفعة الأولى)', 'Label')} style={{ ...rowInp, flex: 1, minWidth: 160 }} />
-                <input value={p.amount} onChange={ev => set('plan', f.plan.map(x => x._k === p._k ? { ...x, amount: ev.target.value.replace(/[^\d.]/g, '') } : x))}
-                  placeholder={T('المبلغ', 'Amount')} style={{ ...rowInp, width: 120, direction: 'ltr', textAlign: 'center' }} />
+                <input value={p.label} readOnly={!planEditable} onChange={ev => set('plan', f.plan.map(x => x._k === p._k ? { ...x, label: ev.target.value } : x))}
+                  placeholder={T('وصف (مثال: الدفعة الأولى)', 'Label')} style={{ ...rowInp, flex: 1, minWidth: 160, opacity: planEditable ? 1 : .65 }} />
+                <input value={p.amount} readOnly={!planEditable} onChange={ev => set('plan', f.plan.map(x => x._k === p._k ? { ...x, amount: ev.target.value.replace(/[^\d.]/g, '') } : x))}
+                  placeholder={T('المبلغ', 'Amount')} style={{ ...rowInp, width: 120, direction: 'ltr', textAlign: 'center', opacity: planEditable ? 1 : .65 }} />
                 {/* تاق «وصل» — هل دُفعت هذه الدفعة (وصلت)؟ اضغط للتبديل: أخضر=مدفوع، رمادي=لم يصل بعد */}
-                <button type="button" title={p.paid ? T('مدفوع — اضغط للإلغاء', 'Paid — click to clear') : T('لم يصل بعد — اضغط للتأكيد', 'Not received — click to confirm')}
-                  onClick={() => set('plan', f.plan.map(x => x._k === p._k ? { ...x, paid: !x.paid } : x))}
+                <button type="button" disabled={!planEditable} title={p.paid ? T('مدفوع — اضغط للإلغاء', 'Paid — click to clear') : T('لم يصل بعد — اضغط للتأكيد', 'Not received — click to confirm')}
+                  onClick={() => { if (planEditable) set('plan', f.plan.map(x => x._k === p._k ? { ...x, paid: !x.paid } : x)) }}
                   style={{ display: 'inline-flex', alignItems: 'center', gap: 5, height: 36, padding: '0 12px', borderRadius: 9, cursor: 'pointer', flexShrink: 0,
                     fontFamily: 'Cairo, Tajawal, sans-serif', fontSize: 12, fontWeight: 700, transition: '.15s',
                     border: p.paid ? '1px solid rgba(31,122,69,.5)' : '1px dashed var(--bd)',
@@ -1274,15 +1305,15 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, T, sb, tt, u
                   {p.paid ? <Check size={13} strokeWidth={3} /> : <CircleDashed size={13} />}
                   {p.paid ? T('وصل', 'Paid') : T('وصل؟', 'Paid?')}
                 </button>
-                <button onClick={() => set('plan', f.plan.filter(x => x._k !== p._k))} style={delBtn}><Trash2 size={13} /></button>
+                {planEditable && <button onClick={() => set('plan', f.plan.filter(x => x._k !== p._k))} style={delBtn}><Trash2 size={13} /></button>}
               </div>
             ))}
-            <button onClick={() => set('plan', [...f.plan, { _k: rid(), label: '', amount: '', paid: false }])} style={addBtn}><Plus size={13} /> {T('إضافة دفعة', 'Add row')}</button>
+            {planEditable && <button onClick={() => set('plan', [...f.plan, { _k: rid(), label: '', amount: '', paid: false }])} style={addBtn}><Plus size={13} /> {T('إضافة دفعة', 'Add row')}</button>}
           </div>
         </div>
 
         {/* ربط السندات — المعتمد رقم السند وصورته: تسجيل الأرقام في خطوة الاكتمال، والصورة الكاملة بعد «مكتمل» */}
-        <div style={card}>
+        <div style={cardStyle('linked_receipts')}>
           {cardTitle(T('ربط السندات', 'Link receipts'), T('المعتمد رقم سند القبض وصورته', 'Receipt number & image are authoritative'))}
 
           {/* أرقام السندات المرتبطة — رقائق تُضاف من صورة السند (أو من القراءة الآلية)، وتُحفظ من شريط الحفظ */}
@@ -1299,16 +1330,16 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, T, sb, tt, u
                       style={{ width: 7, height: 7, borderRadius: '50%', background: found ? 'var(--ok,#1f7a45)' : '#c0392b', flexShrink: 0 }} />
                     <button onClick={() => onOpenByNo(n)} title={T('فتح السند المرتبط', 'Open linked receipt')}
                       style={{ background: 'none', border: 'none', cursor: 'pointer', color: found ? 'var(--ok,#1f7a45)' : '#c0392b', fontWeight: 700, fontSize: 12.5, fontFamily: 'Cairo, Tajawal, sans-serif', direction: 'ltr', padding: 0 }}>{n}</button>
-                    <button onClick={() => set('prevNos', f.prevNos.filter((_, j) => j !== i))} title={T('إزالة', 'Remove')}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--tx4)', display: 'inline-flex', padding: 0 }}><X size={12} /></button>
+                    {numsEditable && <button onClick={() => set('prevNos', f.prevNos.filter((_, j) => j !== i))} title={T('إزالة', 'Remove')}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--tx4)', display: 'inline-flex', padding: 0 }}><X size={12} /></button>}
                   </span>
                 )
               })}
-              <input value={prevInput} onChange={ev => setPrevInput(ev.target.value)}
+              {numsEditable && <input value={prevInput} onChange={ev => setPrevInput(ev.target.value)}
                 onKeyDown={ev => { if (ev.key === 'Enter') { ev.preventDefault(); addPrevNo(prevInput) } }}
                 onBlur={() => addPrevNo(prevInput)}
                 placeholder={T('أضف رقماً + Enter', 'Add no + Enter')}
-                style={{ ...inpS(true), width: 150, flex: '0 0 auto' }} />
+                style={{ ...inpS(true), width: 150, flex: '0 0 auto' }} />}
             </div>
           </div>
 
@@ -1365,40 +1396,50 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, T, sb, tt, u
           )}
         </div>
 
+        {/* التفاصيل — مربّع نصّي حر لأي ملاحظات/تفاصيل عن السند */}
+        <div style={cardStyle('details')}>
+          {cardTitle(T('التفاصيل', 'Details'), T('أي تفاصيل أو ملاحظات عن السند', 'Any notes or details about the receipt'))}
+          {fVis('notes') && (
+            <textarea value={f.notes} readOnly={!fEdit('notes')}
+              onChange={ev => { if (fEdit('notes')) set('notes', ev.target.value) }}
+              placeholder={T('اكتب أي تفاصيل هنا…', 'Write any details here…')} rows={4}
+              style={{ width: '100%', boxSizing: 'border-box', resize: 'vertical', minHeight: 92, borderRadius: 12, padding: '10px 12px', background: 'var(--inputBg)', border: '1px solid var(--bd)', color: 'var(--tx)', fontFamily: 'Cairo, Tajawal, sans-serif', fontSize: 13.5, fontWeight: 600, lineHeight: 1.7, outline: 'none', opacity: fEdit('notes') ? 1 : .65, cursor: fEdit('notes') ? 'text' : 'not-allowed' }} />
+          )}
+        </div>
+
         {/* الحساب — إلكتروني (قراءة فقط) */}
-        <div style={card}>
+        <div style={cardStyle('totals')}>
           {cardTitle(T('الحساب', 'Totals'), T('إلكتروني — يُحسب تلقائياً ولا يُعدَّل', 'Computed automatically — read-only'))}
           <div style={grid2}>
-            {roField(T('الإجمالي', 'Total'), liveTotal ? fmt(liveTotal) : '—')}
-            {roField(T('المقبوض', 'Received'), fmt(livePaid))}
-            {roField(T('المتبقي', 'Remaining'), liveTotal ? fmt(Math.max(0, liveTotal - livePaid)) : '—', true)}
+            {fVis('totals_total') && roField(T('الإجمالي', 'Total'), liveTotal ? fmt(liveTotal) : '—')}
+            {fVis('totals_received') && roField(T('المقبوض', 'Received'), fmt(livePaid))}
+            {fVis('totals_remaining') && roField(T('المتبقي', 'Remaining'), liveTotal ? fmt(Math.max(0, liveTotal - livePaid)) : '—', true)}
           </div>
         </div>
 
         {/* الوسيط — كرت مستقل في آخر الصفحة */}
-        <div style={card}>
+        <div style={cardStyle('agent')}>
           {cardTitle(T('الوسيط', 'Agent'))}
           <div style={grid2}>
-            <div style={box}>
-              <div style={lblS}>{T('اسم الوسيط', 'Agent name')}</div>
-              <input value={f.agent_name} onChange={ev => set('agent_name', ev.target.value)} placeholder="—" list="rd_agents" style={inpS(false)} />
-              <datalist id="rd_agents">{agents.map((a, i) => <option key={i} value={a} />)}</datalist>
-            </div>
+            {inp(T('اسم الوسيط', 'Agent name'), 'agent_name', { list: 'rd_agents' })}
+            <datalist id="rd_agents">{agents.map((a, i) => <option key={i} value={a} />)}</datalist>
           </div>
         </div>
 
         {/* حسبة التنازل — لخدمة نقل الكفالة: رفع يدوي + قراءة آلية لكل البنود للمراجعة */}
-        {showTc && (
+        {showTc && cardOn('transfer_calc') && (
           <div style={card}>
             {cardTitle(T('حسبة التنازل', 'Transfer calculation'), T('نقل الكفالة — ارفع الحسبة ثم اقرأها للمراجعة', 'Sponsorship transfer — upload then read for review'))}
             <input ref={tcFileRef} type="file" accept="image/*,application/pdf" style={{ display: 'none' }}
               onChange={ev => { const file = ev.target.files?.[0]; ev.target.value = ''; uploadTc(file) }} />
             {!tc?.image_url ? (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 10 }}>
-                <button onClick={() => tcFileRef.current?.click()} style={{ ...addBtn, height: 38, padding: '0 16px' }}>
-                  <ImageIcon size={15} /> {T('ارفع حسبة التنازل', 'Upload calculation')}
-                </button>
-                <span style={{ fontSize: 11, color: 'var(--tx4)' }}>{T('صورة أو PDF — تُقرأ آلياً بعد الرفع', 'Image or PDF — read after upload')}</span>
+                {tcEditable ? (
+                  <button onClick={() => tcFileRef.current?.click()} style={{ ...addBtn, height: 38, padding: '0 16px' }}>
+                    <ImageIcon size={15} /> {T('ارفع حسبة التنازل', 'Upload calculation')}
+                  </button>
+                ) : <span style={{ fontSize: 12, color: 'var(--tx4)', fontWeight: 600 }}>{T('لا توجد حسبة مرفقة', 'No calculation attached')}</span>}
+                {tcEditable && <span style={{ fontSize: 11, color: 'var(--tx4)' }}>{T('صورة أو PDF — تُقرأ آلياً بعد الرفع', 'Image or PDF — read after upload')}</span>}
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -1410,14 +1451,18 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, T, sb, tt, u
                       : <img src={tc.image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
                   </a>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    <button onClick={readTc} disabled={tcBusy} style={{ ...btnGold, opacity: tcBusy ? .6 : 1, cursor: tcBusy ? 'wait' : 'pointer' }}>
-                      {tcBusy ? <RefreshCw size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <FileText size={14} />}
-                      {tcBusy ? T('جارٍ قراءة الحسبة…', 'Reading…') : T('قراءة الحسبة', 'Read calculation')}
-                    </button>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <button onClick={() => tcFileRef.current?.click()} style={addBtn}><RotateCw size={13} /> {T('استبدال', 'Replace')}</button>
-                      <button onClick={removeTc} style={{ ...delBtn, width: 'auto', padding: '0 12px', height: 32, gap: 6 }}><Trash2 size={13} /> {T('إزالة', 'Remove')}</button>
-                    </div>
+                    {tcCanRead && (
+                      <button onClick={readTc} disabled={tcBusy} style={{ ...btnGold, opacity: tcBusy ? .6 : 1, cursor: tcBusy ? 'wait' : 'pointer' }}>
+                        {tcBusy ? <RefreshCw size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <FileText size={14} />}
+                        {tcBusy ? T('جارٍ قراءة الحسبة…', 'Reading…') : T('قراءة الحسبة', 'Read calculation')}
+                      </button>
+                    )}
+                    {tcEditable && (
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button onClick={() => tcFileRef.current?.click()} style={addBtn}><RotateCw size={13} /> {T('استبدال', 'Replace')}</button>
+                        <button onClick={removeTc} style={{ ...delBtn, width: 'auto', padding: '0 12px', height: 32, gap: 6 }}><Trash2 size={13} /> {T('إزالة', 'Remove')}</button>
+                      </div>
+                    )}
                   </div>
                 </div>
                 {tc.note && (
@@ -1431,14 +1476,14 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, T, sb, tt, u
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     {tc.fields.map(x => (
                       <div key={x._k} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                        <input value={x.label} onChange={ev => setTcField(x._k, 'label', ev.target.value)} placeholder={T('البند', 'Label')} style={{ ...rowInp, flex: '1 1 40%' }} />
-                        <input value={x.value} onChange={ev => setTcField(x._k, 'value', ev.target.value)} placeholder={T('القيمة', 'Value')} style={{ ...rowInp, flex: '1 1 40%', direction: 'ltr', textAlign: 'right' }} />
-                        <button onClick={() => delTcField(x._k)} style={delBtn}><Trash2 size={14} /></button>
+                        <input value={x.label} readOnly={!tcEditable} onChange={ev => setTcField(x._k, 'label', ev.target.value)} placeholder={T('البند', 'Label')} style={{ ...rowInp, flex: '1 1 40%', opacity: tcEditable ? 1 : .65 }} />
+                        <input value={x.value} readOnly={!tcEditable} onChange={ev => setTcField(x._k, 'value', ev.target.value)} placeholder={T('القيمة', 'Value')} style={{ ...rowInp, flex: '1 1 40%', direction: 'ltr', textAlign: 'right', opacity: tcEditable ? 1 : .65 }} />
+                        {tcEditable && <button onClick={() => delTcField(x._k)} style={delBtn}><Trash2 size={14} /></button>}
                       </div>
                     ))}
                   </div>
                 )}
-                <button onClick={addTcField} style={addBtn}><Plus size={14} /> {T('إضافة بند', 'Add item')}</button>
+                {tcEditable && <button onClick={addTcField} style={addBtn}><Plus size={14} /> {T('إضافة بند', 'Add item')}</button>}
               </div>
             )}
           </div>
