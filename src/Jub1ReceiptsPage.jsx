@@ -17,6 +17,7 @@ import {
 import { ALL_SERVICES, SVC_CODE_MAP } from './ServiceRequestPage.jsx'
 import { can, isGM as isGmUser, cardVisible, canCardBtn, fieldVisible, fieldEditable, modalAllowed, stageVisible } from './lib/permissions.js'
 import { swrGet, swrSet, useLiveRefresh } from './lib/liveData.js'
+import BackButton from './components/BackButton'
 
 const TAB = 'jub1_receipts'
 
@@ -1186,10 +1187,7 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, T, sb, tt, u
         )
         return (
       <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-        <button onClick={onBack} style={{ cursor: 'pointer', fontFamily: 'Cairo, Tajawal, sans-serif', display: 'inline-flex', alignItems: 'center', gap: 8, height: 38, padding: '0 16px', borderRadius: 10, background: 'transparent', border: '1px dashed var(--bd)', color: 'var(--tx3)', fontSize: 12, fontWeight: 600, boxShadow: 'var(--shadow-sm)' }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>
-          <span>{T('رجوع للقائمة', 'Back to list')}</span>
-        </button>
+        <BackButton onClick={onBack} label={T('رجوع للقائمة', 'Back to list')} isAr={T(true, false)} />
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
           {navBtn(() => onOpenId?.(prevId), !!prevId, T('السابق', 'Previous'), 'prev')}
           {navBtn(() => onOpenId?.(nextId), !!nextId, T('التالي', 'Next'), 'next')}
