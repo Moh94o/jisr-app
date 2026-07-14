@@ -871,8 +871,12 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, T, sb, tt, u
     draft:        T('إرجاع إلى مسودة', 'Send back to draft'),
     cancelled:    T('السند ملغى — لا يُحتسب في الإجماليات', 'Cancelled — excluded from totals'),
   }
-  // خيار الانتقال يظهر فقط إن مُنِحت صلاحيته وكانت مرحلته الهدف ظاهرة لهذا الدور
-  const statusOptions = (STATUS_FLOW[e.review_status] || []).filter(([to, perm]) => canDo(perm) && stageVisible(user, TAB, to))
+  // المدير العام: ينتقل لأي حالة من أي حالة (مكتمل→مسودة أو أي شيء) بلا قيود المسار.
+  // غير المدير: خيار الانتقال يظهر فقط إن مُنِحت صلاحيته وكانت مرحلته الهدف ظاهرة لهذا الدور.
+  const ALL_STATUSES = ['draft', 'complete', 'needs_review', 'reviewed', 'cancelled']
+  const statusOptions = isGmUser(user)
+    ? ALL_STATUSES.filter(s => s !== e.review_status).map(s => [s, null])
+    : (STATUS_FLOW[e.review_status] || []).filter(([to, perm]) => canDo(perm) && stageVisible(user, TAB, to))
   // تغيير الحالة يعيد تحميل السند من القاعدة، فتضيع أي تعديلات معلّقة في الكروت.
   // لذا نحفظ التعديلات غير المحفوظة أولاً (إن وُجدت وكان يملك صلاحية التعديل) ثم نغيّر الحالة.
   const commitThenStatus = async (to) => {
