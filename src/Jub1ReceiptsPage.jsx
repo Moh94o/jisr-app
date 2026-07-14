@@ -1000,12 +1000,18 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, T, sb, tt, u
   // مرتبطة فعلياً لكن رقمها غير مسجّل في القائمة — تُعرض كي لا يغيب شيء عن المراجع
   const matchedIds = useMemo(() => new Set(resolution.flatMap(r => r.matches.map(m => m.id))), [resolution])
   const extraLinked = useMemo(() => linkedRows.filter(r => !matchedIds.has(r.id)), [linkedRows, matchedIds])
+  // مطابقة بالهوية/الإقامة — سندات أخرى بنفس رقم الهوية/الإقامة (client_id_no).
+  // مفيدة لربط حسبة التنازل بسند القبض عندما لا يوجد رقم سند مشترك، بل نفس الشخص.
+  const idKey = norm(f.client_id_no)
+  const idMatches = useMemo(() => idKey.length >= 5
+    ? entries.filter(x => x.id !== e.id && !x.deleted_at && norm(x.client_id_no) === idKey)
+    : [], [entries, e.id, idKey])
   // قائمة مسطّحة لكل الظاهر (لتحميل الصور)
   const allShown = useMemo(() => {
     const seen = new Set(), out = []
-    ;[...linkedRows, ...resolution.flatMap(r => r.matches)].forEach(r => { if (!seen.has(r.id)) { seen.add(r.id); out.push(r) } })
+    ;[...linkedRows, ...resolution.flatMap(r => r.matches), ...idMatches].forEach(r => { if (!seen.has(r.id)) { seen.add(r.id); out.push(r) } })
     return out
-  }, [linkedRows, resolution])
+  }, [linkedRows, resolution, idMatches])
   // الصورة الكاملة تظهر بعد اعتماد «مكتمل» — قبلها الخطوة هي تسجيل الأرقام فقط
   const linkResolved = e.review_status !== 'draft'
 
@@ -1423,6 +1429,22 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, T, sb, tt, u
                 style={{ ...inpS(true), width: 150, flex: '0 0 auto' }} />}
             </div>
           </div>
+
+          {/* مطابقة بالهوية/الإقامة — سندات بنفس رقم الهوية (client_id_no)؛ تربط حسبة التنازل بسند القبض للشخص نفسه */}
+          {idKey.length >= 5 && idMatches.length > 0 && (
+            <div style={{ marginTop: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6, flexWrap: 'wrap' }}>
+                <User size={13} style={{ color: '#B07D00' }} />
+                <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--tx2)' }}>{T('سندات بنفس رقم الهوية/الإقامة', 'Receipts with the same ID / Iqama')}</span>
+                <span style={{ fontSize: 11.5, fontWeight: 700, color: '#B07D00', direction: 'ltr' }}>{idKey}</span>
+                <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tx4)' }}>({idMatches.length})</span>
+              </div>
+              <div style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 600, marginBottom: 8 }}>
+                {T('اربط حسبة التنازل بسند القبض للشخص نفسه (تطابق رقم الهوية/الإقامة).', 'Link a transfer calculation to the receipt voucher of the same person (ID / Iqama match).')}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(230px,1fr))', gap: 8 }}>{idMatches.map(linkReceiptCard)}</div>
+            </div>
+          )}
 
           {!linkResolved ? (
             /* خطوة الاكتمال: تسجيل الأرقام فقط — الصورة الكاملة تُبنى بعد اعتماد «مكتمل» */
