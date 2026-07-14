@@ -1117,7 +1117,9 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, T, sb, tt, u
   const addTcField = () => setTc({ fields: [...((tc && tc.fields) || []), { _k: rid(), label: '', value: '' }] })
   const delTcField = (k) => setTc({ fields: (tc.fields || []).filter(x => x._k !== k) })
   const removeTc = () => setF(p => ({ ...p, transfer_calc: null }))
-  const showTc = f.service_code === 'transfer' || !!f.transfer_calc || calcMatches.length > 0
+  // حسبة التنازل تخص خدمة «نقل الكفالة» فقط
+  const isTransferSvc = f.service_code === 'transfer'
+  const showTc = isTransferSvc
 
   // ── أدوات عرض/إدخال (دوال تُستدعى — لا مكوّنات متداخلة كي لا يفقد الإدخال التركيز) ──
   const card = { borderRadius: 16, background: 'var(--card-grad2)', border: '1px solid var(--bd)', boxShadow: 'var(--shadow-sm)', padding: '16px 18px' }
@@ -1264,7 +1266,8 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, T, sb, tt, u
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-        {/* نوع السجل — «حسبة تنازل»: يُستبعد من القائمة/الإجماليات ويظهر في كرت «حسبة التنازل» لسندات نقل كفالة نفس العامل */}
+        {/* نوع السجل — «حسبة تنازل»: يظهر فقط لخدمة نقل الكفالة (أو لسجل مُعلَّم مسبقاً كي يمكن إلغاؤه) */}
+        {(isTransferSvc || f.is_transfer_calc) && (
         <div style={{ ...card, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, ...(f.is_transfer_calc ? { border: '1px solid rgba(124,58,237,.45)', background: 'rgba(124,58,237,.05)' } : {}) }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 13.5, fontWeight: 700, color: f.is_transfer_calc ? '#7c3aed' : 'var(--tx)' }}>
@@ -1280,6 +1283,7 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, T, sb, tt, u
             <span style={{ position: 'absolute', top: 3, left: f.is_transfer_calc ? 23 : 3, width: 20, height: 20, borderRadius: '50%', background: '#fff', transition: 'left .15s', boxShadow: '0 1px 3px rgba(0,0,0,.3)' }} />
           </button>
         </div>
+        )}
 
         {/* صورة السند */}
         <div style={cardStyle('receipt_image')}>
