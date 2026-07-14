@@ -826,6 +826,7 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, T, sb, tt, u
   // ويسقط إلى ترتيب التحميل الكامل إن لم يكن السند ضمن القائمة المصفّاة حالياً.
   const navIds = (orderedIds.length ? orderedIds : entries.map(x => x.id))
   const curIdx = navIds.indexOf(e.id)
+  const prevId = (curIdx > 0) ? navIds[curIdx - 1] : null
   const nextId = (curIdx >= 0 && curIdx < navIds.length - 1) ? navIds[curIdx + 1] : null
   // ── مراحل حالة السند ─────────────────────────────────────────────────
   // مسودة (افتراضية عند رفع الصور) → المدخِل يعتمدها «مكتمل» أو يعلّمها «يحتاج مراجعة»؛
@@ -1129,20 +1130,32 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, T, sb, tt, u
 
   return (
     <div>
-      {/* رجوع + الانتقال لسند القبض التالي (على الجهة اليسرى) */}
-      <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+      {/* رجوع للقائمة (يمين) + تنقّل بين السندات: السابق/التالي (يسار) */}
+      {(() => {
+        const navBtn = (onClick, enabled, label, dir) => (
+          <button onClick={() => { if (enabled) onClick() }} disabled={!enabled}
+            title={dir === 'prev' ? T('السند السابق', 'Previous receipt') : T('السند التالي', 'Next receipt')}
+            onMouseEnter={ev => { if (enabled) ev.currentTarget.style.background = 'rgba(176,125,0,.10)' }}
+            onMouseLeave={ev => { ev.currentTarget.style.background = 'transparent' }}
+            style={{ cursor: enabled ? 'pointer' : 'not-allowed', opacity: enabled ? 1 : .4, fontFamily: 'Cairo, Tajawal, sans-serif', display: 'inline-flex', alignItems: 'center', gap: 7, height: 38, padding: '0 15px', borderRadius: 10, background: 'transparent', border: '1px solid rgba(176,125,0,.5)', color: '#B07D00', fontSize: 12, fontWeight: 700, boxShadow: 'var(--shadow-sm)', transition: '.15s' }}>
+            {dir === 'prev' && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>}
+            <span>{label}</span>
+            {dir === 'next' && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5" /><path d="m12 19-7-7 7-7" /></svg>}
+          </button>
+        )
+        return (
+      <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
         <button onClick={onBack} style={{ cursor: 'pointer', fontFamily: 'Cairo, Tajawal, sans-serif', display: 'inline-flex', alignItems: 'center', gap: 8, height: 38, padding: '0 16px', borderRadius: 10, background: 'transparent', border: '1px dashed var(--bd)', color: 'var(--tx3)', fontSize: 12, fontWeight: 600, boxShadow: 'var(--shadow-sm)' }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>
-          <span>{T('رجوع', 'Back')}</span>
+          <span>{T('رجوع للقائمة', 'Back to list')}</span>
         </button>
-        <button onClick={() => { if (nextId) onOpenId?.(nextId) }} disabled={!nextId} title={T('الانتقال لسند القبض التالي', 'Go to next receipt')}
-          onMouseEnter={ev => { if (nextId) ev.currentTarget.style.background = 'rgba(176,125,0,.10)' }}
-          onMouseLeave={ev => { ev.currentTarget.style.background = 'transparent' }}
-          style={{ cursor: nextId ? 'pointer' : 'not-allowed', opacity: nextId ? 1 : .45, fontFamily: 'Cairo, Tajawal, sans-serif', display: 'inline-flex', alignItems: 'center', gap: 8, height: 38, padding: '0 16px', borderRadius: 10, background: 'transparent', border: '1px solid rgba(176,125,0,.5)', color: '#B07D00', fontSize: 12, fontWeight: 700, boxShadow: 'var(--shadow-sm)', transition: '.15s' }}>
-          <span>{T('السند التالي', 'Next receipt')}</span>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5" /><path d="m12 19-7-7 7-7" /></svg>
-        </button>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+          {navBtn(() => onOpenId?.(prevId), !!prevId, T('السابق', 'Previous'), 'prev')}
+          {navBtn(() => onOpenId?.(nextId), !!nextId, T('التالي', 'Next'), 'next')}
+        </div>
       </div>
+        )
+      })()}
 
       {/* الترويسة */}
       <div style={{ marginBottom: 18, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
