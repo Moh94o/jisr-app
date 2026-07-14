@@ -85,6 +85,9 @@ export default function Jub1ReceiptsPage({ sb, user, toast, lang = 'ar', emptyIc
   const [agents, setAgents] = useState([])           // للاقتراح التلقائي لاسم الوسيط
   const [entries, setEntries] = useState([])         // صفوف jub1_receipts + payments
   const [loading, setLoading] = useState(true)
+  const [statsData, setStatsData] = useState(() => swrGet('jub1_stats') || null)  // إحصاءات خادمية (RPC) — كروت فورية
+  const [visibleCount, setVisibleCount] = useState(150)  // عرض تدريجي: لا نرسم آلاف الصفوف دفعة واحدة
+  const sentinelRef = useRef(null)
   const [q, setQ] = useState('')
   // تصفية بنمط صفحة الفواتير — لوحة قابلة للطي + اختيارات متعددة
   const [advOpen, setAdvOpen] = useState(false)
@@ -156,14 +159,22 @@ export default function Jub1ReceiptsPage({ sb, user, toast, lang = 'ar', emptyIc
     setLoading(false)
   }, [sb])
 
+  // الإحصاءات خادمياً (RPC) — كروت الأعلى تظهر بأرقامها فوراً بلا انتظار جلب كل الصفوف.
+  // للمدير العام فقط (غيره يرى أصفاراً)، ونحدّثها صامتاً مع كل تحديث بيانات.
+  const loadStats = useCallback(async () => {
+    if (!isGM) { setStatsData(null); return }
+    const { data } = await sb.rpc('jub1_receipts_stats')
+    if (data) { swrSet('jub1_stats', data); setStatsData(data) }
+  }, [sb, isGM])
+
   // العرض الفوري من كاش الجلسة ثم تحديث صامت بالخلفية (نفس سرعة الفواتير)
   useEffect(() => {
     const cachedRefs = swrGet('jub1_refs'); if (cachedRefs) applyRefs(cachedRefs)
     const cachedEntries = swrGet('jub1_entries'); if (cachedEntries) { setEntries(cachedEntries); setLoading(false) }
-    loadRefs(); loadEntries()
-  }, [loadRefs, loadEntries, applyRefs])
+    loadRefs(); loadStats(); loadEntries()
+  }, [loadRefs, loadEntries, loadStats, applyRefs])
   // تحديث تلقائي: أي إضافة/تعديل/حذف سند أو دفعة (من هذا الجهاز أو غيره) يعيد الجلب صامتاً.
-  useLiveRefresh(['jub1_receipts', 'jub1_receipt_payments'], loadEntries)
+  useLiveRefresh(['jub1_receipts', 'jub1_receipt_payments'], () => { loadStats(); loadEntries() })
 
   // عدّاد أرقام السندات عبر كل الإدخالات — لكشف التكرار
   const sanadCounts = useMemo(() => {
@@ -230,38 +241,38 @@ export default function Jub1ReceiptsPage({ sb, user, toast, lang = 'ar', emptyIc
     return out
   }, [entries, q, statusSel, onlyFlagged, from, to, svcFilter, payFilter, agentFilter, sortMode, flagsOf])
 
-  // كروت الإحصاء أرقامها للمدير العام فقط — تظهر أصفاراً لغيره (القائمة والبحث لا يتأثران)
+  // العرض التدريجي: أعد العدّ إلى الصفحة الأولى عند تغيّر البحث/التصفية/الفرز
+  useEffect(() => { setVisibleCount(150) }, [q, statusSel, onlyFlagged, from, to, svcFilter, payFilter, agentFilter, sortMode])
+  // تحميل المزيد تلقائياً عند الاقتراب من نهاية القائمة (بلا آلاف الصفوف في الـDOM دفعة واحدة)
+  useEffect(() => {
+    const el = sentinelRef.current
+    if (!el || visibleCount >= filtered.length) return
+    const io = new IntersectionObserver(es => {
+      if (es[0]?.isIntersecting) setVisibleCount(v => Math.min(v + 150, filtered.length))
+    }, { rootMargin: '600px' })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [filtered.length, visibleCount])
+
+  // كروت الإحصاء أرقامها للمدير العام فقط (خادمياً عبر RPC — فورية بلا انتظار كل الصفوف)؛ غيره أصفار.
   const stats = useMemo(() => {
-    const s = { total: 0, draft: 0, complete: 0, needs_review: 0, reviewed: 0, converted: 0, flagged: 0 }
-    if (!isGM) return s
-    s.total = entries.length
-    entries.forEach(e => { s[e.review_status] = (s[e.review_status] || 0) + 1; if (flagsOf(e).length) s.flagged++ })
-    return s
-  }, [entries, flagsOf, isGM])
+    const d = statsData
+    if (!isGM || !d) return { total: 0, draft: 0, complete: 0, needs_review: 0, reviewed: 0, converted: 0, flagged: 0 }
+    return { total: d.total || 0, draft: d.draft || 0, complete: d.complete || 0, needs_review: d.needs_review || 0, reviewed: d.reviewed || 0, converted: d.converted || 0, flagged: d.flagged || 0 }
+  }, [statsData, isGM])
 
-  // مجاميع المبالغ لكرت البطل
+  // مجاميع المبالغ لكرت البطل (من RPC)
   const sums = useMemo(() => {
-    if (!isGM) return { total: 0, paid: 0, remaining: 0 }
-    let total = 0, paid = 0
-    entries.forEach(e => { if (e.review_status === 'cancelled') return; total += num(e.total_amount); paid += paidOf(e) })
+    if (!isGM || !statsData) return { total: 0, paid: 0, remaining: 0 }
+    const total = num(statsData.sum_total), paid = num(statsData.sum_paid)
     return { total, paid, remaining: Math.max(0, total - paid) }
-  }, [entries, isGM])
+  }, [statsData, isGM])
 
-  // تفصيل أنواع الملاحظات لكرت الملاحظات
+  // تفصيل أنواع الملاحظات لكرت الملاحظات (من RPC)
   const flagStats = useMemo(() => {
-    const s = { dup: 0, noImage: 0, noTotal: 0, mismatch: 0 }
-    if (!isGM) return s
-    entries.forEach(e => {
-      const total = num(e.total_amount)
-      const planSum = (e.installment_plan || []).reduce((x, p) => x + num(p.amount), 0)
-      const nums = [e.primary_receipt_no, ...(e.payments || []).map(p => p.sanad_no)].map(x => String(x || '').trim()).filter(Boolean)
-      if (nums.some((x, i) => nums.indexOf(x) !== i) || nums.some(x => (sanadCounts[x] || 0) > 1)) s.dup++
-      if (!e._hasImage) s.noImage++
-      if (!total) s.noTotal++
-      if (total && planSum && Math.abs(planSum - total) > 0.5) s.mismatch++
-    })
-    return s
-  }, [entries, sanadCounts])
+    if (!isGM || !statsData) return { dup: 0, noImage: 0, noTotal: 0, mismatch: 0 }
+    return { dup: statsData.flag_dup || 0, noImage: statsData.flag_no_image || 0, noTotal: statsData.flag_no_total || 0, mismatch: statsData.flag_mismatch || 0 }
+  }, [statsData, isGM])
 
   // ── صفحة التفاصيل — تُشتق من viewId فتبقى حيّة بعد أي تعديل/تحديث ─────────
   const [viewId, setViewId] = useState(null)
@@ -623,6 +634,7 @@ export default function Jub1ReceiptsPage({ sb, user, toast, lang = 'ar', emptyIc
       ) : filtered.length === 0 ? (
         <EmptyState icon={emptyIcon} title={T('لا توجد سندات', 'No receipts')} desc={T('تُضاف السندات عبر المعالجة الآلية لصور السندات', 'Receipts are added via automatic image processing')} />
       ) : (
+        <>
         <div className="jub-tbl-scroll" style={{ overflowX: 'auto', borderRadius: 10, boxShadow: 'var(--shadow-sm)' }}>
           <style>{`
             .jub-tbl-scroll::-webkit-scrollbar{display:none}
@@ -650,7 +662,7 @@ export default function Jub1ReceiptsPage({ sb, user, toast, lang = 'ar', emptyIc
               </tr>
             </thead>
             <tbody>
-              {filtered.map(e => {
+              {filtered.slice(0, visibleCount).map(e => {
                 const paid = paidOf(e)
                 const total = num(e.total_amount)
                 const flags = flagsOf(e)
@@ -685,6 +697,13 @@ export default function Jub1ReceiptsPage({ sb, user, toast, lang = 'ar', emptyIc
             </tbody>
           </table>
         </div>
+        {/* عدّاد + حسّاس التحميل التدريجي (يُحمّل المزيد تلقائياً عند التمرير) */}
+        {visibleCount < filtered.length && (
+          <div ref={sentinelRef} style={{ padding: '14px 0', textAlign: 'center', fontSize: 12, fontWeight: 600, color: 'var(--tx4)' }}>
+            {T('عرض', 'Showing')} {visibleCount.toLocaleString('en-US')} {T('من', 'of')} {filtered.length.toLocaleString('en-US')} — {T('مرّر لعرض المزيد…', 'scroll for more…')}
+          </div>
+        )}
+        </>
       )}
 
       {/* نافذة «سند جديد» — رفع صور + قراءة آلية + حفظ مسودة (تُفتح من زر «سند قبض جديد») */}
