@@ -278,6 +278,24 @@ export default function Jub1ReceiptsPage({ sb, user, toast, lang = 'ar', emptyIc
   // ── صفحة التفاصيل — تُشتق من viewId فتبقى حيّة بعد أي تعديل/تحديث ─────────
   const [viewId, setViewId] = useState(null)
   const detail = viewId ? entries.find(e => e.id === viewId) : null
+  // مكدّس الرجوع الذكي بين السندات: عند فتح سند مرتبط يُحفَظ السند الحالي فيه، فيصبح زر
+  // «رجوع للقائمة» = «رجوع لسند #<السابق>» ويعيدنا إليه؛ عند فراغ المكدّس نرجع للقائمة.
+  const [recStack, setRecStack] = useState([])
+  const openFromList = (id) => { setRecStack([]); setViewId(id) }          // فتح من القائمة = أصل جديد
+  const openLinked = useCallback((id) => {                                  // فتح سند مرتبط = ادفع الحالي للمكدّس
+    setRecStack(s => {
+      const cur = entries.find(e => e.id === viewId)
+      return viewId && viewId !== id ? [...s, { id: viewId, no: cur?.primary_receipt_no || '' }] : s
+    })
+    setViewId(id)
+  }, [entries, viewId])
+  const backSmart = useCallback(() => {                                     // زر الرجوع: اسحب من المكدّس أو ارجع للقائمة
+    setRecStack(s => {
+      if (!s.length) { setViewId(null); return s }
+      setViewId(s[s.length - 1].id)
+      return s.slice(0, -1)
+    })
+  }, [])
   const [detailAtts, setDetailAtts] = useState([])
   const [attsTick, setAttsTick] = useState(0)
   useEffect(() => {
@@ -328,9 +346,9 @@ export default function Jub1ReceiptsPage({ sb, user, toast, lang = 'ar', emptyIc
   const openByNo = useCallback((no) => {
     const k = String(no || '').trim()
     const hit = entries.find(x => String(x.primary_receipt_no || '').trim() === k)
-    if (hit) setViewId(hit.id)
+    if (hit) openLinked(hit.id)
     else tt(T('لا يوجد سند مسجّل بالرقم ', 'No receipt registered with no ') + k)
-  }, [entries])
+  }, [entries, openLinked])
 
   // ربط/فكّ ربط سندَين ثنائي الاتجاه (رقم السند غير فريد فالربط بمعرّفات صريحة) — يُكتب فوراً للطرفين
   const toggleLink = useCallback(async (currentId, targetId, link) => {
@@ -370,8 +388,9 @@ export default function Jub1ReceiptsPage({ sb, user, toast, lang = 'ar', emptyIc
   if (detail) return (
     <div style={{ fontFamily: 'Cairo, Tajawal, sans-serif', paddingBottom: 60 }}>
       <ReceiptDetail e={detail} atts={detailAtts} services={services} methods={methods} agents={agents} flags={flagsOf(detail)} T={T} sb={sb} tt={tt} user={user}
-        entries={entries} orderedIds={filtered.map(x => x.id)} onOpenId={(id) => setViewId(id)} onLinkToggle={toggleLink}
-        onBack={() => setViewId(null)} onEditModal={() => openEdit(detail)} onStatus={(s) => setReviewStatus(detail.id, s)}
+        entries={entries} orderedIds={filtered.map(x => x.id)} onOpenId={(id) => setViewId(id)} onOpenLinked={openLinked} onLinkToggle={toggleLink}
+        onBack={backSmart} backLabel={recStack.length ? T('رجوع لسند #', 'Back to #') + (recStack[recStack.length - 1].no || '—') : T('رجوع للقائمة', 'Back to list')}
+        onEditModal={() => openEdit(detail)} onStatus={(s) => setReviewStatus(detail.id, s)}
         onSave={saveInline} onOpenByNo={openByNo} onAttsChanged={() => setAttsTick(t => t + 1)} onDelete={deleteEntry} />
       {editing && (
         <EntryModal sb={sb} user={user} lang={lang} tt={tt} branch={branch} services={services} methods={methods}
@@ -669,7 +688,7 @@ export default function Jub1ReceiptsPage({ sb, user, toast, lang = 'ar', emptyIc
                 const flags = flagsOf(e)
                 const st = STATUS[e.review_status] || STATUS.draft
                 return (
-                  <tr key={e.id} onClick={() => setViewId(e.id)}>
+                  <tr key={e.id} onClick={() => openFromList(e.id)}>
                     <td style={{ fontWeight: 700, color: '#B07D00', direction: 'ltr' }}>{e.primary_receipt_no || '—'}</td>
                     <td style={{ color: 'var(--tx3)', direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{dt(e.receipt_date)}</td>
                     <td>
@@ -859,7 +878,7 @@ function DateBox({ label, value, onChange }) {
   )
 }
 
-function ReceiptDetail({ e, atts, services, methods, agents, flags, T, sb, tt, user, entries = [], orderedIds = [], onOpenId, onLinkToggle, onBack, onEditModal, onStatus, onSave, onOpenByNo, onAttsChanged, onDelete }) {
+function ReceiptDetail({ e, atts, services, methods, agents, flags, T, sb, tt, user, entries = [], orderedIds = [], onOpenId, onOpenLinked, onLinkToggle, onBack, backLabel, onEditModal, onStatus, onSave, onOpenByNo, onAttsChanged, onDelete }) {
   // الانتقال لسند القبض التالي — بنفس ترتيب القائمة التي يراها المستخدم (تصفية + فرز)،
   // ويسقط إلى ترتيب التحميل الكامل إن لم يكن السند ضمن القائمة المصفّاة حالياً.
   const navIds = (orderedIds.length ? orderedIds : entries.map(x => x.id))
@@ -1144,7 +1163,7 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, T, sb, tt, u
     const rst = STATUS[r.review_status] || STATUS.draft
     return (
       <div key={r.id} style={{ borderRadius: 12, border: `1px solid ${on ? 'rgba(31,122,69,.5)' : 'var(--bd)'}`, background: on ? 'rgba(31,122,69,.06)' : 'var(--inputBg)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-        <div onClick={() => onOpenId?.(r.id)} title={T('فتح السند', 'Open receipt')}
+        <div onClick={() => onOpenLinked?.(r.id)} title={T('فتح السند', 'Open receipt')}
           style={{ height: 120, background: 'var(--bd2)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
           {img ? <img src={img} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <ImageIcon size={26} color="var(--tx5)" />}
         </div>
@@ -1187,7 +1206,7 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, T, sb, tt, u
         )
         return (
       <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-        <BackButton onClick={onBack} label={T('رجوع للقائمة', 'Back to list')} isAr={T(true, false)} />
+        <BackButton onClick={onBack} label={backLabel || T('رجوع للقائمة', 'Back to list')} isAr={T(true, false)} />
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
           {navBtn(() => onOpenId?.(prevId), !!prevId, T('السابق', 'Previous'), 'prev')}
           {navBtn(() => onOpenId?.(nextId), !!nextId, T('التالي', 'Next'), 'next')}
