@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import BackButton from './components/BackButton'
-import { can as canPerm, isGM, cardVisible, canCardBtn, tabOffices, tabServiceTypes, statsMode, fieldVisible, fieldEditable, modalAllowed, canTabBranch } from './lib/permissions.js'
+import { can as canPerm, isGM, isAccountant, cardVisible, canCardBtn, tabOffices, tabServiceTypes, statsMode, fieldVisible, fieldEditable, modalAllowed, canTabBranch } from './lib/permissions.js'
 import { ALL_SERVICES, SVC_CODE_MAP } from './ServiceRequestPage.jsx'
 import { noDash, clientEditChanges, branchLabel } from './lib/utils.js'
 import { navSetHere } from './lib/navStack.js'
@@ -1104,13 +1104,14 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
     const weekStart = new Date(todayStart.getTime() - 6 * 24 * 3600 * 1000)
     const normKpi = (x) => ({ cnt: Number(x?.cnt) || 0, sum: Number(x?.sum) || 0 })
     const normSvc = (rows) => (rows || []).map(s => ({ code: s.code, cnt: Number(s.cnt) || 0, sum: Number(s.sum) || 0 }))
-    // كروت الإحصاء: المدير العام تتبع عوامل التصفية المختارة (يوم/مدى/كل التواريخ).
+    // كروت الإحصاء: المدير العام والمحاسب تتبع عوامل التصفية المختارة (يوم/مدى/كل التواريخ).
     // باقي المستخدمين تبقى مثبّتة على «اليوم» دائماً وتتجاهل فلاتر التاريخ والخدمة…،
     // لكن يُطبَّق اختيار المكتب فقط — فلو اختار مكتباً يحق له، تظهر يومية ذلك المكتب.
     // القائمة والبحث في الأسفل يبقيان يتبعان كل التصفية للجميع (تأثير مستقل).
+    const fullStats = isGM(user) || isAccountant(user)
     const { active: _rawActive, ...rawF } = statFilters
-    const active = isGM(user) ? _rawActive : false
-    const f = isGM(user) ? rawF : { p_branch_ids: rawF.p_branch_ids, p_branch_exact_ids: rawF.p_branch_exact_ids }
+    const active = fullStats ? _rawActive : false
+    const f = fullStats ? rawF : { p_branch_ids: rawF.p_branch_ids, p_branch_exact_ids: rawF.p_branch_exact_ids }
     const applyPeriod = ([t, w]) => {
       if (t.data) {
         setPeriodStats({ cash: normKpi(t.data.cash), bank: normKpi(t.data.bank), cancelled: normKpi(t.data.cancelled), voided: normKpi(t.data.voided) })
