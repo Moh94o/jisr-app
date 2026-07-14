@@ -173,6 +173,7 @@ export const SVC_TAB_MODULE = {
   'work-visa-9m': 'svc_work_visa_9m',
   'work-visa-6m': 'svc_work_visa_6m',
   'work-visa-temporary': 'svc_work_visa_temporary',
+  'iqama-issuance': 'svc_iqama_issuance',
   'transfer': 'svc_transfer',
   'iqama-renewal': 'svc_iqama_renewal',
   'ajeer': 'svc_ajeer',
@@ -196,6 +197,9 @@ Object.values(SVC_TAB_MODULE).forEach(m => {
       A('view', 'عرض الموافقات', 'view'), A('approve', 'موافقة المحاسب', 'special'),
       A('reject', 'رفض الطلب', 'special'),
     ]
+  } else if (m === 'svc_iqama_issuance') {
+    // إصدار الإقامة: مرحلة الإقامة فقط (لا إنشاء طلب — يأتي من تبويبات التأشيرة).
+    MODULE_ACTIONS[m] = SVC_ACTIONS([A('register_iqama', 'تسجيل الإقامة', 'special')])
   } else {
     MODULE_ACTIONS[m] = SVC_ACTIONS(
       m === 'svc_work_visa_permanent' || m === 'svc_work_visa_9m' || m === 'svc_work_visa_6m' || m === 'svc_work_visa_temporary'
@@ -240,6 +244,7 @@ export const MODULE_META = {
   svc_work_visa_9m: { label_ar: 'تأشيرة بإقامة 9 أشهر', icon: 'transaction', sort: 60.3 },
   svc_work_visa_6m: { label_ar: 'تأشيرة بإقامة 6 أشهر', icon: 'transaction', sort: 60.5 },
   svc_work_visa_temporary: { label_ar: 'تأشيرة بإقامة 3 شهور', icon: 'transaction', sort: 61 },
+  svc_iqama_issuance: { label_ar: 'إصدار الإقامة', icon: 'transaction', sort: 61.5 },
   svc_transfer: { label_ar: 'نقل كفالة', icon: 'transaction', sort: 62 },
   svc_iqama_renewal: { label_ar: 'تجديد الإقامة', icon: 'transaction', sort: 63 },
   svc_ajeer: { label_ar: 'عقد أجير', icon: 'transaction', sort: 64 },
@@ -408,6 +413,13 @@ export const TAB_CARDS = {
     C('iqama', 'الإقامة', 'core', [ca('register_iqama', 'تسجيل الإقامة'), ca('edit', 'تعديل', 'edit')]),
     C('work_permit', 'رخصة العمل والإقامة', 'core', EDIT),
     ...TXN_RO(), C('comments', 'التعليقات والإجراءات', 'core', CMT_BASIC),
+  ],
+  // إصدار الإقامة — مرحلة الإقامة فقط (بلا بطاقات التأشيرة): العميل (سياق) + رخصة العمل والإقامة + التعليقات.
+  'iqama-issuance': [
+    C('client_worker', 'العميل والعامل'),
+    C('iqama', 'الإقامة', 'core', [ca('register_iqama', 'تسجيل الإقامة'), ca('edit', 'تعديل', 'edit')]),
+    C('work_permit', 'رخصة العمل والإقامة', 'core', EDIT),
+    ...TXN_RO(), C('comments', 'التعليقات والإجراءات', 'core', CMT_FULL),
   ],
   'transfer': [
     C('overview', 'نظرة عامة'), C('transfer_fees', 'رسوم النقل'),

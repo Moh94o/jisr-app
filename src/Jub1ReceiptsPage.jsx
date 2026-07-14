@@ -100,6 +100,7 @@ export default function Jub1ReceiptsPage({ sb, user, toast, lang = 'ar', emptyIc
   const [to, setTo] = useState('')
   const [sortMode, setSortMode] = useState('created_desc')
   const [onlyFlagged, setOnlyFlagged] = useState(false)
+  const [linkedFilter, setLinkedFilter] = useState('') // '' = الكل · 'yes' = مرتبط بسند آخر · 'no' = غير مرتبط
   const [editing, setEditing] = useState(null)       // كائن نموذج التعديل المفتوح أو null
   const [creating, setCreating] = useState(false)     // نافذة «سند جديد» = رفع صور + قراءة آلية + حفظ مسودة
 
@@ -226,6 +227,12 @@ export default function Jub1ReceiptsPage({ sb, user, toast, lang = 'ar', emptyIc
       if (svcFilter.length && !svcFilter.includes(e.service_code)) return false
       if (agentFilter && String(e.agent_name || '').trim() !== agentFilter) return false
       if (payFilter.length && !payFilter.includes(payStatusOf(e))) return false
+      // مرتبط بسندات أخرى: نعم = له سند مرتبط واحد على الأقل · لا = غير مرتبط بأي سند
+      if (linkedFilter) {
+        const isLinked = Array.isArray(e.linked_receipt_ids) && e.linked_receipt_ids.length > 0
+        if (linkedFilter === 'yes' && !isLinked) return false
+        if (linkedFilter === 'no' && isLinked) return false
+      }
       if (!qq) return true
       const hay = [e.client_name, e.client_phone, e.client_id_no, e.agent_name, e.primary_receipt_no, e.service_code,
         ...(e.payments || []).map(p => p.sanad_no)].join(' ').toLowerCase()
@@ -241,10 +248,10 @@ export default function Jub1ReceiptsPage({ sb, user, toast, lang = 'ar', emptyIc
       }
     })
     return out
-  }, [entries, q, statusSel, onlyFlagged, from, to, svcFilter, payFilter, agentFilter, sortMode, flagsOf])
+  }, [entries, q, statusSel, onlyFlagged, from, to, svcFilter, payFilter, agentFilter, linkedFilter, sortMode, flagsOf])
 
   // العرض التدريجي: أعد العدّ إلى الصفحة الأولى عند تغيّر البحث/التصفية/الفرز
-  useEffect(() => { setVisibleCount(150) }, [q, statusSel, onlyFlagged, from, to, svcFilter, payFilter, agentFilter, sortMode])
+  useEffect(() => { setVisibleCount(150) }, [q, statusSel, onlyFlagged, from, to, svcFilter, payFilter, agentFilter, linkedFilter, sortMode])
   // تحميل المزيد تلقائياً عند الاقتراب من نهاية القائمة (بلا آلاف الصفوف في الـDOM دفعة واحدة)
   useEffect(() => {
     const el = sentinelRef.current
@@ -551,8 +558,8 @@ export default function Jub1ReceiptsPage({ sb, user, toast, lang = 'ar', emptyIc
             style={{ width: '100%', height: 44, padding: '0 14px 0 38px', borderRadius: 12, background: 'var(--search-bg)', border: '1px solid transparent', color: 'var(--tx)', fontSize: 13, fontFamily: 'Cairo, Tajawal, sans-serif', boxSizing: 'border-box' }} />
         </div>
         {(() => {
-          const hasFilters = !!(statusSel.length || svcFilter.length || payFilter.length || agentFilter || from || to || onlyFlagged)
-          const clearAll = () => { setStatusSel([]); setSvcFilter([]); setPayFilter([]); setAgentFilter(''); setFrom(''); setTo(''); setOnlyFlagged(false) }
+          const hasFilters = !!(statusSel.length || svcFilter.length || payFilter.length || agentFilter || from || to || onlyFlagged || linkedFilter)
+          const clearAll = () => { setStatusSel([]); setSvcFilter([]); setPayFilter([]); setAgentFilter(''); setFrom(''); setTo(''); setOnlyFlagged(false); setLinkedFilter('') }
           const active = advOpen || hasFilters
           return (
             <button onClick={() => setAdvOpen(o => !o)}
@@ -635,6 +642,11 @@ export default function Jub1ReceiptsPage({ sb, user, toast, lang = 'ar', emptyIc
                     { v: 'date_desc', l: T('تاريخ السند — الأحدث', 'Receipt date — newest') },
                     { v: 'date_asc', l: T('تاريخ السند — الأقدم', 'Receipt date — oldest') },
                   ]} />
+              </div>
+              <div>
+                <div style={fLbl}>{T('مرتبط بسندات أخرى', 'Linked to others')}</div>
+                <FKDropdown value={linkedFilter} onChange={v => setLinkedFilter(v || '')} placeholder={T('الكل', 'All')} getKey={o => o.v} getLabel={o => o.l}
+                  options={[{ v: '', l: T('الكل', 'All') }, { v: 'yes', l: T('نعم — مرتبط بسند آخر', 'Yes — linked') }, { v: 'no', l: T('لا — غير مرتبط', 'No — not linked') }]} />
               </div>
               <div>
                 <div style={fLbl}>{T('الملاحظات', 'Flags')}</div>

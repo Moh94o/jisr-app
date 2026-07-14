@@ -590,6 +590,8 @@ const TXN_SECTIONS=[
 {id:'work-visa-9m',         ar:'تأشيرة بإقامة 9 أشهر',     en:'9-Month Visa & Iqama',       i:'svc_visa_9m',      code:'work_visa_9m'},
 {id:'work-visa-6m',         ar:'تأشيرة بإقامة 6 أشهر',     en:'6-Month Visa & Iqama',       i:'svc_visa_6m',      code:'work_visa_6m'},
 {id:'work-visa-temporary',  ar:'تأشيرة بإقامة 3 شهور',     en:'3-Month Visa & Iqama',       i:'svc_visa_temp',    code:'work_visa_temporary'},
+// إصدار الإقامة — طابور مرحلة الإقامة (تأمين/رخصة عمل/إقامة) لكل تأشيرات العمل، لموظف مستقل عن مُصدِر التأشيرة.
+{id:'iqama-issuance',       ar:'إصدار الإقامة',           en:'Iqama Issuance',            i:'svc_renew',        iqamaMode:true},
 {id:'transfer',             ar:'نقل كفالة',               en:'Sponsorship Transfer',      i:'svc_transfer',     code:'transfer'},
 {id:'iqama-renewal',        ar:'تجديد الإقامة',           en:'Iqama Renewal',             i:'svc_renew',        code:'iqama_renewal'},
 {id:'ajeer',                ar:'عقد أجير',                en:'Ajeer Contract',            i:'svc_ajeer',        code:'ajeer'},
@@ -1187,7 +1189,8 @@ return<div><div>
 {pg==='saudization'&&<SaudizationRequestsPage sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch} emptyIcon={navEmptyIcon('saudization')}/>}
 {TXN_SECTIONS.filter(s=>s.code&&s.id===pg&&s.id!=='saudization').map(s=><TransactionsPage key={s.id} tabId={s.id} sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch} lockedService={s.code} lockedLabel={T(s.ar,s.en)} emptyIcon={navEmptyIcon(s.id)} initialDetailId={txnDeepLink} onConsumeInitialDetail={()=>setTxnDeepLink(null)}/>)}
 {TXN_SECTIONS.filter(s=>s.accountant&&s.id===pg).map(s=><TransactionsPage key={s.id} tabId={s.id} accountantMode sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch} lockedLabel={T(s.ar,s.en)} emptyIcon={navEmptyIcon(s.id)}/>)}
-{TXN_SECTIONS.filter(s=>!s.code&&!s.page&&!s.accountant&&s.id===pg).map(s=><SectionStub key={s.id} title={T(s.ar,s.en)} lang={lang}/>)}
+{TXN_SECTIONS.filter(s=>s.iqamaMode&&s.id===pg).map(s=><TransactionsPage key={s.id} tabId={s.id} iqamaMode sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch} lockedLabel={T(s.ar,s.en)} emptyIcon={navEmptyIcon(s.id)} initialDetailId={txnDeepLink} onConsumeInitialDetail={()=>setTxnDeepLink(null)}/>)}
+{TXN_SECTIONS.filter(s=>!s.code&&!s.page&&!s.accountant&&!s.iqamaMode&&s.id===pg).map(s=><SectionStub key={s.id} title={T(s.ar,s.en)} lang={lang}/>)}
 {/* المهام */}
 {TASK_SECTIONS.filter(s=>s.code&&s.id===pg&&s.id!=='saudization').map(s=><TransactionsPage key={s.id} tabId={s.id} sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch} lockedService={s.code} lockedLabel={T(s.ar,s.en)} emptyIcon={navEmptyIcon(s.id)}/>)}
 {/* الإدارة */}

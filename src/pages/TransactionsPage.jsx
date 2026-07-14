@@ -7,6 +7,7 @@ import { Modal, ModalSection, TextField, TextArea, Select, CurrencyField, FileFi
 import { StatStripSkeleton, SkeletonCards, SkeletonTable, Shimmer } from '../components/ui/Skeleton.jsx'
 import { Wallet, Building2, FileText as FileTextIco, MessageSquare, Send, CheckCircle2, Ban, Clock, CreditCard, User, Plus, Paperclip, Lock, Pencil, Upload, FileCheck, Check } from 'lucide-react'
 import { TXN_SERVICES, TXN_REGISTRY_CODES, txnServiceFor } from './txnServices.js'
+import { DONE_INPUTS, doneInputsFor } from '../lib/doneInputs.js'
 import { docTypeLabel } from '../ServiceAdminPage.jsx'
 import { can, cardVisible, canCardBtn, tabModule } from '../lib/permissions.js'
 import ServiceRequestPage from '../ServiceRequestPage.jsx'
@@ -198,8 +199,23 @@ const SR_SELECT = `
         iqama_renewal_applications(worker:worker_id(name_ar,name_en,iqama_number,phone,nationality:nationality_id(code,name_ar,flag_url)))
       `
 
+// طابور «إصدار الإقامة» — صف لكل تأشيرة (لا لكل طلب): كل تأشيرة = إقامة واحدة مستقلة، مع بيانات
+// طلبها الأم للعرض والفتح. التصفية بنوع الخدمة على الطلب الأم عبر ضمّ داخلي (sr!inner).
+const VISA_QUEUE_SELECT = `
+        id, visa_number, border_number, file_number, gender, visa_issue_date, service_request_id,
+        main_facility:main_facility_id(id,name_ar,hrsd_number,unified_number),
+        nationality:nationality_id(code,name_ar,flag_url),
+        iqama:iqama_issuance_applications(id,iqama_number,iqama_expiry),
+        sr:service_requests!inner(id,request_ref_no,request_date,updated_at,quantity,note,cancelled_reason,cancelled_at,completed_by,service_type_id,branch_id,
+          service_type:service_type_id(code,value_ar,value_en),
+          status:status_id(code,value_ar,value_en),
+          branch:branch_id(id,branch_code),
+          client:client_id(id,name_ar,name_en),
+          invoices(invoice_no,deleted_at))
+      `
+
 /* ═══════════════════════════════════════════════════════════════════════ */
-export default function TransactionsPage({ sb, lang, user, tabId, branchId, toast, lockedService, lockedLabel, emptyIcon, accountantMode, initialDetailId, onConsumeInitialDetail }) {
+export default function TransactionsPage({ sb, lang, user, tabId, branchId, toast, lockedService, lockedLabel, emptyIcon, accountantMode, iqamaMode, initialDetailId, onConsumeInitialDetail }) {
   const isAr = lang !== 'en'
   const T = (a, e) => (isAr ? a : e)
 
@@ -242,6 +258,10 @@ export default function TransactionsPage({ sb, lang, user, tabId, branchId, toas
 
   // When locked to a single request type, resolve its service_type lookup id.
   const lockedServiceId = useMemo(() => (lockedService ? (services.find(s => s.code === lockedService)?.id || null) : null), [lockedService, services])
+  // تبويب «إصدار الإقامة»: طابور موحّد لكل تأشيرات العمل (12/9/6/3) — الموظف المسؤول عن مرحلة الإقامة
+  // (التأمين + رخصة العمل + الإقامة) يكملها بعد إصدار التأشيرة. نجمع معرّفات الأنواع الأربعة لتصفية القائمة.
+  const VISA_TYPE_CODES = ['work_visa_permanent', 'work_visa_9m', 'work_visa_6m', 'work_visa_temporary']
+  const visaTypeIds = useMemo(() => services.filter(s => VISA_TYPE_CODES.includes(s.code)).map(s => s.id), [services])
 
   useEffect(() => {
     let alive = true
@@ -337,6 +357,7 @@ export default function TransactionsPage({ sb, lang, user, tabId, branchId, toas
     // Wait until the service-type lookup resolves the locked code's id before querying,
     // otherwise the first render would briefly show every type.
     if (lockedService && !lockedServiceId) return () => { alive = false }
+    if (iqamaMode && !visaTypeIds.length) return () => { alive = false }
     let qb = sb
       .from('service_requests')
       .select(SR_SELECT, { count: 'exact' })
@@ -346,8 +367,12 @@ export default function TransactionsPage({ sb, lang, user, tabId, branchId, toas
 
     const effectiveBranch = branchFilter || branchId
     if (effectiveBranch) qb = qb.eq('branch_id', effectiveBranch)
-    const effectiveServiceType = lockedServiceId || serviceType
-    if (effectiveServiceType) qb = qb.eq('service_type_id', effectiveServiceType)
+    if (iqamaMode) {
+      qb = qb.in('service_type_id', visaTypeIds)
+    } else {
+      const effectiveServiceType = lockedServiceId || serviceType
+      if (effectiveServiceType) qb = qb.eq('service_type_id', effectiveServiceType)
+    }
     if (status) qb = qb.eq('status_id', status)
     if (from) qb = qb.gte('request_date', from)
     if (to) qb = qb.lte('request_date', to + 'T23:59:59')
@@ -355,6 +380,41 @@ export default function TransactionsPage({ sb, lang, user, tabId, branchId, toas
     if (accountantMode) qb = qb.eq('accountant_status', 'pending')
 
     ;(async () => {
+      // «إصدار الإقامة»: طابور على مستوى التأشيرة — كل تأشيرة صف/إقامة مستقلة. نستعلم visa_applications
+      // ونُشكّل كل تأشيرة كطلب مصغّر (مصفوفة تأشيرة واحدة) ليعيد المُصيِّر الحالي عرضها بمنشأتها وحالتها.
+      if (iqamaMode) {
+        let vq = sb.from('visa_applications').select(VISA_QUEUE_SELECT, { count: 'exact' })
+          .is('deleted_at', null)
+          .in('sr.service_type_id', visaTypeIds)
+          .order('visa_issue_date', { ascending: false, nullsFirst: false })
+          .range(page * PAGE, page * PAGE + PAGE - 1)
+        const effBranch = branchFilter || branchId
+        if (effBranch) vq = vq.eq('sr.branch_id', effBranch)
+        if (status) vq = vq.eq('sr.status_id', status)
+        if (from) vq = vq.gte('sr.request_date', from)
+        if (to) vq = vq.lte('sr.request_date', to + 'T23:59:59')
+        if (q.trim()) {
+          const { data: idRows, error: idErr } = await sb.rpc('search_request_ids', { p_q: q.trim() })
+          if (idErr) { if (alive) { setErr(idErr.message); setLoading(false) } return }
+          const ids = (idRows || []).map(r => r.id)
+          if (!ids.length) { if (alive) { setRows([]); setTotal(0); setLoading(false) } return }
+          vq = vq.in('service_request_id', ids)
+        }
+        const { data, count, error } = await vq
+        if (!alive) return
+        if (error) { setErr(error.message); setLoading(false); return }
+        const synth = (data || []).map(v => ({
+          ...v.sr,
+          id: v.sr?.id,
+          __rowKey: v.id,
+          __focusVisa: v,
+          quantity: 1,
+          visa_applications: [{ id: v.id, visa_number: v.visa_number, border_number: v.border_number, main_facility: v.main_facility }],
+          iqama_issuance_applications: Array.isArray(v.iqama) ? v.iqama : (v.iqama ? [v.iqama] : []),
+        }))
+        setRows(synth); setTotal(count || 0); setLoading(false)
+        return
+      }
       // البحث الموحّد: رقم الطلب · بيانات العميل · العامل · المنشأة · رقم الفاتورة (عبر دالة search_request_ids)
       if (q.trim()) {
         const { data: idRows, error: idErr } = await sb.rpc('search_request_ids', { p_q: q.trim() })
@@ -369,7 +429,7 @@ export default function TransactionsPage({ sb, lang, user, tabId, branchId, toas
       setRows(data || []); setTotal(count || 0); setLoading(false)
     })()
     return () => { alive = false }
-  }, [sb, page, branchFilter, branchId, serviceType, lockedServiceId, lockedService, status, q, from, to, accountantMode, refreshTick])
+  }, [sb, page, branchFilter, branchId, serviceType, lockedServiceId, lockedService, status, q, from, to, accountantMode, iqamaMode, visaTypeIds, refreshTick])
 
   // فتح مباشر (deep-link) من الفاتورة عبر الرقم المرجعي: نُحضر صفّ الطلب بمعرّفه ونفتح تفاصيله مباشرة،
   // متجاوزين فلاتر القائمة (الفرع/الحالة/الصفحة) كي يعمل أياً كان موضع الطلب في القائمة.
@@ -479,7 +539,7 @@ export default function TransactionsPage({ sb, lang, user, tabId, branchId, toas
   // the unlocked all-services log (where visa rows populate it). Default group then drops to 2 cols.
   const showBorderCol = /^work_visa/.test(lockedService || '') || !lockedService
 
-  if (detail) return <TransactionDetailPage sb={sb} sr={detail} onBack={() => setDetail(null)} isAr={isAr} T={T} toast={toast} user={user} />
+  if (detail) return <TransactionDetailPage sb={sb} sr={detail} onBack={() => setDetail(null)} isAr={isAr} T={T} toast={toast} user={user} tabId={tabId} iqamaMode={iqamaMode} />
 
   const initialLoading = loading && rows.length === 0
   /* ─────── Render ─────── */
@@ -507,9 +567,11 @@ export default function TransactionsPage({ sb, lang, user, tabId, branchId, toas
           external_transfer_approval: { ar: 'الموافقة للنقل الخارجي', en: 'External Transfer Approval', dAr: 'إصدار ومتابعة طلبات الموافقة على النقل الخارجي', dEn: 'Issue and track external transfer approval requests' },
         }
         const hero = txnServiceFor(lockedService)?.hero || HERO[lockedService]
-        const title = accountantMode ? T('موافقات المحاسب','Accountant Approvals') : (hero ? T(hero.ar, hero.en) : (lockedLabel || T('المعاملات','Transactions')))
+        const title = accountantMode ? T('موافقات المحاسب','Accountant Approvals') : iqamaMode ? T('إصدار الإقامة','Iqama Issuance') : (hero ? T(hero.ar, hero.en) : (lockedLabel || T('المعاملات','Transactions')))
         const desc = accountantMode
           ? T('الطلبات المُرسَلة لموافقة المحاسب (النقل الخارجي والخروج النهائي) — راجِع الطلب ووافِق أو ارفض ليُكمل الموظف الإجراءات.','Requests sent for accountant approval (external transfer & final exit) — review and approve or reject so staff can complete the procedure.')
+          : iqamaMode
+          ? T('طابور مرحلة الإقامة لتأشيرات العمل (12/9/6/3) — التأمين ورخصة العمل والإقامة، تُكمَّل بعد رفع وإصدار التأشيرة.','Iqama-phase queue for work visas (12/9/6/3) — insurance, work permit & iqama, completed after the visa is uploaded and issued.')
           : (hero ? T(hero.dAr, hero.dEn) : (lockedService ? T(`جميع طلبات «${lockedLabel}» ومتابعة حالتها`, `All “${lockedLabel}” requests — tracked by status and branch`) : T('سجل الطلبات الرئيسية ومتابعة حالتها بحسب الخدمة والمكتب','Main service requests log — tracked by service type, branch and status')))
         // زر «طلب جديد» — يظهر على صفحات الخدمة المقفلة (لا في صندوق المحاسب) لمن يملك صلاحية الإنشاء،
         // ويفتح معالج الفاتورة مُختاراً الخدمة الحالية مسبقاً (نفس زر «فاتورة جديدة»).
@@ -533,8 +595,8 @@ export default function TransactionsPage({ sb, lang, user, tabId, branchId, toas
       })()}
 
       {/* Stats — Hero KPI + Sidebar (statuses) + Services card (hidden on per-type pages, where cross-type stats would be misleading) */}
-      {!lockedService && !accountantMode && initialLoading && <StatStripSkeleton breakdownRows={6} />}
-      {!lockedService && !accountantMode && !initialLoading && (
+      {!lockedService && !accountantMode && !iqamaMode && initialLoading && <StatStripSkeleton breakdownRows={6} />}
+      {!lockedService && !accountantMode && !iqamaMode && !initialLoading && (
       <div style={{ display: 'grid', gridTemplateColumns: '2.2fr 1fr 1.5fr', gap: 14, marginBottom: 24 }}>
         {/* Hero — Today's transactions count, big */}
         <div style={{
@@ -974,7 +1036,7 @@ export default function TransactionsPage({ sb, lang, user, tabId, branchId, toas
                 const invNo = (r.invoices || []).find(iv => iv.deleted_at == null)?.invoice_no
                 const ref = noDash(invNo ? invNo.replace(/^INV/i, 'TXN') : ['TXN', r.branch?.branch_code, String(r.request_ref_no || '').slice(-6)].filter(Boolean).join('-'))
                 return (
-                  <tr key={r.id} onClick={() => setDetail(r)} title={r.client?.name_ar || r.client?.name_en || ''}>
+                  <tr key={r.__rowKey || r.id} onClick={() => setDetail(r)} title={r.client?.name_ar || r.client?.name_en || ''}>
                     <td>
                       {isChamberStyle ? (
                         <div style={{ display: 'inline-flex', flexDirection: 'column', gap: 3, alignItems: 'center' }}>
@@ -1293,7 +1355,7 @@ function TransactionCard({ r, isAr, T, onClick }) {
 /* ═══════════════════════════════════════════════════════════════════════
    Full-page detail — service-specific details + linked invoice + sidebar
    ═══════════════════════════════════════════════════════════════════════ */
-function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
+function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user, tabId, iqamaMode }) {
   const [data, setData] = useState({ loading: true })
   // Per-file workflow — the detail page is DISPLAY-ONLY; every section opens its own
   // FormKit popup (نافذة منبثقة): facility picking, the Qiwa-subscription payment, and the
@@ -1355,6 +1417,25 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
     setReqNotes(notes.map(n => ({ ...n, attachments: attByNote[n.id] || [] })))
   }, [sb, sr.id])
   useEffect(() => { reloadReqNotes() }, [reloadReqNotes])
+  // مرفقات إنجاز الخدمة (بوليصة/تأشيرة/صورة إقامة…) — نفس مفاتيح doneInputs، تُعرض في كرت «بيانات الإنجاز».
+  const [doneAtt, setDoneAtt] = useState({})
+  useEffect(() => {
+    const code = sr.service_type?.code || ''
+    const fileKeys = doneInputsFor(code).filter(f => f.type === 'file').map(f => f.key)
+    if (!fileKeys.length) { setDoneAtt({}); return }
+    let alive = true
+    ;(async () => {
+      const { data: rows } = await sb.from('attachments')
+        .select('id,file_name,file_url,notes,created_at')
+        .eq('entity_type', 'service_request').eq('entity_id', sr.id).in('notes', fileKeys).is('deleted_at', null)
+        .order('created_at', { ascending: false })
+      if (!alive) return
+      const by = {}
+      ;(rows || []).forEach(a => { if (!by[a.notes]) by[a.notes] = a })
+      setDoneAtt(by)
+    })()
+    return () => { alive = false }
+  }, [sb, sr.id, sr.service_type?.code, statusTick])
   const deleteReqNote = async (id) => {
     try {
       const { error } = await sb.from('service_request_notes').update({ deleted_at: new Date().toISOString(), deleted_by: user?.id || null }).eq('id', id)
@@ -1747,7 +1828,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
               that opens a FormKit popup: facility picking, the Qiwa-subscription payment,
               and the issuance data (shared visa number + per-visa border numbers + PDF).
               Saves commit from the popups; permanent visas cap at 4 per facility. */}
-          {cardVisible(user, tabId, 'visa_file') && !data.loading && data.code === 'work_visa' && data.det.length > 0 && (() => {
+          {cardVisible(user, tabId, 'visa_file') && !iqamaMode && !data.loading && data.code === 'work_visa' && data.det.length > 0 && (() => {
             const det = data.det || []
             const isTemp = sr.service_type?.code === 'work_visa_temporary'
             const visaList = [...det].sort((a, b) => ((a.file_number ?? 0) - (b.file_number ?? 0)))
@@ -1891,7 +1972,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                   {cells.length > 0 && (
                     <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(3, cells.length)},1fr)`, gap: 8 }}>
                       {cells.map((c, i) => (
-                        <div key={i} style={{ background: 'rgba(0,0,0,.18)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+                        <div key={i} style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
                           <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{c.label}</span>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                             <span style={{ minWidth: 0, fontSize: 13, color: 'var(--tx2)', fontWeight: 600, direction: 'ltr', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.value}</span>
@@ -1919,7 +2000,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
               const filePassports = visaAttachments.filter(a => a.notes === 'passport' && rows.some(r => r.id === a.entity_id))
               const specLine = [natOf(rows[0]), occOf(rows[0]), embOf(rows[0]), genOf(rows[0])].filter(Boolean).join(' · ')
               return (
-                <div key={fn} style={{ border: '1px solid var(--bd)', borderRadius: 14, background: 'rgba(0,0,0,.12)', overflow: 'hidden' }}>
+                <div key={fn} style={{ border: '1px solid var(--bd)', borderRadius: 14, background: 'var(--card-grad2)', overflow: 'hidden' }}>
                   <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--bd)', display: 'flex', alignItems: 'center', gap: 8 }}>
                     <FileTextIco size={14} color={C.gold} strokeWidth={2} />
                     <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx2)', flexShrink: 0 }}>{visaLabel}</span>
@@ -2011,7 +2092,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                               {rows.map(d => {
                                 const sub = [embOf(d), occOf(d), genOf(d)].filter(Boolean).join(' · ')
                                 return (
-                                  <div key={d.id} style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 10, background: 'rgba(0,0,0,.2)', border: '1px solid var(--bd)' }}>
+                                  <div key={d.id} style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 10, background: 'var(--inputBg)', border: '1px solid var(--bd)' }}>
                                     {numChip(globalIdx(d))}
                                     <div style={{ minWidth: 0 }}>
                                       <div style={{ fontSize: 12.5, color: 'var(--tx1)', fontWeight: 600 }}>{natOf(d)}</div>
@@ -2097,7 +2178,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                             { l: T('الجنس','Gender'), v: genOf(d) },
                           ]
                           return (
-                            <div key={g.key} style={{ display: 'flex', alignItems: 'stretch', gap: 12, padding: 12, borderRadius: 10, background: 'rgba(0,0,0,.14)', border: '1px solid var(--bd)' }}>
+                            <div key={g.key} style={{ display: 'flex', alignItems: 'stretch', gap: 12, padding: 12, borderRadius: 10, background: 'var(--inputBg)', border: '1px solid var(--bd)' }}>
                               {/* عدّاد الكمية — عمود سماوي جانبي يوضّح عدد التأشيرات في المجموعة */}
                               <div style={{ flexShrink: 0, width: 58, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, borderRadius: 9, background: 'rgba(93,173,226,.1)', border: '1px solid rgba(93,173,226,.3)' }}>
                                 <span style={{ fontSize: 22, color: C.blue, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>{num(g.count)}</span>
@@ -2118,7 +2199,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                       })()}
                     </div>
                     {sr.note && (
-                      <div style={{ padding: 12, borderRadius: 10, background: 'rgba(0,0,0,.14)', border: '1px solid var(--bd)', display: 'flex', flexDirection: 'column', gap: 5 }}>
+                      <div style={{ padding: 12, borderRadius: 10, background: 'var(--inputBg)', border: '1px solid var(--bd)', display: 'flex', flexDirection: 'column', gap: 5 }}>
                         <span style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 600, letterSpacing: '.3px' }}>{T('ملاحظات','Notes')}</span>
                         <span style={{ fontSize: 12.5, color: 'var(--tx1)', fontWeight: 600, lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>{sr.note}</span>
                       </div>
@@ -2157,7 +2238,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                           {est.rows.map(d => {
                             const sub = [embOf(d), occOf(d), genOf(d)].filter(Boolean).join(' · ')
                             return (
-                              <div key={d.id} style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 10, background: 'rgba(0,0,0,.18)', border: '1px solid var(--bd)' }}>
+                              <div key={d.id} style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 10, background: 'var(--inputBg)', border: '1px solid var(--bd)' }}>
                                 {numChip(globalIdx(d))}
                                 <div style={{ minWidth: 0 }}>
                                   <div style={{ fontSize: 12.5, color: 'var(--tx1)', fontWeight: 600 }}>{natOf(d)}</div>
@@ -2252,8 +2333,10 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
           })()}
 
           {/* ── كرت الإقامات — كرت فرعي لكل تأشيرة (إصدار إقامة لكل عامل) ── */}
-          {cardVisible(user, tabId, 'work_permit') && !data.loading && data.code === 'work_visa' && data.det.length > 0 && (() => {
-            const visaList = [...data.det].sort((a, b) => ((a.file_number ?? 0) - (b.file_number ?? 0)))
+          {cardVisible(user, tabId, 'work_permit') && iqamaMode && !data.loading && data.code === 'work_visa' && data.det.length > 0 && (() => {
+            // من طابور «إصدار الإقامة» يُفتح صف تأشيرة واحدة → نُركّز البطاقة على إقامتها فقط (لا كل تأشيرات الطلب).
+            const focusVisaId = sr.__focusVisa?.id
+            const visaList = [...data.det].filter(v => !focusVisaId || v.id === focusVisaId).sort((a, b) => ((a.file_number ?? 0) - (b.file_number ?? 0)))
             const natOf = r => (isAr ? r.nationality?.name_ar : (r.nationality?.name_en || r.nationality?.name_ar)) || ''
             const genOf = r => r.gender === 'female' ? T('أنثى','Female') : r.gender === 'male' ? T('ذكر','Male') : ''
             const doneCount = visaList.filter(v => iqamaRows[v.id]?.iqama_number).length
@@ -2270,7 +2353,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
               ].filter(c => c.v) : []
               const ident = [natOf(visa), genOf(visa)].filter(Boolean).join(' · ')
               return (
-                <div key={visa.id} style={{ border: '1px solid var(--bd)', borderRadius: 14, background: 'rgba(0,0,0,.12)', overflow: 'hidden' }}>
+                <div key={visa.id} style={{ border: '1px solid var(--bd)', borderRadius: 14, background: 'var(--card-grad2)', overflow: 'hidden' }}>
                   <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--bd)', display: 'flex', alignItems: 'center', gap: 8 }}>
                     {iqChip(vi + 1)}
                     <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx2)', flexShrink: 0 }}>{T('الإقامة','Iqama')}</span>
@@ -2403,7 +2486,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
               ].filter(c => c.v) : []
               const ident = [natOf(visa), genOf(visa)].filter(Boolean).join(' · ')
               return (
-                <div key={'wp-' + visa.id} style={{ border: '1px solid var(--bd)', borderRadius: 14, background: 'rgba(0,0,0,.12)', overflow: 'hidden' }}>
+                <div key={'wp-' + visa.id} style={{ border: '1px solid var(--bd)', borderRadius: 14, background: 'var(--card-grad2)', overflow: 'hidden' }}>
                   <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--bd)', display: 'flex', alignItems: 'center', gap: 8 }}>
                     {iqChip(vi + 1)}
                     <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx2)', flexShrink: 0 }}>{T('رخصة العمل','Work permit')}</span>
@@ -2583,7 +2666,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                   {/* كرت الخدمة — مطابق لكرت الخدمة في صفحة تفاصيل الفاتورة: كرت المكتب ثم اسم الخدمة (ذهبي) مع الوصف تحته */}
                   <div style={{ padding: '14px 22px' }}>
                     {sr.branch?.branch_code && (
-                      <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 12 }}>
+                      <div style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 12 }}>
                         <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{T('المكتب','Office')}</span>
                         <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, direction: 'ltr' }}>
                           <span style={{ fontSize: 14, color: C.gold, fontWeight: 600, direction: 'ltr', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }}>{sr.branch.branch_code}</span>
@@ -2594,7 +2677,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                       const svcLabel = isAr ? (svc.label_ar_full || svc.label_ar) : (svc.label_en_full || svc.label_en)
                       return (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                          <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+                          <div style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
                             <span style={{ fontSize: 14, color: C.gold, fontWeight: 600, lineHeight: 1.4 }}>{svcLabel}</span>
                             {d.description && d.description !== svcLabel && (
                               <span style={{ fontSize: 12.5, color: '#fff', fontWeight: 600, lineHeight: 1.5, whiteSpace: 'pre-wrap', wordBreak: 'break-word', direction: 'rtl', marginTop: 4 }}>{d.description}</span>
@@ -2684,14 +2767,14 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                   {/* كرت الخدمة — مطابق لكرت الخدمة في صفحة تفاصيل الفاتورة (المكتب + اسم الخدمة + نوع التصديق + الملف/النص). */}
                   <div style={{ padding: '14px 22px' }}>
                     {sr.branch?.branch_code && (
-                      <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 12 }}>
+                      <div style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 12 }}>
                         <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{T('المكتب','Office')}</span>
                         <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, direction: 'ltr' }}>
                           <span style={{ fontSize: 14, color: C.gold, fontWeight: 600, direction: 'ltr', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }}>{sr.branch.branch_code}</span>
                         </span>
                       </div>
                     )}
-                    <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+                    <div style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
                       <span style={{ fontSize: 14, color: C.gold, fontWeight: 600, lineHeight: 1.4 }}>{svcLabel}</span>
                       {det.chamber_subtype && (
                         <span style={{ fontSize: 12.5, color: '#fff', fontWeight: 600, lineHeight: 1.5, direction: 'rtl', marginTop: 4 }}>
@@ -2737,7 +2820,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                           <div style={{ fontSize: 12, color: 'var(--tx4)', fontWeight: 600, textAlign: 'center', padding: '6px 0' }}>{T('لا توجد ملاحظة','No note')}</div>
                         )}
                         {notePublic && (
-                          <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+                          <div style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
                             <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{T('ملاحظة الفاتورة','Invoice Note')}</span>
                             <span style={{ fontSize: 13, color: 'var(--tx2)', fontWeight: 600, lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word', direction: 'rtl' }}>{notePublic}</span>
                           </div>
@@ -2781,7 +2864,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                   const dt = ts ? new Date(ts) : null
                   const hhmm = dt ? String(dt.getHours()).padStart(2, '0') + ':' + String(dt.getMinutes()).padStart(2, '0') : ''
                   return (
-                    <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <div style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
                       <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{T('ملاحظة الفاتورة','Invoice note')}</span>
                       <span style={{ fontSize: 13, color: 'var(--tx2)', fontWeight: 600, lineHeight: 1.6, wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>{sr.note}</span>
                       <div style={{ display: 'flex', direction: 'rtl', justifyContent: 'space-between', alignItems: 'center', gap: 8, fontSize: 10.5, color: 'var(--tx5)' }}>
@@ -2809,6 +2892,52 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
             </div>
           ))}
 
+          {/* بيانات إنجاز الخدمة — تعكس ما أُدخِل من صفحة الخدمة (نفس مخزن الفاتورة: details + مرفقات).
+              يظهر فقط حين تتوفّر قيمة أو ملف. الغرفة/عقد أجير لهما كرت متابعة خاص. */}
+          {!data.loading && cardVisible(user, tabId, 'application') && (() => {
+            const code = sr.service_type?.code || ''
+            const fields = (code === 'other' || code === 'ajeer') ? [] : doneInputsFor(code)
+            if (!fields.length) return null
+            const det = data.det?.[0]?.details || {}
+            const scalar = fields.filter(f => f.type !== 'file' && det[f.key] != null && String(det[f.key]).trim() !== '')
+            const filesIn = fields.filter(f => f.type === 'file' && doneAtt[f.key])
+            if (!scalar.length && !filesIn.length) return null
+            return (
+              <div style={cardChrome}>
+                <div style={cardHeader}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.ok }} />
+                  <span style={cardTitle}>{T('بيانات إنجاز الخدمة', 'Service completion data')}</span>
+                </div>
+                <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {scalar.map(f => {
+                    const v = det[f.key]
+                    const disp = f.type === 'date' ? fmtGreg(v) : (f.money ? num(v) + ' ' + T('ر.س', 'SAR') : String(v))
+                    return (
+                      <div key={f.key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '7px 0', borderBottom: '1px solid var(--bd)' }}>
+                        <span style={{ fontSize: 12, color: 'var(--tx3)', fontWeight: 600 }}>{T(f.label_ar, f.label_en)}</span>
+                        <span style={{ fontSize: 13, color: 'var(--tx2)', fontWeight: 600, direction: (f.mono || f.type === 'date') ? 'ltr' : undefined, fontVariantNumeric: f.mono ? 'tabular-nums' : undefined }}>{disp}</span>
+                      </div>
+                    )
+                  })}
+                  {filesIn.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: scalar.length ? 4 : 0 }}>
+                      {filesIn.map(f => {
+                        const a = doneAtt[f.key]
+                        return (
+                          <a key={f.key} href={a.file_url} target="_blank" rel="noreferrer" title={a.file_name || ''}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: C.gold, textDecoration: 'none' }}>
+                            <Paperclip size={13} strokeWidth={2} />
+                            <span style={{ textDecoration: 'underline', textUnderlineOffset: 3 }}>{T(f.label_ar, f.label_en)}</span>
+                          </a>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )
+          })()}
+
           {/* عقد أجير — متابعة المعاملة: رقم العقد + مرفق تصريح عقد أجير، يُدخَلان مرّة واحدة في صفحة المعاملة. */}
           {/* عقد أجير (code 'ajeer') — نفس تخطيط الغرفة التجارية: «العامل والمنشأة» + «الخدمة» (الرقم الموحد
               للمنشأة المستعارة + المدينة + المدة) + «الملاحظات» + بطاقة متابعة عقد أجير. */}
@@ -2820,7 +2949,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
             const months = det.contract_months
             const monthsLbl = months != null && months !== '' ? months + ' ' + (Number(months) >= 3 && Number(months) <= 10 ? T('أشهر', 'months') : T('شهر', 'month')) : null
             const svcRow = (label, value, gold, rtl) => value ? (
-              <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+              <div style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
                 <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{label}</span>
                 <span style={{ fontSize: 13, color: gold ? C.gold : '#fff', fontWeight: 600, direction: rtl ? 'rtl' : 'ltr', textAlign: 'right' }}>{value}</span>
               </div>
@@ -2845,12 +2974,12 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                   </div>
                   <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 10 }}>
                     {sr.branch?.branch_code && (
-                      <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+                      <div style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
                         <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{T('المكتب','Office')}</span>
                         <span style={{ fontSize: 14, color: C.gold, fontWeight: 600, direction: 'ltr', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums', textAlign: 'right' }}>{sr.branch.branch_code}</span>
                       </div>
                     )}
-                    <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px' }}>
+                    <div style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px' }}>
                       <span style={{ fontSize: 14, color: C.gold, fontWeight: 600, lineHeight: 1.4 }}>{svcLabel}</span>
                     </div>
                     {/* صف واحد — الترتيب من اليمين لليسار: الرقم الموحد للمنشأة المستعارة · مدة العقد · المدينة */}
@@ -2875,7 +3004,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                       <div style={{ padding: '16px 22px', display: 'flex', flexDirection: 'column', gap: 8 }}>
                         {!notePublic && <div style={{ fontSize: 12, color: 'var(--tx4)', fontWeight: 600, textAlign: 'center', padding: '6px 0' }}>{T('لا توجد ملاحظة','No note')}</div>}
                         {notePublic && (
-                          <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+                          <div style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
                             <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{T('ملاحظة الفاتورة','Invoice Note')}</span>
                             <span style={{ fontSize: 13, color: 'var(--tx2)', fontWeight: 600, lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word', direction: 'rtl' }}>{notePublic}</span>
                           </div>
@@ -2977,7 +3106,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                         const dt = new Date(n.created_at)
                         const hhmm = String(dt.getHours()).padStart(2, '0') + ':' + String(dt.getMinutes()).padStart(2, '0')
                         return (
-                          <div key={n.id} style={{ background: 'rgba(0,0,0,.18)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6, border: '1px solid var(--bd)' }}>
+                          <div key={n.id} style={{ background: 'var(--inputBg)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6, border: '1px solid var(--bd)' }}>
                             <span style={{ fontSize: 13, color: 'var(--tx2)', fontWeight: 600, lineHeight: 1.6, wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>{n.note}</span>
                             {Array.isArray(n.attachments) && n.attachments.length > 0 && (
                               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
@@ -3085,7 +3214,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
             // الكمية تظهر فقط لتأشيرات وإقامات العمل (الدائمة والمؤقتة) — بقية الخدمات كميتها دائماً 1
             const showQty = /^work_visa/.test(sr.service_type?.code || '')
             const tile = (l, v, c) => (
-              <div style={{ padding: '10px 12px', background: 'rgba(0,0,0,.18)', borderRadius: 10, border: '1px solid var(--bd2)' }}>
+              <div style={{ padding: '10px 12px', background: 'var(--inputBg)', borderRadius: 10, border: '1px solid var(--bd2)' }}>
                 <div style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600, marginBottom: 4, letterSpacing: '.5px' }}>{l}</div>
                 <div style={{ fontSize: 13, fontWeight: 600, color: c || '#fff', fontVariantNumeric: 'tabular-nums' }}>{v}</div>
               </div>
@@ -3151,7 +3280,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                         ? (isAr ? ins.payment_milestone.value_ar : (ins.payment_milestone.value_en || ins.payment_milestone.value_ar))
                         : (ins.notes || (installments.length === 1 ? T('دفعة واحدة','Single payment') : ordLabel(ins.installment_order)))
                       return (
-                        <div key={ins.id} style={{ padding: '10px 12px', background: 'rgba(0,0,0,.18)', borderRadius: 10, border: '1px solid var(--bd2)' }}>
+                        <div key={ins.id} style={{ padding: '10px 12px', background: 'var(--inputBg)', borderRadius: 10, border: '1px solid var(--bd2)' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 7, fontSize: 10.5, color: 'var(--tx4)' }}>
                             <span>{mile}</span>
                             <span style={{ color: pctC, fontWeight: 600, direction: 'ltr' }}>{insPct}%</span>
@@ -3280,7 +3409,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user }) {
                   {hist.length > 0 && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                       {hist.map((h, i) => (
-                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 10, background: 'rgba(0,0,0,.18)', border: '1px solid var(--bd)' }}>
+                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 10, background: 'var(--inputBg)', border: '1px solid var(--bd)' }}>
                           <span style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0, background: h.current ? accent : C.ok }} />
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontSize: 12.5, color: 'var(--tx1)', fontWeight: 600 }}>{h.label}{h.current && <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600, marginInlineStart: 6 }}>({T('حالية','current')})</span>}</div>
@@ -3448,8 +3577,24 @@ function RequestActionModal({ type, sb, T, isAr, toast, sr, summary, user, onClo
   const [note, setNote] = useState('')
   const [err, setErr] = useState(null)
   const isCancel = type === 'cancel'
-  const isPayroll = sr.service_type?.code === 'supplier_payroll'
+  const svcCode = sr.service_type?.code || ''
+  const isPayroll = svcCode === 'supplier_payroll'
   const accent = isCancel ? C.red : C.ok
+  // حقول إنجاز الخدمات المُدارة بالسجل — نفس مصدر doneInputs الذي تقرؤه/تكتبه الفاتورة والطباعة،
+  // فتُدخَل الآن من صفحة الخدمة وتنعكس على الفاتورة تلقائياً (نفس المخزن: other_applications.details + attachments).
+  // الغرفة (other) وعقد أجير (ajeer) يُنجَزان عبر كرت المتابعة الخاص بهما، فلا حقول إنجاز يدوية هنا.
+  const doneInputs = (isCancel || svcCode === 'other' || svcCode === 'ajeer') ? [] : doneInputsFor(svcCode)
+  const [doneVals, setDoneVals] = useState({})
+  const [doneFiles, setDoneFiles] = useState({})
+  const [occOptions, setOccOptions] = useState([])
+  const needsOcc = doneInputs.some(f => f.type === 'select')
+  useEffect(() => {
+    if (!needsOcc) return
+    let alive = true
+    sb.from('occupations').select('name_ar,name_en').is('is_active', true).order('name_ar').limit(5000)
+      .then(({ data }) => { if (alive) setOccOptions((data || []).filter(o => o && o.name_ar)) })
+    return () => { alive = false }
+  }, [needsOcc, sb])
 
   const submit = async () => {
     setSubmitting(true)
@@ -3471,6 +3616,52 @@ function RequestActionModal({ type, sb, T, isAr, toast, sr, summary, user, onClo
       }
       const { error: e2 } = await sb.from('service_requests').update(patch).eq('id', sr.id)
       if (e2) throw e2
+      // مدخلات إنجاز الخدمات المُدارة بالسجل: القيم النصّية/التاريخية → other_applications.details،
+      // والملفّات → مرفقات الطلب (notes = مفتاح الحقل) — مطابقةً لما تكتبه نافذة الإنجاز في الفاتورة.
+      if (!isCancel && doneInputs.length) {
+        const srId = sr.id
+        const nowIso = patch.updated_at
+        const detailPatch = {}
+        for (const f of doneInputs) {
+          if (f.type === 'file') continue
+          const v = doneVals[f.key]
+          if (v == null || String(v).trim() === '') continue
+          detailPatch[f.key] = f.type === 'number' ? Number(v) : (f.type === 'date' ? v : String(v).trim())
+        }
+        try {
+          const { data: oaRows } = await sb.from('other_applications').select('id,details').eq('service_request_id', srId).is('deleted_at', null).limit(1)
+          const oa = Array.isArray(oaRows) ? oaRows[0] : null
+          // تعديل الراتب: تبدأ مرحلة «انتظار إرجاع الراتب»، ويُحسب تاريخ الإرجاع من «مدة الراتب» المُدخلة وقت الطلب.
+          if (svcCode === 'name_translation') {
+            detailPatch.salary_phase = 'awaiting_return'
+            const months = Number(oa?.details?.salary_months || 0)
+            if (months > 0) { const rd = new Date(nowIso); rd.setMonth(rd.getMonth() + months); detailPatch.salary_return_date = rd.toISOString().slice(0, 10) }
+          }
+          if (oa?.id && Object.keys(detailPatch).length) {
+            // .select() لتأكيد الحفظ فعلاً — منع RLS يُرجع صفر صفوف بلا خطأ فتُفقد البيانات بصمت.
+            const { data: oaUpd, error: oaErr } = await sb.from('other_applications').update({ details: { ...(oa.details || {}), ...detailPatch }, updated_by: user?.id || null, updated_at: nowIso }).eq('id', oa.id).select('id')
+            if (oaErr || !oaUpd?.length) toast(T('تعذّر حفظ بيانات المعاملة — تحقّق من الصلاحيات', 'Could not save transaction data — check permissions'), 'error')
+          }
+        } catch { toast(T('تعذّر حفظ بيانات المعاملة', 'Could not save transaction data'), 'error') }
+        for (const f of doneInputs) {
+          if (f.type !== 'file' || !doneFiles[f.key]) continue
+          try {
+            const file = doneFiles[f.key]
+            const safe = (file.name || f.key).replace(/[^\w.\-]+/g, '_')
+            const path = `service-requests/${srId}/${f.key}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}_${safe}`
+            const { error: upErr } = await sb.storage.from('attachments').upload(path, file, { cacheControl: '3600', upsert: false })
+            if (!upErr) {
+              const { data: pub } = sb.storage.from('attachments').getPublicUrl(path)
+              await sb.from('attachments').insert({
+                entity_type: 'service_request', entity_id: srId,
+                file_name: file.name, file_url: pub?.publicUrl || path, storage_path: path,
+                mime_type: file.type || null, size_bytes: file.size || null,
+                notes: f.key, uploaded_by: user?.id || null,
+              })
+            }
+          } catch { /* رفع ملف الإنجاز أفضل-جهد */ }
+        }
+      }
       setDone(true)
       onApplied?.(newCode, isCancel ? patch.cancelled_reason : null)
     } catch (e) {
@@ -3514,6 +3705,38 @@ function RequestActionModal({ type, sb, T, isAr, toast, sr, summary, user, onClo
           </div>
         )}
       </ModalSection>
+      {doneInputs.length > 0 && (() => {
+        const nonFiles = doneInputs.filter(f => f.type !== 'file')
+        const fileFields = doneInputs.filter(f => f.type === 'file')
+        return (
+          <ModalSection Icon={FileCheck} label={T('بيانات إنجاز الخدمة', 'Service completion data')}>
+            {nonFiles.length > 0 && (
+              <div style={GRID}>
+                {nonFiles.map(f => {
+                  const lbl = T(f.inLabel_ar || f.label_ar, f.inLabel_en || f.label_en)
+                  if (f.type === 'date') return <DateField key={f.key} label={lbl} value={doneVals[f.key] || ''} lang={T('ar', 'en')} onChange={v => { setErr(null); setDoneVals(s => ({ ...s, [f.key]: v })) }} />
+                  if (f.type === 'select') return <Select key={f.key} full req={f.req} label={lbl} placeholder={T('اختر المهنة…', 'Select occupation…')} value={doneVals[f.key] || ''} onChange={v => { setErr(null); setDoneVals(s => ({ ...s, [f.key]: v })) }} options={occOptions} getKey={o => o.name_ar} getLabel={o => isAr ? o.name_ar : (o.name_en || o.name_ar)} />
+                  if (f.digits) {
+                    const cur = String(doneVals[f.key] || '')
+                    const bad = cur.length > 0 && cur.length !== f.digits
+                    return <TextField key={f.key} full={f.full} req={f.req} label={lbl} dir="ltr" value={cur} placeholder={'0'.repeat(f.digits)}
+                      onChange={v => { setErr(null); setDoneVals(s => ({ ...s, [f.key]: String(v).replace(/\D/g, '').slice(0, f.digits) })) }}
+                      hint={bad ? T(`يجب أن يكون ${f.digits} أرقام`, `Must be exactly ${f.digits} digits`) : undefined} />
+                  }
+                  return <TextField key={f.key} full={f.full} req={f.req} label={lbl} value={doneVals[f.key] || ''} onChange={v => { setErr(null); setDoneVals(s => ({ ...s, [f.key]: v })) }} />
+                })}
+              </div>
+            )}
+            {fileFields.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: nonFiles.length ? 12 : 0 }}>
+                {fileFields.map(f => (
+                  <FileField key={f.key} full req={f.req} label={T(f.inLabel_ar || f.label_ar, f.inLabel_en || f.label_en)} value={doneFiles[f.key] || null} onChange={v => { setErr(null); setDoneFiles(s => ({ ...s, [f.key]: v })) }} />
+                ))}
+              </div>
+            )}
+          </ModalSection>
+        )
+      })()}
       <div style={{ marginTop: 12, fontSize: 12.5, color: C.ok, padding: '10px 14px', borderRadius: 10, background: `${C.ok}14`, border: `1px solid ${C.ok}33`, fontWeight: 600, lineHeight: 1.8, textAlign: 'center' }}>
         {isPayroll
           ? T('سيتم تحديث حالة الطلب إلى «منجز» — تأكد من اكتمال صرف الرواتب قبل التأكيد', 'The request will be marked “Done” — confirm the payroll has been fully processed')
@@ -3542,6 +3765,14 @@ function RequestActionModal({ type, sb, T, isAr, toast, sr, summary, user, onClo
   )
 
   const cancelValid = reasonKey !== '' && (reasonKey !== 'other' || note.trim().length > 0)
+  // زر «تأكيد الإنجاز» يُفعَّل فقط عند تعبئة كل حقول الإنجاز الإجبارية (مطابقةً لنافذة الفاتورة).
+  const doneValid = doneInputs.every(f => {
+    if (!f.req) return true
+    if (f.type === 'file') return !!doneFiles[f.key]
+    const v = String(doneVals[f.key] || '')
+    if (f.digits) return v.length === f.digits
+    return v.trim().length > 0
+  })
 
   return (
     <Modal
@@ -3552,7 +3783,7 @@ function RequestActionModal({ type, sb, T, isAr, toast, sr, summary, user, onClo
       onSubmit={submit} submitting={submitting}
       submitLabel={isCancel ? T('تأكيد الإلغاء', 'Confirm Cancellation') : T('تأكيد الإنجاز', 'Confirm Completion')}
       submitIcon={isCancel ? Ban : CheckCircle2}
-      pages={[{ valid: isCancel ? cancelValid : true, error: err, content: isCancel ? cancelContent : doneContent }]}
+      pages={[{ valid: isCancel ? cancelValid : doneValid, error: err, content: isCancel ? cancelContent : doneContent }]}
     />
   )
 }
@@ -3608,7 +3839,7 @@ function ChamberFollowUpCard({ submissions, readOnly, onAdd, onDecide, onEdit, c
         ) : subs.map((s, i) => {
           const stt = CHAMBER_ST[s.status] || CHAMBER_ST.pending
           return (
-            <div key={s.id || i} style={{ background: 'rgba(0,0,0,.18)', border: '1px solid ' + stt.c + '33', borderRadius: 12, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div key={s.id || i} style={{ background: 'var(--inputBg)', border: '1px solid ' + stt.c + '33', borderRadius: 12, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                   <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{T('رقم المعاملة', 'Transaction No.')}{subs.length > 1 ? ` (${i + 1})` : ''}</span>
@@ -3721,7 +3952,7 @@ function AjeerFollowUpCard({ det, canEdit, canAttach = canEdit, canEditBtn = can
         {hasData ? (
           <>
             {/* صندوق العقد — مطابق لصندوق معاملة الغرفة التجارية: رقم العقد + حالة «مقبول» + الختم + الفاتورة + المرفق. */}
-            <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid ' + C.ok + '33', borderRadius: 12, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ background: 'var(--inputBg)', border: '1px solid ' + C.ok + '33', borderRadius: 12, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                   <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{T('رقم العقد', 'Contract No.')}</span>
@@ -4301,7 +4532,7 @@ const __OV_DEAD__ = () => {
     </div>
   )
   const Tile = ({ l, v, c }) => (
-    <div style={{ padding: '10px 12px', background: 'rgba(0,0,0,.18)', borderRadius: 10, border: '1px solid var(--bd2)' }}>
+    <div style={{ padding: '10px 12px', background: 'var(--inputBg)', borderRadius: 10, border: '1px solid var(--bd2)' }}>
       <div style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600, marginBottom: 4, letterSpacing: '.5px' }}>{l}</div>
       <div style={{ fontSize: 13, fontWeight: 600, color: c || '#fff', fontVariantNumeric: 'tabular-nums' }}>{v}</div>
     </div>
@@ -4349,7 +4580,7 @@ const __OV_DEAD__ = () => {
         <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx2)', background: 'var(--bd)', border: '1px solid var(--bd)', borderRadius: 999, padding: '4px 12px', direction: 'ltr' }}>×{qty}</span>
       </div>
       <div style={{ padding: '0 18px 8px' }}><FRow l="تاريخ الطلب" v={reqDate} /><FRow l="آخر تحديث" v={lastUpdate} /></div>
-      <div style={{ padding: '12px 18px', background: 'rgba(0,0,0,.18)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><span style={{ fontSize: 11, color: 'var(--tx4)' }}>رقم المرجع</span><span style={{ fontSize: 14, fontWeight: 600, color: C.gold, fontFamily: 'monospace', direction: 'ltr' }}>{refNo}</span></div>
+      <div style={{ padding: '12px 18px', background: 'var(--inputBg)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><span style={{ fontSize: 11, color: 'var(--tx4)' }}>رقم المرجع</span><span style={{ fontSize: 14, fontWeight: 600, color: C.gold, fontFamily: 'monospace', direction: 'ltr' }}>{refNo}</span></div>
       {pay && <div style={{ padding: '12px 18px 16px' }}><Bar pct={pay.pct} c={pay.c} /></div>}
     </div>),
     // 5 — stat tiles grid + payment tile
@@ -4357,7 +4588,7 @@ const __OV_DEAD__ = () => {
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Dot size={10} /><span style={{ fontSize: 16, fontWeight: 600, color: statusColor }}>{statusLabel}</span></div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}><Tile l="التاريخ" v={reqDate} /><Tile l="آخر تحديث" v={lastUpdate} /><Tile l="الخدمة" v={serviceLabel} c={serviceColor} /><Tile l="الكمية" v={'×' + qty} /></div>
       <Tile l="رقم المرجع" v={refNo} c={C.gold} />
-      {pay && <div style={{ padding: '10px 12px', background: 'rgba(0,0,0,.18)', borderRadius: 10, border: '1px solid var(--bd2)' }}><div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 10, color: 'var(--tx4)' }}><span>{PL}</span><span style={{ color: pay.c, fontWeight: 600, direction: 'ltr' }}>{pay.pct}%</span></div><Bar pct={pay.pct} c={pay.c} h={6} /></div>}
+      {pay && <div style={{ padding: '10px 12px', background: 'var(--inputBg)', borderRadius: 10, border: '1px solid var(--bd2)' }}><div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 10, color: 'var(--tx4)' }}><span>{PL}</span><span style={{ color: pay.c, fontWeight: 600, direction: 'ltr' }}>{pay.pct}%</span></div><Bar pct={pay.pct} c={pay.c} h={6} /></div>}
     </div>),
     // 6 — minimal, big ref hero
     (<div style={CARD}>
@@ -4430,7 +4661,7 @@ function CardBodyGrid({ name, fields }) {
       {name && (
         name.boxed ? (
           // كرت الاسم المؤطّر مع زر النسخ — مطابق لكرت العميل في صفحة تفاصيل الفاتورة (ClientRows في InvoicePage)
-          <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+          <div style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
             <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{name.label}</span>
             <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, direction: 'ltr' }}>
               {name.value ? <CopyRefBtn value={name.value} title="نسخ" /> : null}
@@ -4447,7 +4678,7 @@ function CardBodyGrid({ name, fields }) {
       )}
       <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols},1fr)`, gap: 8 }}>
         {fields.map((f, i) => (
-          <div key={i} style={{ background: 'rgba(0,0,0,.18)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+          <div key={i} style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
             <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{f.label}</span>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
               <span style={{ fontSize: 13, color: f.color || '#fff', fontWeight: 600, ...(f.mono ? { fontFamily: 'monospace', direction: 'ltr', fontVariantNumeric: 'tabular-nums' } : {}) }}>{f.value || '—'}</span>
@@ -4498,7 +4729,7 @@ const EntityHero = ({ icon, primary, secondary, latin, cells, onEdit }) => (
     {cells.length > 0 && (
       <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(3, Math.max(1, cells.length))},1fr)`, gap: 8 }}>
         {cells.map((c, i) => (
-          <div key={i} style={{ background: 'rgba(0,0,0,.18)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+          <div key={i} style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
             <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{c.label}</span>
             <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, direction: 'ltr' }}>
               {c.value && <CopyRefBtn value={c.value} title="نسخ" />}
@@ -4552,7 +4783,7 @@ const SectionLabel = ({ label, color = C.gold }) => (
 )
 
 const AmountBox = ({ label, value, color }) => (
-  <div style={{ padding: '14px 18px', background: 'rgba(0,0,0,.18)', textAlign: 'center' }}>
+  <div style={{ padding: '14px 18px', background: 'var(--inputBg)', textAlign: 'center' }}>
     <div style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 600, marginBottom: 6, letterSpacing: 1 }}>{label}</div>
     <div style={{ fontSize: 18, fontWeight: 600, color, direction: 'ltr', fontVariantNumeric: 'tabular-nums', letterSpacing: '-.5px' }}>{value}</div>
   </div>
@@ -4665,7 +4896,7 @@ function QiwaSubscriptionBox({ sb, sr, T, toast, user }) {
         <span style={{ fontFamily: F, fontSize: 12.5, fontWeight: 600, color: open ? C.gold : C.gold }}>{T('إضافة اشتراك قوى','Add Qiwa subscription')}</span>
       </label>
       {open && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 12, borderRadius: 10, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(176,125,0,.25)' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 12, borderRadius: 10, background: 'var(--inputBg)', border: '1px solid rgba(176,125,0,.25)' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
               <label style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 600, letterSpacing: '.3px' }}>{T('رقم السداد','SADAD No')}</label>
@@ -4775,7 +5006,7 @@ function TxnWorkerPickModal({ sb, toast, T, isAr, appId, currentId, onClose, onS
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 7 }}>
           {cells.map((c, i) => (
-            <div key={i} style={{ background: 'rgba(0,0,0,.22)', border: '1px solid var(--bd)', borderRadius: 9, padding: '7px 9px' }}>
+            <div key={i} style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 9, padding: '7px 9px' }}>
               <span style={{ fontSize: 9, color: 'var(--tx4)', fontWeight: 600, display: 'block', marginBottom: 3 }}>{c.label}</span>
               <span style={{ fontSize: 11.5, color: 'var(--tx3)', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums', direction: 'ltr', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.value || '—'}</span>
             </div>
@@ -4889,7 +5120,7 @@ function TxnFacilityPickModal({ sb, toast, T, isAr, isTemp, fileLabel, rows, fil
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 7 }}>
           {cells.map((c, i) => (
-            <div key={i} style={{ background: 'rgba(0,0,0,.22)', border: '1px solid var(--bd)', borderRadius: 9, padding: '7px 9px' }}>
+            <div key={i} style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 9, padding: '7px 9px' }}>
               <span style={{ fontSize: 9, color: 'var(--tx4)', fontWeight: 600, display: 'block', marginBottom: 3 }}>{c.label}</span>
               <span style={{ fontSize: 11.5, color: 'var(--tx3)', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums', direction: 'ltr', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.value || '—'}</span>
             </div>
@@ -4925,7 +5156,7 @@ function TxnFacilityPickModal({ sb, toast, T, isAr, isTemp, fileLabel, rows, fil
         {cells.length > 0 && (
           <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(3, cells.length)},1fr)`, gap: 8 }}>
             {cells.map((c, i) => (
-              <div key={i} style={{ background: 'rgba(0,0,0,.18)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+              <div key={i} style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
                 <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{c.label}</span>
                 <span style={{ fontSize: 13, color: 'var(--tx2)', fontWeight: 600, direction: 'ltr', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.value}</span>
               </div>
@@ -5129,7 +5360,7 @@ function TxnIssuanceModal({ sb, user, toast, T, isAr, fileLabel, rows, metaOf, o
                   const m = metaOf(r)
                   const bv = borders[r.id] || ''
                   return (
-                    <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 10px', borderRadius: 9, background: 'rgba(0,0,0,.18)', border: '1px solid var(--bd)' }}>
+                    <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 10px', borderRadius: 9, background: 'var(--inputBg)', border: '1px solid var(--bd)' }}>
                       <span style={{ flexShrink: 0, width: 20, height: 20, borderRadius: '50%', background: 'rgba(176,125,0,.15)', border: '1px solid rgba(176,125,0,.35)', color: C.gold, fontSize: 10.5, fontWeight: 600, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontVariantNumeric: 'tabular-nums' }}>{m.idx}</span>
                       <div style={{ flex: 1, minWidth: 0, fontSize: 11.5, color: 'var(--tx1)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.nat}{m.sub ? <span style={{ color: 'var(--tx4)', fontWeight: 600 }}> · {m.sub}</span> : null}</div>
                       <input value={bv} onChange={e => { const d = e.target.value.replace(/\D/g, '').slice(0, 10); setBorders(s => ({ ...s, [r.id]: d })); setErr(null) }} dir="ltr" inputMode="numeric" maxLength={10} placeholder={T('رقم الحدود','Border No.')}
@@ -5228,7 +5459,7 @@ function TxnDistributeModal({ sb, toast, T, isAr, isTemp, visas, allDet, establi
   const FacNums = ({ f }) => (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
       {facCells(f).map((c, i) => (
-        <div key={i} style={{ background: 'rgba(0,0,0,.22)', border: '1px solid var(--bd)', borderRadius: 8, padding: '6px 8px' }}>
+        <div key={i} style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 8, padding: '6px 8px' }}>
           <span style={{ fontSize: 8.5, color: 'var(--tx4)', fontWeight: 600, display: 'block', marginBottom: 2, textAlign: 'right' }}>{c.label}</span>
           <span style={{ fontSize: 11, color: 'var(--tx3)', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums', direction: 'rtl', unicodeBidi: 'plaintext', display: 'block', textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.value || '—'}</span>
         </div>
@@ -5740,7 +5971,7 @@ const EntityHeroSkeleton = ({ cells = 3 }) => (
     </div>
     <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cells},1fr)`, gap: 8 }}>
       {Array.from({ length: cells }).map((_, i) => (
-        <div key={i} style={{ background: 'rgba(0,0,0,.18)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 7 }}>
+        <div key={i} style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 7 }}>
           <Shimmer w="55%" h={9} /><Shimmer w="80%" h={13} />
         </div>
       ))}
@@ -5750,7 +5981,7 @@ const EntityHeroSkeleton = ({ cells = 3 }) => (
 
 // A boxed "label + value" row placeholder, matching the inset rows used inside cards.
 const RowSkeleton = () => (
-  <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid var(--bd)', borderRadius: 10, padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+  <div style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
     <Shimmer w="30%" h={10} /><Shimmer w="24%" h={12} />
   </div>
 )
@@ -5789,7 +6020,7 @@ const TxnDetailLeftSkeleton = () => (
 const InstallmentsSkeleton = () => (
   <SkCard titleW={80} padding={14} gap={10}>
     {[0, 1].map(i => (
-      <div key={i} style={{ padding: '10px 12px', background: 'rgba(0,0,0,.18)', borderRadius: 10, border: '1px solid var(--bd2)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div key={i} style={{ padding: '10px 12px', background: 'var(--inputBg)', borderRadius: 10, border: '1px solid var(--bd2)', display: 'flex', flexDirection: 'column', gap: 8 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between' }}><Shimmer w="42%" h={10} /><Shimmer w="14%" h={10} /></div>
         <Shimmer w="100%" h={6} r={999} />
       </div>
@@ -5799,7 +6030,7 @@ const InstallmentsSkeleton = () => (
 
 // A single stat tile placeholder (label + value), matching the overview card tiles.
 const TileSkeleton = () => (
-  <div style={{ padding: '10px 12px', background: 'rgba(0,0,0,.18)', borderRadius: 10, border: '1px solid var(--bd2)', display: 'flex', flexDirection: 'column', gap: 7 }}>
+  <div style={{ padding: '10px 12px', background: 'var(--inputBg)', borderRadius: 10, border: '1px solid var(--bd2)', display: 'flex', flexDirection: 'column', gap: 7 }}>
     <Shimmer w="55%" h={9} /><Shimmer w="75%" h={13} />
   </div>
 )
@@ -5846,7 +6077,7 @@ const ChangeLog = ({ T, title, entries, actionLabel, renderDetail }) => {
         {title}
       </span>
       {[...entries].reverse().map((c, i) => (
-        <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 9, padding: '9px 11px', borderRadius: 10, background: 'rgba(0,0,0,.18)', border: '1px solid var(--bd)' }}>
+        <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 9, padding: '9px 11px', borderRadius: 10, background: 'var(--inputBg)', border: '1px solid var(--bd)' }}>
           <span style={{ flexShrink: 0, width: 22, height: 22, borderRadius: 7, background: 'rgba(176,125,0,.1)', border: '1px solid rgba(176,125,0,.28)', color: C.gold, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 1 }}>
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
           </span>
