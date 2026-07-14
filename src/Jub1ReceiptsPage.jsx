@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { ALL_SERVICES, SVC_CODE_MAP } from './ServiceRequestPage.jsx'
 import { can, isGM as isGmUser, cardVisible, canCardBtn, fieldVisible, fieldEditable, modalAllowed, stageVisible } from './lib/permissions.js'
+import { swrGet, swrSet, useLiveRefresh } from './lib/liveData.js'
 
 const TAB = 'jub1_receipts'
 
@@ -100,52 +101,69 @@ export default function Jub1ReceiptsPage({ sb, user, toast, lang = 'ar', emptyIc
 
   const isGM = user?.role?.name_ar === 'المدير العام'
 
-  // ── تحميل المراجع + القيود ─────────────────────────────────────────────
+  // ── تحميل المراجع + القيود (كاش جلسة: تُرسم فوراً ثم تُحدَّث صامتاً) ────────
+  const applyRefs = useCallback((refs) => {
+    setBranch(refs.branch || null)
+    setServices(refs.services || [])
+    setMethods(refs.methods || [])
+    setAgents(refs.agents || [])
+  }, [])
   const loadRefs = useCallback(async () => {
     const [{ data: br }, { data: cats }, { data: ag }] = await Promise.all([
       sb.from('branches').select('id,branch_code,name_ar').eq('branch_code', 'JUB1').maybeSingle(),
       sb.from('lookup_categories').select('id,name_ar').in('name_ar', ['نوع الخدمة', 'طريقة الدفع']),
       sb.from('agents').select('id,name_ar').is('deleted_at', null).order('name_ar').limit(1000),
     ])
-    setBranch(br || null)
     const svcCat = (cats || []).find(c => c.name_ar === 'نوع الخدمة')?.id
     const payCat = (cats || []).find(c => c.name_ar === 'طريقة الدفع')?.id
-    if (svcCat) {
-      const { data } = await sb.from('lookup_items').select('id,value_ar,code,is_active,sort_order').eq('category_id', svcCat).order('sort_order')
-      setServices((data || []).filter(x => x.is_active))
+    const [svcRes, payRes] = await Promise.all([
+      svcCat ? sb.from('lookup_items').select('id,value_ar,code,is_active,sort_order').eq('category_id', svcCat).order('sort_order') : Promise.resolve({ data: [] }),
+      payCat ? sb.from('lookup_items').select('id,value_ar,code,sort_order').eq('category_id', payCat).order('sort_order') : Promise.resolve({ data: [] }),
+    ])
+    const refs = {
+      branch: br || null,
+      services: (svcRes.data || []).filter(x => x.is_active),
+      methods: payRes.data || [],
+      agents: (ag || []).map(a => a.name_ar).filter(Boolean),
     }
-    if (payCat) {
-      const { data } = await sb.from('lookup_items').select('id,value_ar,code,sort_order').eq('category_id', payCat).order('sort_order')
-      setMethods(data || [])
-    }
-    setAgents((ag || []).map(a => a.name_ar).filter(Boolean))
-  }, [sb])
+    swrSet('jub1_refs', refs)
+    applyRefs(refs)
+  }, [sb, applyRefs])
 
   const loadEntries = useCallback(async () => {
-    setLoading(true)
+    // كاش الجلسة: لا سبينر إن كانت لدينا نتيجة سابقة — تُعرض فوراً ويحدّثها الجلب الصامت أدناه.
+    if (!swrGet('jub1_entries')) setLoading(true)
     const { data: rows } = await sb.from('jub1_receipts')
       .select('*').is('deleted_at', null).order('created_at', { ascending: false }).limit(5000)
     const ids = (rows || []).map(r => r.id)
-    let pays = []
+    // الدفعات والمرفقات معاً بالتوازي (كلاهما يعتمد على المعرّفات فقط)
+    let pays = [], atts = []
     if (ids.length) {
-      const { data } = await sb.from('jub1_receipt_payments').select('*').in('receipt_entry_id', ids)
-      pays = data || []
+      const [pRes, aRes] = await Promise.all([
+        sb.from('jub1_receipt_payments').select('*').in('receipt_entry_id', ids),
+        sb.from('attachments').select('entity_id').eq('entity_type', JUB1_ENTITY).in('entity_id', ids).is('deleted_at', null),
+      ])
+      pays = pRes.data || []
+      atts = aRes.data || []
     }
     const byEntry = {}
     pays.forEach(p => { (byEntry[p.receipt_entry_id] ||= []).push(p) })
-    // أي السندات لها صورة مرفقة (attachments) — لاحتساب «بدون صور»
     const withImg = new Set()
-    if (ids.length) {
-      const { data: atts } = await sb.from('attachments').select('entity_id').eq('entity_type', JUB1_ENTITY).in('entity_id', ids).is('deleted_at', null)
-      ;(atts || []).forEach(a => withImg.add(a.entity_id))
-    }
+    atts.forEach(a => withImg.add(a.entity_id))
     const merged = (rows || []).map(r => ({ ...r, payments: (byEntry[r.id] || []).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0)), _hasImage: withImg.has(r.id) }))
+    swrSet('jub1_entries', merged)
     setEntries(merged)
     setLoading(false)
   }, [sb])
 
-  useEffect(() => { loadRefs() }, [loadRefs])
-  useEffect(() => { loadEntries() }, [loadEntries])
+  // العرض الفوري من كاش الجلسة ثم تحديث صامت بالخلفية (نفس سرعة الفواتير)
+  useEffect(() => {
+    const cachedRefs = swrGet('jub1_refs'); if (cachedRefs) applyRefs(cachedRefs)
+    const cachedEntries = swrGet('jub1_entries'); if (cachedEntries) { setEntries(cachedEntries); setLoading(false) }
+    loadRefs(); loadEntries()
+  }, [loadRefs, loadEntries, applyRefs])
+  // تحديث تلقائي: أي إضافة/تعديل/حذف سند أو دفعة (من هذا الجهاز أو غيره) يعيد الجلب صامتاً.
+  useLiveRefresh(['jub1_receipts', 'jub1_receipt_payments'], loadEntries)
 
   // عدّاد أرقام السندات عبر كل الإدخالات — لكشف التكرار
   const sanadCounts = useMemo(() => {
