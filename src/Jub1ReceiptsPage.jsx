@@ -218,6 +218,7 @@ export default function Jub1ReceiptsPage({ sb, user, toast, lang = 'ar', emptyIc
   const filtered = useMemo(() => {
     const qq = q.trim().toLowerCase()
     const out = entries.filter(e => {
+      if (e.is_transfer_calc) return false   // حسبات التنازل ليست سندات — تُستبعد من القائمة
       if (statusSel.length && !statusSel.includes(e.review_status)) return false
       if (onlyFlagged && flagsOf(e).length === 0) return false
       if (from && (!e.receipt_date || e.receipt_date < from)) return false
@@ -756,6 +757,7 @@ const initDetailForm = (e) => ({
   primary_receipt_no: e.primary_receipt_no || '',
   receipt_date: e.receipt_date || '',
   notes: e.notes || '',
+  is_transfer_calc: !!e.is_transfer_calc,
   prevNos: String(e.previous_receipt_nos || '').split(/[،,;\s]+/).filter(Boolean),
   plan: Array.isArray(e.installment_plan) ? e.installment_plan.map(p => ({ _k: rid(), label: p.label || '', amount: p.amount != null && p.amount !== '' ? String(p.amount) : '', paid: !!p.paid })) : [],
   payments: (e.payments || []).map(p => ({ _k: rid(), sanad_no: p.sanad_no || '', pay_date: p.pay_date || '', amount: p.amount != null ? String(num(p.amount)) : '', method_code: p.method_code || '', is_previous: !!p.is_previous, notes: p.notes || '' })),
@@ -1000,18 +1002,18 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, T, sb, tt, u
   // مرتبطة فعلياً لكن رقمها غير مسجّل في القائمة — تُعرض كي لا يغيب شيء عن المراجع
   const matchedIds = useMemo(() => new Set(resolution.flatMap(r => r.matches.map(m => m.id))), [resolution])
   const extraLinked = useMemo(() => linkedRows.filter(r => !matchedIds.has(r.id)), [linkedRows, matchedIds])
-  // مطابقة بالهوية/الإقامة — سندات أخرى بنفس رقم الهوية/الإقامة (client_id_no).
-  // مفيدة لربط حسبة التنازل بسند القبض عندما لا يوجد رقم سند مشترك، بل نفس الشخص.
+  // حسبات التنازل المسجّلة لنفس العامل (نفس رقم الهوية/الإقامة) — تظهر داخل كرت «حسبة التنازل»
+  // في سندات نقل الكفالة، بدل أن تكون سنداً مستقلاً في القائمة.
   const idKey = norm(f.client_id_no)
-  const idMatches = useMemo(() => idKey.length >= 5
-    ? entries.filter(x => x.id !== e.id && !x.deleted_at && norm(x.client_id_no) === idKey)
-    : [], [entries, e.id, idKey])
+  const calcMatches = useMemo(() => (idKey.length >= 5 && !e.is_transfer_calc)
+    ? entries.filter(x => x.is_transfer_calc && x.id !== e.id && !x.deleted_at && norm(x.client_id_no) === idKey)
+    : [], [entries, e.id, idKey, e.is_transfer_calc])
   // قائمة مسطّحة لكل الظاهر (لتحميل الصور)
   const allShown = useMemo(() => {
     const seen = new Set(), out = []
-    ;[...linkedRows, ...resolution.flatMap(r => r.matches), ...idMatches].forEach(r => { if (!seen.has(r.id)) { seen.add(r.id); out.push(r) } })
+    ;[...linkedRows, ...resolution.flatMap(r => r.matches), ...calcMatches].forEach(r => { if (!seen.has(r.id)) { seen.add(r.id); out.push(r) } })
     return out
-  }, [linkedRows, resolution, idMatches])
+  }, [linkedRows, resolution, calcMatches])
   // الصورة الكاملة تظهر بعد اعتماد «مكتمل» — قبلها الخطوة هي تسجيل الأرقام فقط
   const linkResolved = e.review_status !== 'draft'
 
@@ -1065,6 +1067,7 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, T, sb, tt, u
       primary_receipt_no: f.primary_receipt_no || null,
       receipt_date: f.receipt_date || null,
       notes: f.notes || null,
+      is_transfer_calc: !!f.is_transfer_calc,
       previous_receipt_nos: f.prevNos.join('، ') || null,
       installment_plan: f.plan.map(({ _k, ...p }) => ({ label: p.label, amount: p.amount ? num(p.amount) : null, paid: !!p.paid })),
       transfer_calc: f.transfer_calc
@@ -1114,7 +1117,7 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, T, sb, tt, u
   const addTcField = () => setTc({ fields: [...((tc && tc.fields) || []), { _k: rid(), label: '', value: '' }] })
   const delTcField = (k) => setTc({ fields: (tc.fields || []).filter(x => x._k !== k) })
   const removeTc = () => setF(p => ({ ...p, transfer_calc: null }))
-  const showTc = f.service_code === 'transfer' || !!f.transfer_calc
+  const showTc = f.service_code === 'transfer' || !!f.transfer_calc || calcMatches.length > 0
 
   // ── أدوات عرض/إدخال (دوال تُستدعى — لا مكوّنات متداخلة كي لا يفقد الإدخال التركيز) ──
   const card = { borderRadius: 16, background: 'var(--card-grad2)', border: '1px solid var(--bd)', boxShadow: 'var(--shadow-sm)', padding: '16px 18px' }
@@ -1261,6 +1264,23 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, T, sb, tt, u
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {/* نوع السجل — «حسبة تنازل»: يُستبعد من القائمة/الإجماليات ويظهر في كرت «حسبة التنازل» لسندات نقل كفالة نفس العامل */}
+        <div style={{ ...card, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, ...(f.is_transfer_calc ? { border: '1px solid rgba(124,58,237,.45)', background: 'rgba(124,58,237,.05)' } : {}) }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 13.5, fontWeight: 700, color: f.is_transfer_calc ? '#7c3aed' : 'var(--tx)' }}>
+              <FileText size={15} /> {T('هذا السجل حسبة تنازل (وليس سند قبض)', 'This record is a transfer calculation (not a receipt)')}
+            </span>
+            <span style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 600, lineHeight: 1.6 }}>
+              {T('يُستبعد من قائمة السندات والإجماليات، وتظهر صورته في كرت «حسبة التنازل» لسندات نقل كفالة نفس العامل (مطابقة الهوية/الإقامة).', "Excluded from the receipts list & totals; shown in the “Transfer calculation” card of the same worker's transfer receipts (ID/Iqama match).")}
+            </span>
+          </div>
+          <button onClick={() => { if (canEditReceipt) set('is_transfer_calc', !f.is_transfer_calc) }} disabled={!canEditReceipt}
+            title={T('تبديل نوع السجل', 'Toggle record type')}
+            style={{ position: 'relative', width: 46, height: 26, borderRadius: 20, border: 'none', cursor: canEditReceipt ? 'pointer' : 'not-allowed', flexShrink: 0, direction: 'ltr', transition: '.15s', opacity: canEditReceipt ? 1 : .5, background: f.is_transfer_calc ? '#7c3aed' : 'rgba(120,120,120,.35)' }}>
+            <span style={{ position: 'absolute', top: 3, left: f.is_transfer_calc ? 23 : 3, width: 20, height: 20, borderRadius: '50%', background: '#fff', transition: 'left .15s', boxShadow: '0 1px 3px rgba(0,0,0,.3)' }} />
+          </button>
+        </div>
+
         {/* صورة السند */}
         <div style={cardStyle('receipt_image')}>
           {cardTitle(T('صورة السند', 'Receipt image'))}
@@ -1430,22 +1450,6 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, T, sb, tt, u
             </div>
           </div>
 
-          {/* مطابقة بالهوية/الإقامة — سندات بنفس رقم الهوية (client_id_no)؛ تربط حسبة التنازل بسند القبض للشخص نفسه */}
-          {idKey.length >= 5 && idMatches.length > 0 && (
-            <div style={{ marginTop: 12 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6, flexWrap: 'wrap' }}>
-                <User size={13} style={{ color: '#B07D00' }} />
-                <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--tx2)' }}>{T('سندات بنفس رقم الهوية/الإقامة', 'Receipts with the same ID / Iqama')}</span>
-                <span style={{ fontSize: 11.5, fontWeight: 700, color: '#B07D00', direction: 'ltr' }}>{idKey}</span>
-                <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tx4)' }}>({idMatches.length})</span>
-              </div>
-              <div style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 600, marginBottom: 8 }}>
-                {T('اربط حسبة التنازل بسند القبض للشخص نفسه (تطابق رقم الهوية/الإقامة).', 'Link a transfer calculation to the receipt voucher of the same person (ID / Iqama match).')}
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(230px,1fr))', gap: 8 }}>{idMatches.map(linkReceiptCard)}</div>
-            </div>
-          )}
-
           {!linkResolved ? (
             /* خطوة الاكتمال: تسجيل الأرقام فقط — الصورة الكاملة تُبنى بعد اعتماد «مكتمل» */
             <div style={{ marginTop: 12, padding: '12px 14px', borderRadius: 12, border: '1px dashed var(--bd)', fontSize: 11.5, color: 'var(--tx4)', fontWeight: 600, lineHeight: 1.8 }}>
@@ -1533,6 +1537,34 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, T, sb, tt, u
         {showTc && cardOn('transfer_calc') && (
           <div style={card}>
             {cardTitle(T('حسبة التنازل', 'Transfer calculation'), T('نقل الكفالة — ارفع الحسبة ثم اقرأها للمراجعة', 'Sponsorship transfer — upload then read for review'))}
+            {/* حسبات التنازل المسجّلة لنفس العامل (سجلات مُعلَّمة «حسبة تنازل» بنفس الهوية/الإقامة) */}
+            {calcMatches.length > 0 && (
+              <div style={{ marginBottom: 14 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
+                  <FileText size={13} style={{ color: '#7c3aed' }} />
+                  <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--tx2)' }}>{T('حسبة تنازل مسجّلة لنفس العامل', 'Transfer calc registered for this worker')}</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#7c3aed', direction: 'ltr' }}>{idKey}</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tx4)' }}>({calcMatches.length})</span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(170px,1fr))', gap: 8 }}>
+                  {calcMatches.map(c => {
+                    const img = imgByReceipt[c.id]
+                    return (
+                      <div key={c.id} onClick={() => onOpenLinked?.(c.id)} title={T('فتح حسبة التنازل', 'Open the calculation')}
+                        style={{ borderRadius: 12, border: '1px solid rgba(124,58,237,.4)', background: 'rgba(124,58,237,.05)', overflow: 'hidden', cursor: 'pointer', display: 'flex', flexDirection: 'column' }}>
+                        <div style={{ height: 130, background: 'var(--bd2)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                          {img ? <img src={img} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <FileText size={26} color="var(--tx5)" />}
+                        </div>
+                        <div style={{ padding: '8px 10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                          <span style={{ fontSize: 11.5, fontWeight: 700, color: '#7c3aed', direction: 'ltr' }}>#{c.primary_receipt_no || '—'}</span>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tx3)', direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{c.total_amount ? fmt(c.total_amount) : ''}</span>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
             <input ref={tcFileRef} type="file" accept="image/*,application/pdf" style={{ display: 'none' }}
               onChange={ev => { const file = ev.target.files?.[0]; ev.target.value = ''; uploadTc(file) }} />
             {!tc?.image_url ? (
