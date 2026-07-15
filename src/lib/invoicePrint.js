@@ -1,9 +1,14 @@
-// ⚠ AUTO-EXTRACTED from InvoicePage.jsx printInvoice() by scripts/extract-invoice-print.mjs.
-// Pure JS (no React / no DOM). Returns the full Royal Black & Gold 2-page A4 invoice
-// HTML document string. Shared by the React print button and the WhatsApp invoice bot
-// (rendered to PDF headlessly via Puppeteer). Keep this the single source of truth for
-// the invoice design — edit here, both consumers update.
+// Pure JS (no React / no DOM). Returns the full «العاجي والذهبي» (Ivory & Gold) 2-page A4
+// invoice HTML document string. Shared by the React print button and the WhatsApp invoice
+// bot (rendered to PDF headlessly via Puppeteer). This IS the source of truth for the
+// invoice design — edit here, both consumers update.
+//
+// ⚠ NOT auto-generated. It was originally sliced out of InvoicePage.jsx by the one-shot
+// scripts/extract-invoice-print.mjs, which has since gone stale (it slices hardcoded line
+// ranges that no longer hold the print code). Do NOT re-run it — it would overwrite this
+// file with garbage.
 import { noDash } from './utils.js'
+import { PRINT_PALETTE } from './printTheme.js'
 import { TXN_SERVICES } from '../pages/txnServices.js'
 import { DONE_INPUTS, SELF_PARTY_DONE_SVCS } from './doneInputs.js'
 
@@ -1049,7 +1054,7 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Reem+Kufi:wght@400;500;600;700&family=Tajawal:wght@300;400;500;700;800&family=Noto+Sans+Devanagari:wght@400;600;700&family=Noto+Sans+Bengali:wght@400;600;700&family=Noto+Naskh+Arabic:wght@400;600;700&family=Playfair+Display:wght@700&display=swap">
 <style>
-:root{--ink:#1a1a1a;--ink-soft:#4a4640;--charcoal:#14110b;--gold:#d4af37;--gold-deep:#b8932c;--gold-soft:#e8d49a;--gold-faint:#f6efdc;--paper:#fff;--line:#e4ddcb;--hair:#cdbf95;--ok:#1c7a4a;--ok-bg:#e7f3ec;--warn:#a8741a;--warn-bg:#fbf2dd;--no:#9a2f2f;--no-bg:#f6e6e6}
+${PRINT_PALETTE}
 *{margin:0;padding:0;box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact}
 html,body{background:#cfcfcf}
 body{font-family:'Tajawal','Noto Naskh Arabic','Noto Sans Devanagari','Noto Sans Bengali',sans-serif;color:var(--ink);font-size:12.5px;line-height:1.35;-webkit-font-smoothing:antialiased}
@@ -1062,7 +1067,7 @@ h1,h2,h3,h4,.kufi{font-family:'Reem Kufi','Tajawal',sans-serif}
 .page2 .pad{flex:1;display:flex;flex-direction:column}
 .page2-bottom{margin-top:auto}
 .pad{padding:0 14mm}
-.masthead{background:linear-gradient(135deg,#1f1a10 0%,#14110b 55%,#0e0b06 100%);color:#fff;padding:8mm 14mm 6mm;position:relative}
+.masthead{background:var(--panel);color:var(--ink);padding:8mm 14mm 6mm;position:relative;border-bottom:1px solid var(--line)}
 .masthead::after{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;background:linear-gradient(90deg,var(--gold-deep),var(--gold),var(--gold-soft),var(--gold),var(--gold-deep))}
 .masthead .corner{position:absolute;width:24px;height:24px;opacity:.9}
 .masthead .corner.tl{top:5mm;right:5mm;border-top:1.5px solid var(--gold);border-right:1.5px solid var(--gold)}
@@ -1072,53 +1077,53 @@ h1,h2,h3,h4,.kufi{font-family:'Reem Kufi','Tajawal',sans-serif}
 .inv-id .office-code{margin-top:7px;align-self:stretch;justify-content:center}
 .brand{display:flex;flex-direction:column;align-items:flex-start}
 .logo{width:120px;height:auto;display:block;margin-bottom:5px}
-.brand .group{font-family:'Playfair Display',serif;font-weight:600;font-size:23px;color:var(--gold);letter-spacing:.5px;direction:ltr;line-height:1.05;margin-bottom:16px}
-.brand .name-ar{font-family:'Reem Kufi',sans-serif;font-weight:600;font-size:16.5px;color:var(--gold-soft);letter-spacing:.3px;line-height:1.2}
-.brand .name-en{font-family:'Reem Kufi',sans-serif;font-weight:500;font-size:11px;color:#9b9482;letter-spacing:2.2px;margin-top:6px}
-.brand .meta{margin-top:auto;padding-top:10px;font-size:12px;color:#d8d2c2;line-height:1.45}
+.brand .group{font-family:'Playfair Display',serif;font-weight:600;font-size:23px;color:var(--gold-deep);letter-spacing:.5px;direction:ltr;line-height:1.05;margin-bottom:16px}
+.brand .name-ar{font-family:'Reem Kufi',sans-serif;font-weight:600;font-size:16.5px;color:var(--charcoal);letter-spacing:.3px;line-height:1.2}
+.brand .name-en{font-family:'Reem Kufi',sans-serif;font-weight:500;font-size:11px;color:var(--muted);letter-spacing:2.2px;margin-top:6px}
+.brand .meta{margin-top:auto;padding-top:10px;font-size:12px;color:var(--ink-soft);line-height:1.45}
 .brand .meta .ar{display:block}
-.brand .meta .en{display:block;color:#9b9482;font-size:10.5px;letter-spacing:.4px}
-.brand .meta .mob{display:flex;align-items:center;gap:6px;margin-top:1px;font-size:12.5px;color:var(--gold-soft)}
+.brand .meta .en{display:block;color:var(--muted);font-size:10.5px;letter-spacing:.4px}
+.brand .meta .mob{display:flex;align-items:center;gap:6px;margin-top:1px;font-size:12.5px;color:var(--gold-ink);font-weight:600}
 .inv-id{text-align:end;align-items:flex-end}
-.inv-id .tag{font-family:'Reem Kufi',sans-serif;font-size:13.5px;letter-spacing:1px;color:#fff;font-weight:600}
-.inv-id .tag-en{font-size:9.5px;letter-spacing:3px;color:#9b9482;display:block;margin-top:1px}
-.inv-id .no-box{margin-top:7px;border:1px solid var(--gold);background:rgba(212,175,55,.07);padding:6px 14px;display:block;text-align:center}
-.inv-id .no-lbl{font-size:9.5px;color:#b9b09a;letter-spacing:1.5px;display:block;text-align:left}
-.inv-id .no-val{font-family:'Reem Kufi',sans-serif;font-size:18px;color:var(--gold);font-weight:600}
-.inv-id .date-line{margin-top:6px;font-size:10.5px;color:#cfc8b6}
-.inv-id .date-line .num{color:#fff;font-weight:600}
-.office-code{display:inline-flex;align-items:center;gap:7px;margin-top:8px;padding:4px 14px;border:1px solid var(--gold);background:rgba(212,175,55,.08);color:var(--gold-soft);font-family:'Reem Kufi',sans-serif;font-weight:600;font-size:12px;letter-spacing:1px}
-.office-code .num{color:var(--gold);font-weight:600;font-size:13.5px}
+.inv-id .tag{font-family:'Reem Kufi',sans-serif;font-size:13.5px;letter-spacing:1px;color:var(--charcoal);font-weight:600}
+.inv-id .tag-en{font-size:9.5px;letter-spacing:3px;color:var(--muted);display:block;margin-top:1px}
+.inv-id .no-box{margin-top:7px;border:1.2px solid var(--gold-deep);background:var(--panel-2);padding:6px 14px;display:block;text-align:center}
+.inv-id .no-lbl{font-size:9.5px;color:var(--muted);letter-spacing:1.5px;display:block;text-align:left}
+.inv-id .no-val{font-family:'Reem Kufi',sans-serif;font-size:18px;color:var(--gold-deep);font-weight:600}
+.inv-id .date-line{margin-top:6px;font-size:10.5px;color:var(--ink-soft)}
+.inv-id .date-line .num{color:var(--charcoal);font-weight:600}
+.office-code{display:inline-flex;align-items:center;gap:7px;margin-top:8px;padding:4px 14px;border:1.2px solid var(--gold-deep);background:var(--panel-2);color:var(--gold-ink);font-family:'Reem Kufi',sans-serif;font-weight:600;font-size:12px;letter-spacing:1px}
+.office-code .num{color:var(--gold-deep);font-weight:600;font-size:13.5px}
 .hero-wrap{padding:3.5mm 14mm 0}
 .svc-type{display:flex;align-items:center;justify-content:center;gap:9px;margin-bottom:3.5mm}
 .svc-type .svc-name{font-family:'Reem Kufi',sans-serif;font-size:24px;font-weight:600;color:var(--charcoal);letter-spacing:.3px}
-.svc-type .svc-qty{font-family:'Reem Kufi',sans-serif;font-size:13.5px;font-weight:600;color:var(--gold);background:var(--charcoal);padding:2px 10px}
-.hero{background:linear-gradient(140deg,#1c1810 0%,#14110b 60%,#0c0904 100%);color:#fff;position:relative;padding:4mm 8mm 3.5mm;display:flex;gap:8mm;align-items:stretch;border:1px solid #2c2517}
-.hero::before{content:"";position:absolute;inset:0;border:1px solid rgba(212,175,55,.32);margin:5px;pointer-events:none}
+.svc-type .svc-qty{font-family:'Reem Kufi',sans-serif;font-size:13.5px;font-weight:600;color:var(--charcoal);background:var(--gold);padding:2px 10px}
+.hero{background:var(--panel-2);color:var(--ink);position:relative;padding:4mm 8mm 3.5mm;display:flex;gap:8mm;align-items:stretch;border:1.4px solid var(--gold-deep)}
+.hero::before{content:"";position:absolute;inset:0;border:1px solid rgba(168,128,31,.45);margin:5px;pointer-events:none}
 .hero .corner{position:absolute;width:20px;height:20px;z-index:2}
 .hero .corner.tl{top:0;right:0;border-top:2px solid var(--gold);border-right:2px solid var(--gold)}
 .hero .corner.tr{top:0;left:0;border-top:2px solid var(--gold);border-left:2px solid var(--gold)}
 .hero .corner.bl{bottom:0;right:0;border-bottom:2px solid var(--gold);border-right:2px solid var(--gold)}
 .hero .corner.br{bottom:0;left:0;border-bottom:2px solid var(--gold);border-left:2px solid var(--gold)}
 .hero-main{flex:0 0 auto;min-width:72mm;position:relative;z-index:1}
-.hero-eyebrow{display:flex;align-items:center;gap:8px;font-family:'Reem Kufi',sans-serif;font-weight:600;font-size:15.5px;letter-spacing:.5px;color:var(--gold-soft)}
-.hero-eyebrow .star{color:var(--gold);font-size:14.5px}
-.hero-eyebrow .en{font-family:'Reem Kufi',sans-serif;font-size:9.5px;letter-spacing:2.5px;color:#8d856f}
+.hero-eyebrow{display:flex;align-items:center;gap:8px;font-family:'Reem Kufi',sans-serif;font-weight:600;font-size:15.5px;letter-spacing:.5px;color:var(--gold-ink)}
+.hero-eyebrow .star{color:var(--gold-deep);font-size:14.5px}
+.hero-eyebrow .en{font-family:'Reem Kufi',sans-serif;font-size:9.5px;letter-spacing:2.5px;color:var(--muted)}
 .hero-amount{display:flex;align-items:baseline;gap:9px;margin-top:3px}
-.hero-amount .val{font-family:'Reem Kufi',sans-serif;font-weight:600;font-size:42px;line-height:1;color:var(--gold);letter-spacing:.5px;text-shadow:0 1px 0 rgba(0,0,0,.4)}
-.hero-amount .cur{font-size:19px;color:var(--gold-soft);font-weight:500;font-family:'Reem Kufi',sans-serif}
+.hero-amount .val{font-family:'Reem Kufi',sans-serif;font-weight:600;font-size:42px;line-height:1;color:var(--gold-deep);letter-spacing:.5px}
+.hero-amount .cur{font-size:19px;color:var(--gold-ink);font-weight:500;font-family:'Reem Kufi',sans-serif}
 .riyal{margin-inline-start:5px;white-space:nowrap}
 .flag{width:21px;height:14px;object-fit:cover;border-radius:2px;box-shadow:0 0 0 1px rgba(0,0,0,.18);vertical-align:middle;margin-inline-start:7px}
 .nat-txt{font-size:11px;color:var(--gold-deep);font-weight:600;margin-inline-start:6px}
-.hero-sub{margin-top:5px;font-size:11px;color:#cdc6b4}
-.hero-sub b{color:#fff;font-weight:600}
-.hero-side{flex:1;position:relative;z-index:1;display:grid;grid-template-columns:1fr 1fr;align-content:center;border-inline-start:1px solid rgba(212,175,55,.25);padding-inline-start:8mm;margin-inline-start:2mm}
+.hero-sub{margin-top:5px;font-size:11px;color:var(--ink-soft)}
+.hero-sub b{color:var(--charcoal);font-weight:600}
+.hero-side{flex:1;position:relative;z-index:1;display:grid;grid-template-columns:1fr 1fr;align-content:center;border-inline-start:1px solid var(--hair);padding-inline-start:8mm;margin-inline-start:2mm}
 .hero-fact{padding:4px 10px 4px 0}
-.hero-fact .k{font-size:10.5px;color:var(--gold-soft);letter-spacing:1.2px;font-family:'Reem Kufi',sans-serif;font-weight:600}
-.hero-fact .v{font-size:14px;color:#fff;font-weight:600;margin-top:2px}
-.hero-fact.full{grid-column:1 / -1;border-top:1px solid rgba(255,255,255,.08);margin-top:3px;padding-top:6px}
-.hero-fact.full .k{color:var(--gold-soft);font-size:10.5px;font-weight:600}
-.hero-fact .v.remain{color:#D83A3A;font-family:'Reem Kufi',sans-serif;font-size:19px}
+.hero-fact .k{font-size:10.5px;color:var(--gold-ink);letter-spacing:1.2px;font-family:'Reem Kufi',sans-serif;font-weight:600}
+.hero-fact .v{font-size:14px;color:var(--charcoal);font-weight:600;margin-top:2px}
+.hero-fact.full{grid-column:1 / -1;border-top:1px solid var(--hair);margin-top:3px;padding-top:6px}
+.hero-fact.full .k{color:var(--gold-ink);font-size:10.5px;font-weight:600}
+.hero-fact .v.remain{color:var(--no);font-family:'Reem Kufi',sans-serif;font-size:19px}
 .sec-title{display:flex;align-items:center;gap:9px;margin:4.5mm 0 2.5mm}
 .sec-title .bar{width:4px;height:14px;background:var(--gold)}
 .sec-title h3{font-family:'Reem Kufi',sans-serif;font-weight:600;font-size:14px;color:var(--charcoal);letter-spacing:.3px}
@@ -1148,8 +1153,8 @@ h1,h2,h3,h4,.kufi{font-family:'Reem Kufi','Tajawal',sans-serif}
 .service-row{display:flex;justify-content:space-between;align-items:center}
 .service-name{font-family:'Reem Kufi',sans-serif;font-size:14.5px;color:var(--charcoal);font-weight:600}
 .service-en{font-size:9.5px;color:#a99a6c;letter-spacing:1px;margin-top:1px}
-.qty-badge{background:var(--charcoal);color:var(--gold);font-family:'Reem Kufi',sans-serif;font-weight:600;padding:5px 14px;font-size:14px;display:flex;align-items:center;gap:7px}
-.qty-badge .lbl{font-size:9.5px;color:#c9bf9f;font-weight:400;letter-spacing:1px}
+.qty-badge{background:var(--gold);color:var(--charcoal);font-family:'Reem Kufi',sans-serif;font-weight:600;padding:5px 14px;font-size:14px;display:flex;align-items:center;gap:7px}
+.qty-badge .lbl{font-size:9.5px;color:rgba(20,17,11,.62);font-weight:400;letter-spacing:1px}
 .fd{margin-top:1mm}
 .fd-file{margin-bottom:2mm}
 .fd-flabel{display:flex;justify-content:space-between;align-items:baseline;font-family:'Reem Kufi',sans-serif;font-size:11.5px;color:var(--gold-deep);font-weight:600;margin-bottom:1mm}
@@ -1174,7 +1179,7 @@ h1,h2,h3,h4,.kufi{font-family:'Reem Kufi','Tajawal',sans-serif}
 .fd-tag.visa{color:var(--warn);background:var(--warn-bg);border-inline-start-color:var(--warn)}
 .fd-tag.pending{color:#1f7bc4;background:#e6f1fb;border-inline-start-color:#1f7bc4}
 table{width:100%;border-collapse:collapse}
-thead th{background:var(--charcoal);color:var(--gold-soft);font-family:'Reem Kufi',sans-serif;font-weight:500;font-size:10.5px;letter-spacing:.5px;padding:5.5px 9px;text-align:start}
+thead th{background:var(--panel-2);color:var(--charcoal);border-bottom:1.5px solid var(--gold-deep);font-family:'Reem Kufi',sans-serif;font-weight:600;font-size:10.5px;letter-spacing:.5px;padding:5.5px 9px;text-align:start}
 thead th.c{text-align:center}
 thead th.l{text-align:end}
 tbody td{padding:5.5px 9px;font-size:11.5px;border-bottom:1px solid var(--line);color:var(--ink)}
@@ -1194,33 +1199,33 @@ td .amt{font-weight:600}
 .latest-tag.no{background:var(--no);color:#fff}
 .price-summary{display:grid;grid-template-columns:1.25fr 1fr;gap:6mm;align-items:start}
 .price-table tbody td{font-size:11.5px}
-.price-table .total-row td{background:var(--charcoal);color:var(--gold);font-family:'Reem Kufi',sans-serif;font-weight:600;font-size:14px;border-bottom:0}
-.price-table .total-row td .num{color:var(--gold-soft)}
+.price-table .total-row td{background:var(--panel-3);color:var(--charcoal);border-top:2px solid var(--gold-deep);font-family:'Reem Kufi',sans-serif;font-weight:600;font-size:14px;border-bottom:0}
+.price-table .total-row td .num{color:var(--charcoal)}
 .price-table .sub-row td{background:var(--gold-faint);color:var(--gold-deep);font-weight:600;font-size:12.5px}
 .price-table .sub-row td .num{color:var(--gold-deep)}
 .price-table .disc-row td{color:var(--ok);font-weight:600}
 .price-table .disc-row td .num{color:var(--ok)}
-.summary-card{border:1px solid var(--charcoal);background:linear-gradient(160deg,#1c1810,#14110b);color:#fff;padding:3mm 5mm}
-.summary-card .sum-row{display:flex;justify-content:space-between;align-items:baseline;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.09)}
-.summary-card .sum-row .k{font-size:11.5px;color:#c9c0aa;font-family:'Reem Kufi',sans-serif}
-.summary-card .sum-row .v{font-size:14.5px;font-weight:600;color:#E6B43C}
-.summary-card .sum-row.paid .v{color:#2FA85A}
-.summary-card .sum-row.paid .k{color:#2FA85A}
-.summary-card .sum-row.remain{border-bottom:0;margin-top:1px;padding-top:5px;border-top:1.5px solid var(--gold)}
-.summary-card .sum-row.remain .k{color:var(--gold-soft);font-size:13px}
-.summary-card .sum-row.remain .v{color:#D83A3A;font-family:'Reem Kufi',sans-serif;font-size:19px}
+.summary-card{border:1.4px solid var(--gold-deep);background:var(--panel-2);color:var(--ink);padding:3mm 5mm}
+.summary-card .sum-row{display:flex;justify-content:space-between;align-items:baseline;padding:3px 0;border-bottom:1px solid rgba(20,17,11,.10)}
+.summary-card .sum-row .k{font-size:11.5px;color:var(--ink-soft);font-family:'Reem Kufi',sans-serif}
+.summary-card .sum-row .v{font-size:14.5px;font-weight:600;color:var(--charcoal)}
+.summary-card .sum-row.paid .v{color:var(--ok)}
+.summary-card .sum-row.paid .k{color:var(--ok)}
+.summary-card .sum-row.remain{border-bottom:0;margin-top:1px;padding-top:5px;border-top:1.5px solid var(--gold-deep)}
+.summary-card .sum-row.remain .k{color:var(--gold-ink);font-size:13px}
+.summary-card .sum-row.remain .v{color:var(--no);font-family:'Reem Kufi',sans-serif;font-size:19px}
 .progress{margin-top:2.5mm}
-.progress .track{height:6px;background:rgba(255,255,255,.12);position:relative;overflow:hidden}
+.progress .track{height:6px;background:#e7dcbf;position:relative;overflow:hidden}
 .progress .fill{position:absolute;top:0;inset-inline-start:0;bottom:0;background:linear-gradient(90deg,var(--gold-deep),var(--gold))}
-.progress .cap{display:flex;justify-content:space-between;margin-top:4px;font-size:10px;color:#b3a983}
-.progress .cap b{color:var(--gold-soft)}
+.progress .cap{display:flex;justify-content:space-between;margin-top:4px;font-size:10px;color:var(--ink-soft)}
+.progress .cap b{color:var(--gold-ink)}
 .bank-card{border:1px solid var(--line);border-inline-start:3px solid var(--gold);background:var(--gold-faint);padding:3.5mm 4mm 3mm}
 .note-card{font-size:11.5px;line-height:1.6;color:var(--ink);white-space:pre-wrap}
-.notice{margin-top:3mm;background:var(--charcoal);color:#e9e2cf;padding:2.5mm 6mm;position:relative}
+.notice{margin-top:3mm;background:var(--panel-2);color:var(--ink);padding:2.5mm 6mm;position:relative;border:1px solid var(--hair)}
 .notice::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--gold-deep),var(--gold),var(--gold-deep))}
-.notice .ttl{font-family:'Reem Kufi',sans-serif;font-weight:600;color:var(--gold);font-size:11.5px;letter-spacing:.5px;margin-bottom:1.5px;display:flex;align-items:center;gap:7px}
-.notice .ar{font-size:10px;line-height:1.4;color:#ddd5c1}
-.notice .en{font-size:9.5px;line-height:1.5;color:#9b937e;direction:ltr;text-align:left;margin-top:4px;border-top:1px solid rgba(255,255,255,.08);padding-top:4px}
+.notice .ttl{font-family:'Reem Kufi',sans-serif;font-weight:600;color:var(--gold-deep);font-size:11.5px;letter-spacing:.5px;margin-bottom:1.5px;display:flex;align-items:center;gap:7px}
+.notice .ar{font-size:10px;line-height:1.4;color:var(--ink-soft)}
+.notice .en{font-size:9.5px;line-height:1.5;color:var(--muted);direction:ltr;text-align:left;margin-top:4px;border-top:1px solid rgba(20,17,11,.10);padding-top:4px}
 .footer-bar{display:flex;justify-content:space-between;align-items:center;padding:4mm 0;font-size:10px;color:#8a826b}
 .footer-bar .kufi{color:var(--gold-deep);letter-spacing:1px}
 .footer-bar .agent-foot{color:#a89f88;font-size:9px;opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60mm}
@@ -1230,22 +1235,22 @@ td .amt{font-weight:600}
 /* فوتر الصفحة الأولى داخل التدفّق ومدفوع لأسفل الصفحة (margin-top:auto) بدل تموضع مطلق — فلا يتداخل مع
    جداول الدفعات/المدفوعات مهما طالت، ويظلّ ملتصقاً بأسفل الصفحة حين يكون المحتوى قصيراً. */
 .page-foot{margin-top:auto;padding:0 14mm 5mm}
-.mini-head{background:linear-gradient(135deg,#1f1a10,#14110b);color:#fff;padding:5mm 14mm;display:flex;justify-content:space-between;align-items:center;position:relative}
+.mini-head{background:var(--panel);color:var(--ink);padding:5mm 14mm;display:flex;justify-content:space-between;align-items:center;position:relative;border-bottom:1px solid var(--line)}
 .mini-head::after{content:"";position:absolute;left:0;right:0;bottom:0;height:2.5px;background:linear-gradient(90deg,var(--gold-deep),var(--gold),var(--gold-deep))}
 .mini-head .l-side{display:flex;align-items:center;gap:11px}
 .mini-head .logo{width:78px;margin-bottom:0}
-.mini-head .mh-name{font-family:'Reem Kufi',sans-serif;font-weight:600;color:var(--gold);font-size:14.5px}
-.mini-head .mh-en{font-size:9px;color:#9b9482;letter-spacing:2px}
+.mini-head .mh-name{font-family:'Reem Kufi',sans-serif;font-weight:600;color:var(--gold-deep);font-size:14.5px}
+.mini-head .mh-en{font-size:9px;color:var(--muted);letter-spacing:2px}
 .mini-head .mh-inv{text-align:left}
-.mini-head .mh-inv .l{font-size:9.5px;color:#b9b09a;letter-spacing:1px}
-.mini-head .mh-inv .v{font-family:'Reem Kufi',sans-serif;color:var(--gold);font-weight:600;font-size:14.5px}
+.mini-head .mh-inv .l{font-size:9.5px;color:var(--muted);letter-spacing:1px}
+.mini-head .mh-inv .v{font-family:'Reem Kufi',sans-serif;color:var(--gold-deep);font-weight:600;font-size:14.5px}
 .page-num{text-align:center;font-size:9.5px;color:#a99a6c;letter-spacing:1px;padding:5mm 14mm 7mm}
 .page-num .kufi{color:var(--gold-deep)}
 .cancel-wm{position:absolute;top:46%;left:50%;transform:translate(-50%,-50%) rotate(-24deg);font-family:'Reem Kufi',sans-serif;font-size:120px;font-weight:600;color:rgba(154,47,47,.10);letter-spacing:8px;white-space:nowrap;pointer-events:none;z-index:5}
 .paid-wm{position:absolute;top:46%;left:50%;transform:translate(-50%,-50%) rotate(-24deg);font-family:'Reem Kufi',sans-serif;font-size:96px;font-weight:600;color:rgba(28,122,74,.10);letter-spacing:6px;white-space:nowrap;pointer-events:none;z-index:5}
 .zero-banner{border:1.4px solid var(--hair);border-radius:11px;overflow:hidden;display:flex;align-items:stretch;background:#fff}
-.zero-banner .zb-left{background:var(--charcoal);padding:5mm 7mm;display:flex;align-items:center;justify-content:center;text-align:center;min-width:46mm}
-.zero-banner .zb-badge{font-family:'Reem Kufi',sans-serif;font-weight:600;font-size:15px;letter-spacing:1px;color:var(--gold)}
+.zero-banner .zb-left{background:var(--panel-2);border-inline-end:1.4px solid var(--gold-deep);padding:5mm 7mm;display:flex;align-items:center;justify-content:center;text-align:center;min-width:46mm}
+.zero-banner .zb-badge{font-family:'Reem Kufi',sans-serif;font-weight:600;font-size:15px;letter-spacing:1px;color:var(--gold-deep)}
 .zero-banner .zb-right{flex:1;padding:5mm 7mm;display:flex;flex-direction:column;justify-content:center}
 .zero-banner .zb-svc{font-family:'Reem Kufi',sans-serif;font-size:17px;font-weight:600;color:var(--charcoal);margin-bottom:2mm}
 .zero-banner .zb-note{font-size:11px;color:var(--ink-soft);line-height:1.55}
