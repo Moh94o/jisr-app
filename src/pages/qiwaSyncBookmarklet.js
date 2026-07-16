@@ -1282,9 +1282,18 @@ function body({ sourceId, personId }) {
     // so all facilities show Qiwa data after a single sync instead of needing
     // each company opened individually.
     // CORS: establishment-file-api only allows establishment-information.qiwa.sa,
-    // so we probe first and skip the sweep (with a hint) when unreachable.
-    if (companies.length > 0) {
-      const probe = companies.find(c => c.company_labor_office_id && c.company_sequence_number);
+    // while the workspaces list (/context/workspaces-v2/new) is CORS-blocked
+    // there — so the two can't be fetched from the same origin in one run.
+    // The sweep therefore reads the company list from Supabase (already synced
+    // from auth/dashboard) rather than this run's in-memory list, so it works
+    // when run from establishment-information.qiwa.sa. Probe reachability first.
+    let sweepList = companies;
+    if (!sweepList.length) {
+      const lr = await supaFetch('/rest/v1/qiwa_companies?select=company_id,company_labor_office_id,company_sequence_number&limit=5000');
+      if (lr.ok) { try { sweepList = await lr.json(); } catch { sweepList = []; } }
+    }
+    if (sweepList.length > 0) {
+      const probe = sweepList.find(c => c.company_labor_office_id && c.company_sequence_number);
       let fileReachable = false;
       if (probe) {
         const pr = await qiwaGet(API_FILE + '/api/establishments/' + encodeURIComponent(probe.company_labor_office_id + '-' + probe.company_sequence_number) + '/');
@@ -1293,13 +1302,13 @@ function body({ sourceId, personId }) {
       if (!fileReachable) {
         msg('⚠️ لجلب تفاصيل كل المنشآت: افتح establishment-information.qiwa.sa ثم زامن');
       } else {
-        msg('جلب تفاصيل ملفات كل المنشآت (' + companies.length + ')...');
+        msg('جلب تفاصيل ملفات كل المنشآت (' + sweepList.length + ')...');
         let fIdx = 0, fDone = 0, fOk = 0;
         const FCONC = 3;
         const fileWorker = async () => {
-          while (fIdx < companies.length) {
+          while (fIdx < sweepList.length) {
             const i = fIdx++;
-            const c = companies[i];
+            const c = sweepList[i];
             if (!c.company_labor_office_id || !c.company_sequence_number) { fDone++; continue; }
             const eid = encodeURIComponent(c.company_labor_office_id + '-' + c.company_sequence_number);
             const [d0, dg, dv, dvs, dvp, dh, da] = await Promise.all([
@@ -1374,8 +1383,8 @@ function body({ sourceId, personId }) {
             });
             if (up.ok) fOk++;
             fDone++;
-            if (fDone % 10 === 0 || fDone === companies.length) {
-              msg('ملفات المنشآت: ' + fDone + '/' + companies.length + ' · نجح ' + fOk);
+            if (fDone % 10 === 0 || fDone === sweepList.length) {
+              msg('ملفات المنشآت: ' + fDone + '/' + sweepList.length + ' · نجح ' + fOk);
             }
           }
         };
