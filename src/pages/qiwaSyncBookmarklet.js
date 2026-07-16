@@ -1294,20 +1294,31 @@ function body({ sourceId, personId }) {
       if (lr.ok) { try { sweepList = await lr.json(); } catch { sweepList = []; } }
     }
     if (!Array.isArray(sweepList)) sweepList = [];
+    // establishment-file-api serves ONLY the establishment currently active in
+    // the Qiwa session — any other id returns 403 COMPANY_ATTRIBUTES_MISMATCH.
+    // The active company is switched server-side (against the session cookie)
+    // by PATCH /context/company/{internal company_id}. So the sweep activates
+    // each company before reading its file, and MUST run serially (the active
+    // company is global session state — concurrent switches would race).
+    const switchCtx = async (companyId) => {
+      if (!companyId) return false;
+      try { const r = await fetch(API_CORE + '/context/company/' + companyId, { method: 'PATCH', credentials: 'include', headers: { 'Accept': 'application/json' } }); return r.ok; }
+      catch (e) { return false; }
+    };
+    // Remember the originally-active company so we can restore it at the end.
+    let originalCompanyId = null;
+    try { const cc = await qiwaGet(API_CORE + '/context/company'); if (cc.ok && cc.data && cc.data.data) originalCompanyId = cc.data.data.id; } catch (e) {}
     if (sweepList.length > 0) {
-      const probe = sweepList.find(c => c.company_labor_office_id && c.company_sequence_number);
+      const probe = sweepList.find(c => c.company_labor_office_id && c.company_sequence_number && c.company_id);
       let fileReachable = false, fileTok = null, pr = null;
       if (probe) {
         const probeUrl = API_FILE + '/api/establishments/' + encodeURIComponent(probe.company_labor_office_id + '-' + probe.company_sequence_number) + '/';
+        // Activate the probe company first, then read its file — this is the
+        // real reachability test (origin CORS + context-switch both working).
+        await switchCtx(probe.company_id);
         pr = await qiwaGet(probeUrl);
         if (pr.jwt && !jwtStr) jwtStr = pr.jwt;
         fileReachable = pr.ok && pr.data && !!pr.data.establishment_information;
-        // Cookie auth rejected but a JWT was captured this run — retry with the
-        // Authorization header and keep using it for the whole sweep if it works.
-        if (!fileReachable && jwtStr && (!pr.ok || pr.status === 401 || pr.status === 403)) {
-          const pr2 = await qiwaGet(probeUrl, jwtStr);
-          if (pr2.ok && pr2.data && pr2.data.establishment_information) { fileReachable = true; fileTok = jwtStr; pr = pr2; }
-        }
       }
       if (!fileReachable) {
         // Say exactly why, so a screenshot of the toast is enough to diagnose:
@@ -1362,22 +1373,31 @@ function body({ sourceId, personId }) {
       } else {
         msg('جلب تفاصيل ملفات كل المنشآت (' + sweepList.length + ')...');
         let fIdx = 0, fDone = 0, fOk = 0;
-        const FCONC = 3;
+        // Serial: only one company can be the active session context at a time.
+        const FCONC = 1;
+        const fetchFile = (eid) => Promise.all([
+          qiwaGet(API_FILE + '/api/establishments/' + eid + '/', fileTok),
+          qiwaGet(API_FILE + '/api/establishments/' + eid + '/financial-information/general', fileTok),
+          qiwaGet(API_FILE + '/api/establishments/' + eid + '/violation-statistics', fileTok),
+          qiwaGet(API_FILE + '/api/establishments/' + eid + '/visa-balance/seasonal-work-visas', fileTok),
+          qiwaGet(API_FILE + '/api/establishments/' + eid + '/visa-balance/permanent-work-visas', fileTok),
+          qiwaGet(API_FILE + '/api/establishments/' + eid + '/workers-housing-license', fileTok),
+          qiwaGet(API_FILE + '/api/establishments/' + eid + '/financial-information/account', fileTok),
+        ]);
         const fileWorker = async () => {
           while (fIdx < sweepList.length) {
             const i = fIdx++;
             const c = sweepList[i];
-            if (!c.company_labor_office_id || !c.company_sequence_number) { fDone++; continue; }
+            if (!c.company_labor_office_id || !c.company_sequence_number || !c.company_id) { fDone++; continue; }
             const eid = encodeURIComponent(c.company_labor_office_id + '-' + c.company_sequence_number);
-            const [d0, dg, dv, dvs, dvp, dh, da] = await Promise.all([
-              qiwaGet(API_FILE + '/api/establishments/' + eid + '/', fileTok),
-              qiwaGet(API_FILE + '/api/establishments/' + eid + '/financial-information/general', fileTok),
-              qiwaGet(API_FILE + '/api/establishments/' + eid + '/violation-statistics', fileTok),
-              qiwaGet(API_FILE + '/api/establishments/' + eid + '/visa-balance/seasonal-work-visas', fileTok),
-              qiwaGet(API_FILE + '/api/establishments/' + eid + '/visa-balance/permanent-work-visas', fileTok),
-              qiwaGet(API_FILE + '/api/establishments/' + eid + '/workers-housing-license', fileTok),
-              qiwaGet(API_FILE + '/api/establishments/' + eid + '/financial-information/account', fileTok),
-            ]);
+            // Activate this company, then read its file under the active context.
+            await switchCtx(c.company_id);
+            let [d0, dg, dv, dvs, dvp, dh, da] = await fetchFile(eid);
+            // 403 = context switch hadn't propagated yet; re-switch and retry once.
+            if (d0 && d0.status === 403) {
+              await switchCtx(c.company_id);
+              [d0, dg, dv, dvs, dvp, dh, da] = await fetchFile(eid);
+            }
             // Skip when the core registry endpoint has no data (expired/blocked).
             if (!d0.ok || !d0.data || !d0.data.establishment_information) { fDone++; continue; }
             const info = d0.data.establishment_information || {};
@@ -1452,6 +1472,9 @@ function body({ sourceId, personId }) {
     } else {
       fileResult = '⚠️ لا توجد قائمة منشآت (زامن من auth.qiwa.sa أولاً)';
     }
+    // Restore the company the user originally had active, so the sweep leaves
+    // the session where they left it.
+    if (originalCompanyId) await switchCtx(originalCompanyId);
 
     // Per-company laborer sweep — fetches wp/laborers for ALL workspaces, not
     // just the active company. The /api/v1/work-permits/laborers endpoint
