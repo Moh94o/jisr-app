@@ -1578,13 +1578,98 @@ function body({ sourceId, personId }) {
     // run; always leave the session on the user's original company.
     if (originalCompanyId) await switchCtx(originalCompanyId);
 
+    // Per-company visa sweep — visa-proxy (api.qiwa.sa) is context-scoped and
+    // its Qiwa Gateway allows only auth/dashboard origins (403 elsewhere), so
+    // this is the dashboard.qiwa.sa half. Writes per-request rows +, N+1, the
+    // per-visa border-number breakdown — the same shape the active-company path
+    // stores, but for every company via context switching.
+    let visaLabel = '';
+    let visaReachable = false, visaProbeErr = null;
+    if (sweepList.length > 0) {
+      const p0 = sweepList.find(c => c.company_id);
+      if (p0) {
+        await switchCtx(p0.company_id);
+        const pr = await qiwaGet(API_CORE + '/visa-proxy/v3/visa-requests?sort_by=desc&page=1&per=1');
+        visaReachable = pr.ok && pr.data && Array.isArray(pr.data.data);
+        visaProbeErr = pr.error ? 'CORS/شبكة' : pr.ok ? null : 'HTTP ' + (pr.status || '?');
+      }
+    }
+    if (sweepList.length > 0 && visaReachable) {
+      msg('جلب تأشيرات كل المنشآت (' + sweepList.length + ')...');
+      let vIdx = 0, vDone = 0, visaSeen = 0;
+      const visaWorker = async () => {
+        while (vIdx < sweepList.length) {
+          const i = vIdx++;
+          const c = sweepList[i];
+          if (!c.company_id) { vDone++; continue; }
+          await switchCtx(c.company_id);
+          let vr = await qiwaGet(API_CORE + '/visa-proxy/v3/visa-requests?sort_by=desc&page=1&per=1000');
+          if (vr.status === 403) { await switchCtx(c.company_id); vr = await qiwaGet(API_CORE + '/visa-proxy/v3/visa-requests?sort_by=desc&page=1&per=1000'); }
+          const list = (vr.ok && vr.data && Array.isArray(vr.data.data)) ? vr.data.data : [];
+          if (list.length) {
+            const reqRows = list.map(r => ({
+              id: r.id, company_id: c.company_id,
+              request_id: r.request_id || null, type_id: r.type_id || null, type_name: r.type_name || null,
+              subtype: r.subtype || null, status: r.status || null,
+              starting_date: r.starting_date || null, approval_date: r.approval_date || null,
+              closing_date: r.closing_date || null, rejection_reason: r.rejection_reason || null,
+              visa_number: r.visa_number || null, visa_number_sum: r.visa_number_sum ?? null,
+              raw: r, synced_at: new Date().toISOString(),
+            }));
+            await supaFetch('/rest/v1/qiwa_visa_requests?on_conflict=id', {
+              method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+              body: JSON.stringify(reqRows),
+            });
+            visaSeen += reqRows.length;
+            // Border-number detail per request (context is still this company).
+            const bnRows = [];
+            for (const r of list) {
+              const reqId = r.request_id; if (!reqId) continue;
+              const rt = r.type_id || '1';
+              const bn = await qiwaGet(API_CORE + '/visa-proxy/v3/visa-requests/' + encodeURIComponent(reqId) + '/border-numbers?page=1&request_type=' + encodeURIComponent(rt) + '&per=1000');
+              if (!bn.ok || !bn.data || !Array.isArray(bn.data.data)) continue;
+              for (const b of bn.data.data) {
+                if (b.number == null) continue;
+                bnRows.push({
+                  company_id: c.company_id, request_id: String(reqId), border_number: String(b.number),
+                  border_row_id: b.id ?? null,
+                  gender_code: b.gender?.code || null, gender_ar: b.gender?.name_ar || null, gender_en: b.gender?.name_en || null,
+                  nationality_code: b.national?.code || null, nationality_ar: b.national?.name_ar || null, nationality_en: b.national?.name_en || null,
+                  occupation_code: b.occupation?.code || null, occupation_ar: b.occupation?.name_ar || null, occupation_en: b.occupation?.name_en || null,
+                  embassy_code: b.embassy?.code || null, embassy_ar: b.embassy?.name_ar || null, embassy_en: b.embassy?.name_en || null,
+                  religion_code: b.religion?.code || null, status: b.status != null ? String(b.status) : null,
+                  can_be_canceled: b.can_be_canceled ?? null, raw: b, synced_at: new Date().toISOString(),
+                });
+              }
+            }
+            if (bnRows.length) {
+              await supaFetch('/rest/v1/qiwa_visa_border_numbers?on_conflict=company_id,request_id,border_number', {
+                method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+                body: JSON.stringify(bnRows),
+              });
+            }
+          }
+          vDone++;
+          if (vDone % 10 === 0 || vDone === sweepList.length) {
+            msg('تأشيرات المنشآت: ' + vDone + '/' + sweepList.length + ' · ' + visaSeen + ' طلب');
+          }
+        }
+      };
+      await visaWorker();
+      if (originalCompanyId) await switchCtx(originalCompanyId);
+      visaLabel = ' · تأشيرات ' + visaSeen;
+    } else if (sweepList.length > 0 && visaProbeErr) {
+      visaLabel = ' · تأشيرات ✗ (' + visaProbeErr + ' — افتح dashboard.qiwa.sa)';
+      if (originalCompanyId) await switchCtx(originalCompanyId);
+    }
+
     await supaFetch('/rest/v1/sync_runs?id=eq.' + runId, {
       method: 'PATCH',
       body: JSON.stringify({ status: 'success', completed_at: new Date().toISOString(), records_fetched: added }),
     });
 
     const detailLabel = activeCompany ? ' + تفاصيل المنشأة الحالية' : '';
-    msg('✅ قائمة: ' + added + ' · ' + (fileResult || 'بدون تفاصيل') + workersLabel + detailLabel);
+    msg('✅ قائمة: ' + added + ' · ' + (fileResult || 'بدون تفاصيل') + workersLabel + visaLabel + detailLabel);
     setTimeout(() => { document.getElementById('_jisr_qiwa_ui')?.remove(); }, 30000);
   } catch (e) {
     msg('❌ ' + (e && e.message ? e.message : String(e)));
