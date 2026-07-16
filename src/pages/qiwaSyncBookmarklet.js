@@ -41,9 +41,9 @@ function body({ sourceId, personId }) {
   };
   const supaFetch = (path, opts = {}) => fetch(U + path, { ...opts, headers: { apikey: K, Authorization: 'Bearer ' + K, 'Content-Type': 'application/json', ...(opts.headers || {}) } });
   // Cross-subdomain GET, cookies included, swallows CORS failures silently.
-  const qiwaGet = async (url) => {
+  const qiwaGet = async (url, tok) => {
     try {
-      const r = await fetch(url, { credentials: 'include', headers: { 'Accept': 'application/json, text/plain, */*' } });
+      const r = await fetch(url, { credentials: 'include', headers: { 'Accept': 'application/json, text/plain, */*', ...(tok ? { 'Authorization': 'Bearer ' + tok } : {}) } });
       if (!r.ok) return { ok: false, status: r.status };
       const text = await r.text();
       const jwt = r.headers.get('HTTP_AUTHORIZATION') || null;
@@ -375,9 +375,10 @@ function body({ sourceId, personId }) {
         acctBody.foreign_investor = accountContext.foreign_investor ?? null;
         acctBody.eligible_for_self_subscription = accountContext.eligible_for_self_subscription ?? null;
       }
-      await supaFetch('/rest/v1/qiwa_sessions?on_conflict=id', {
-        method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
-        body: JSON.stringify(acctBody),
+      // qiwa_sessions has no anon policies (tokens must never be readable with
+      // the anon key), so the save goes through a security-definer RPC.
+      await supaFetch('/rest/v1/rpc/qiwa_save_session', {
+        method: 'POST', body: JSON.stringify({ p: acctBody }),
       });
     }
 
@@ -1295,14 +1296,28 @@ function body({ sourceId, personId }) {
     if (!Array.isArray(sweepList)) sweepList = [];
     if (sweepList.length > 0) {
       const probe = sweepList.find(c => c.company_labor_office_id && c.company_sequence_number);
-      let fileReachable = false;
+      let fileReachable = false, fileTok = null, pr = null;
       if (probe) {
-        const pr = await qiwaGet(API_FILE + '/api/establishments/' + encodeURIComponent(probe.company_labor_office_id + '-' + probe.company_sequence_number) + '/');
+        const probeUrl = API_FILE + '/api/establishments/' + encodeURIComponent(probe.company_labor_office_id + '-' + probe.company_sequence_number) + '/';
+        pr = await qiwaGet(probeUrl);
+        if (pr.jwt && !jwtStr) jwtStr = pr.jwt;
         fileReachable = pr.ok && pr.data && !!pr.data.establishment_information;
+        // Cookie auth rejected but a JWT was captured this run — retry with the
+        // Authorization header and keep using it for the whole sweep if it works.
+        if (!fileReachable && jwtStr && (!pr.ok || pr.status === 401 || pr.status === 403)) {
+          const pr2 = await qiwaGet(probeUrl, jwtStr);
+          if (pr2.ok && pr2.data && pr2.data.establishment_information) { fileReachable = true; fileTok = jwtStr; pr = pr2; }
+        }
       }
       if (!fileReachable) {
-        fileResult = '⚠️ ملف المنشآت غير متاح من هذا الموقع';
-        msg('⚠️ افتح establishment-information.qiwa.sa ثم زامن لجلب تفاصيل المنشآت');
+        // Say exactly why, so a screenshot of the toast is enough to diagnose:
+        // CORS/network error vs HTTP status vs unexpected payload — plus origin.
+        const why = !probe ? 'لا معرّفات منشآت'
+          : pr.error ? 'CORS/شبكة: ' + pr.error
+          : !pr.ok ? 'HTTP ' + (pr.status || '?')
+          : 'استجابة غير متوقعة';
+        fileResult = '⚠️ ملف المنشآت غير متاح (' + location.host + ' · ' + why + ')';
+        msg('⚠️ افتح establishment-information.qiwa.sa ثم زامن لجلب تفاصيل المنشآت — ' + why);
       } else {
         msg('جلب تفاصيل ملفات كل المنشآت (' + sweepList.length + ')...');
         let fIdx = 0, fDone = 0, fOk = 0;
@@ -1314,13 +1329,13 @@ function body({ sourceId, personId }) {
             if (!c.company_labor_office_id || !c.company_sequence_number) { fDone++; continue; }
             const eid = encodeURIComponent(c.company_labor_office_id + '-' + c.company_sequence_number);
             const [d0, dg, dv, dvs, dvp, dh, da] = await Promise.all([
-              qiwaGet(API_FILE + '/api/establishments/' + eid + '/'),
-              qiwaGet(API_FILE + '/api/establishments/' + eid + '/financial-information/general'),
-              qiwaGet(API_FILE + '/api/establishments/' + eid + '/violation-statistics'),
-              qiwaGet(API_FILE + '/api/establishments/' + eid + '/visa-balance/seasonal-work-visas'),
-              qiwaGet(API_FILE + '/api/establishments/' + eid + '/visa-balance/permanent-work-visas'),
-              qiwaGet(API_FILE + '/api/establishments/' + eid + '/workers-housing-license'),
-              qiwaGet(API_FILE + '/api/establishments/' + eid + '/financial-information/account'),
+              qiwaGet(API_FILE + '/api/establishments/' + eid + '/', fileTok),
+              qiwaGet(API_FILE + '/api/establishments/' + eid + '/financial-information/general', fileTok),
+              qiwaGet(API_FILE + '/api/establishments/' + eid + '/violation-statistics', fileTok),
+              qiwaGet(API_FILE + '/api/establishments/' + eid + '/visa-balance/seasonal-work-visas', fileTok),
+              qiwaGet(API_FILE + '/api/establishments/' + eid + '/visa-balance/permanent-work-visas', fileTok),
+              qiwaGet(API_FILE + '/api/establishments/' + eid + '/workers-housing-license', fileTok),
+              qiwaGet(API_FILE + '/api/establishments/' + eid + '/financial-information/account', fileTok),
             ]);
             // Skip when the core registry endpoint has no data (expired/blocked).
             if (!d0.ok || !d0.data || !d0.data.establishment_information) { fDone++; continue; }
