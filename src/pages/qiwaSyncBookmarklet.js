@@ -44,7 +44,7 @@ function body({ sourceId, personId }) {
   const qiwaGet = async (url, tok) => {
     try {
       const r = await fetch(url, { credentials: 'include', headers: { 'Accept': 'application/json, text/plain, */*', ...(tok ? { 'Authorization': 'Bearer ' + tok } : {}) } });
-      if (!r.ok) return { ok: false, status: r.status };
+      if (!r.ok) { let b = ''; try { b = (await r.text()).slice(0, 400) } catch {} return { ok: false, status: r.status, body: b }; }
       const text = await r.text();
       const jwt = r.headers.get('HTTP_AUTHORIZATION') || null;
       let data; try { data = JSON.parse(text) } catch { data = null }
@@ -1317,7 +1317,48 @@ function body({ sourceId, personId }) {
           : !pr.ok ? 'HTTP ' + (pr.status || '?')
           : 'استجابة غير متوقعة';
         fileResult = '⚠️ ملف المنشآت غير متاح (' + location.host + ' · ' + why + ')';
-        msg('⚠️ افتح establishment-information.qiwa.sa ثم زامن لجلب تفاصيل المنشآت — ' + why);
+        // Full diagnostic battery → qiwa_probe_log, so one failed run is enough
+        // to design the fix from the DB (no screenshots needed).
+        if (probe) {
+          msg('تشخيص الوصول لملف المنشآت...');
+          const probeUrl = API_FILE + '/api/establishments/' + encodeURIComponent(probe.company_labor_office_id + '-' + probe.company_sequence_number) + '/';
+          const diag = { why, jwt_captured: !!jwtStr, jwt_claims: null, cookie_names: [], tests: {} };
+          if (jwtStr) {
+            const c = decodeJwt(jwtStr) || {};
+            diag.jwt_claims = { aud: c.aud, exp: c.exp, company_id: c['company-id'], account_id: c['account-id'] };
+          }
+          const t = async (name, url, tok) => {
+            const r = await qiwaGet(url, tok);
+            diag.tests[name] = r.ok
+              ? { ok: true, has_info: !!(r.data && r.data.establishment_information), sample: JSON.stringify(r.data).slice(0, 200) }
+              : { ok: false, status: r.status || null, err: r.error || null, body: r.body || null };
+          };
+          await t('base_cookie', probeUrl);
+          await t('base_noslash_cookie', probeUrl.slice(0, -1));
+          if (jwtStr) await t('base_jwt', probeUrl, jwtStr);
+          await t('nitaq_cookie', API_FILE + '/api/establishments/nitaq-information');
+          if (jwtStr) await t('nitaq_jwt', API_FILE + '/api/establishments/nitaq-information', jwtStr);
+          await t('laborers_cookie', API_CORE + '/api/v1/work-permits/laborers?labor_office_id=' + probe.company_labor_office_id + '&sequence_number=' + probe.company_sequence_number + '&page_index=1&page_size=1');
+          // JWT-looking cookies readable from this origin — try each as a Bearer.
+          const jars = document.cookie.split(';').map(s => s.trim()).filter(Boolean);
+          for (const kv of jars) {
+            const eq = kv.indexOf('='); if (eq < 0) continue;
+            const name = kv.slice(0, eq); let val = kv.slice(eq + 1);
+            try { val = decodeURIComponent(val) } catch {}
+            diag.cookie_names.push(name);
+            if (val.startsWith('eyJ') && val.split('.').length === 3 && Object.keys(diag.tests).length < 14) {
+              const cc = decodeJwt(val) || {};
+              diag.tests['cookie_' + name] = { claims: { aud: cc.aud, exp: cc.exp, company_id: cc['company-id'] } };
+              await t('cookie_jwt_' + name, probeUrl, val);
+            }
+          }
+          await supaFetch('/rest/v1/qiwa_probe_log', {
+            method: 'POST', headers: { Prefer: 'return=minimal' },
+            body: JSON.stringify({ origin: location.host, results: diag }),
+          });
+          fileResult += ' · تشخيص مسجّل';
+        }
+        msg('⚠️ ملف المنشآت غير متاح — ' + why + ' · سُجّل تشخيص كامل');
       } else {
         msg('جلب تفاصيل ملفات كل المنشآت (' + sweepList.length + ')...');
         let fIdx = 0, fDone = 0, fOk = 0;
@@ -1418,9 +1459,10 @@ function body({ sourceId, personId }) {
     // context-switch is needed. Without this sweep only the active-company's
     // workers ever land in qiwa_wp_laborers, so most facility detail pages
     // show no worker data even after a successful sync.
+    let workersLabel = '';
     if (sweepList.length > 0) {
       msg('جلب عمال كل المنشآت (' + sweepList.length + ')...');
-      let companyIdx = 0; let workersSeen = 0; let companiesDone = 0;
+      let companyIdx = 0; let workersSeen = 0; let companiesDone = 0; let wErr = null;
       const CONCURRENCY = 3;
       const sweepWorker = async () => {
         while (companyIdx < sweepList.length) {
@@ -1434,7 +1476,10 @@ function body({ sourceId, personId }) {
           ]);
           const rows = new Map();
           const collect = (resp, isExpired) => {
-            if (!resp.ok || !resp.data || !Array.isArray(resp.data.items)) return;
+            if (!resp.ok || !resp.data || !Array.isArray(resp.data.items)) {
+              if (!wErr) wErr = resp.error ? 'CORS' : resp.status ? 'HTTP ' + resp.status : 'استجابة غير متوقعة';
+              return;
+            }
             for (const l of resp.data.items) {
               if (l.employee_id == null) continue;
               const key = String(l.employee_id);
@@ -1468,6 +1513,7 @@ function body({ sourceId, personId }) {
         }
       };
       await Promise.all(Array.from({ length: CONCURRENCY }, sweepWorker));
+      workersLabel = ' · عمال ' + workersSeen + (workersSeen === 0 && wErr ? ' (⚠️ ' + wErr + ')' : '');
     }
 
     await supaFetch('/rest/v1/sync_runs?id=eq.' + runId, {
@@ -1476,7 +1522,7 @@ function body({ sourceId, personId }) {
     });
 
     const detailLabel = activeCompany ? ' + تفاصيل المنشأة الحالية' : '';
-    msg('✅ قائمة: ' + added + ' · ' + (fileResult || 'بدون تفاصيل') + detailLabel);
+    msg('✅ قائمة: ' + added + ' · ' + (fileResult || 'بدون تفاصيل') + workersLabel + detailLabel);
     setTimeout(() => { document.getElementById('_jisr_qiwa_ui')?.remove(); }, 30000);
   } catch (e) {
     msg('❌ ' + (e && e.message ? e.message : String(e)));
