@@ -104,6 +104,65 @@ function body({ sourceId, personId }) {
       if (batch.length === 0 || (total && groups.length >= total)) break;
     }
 
+    // Upsert the workspace list. Runs ONCE per run — the list is account-wide,
+    // not per-company, so it must stay outside the context-switch sweep below.
+    let added = 0;
+    if (companies.length) {
+      msg('حفظ ' + companies.length + ' منشأة...');
+      const rows = companies.map(w => ({
+        company_id: w.company_id,
+        company_main_branch: w.company_main_branch,
+        company_labor_office_id: w.company_labor_office_id,
+        company_sequence_number: w.company_sequence_number,
+        company_name: w.company_name,
+        company_unified_number_id: String(w.company_unified_number_id || ''),
+        is_vip: w.is_vip,
+        subscription_expiry_date: w.subscription_expiry_date || null,
+        eligible_for_self_subscription: w.eligible_for_self_subscription,
+        show_sadad_request: w.show_sadad_request,
+        payment_id: w.payment_id,
+        soon_expired: w.soon_expired,
+        remaining_days: w.remaining_days,
+        payment_status: w.payment_status,
+        status: w.status,
+        user_role: String(w.user_role || ''),
+        is_favorite: w.is_favorite,
+        panel_status: w.panel_status,
+        synced_at: new Date().toISOString(),
+        raw: w,
+      }));
+      const chunk = (arr, n) => { const out=[]; for (let i=0;i<arr.length;i+=n) out.push(arr.slice(i,i+n)); return out };
+      for (const part of chunk(rows, 100)) {
+        const up = await supaFetch('/rest/v1/qiwa_companies?on_conflict=company_id', {
+          method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+          body: JSON.stringify(part),
+        });
+        if (!up.ok) { msg('❌ upsert companies ' + up.status); return }
+      }
+      added = rows.length;
+    }
+
+    // Upsert groups.
+    if (groups.length) {
+      const rows = groups.map(g => ({
+        unified_number_id: g.unified_number_id,
+        labor_office_id: g.labor_office_id,
+        sequence_number: g.sequence_number,
+        number_of_companies: g.number_of_companies,
+        synced_at: new Date().toISOString(),
+        raw: g,
+      }));
+      await supaFetch('/rest/v1/qiwa_groups?on_conflict=unified_number_id', {
+        method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+        body: JSON.stringify(rows),
+      });
+    }
+
+    // Everything below, up to the end of the activeCompany patch, is wrapped in
+    // syncActiveCompany() — it re-reads /context/company itself, so it always
+    // targets whatever company the session currently has active. The sweep at
+    // the bottom switches context per company and calls it once per company.
+    const syncActiveCompany = async () => {
     // 3) Current company context (works on dashboard.qiwa.sa / visa.qiwa.sa when in a specific company).
     const cur = await qiwaGet(API_CORE + '/context/company');
     if (cur.ok && cur.data && cur.data.data) {
@@ -219,6 +278,63 @@ function body({ sourceId, personId }) {
     if (eca.ok) empContractAuth  = eca.data;
     if (ewi.ok) empWpIndicator   = ewi.data;
     if (ege.ok) empGroupEligibility = ege.data;
+
+    // 5d2) Rich per-employee rows → qiwa_employees, keyed to the ACTIVE company.
+    // pageSize=1000 above means the single /api/employees page covers everyone.
+    const empFields = (e, cid) => ({
+      company_id: cid,
+      employee_id: e.id,
+      id_no: e.idNo || e.idIqamaNationalBorder || null,
+      name_full: [e.firstName, e.secondName, e.thirdName, e.fourthName].filter(Boolean).join(' ') || null,
+      first_name: e.firstName || null, second_name: e.secondName || null,
+      third_name: e.thirdName || null, fourth_name: e.fourthName || null,
+      gender_id: e.genderId ?? null,
+      nationality_id: e.nationalityId ?? null,
+      nationality_ar: e.nationalityNameAR || null, nationality_en: e.nationalityNameEN || null,
+      is_saudi: e.isSaudi ?? null,
+      border_no: e.borderNo != null ? String(e.borderNo) : null,
+      iqama_status: e.iqamaStatus || null,
+      iqama_expiry_date: e.iqamaExpiryDate || null,
+      job_id: e.jobId ?? null,
+      job_name_ar: e.jobName_ar || e.jobTitleAR || null, job_name_en: e.jobName_en || e.jobTitleEN || null,
+      occupation_ar: e.contractOccupationAR || null, occupation_en: e.contractOccupationEN || null,
+      work_permit_number: e.workPermitNumber ?? null,
+      work_permit_status: e.workPermitStatus || null,
+      work_permit_start_date: e.workPermitStartDate || null,
+      work_permit_expiry_date: e.workPermitExpiryDate || null,
+      contract_number: e.contractNumber ?? null,
+      contract_type_ar: e.contractTypeAR || null, contract_type_en: e.contractTypeEN || null,
+      contract_start_date: e.contractStartDate || null,
+      contract_expiry_date: e.contractExpiryDate || null,
+      contract_period: e.contractPeriod ?? null,
+      employment_status_ar: e.employmentContractStatusAR || null,
+      employment_status_en: e.employmentContractStatusEN || null,
+      assigned_location: e.assignedLocation || null,
+      assigned_location_id: e.assignedLocationId ?? null,
+      gosi_registration: e.gosiRegistration ?? null,
+      establishment_id: e.establishmentId ?? null,
+      establishment_sequence_number: e.establishmentSequenceNumber ?? null,
+      raw: e,
+      synced_at: new Date().toISOString(),
+    });
+    if (empList && Array.isArray(empList.content) && activeCompany && activeCompany.data) {
+      const empCid = Number(activeCompany.data.id);
+      const empRows = [];
+      for (const e of empList.content) {
+        if (!e || e.id == null) continue;
+        // Row-level contamination guard: only keep employees whose true
+        // establishment matches the active company's sequence number.
+        if (seqNo != null && e.establishmentSequenceNumber != null &&
+            Number(e.establishmentSequenceNumber) !== Number(seqNo)) continue;
+        empRows.push(empFields(e, empCid));
+      }
+      if (empRows.length > 0) {
+        await supaFetch('/rest/v1/qiwa_employees?on_conflict=company_id,employee_id', {
+          method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+          body: JSON.stringify(empRows),
+        });
+      }
+    }
 
     // 5e) Part-5 occupation management — change + correct occupation flows.
     let occIndicator = null, occChangeLaborers = null, occChangeRequests = null,
@@ -379,59 +495,6 @@ function body({ sourceId, personId }) {
       // the anon key), so the save goes through a security-definer RPC.
       await supaFetch('/rest/v1/rpc/qiwa_save_session', {
         method: 'POST', body: JSON.stringify({ p: acctBody }),
-      });
-    }
-
-    // Upsert the workspace list.
-    let added = 0;
-    if (companies.length) {
-      msg('حفظ ' + companies.length + ' منشأة...');
-      const rows = companies.map(w => ({
-        company_id: w.company_id,
-        company_main_branch: w.company_main_branch,
-        company_labor_office_id: w.company_labor_office_id,
-        company_sequence_number: w.company_sequence_number,
-        company_name: w.company_name,
-        company_unified_number_id: String(w.company_unified_number_id || ''),
-        is_vip: w.is_vip,
-        subscription_expiry_date: w.subscription_expiry_date || null,
-        eligible_for_self_subscription: w.eligible_for_self_subscription,
-        show_sadad_request: w.show_sadad_request,
-        payment_id: w.payment_id,
-        soon_expired: w.soon_expired,
-        remaining_days: w.remaining_days,
-        payment_status: w.payment_status,
-        status: w.status,
-        user_role: String(w.user_role || ''),
-        is_favorite: w.is_favorite,
-        panel_status: w.panel_status,
-        synced_at: new Date().toISOString(),
-        raw: w,
-      }));
-      const chunk = (arr, n) => { const out=[]; for (let i=0;i<arr.length;i+=n) out.push(arr.slice(i,i+n)); return out };
-      for (const part of chunk(rows, 100)) {
-        const up = await supaFetch('/rest/v1/qiwa_companies?on_conflict=company_id', {
-          method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
-          body: JSON.stringify(part),
-        });
-        if (!up.ok) { msg('❌ upsert companies ' + up.status); return }
-      }
-      added = rows.length;
-    }
-
-    // Upsert groups.
-    if (groups.length) {
-      const rows = groups.map(g => ({
-        unified_number_id: g.unified_number_id,
-        labor_office_id: g.labor_office_id,
-        sequence_number: g.sequence_number,
-        number_of_companies: g.number_of_companies,
-        synced_at: new Date().toISOString(),
-        raw: g,
-      }));
-      await supaFetch('/rest/v1/qiwa_groups?on_conflict=unified_number_id', {
-        method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
-        body: JSON.stringify(rows),
       });
     }
 
@@ -1274,32 +1337,31 @@ function body({ sourceId, personId }) {
         });
       }
     }
+    };
 
-    // Per-company establishment-file sweep — fetches registry/detail for ALL
-    // companies, not just the active one. establishment-file-api endpoints are
-    // path-scoped by labor_office-sequence (estId), so no SPA context-switch is
-    // needed. This writes cr_number for every company, which is the bridge the
-    // facility pages match on (qiwa_companies.cr_number == facility.cr_number),
-    // so all facilities show Qiwa data after a single sync instead of needing
-    // each company opened individually.
-    // CORS: establishment-file-api only allows establishment-information.qiwa.sa,
-    // while the workspaces list (/context/workspaces-v2/new) is CORS-blocked
-    // there — so the two can't be fetched from the same origin in one run.
-    // The sweep therefore reads the company list from Supabase (already synced
-    // from auth/dashboard) rather than this run's in-memory list, so it works
-    // when run from establishment-information.qiwa.sa. Probe reachability first.
-    let sweepList = companies, fileResult = '';
+    // Unified per-company sweep — runs the FULL active-company sync once per
+    // company by switching the Qiwa session context between iterations, so every
+    // company gets every field (file/registry, employees, visas, work-permits,
+    // contracts, transfers, reports) instead of only the one the user had open.
+    // This writes cr_number for every company, which is the bridge the facility
+    // pages match on (qiwa_companies.cr_number == facility.cr_number), so all
+    // facilities show Qiwa data after a single sync.
+    // The sweep prefers this run's in-memory list but falls back to Supabase
+    // (already synced from auth/dashboard), so it still works from origins where
+    // the workspaces list itself is CORS-blocked.
+    let sweepList = companies;
     if (!sweepList.length) {
       const lr = await supaFetch('/rest/v1/qiwa_companies?select=company_id,company_labor_office_id,company_sequence_number&limit=5000');
       if (lr.ok) { try { sweepList = await lr.json(); } catch { sweepList = []; } }
     }
     if (!Array.isArray(sweepList)) sweepList = [];
-    // establishment-file-api serves ONLY the establishment currently active in
-    // the Qiwa session — any other id returns 403 COMPANY_ATTRIBUTES_MISMATCH.
-    // The active company is switched server-side (against the session cookie)
-    // by PATCH /context/company/{internal company_id}. So the sweep activates
-    // each company before reading its file, and MUST run serially (the active
-    // company is global session state — concurrent switches would race).
+    // The context-scoped APIs (establishment-file, employee-management,
+    // visa-proxy) serve ONLY the establishment currently active in the Qiwa
+    // session — any other id returns 403 COMPANY_ATTRIBUTES_MISMATCH. The active
+    // company is switched server-side (against the session cookie) by
+    // PATCH /context/company/{internal company_id}. So the sweep activates each
+    // company before syncing it, and MUST run serially (the active company is
+    // global session state — concurrent switches would race).
     const switchCtx = async (companyId) => {
       if (!companyId) return false;
       try { const r = await fetch(API_CORE + '/context/company/' + companyId, { method: 'PATCH', credentials: 'include', headers: { 'Accept': 'application/json' } }); return r.ok; }
@@ -1308,383 +1370,33 @@ function body({ sourceId, personId }) {
     // Remember the originally-active company so we can restore it at the end.
     let originalCompanyId = null;
     try { const cc = await qiwaGet(API_CORE + '/context/company'); if (cc.ok && cc.data && cc.data.data) originalCompanyId = cc.data.data.id; } catch (e) {}
+    let sweepLabel = '';
     if (sweepList.length > 0) {
-      const probe = sweepList.find(c => c.company_labor_office_id && c.company_sequence_number && c.company_id);
-      let fileReachable = false, fileTok = null, pr = null;
-      if (probe) {
-        const probeUrl = API_FILE + '/api/establishments/' + encodeURIComponent(probe.company_labor_office_id + '-' + probe.company_sequence_number) + '/';
-        // Activate the probe company first, then read its file — this is the
-        // real reachability test (origin CORS + context-switch both working).
-        await switchCtx(probe.company_id);
-        pr = await qiwaGet(probeUrl);
-        if (pr.jwt && !jwtStr) jwtStr = pr.jwt;
-        fileReachable = pr.ok && pr.data && !!pr.data.establishment_information;
-      }
-      if (!fileReachable) {
-        // Say exactly why, so a screenshot of the toast is enough to diagnose:
-        // CORS/network error vs HTTP status vs unexpected payload — plus origin.
-        const why = !probe ? 'لا معرّفات منشآت'
-          : pr.error ? 'CORS/شبكة: ' + pr.error
-          : !pr.ok ? 'HTTP ' + (pr.status || '?')
-          : 'استجابة غير متوقعة';
-        fileResult = '⚠️ ملف المنشآت غير متاح (' + location.host + ' · ' + why + ')';
-        // Full diagnostic battery → qiwa_probe_log, so one failed run is enough
-        // to design the fix from the DB (no screenshots needed).
-        if (probe) {
-          msg('تشخيص الوصول لملف المنشآت...');
-          const probeUrl = API_FILE + '/api/establishments/' + encodeURIComponent(probe.company_labor_office_id + '-' + probe.company_sequence_number) + '/';
-          const diag = { why, jwt_captured: !!jwtStr, jwt_claims: null, cookie_names: [], tests: {} };
-          if (jwtStr) {
-            const c = decodeJwt(jwtStr) || {};
-            diag.jwt_claims = { aud: c.aud, exp: c.exp, company_id: c['company-id'], account_id: c['account-id'] };
-          }
-          const t = async (name, url, tok) => {
-            const r = await qiwaGet(url, tok);
-            diag.tests[name] = r.ok
-              ? { ok: true, has_info: !!(r.data && r.data.establishment_information), sample: JSON.stringify(r.data).slice(0, 200) }
-              : { ok: false, status: r.status || null, err: r.error || null, body: r.body || null };
-          };
-          await t('base_cookie', probeUrl);
-          await t('base_noslash_cookie', probeUrl.slice(0, -1));
-          if (jwtStr) await t('base_jwt', probeUrl, jwtStr);
-          await t('nitaq_cookie', API_FILE + '/api/establishments/nitaq-information');
-          if (jwtStr) await t('nitaq_jwt', API_FILE + '/api/establishments/nitaq-information', jwtStr);
-          await t('laborers_cookie', API_CORE + '/api/v1/work-permits/laborers?labor_office_id=' + probe.company_labor_office_id + '&sequence_number=' + probe.company_sequence_number + '&page_index=1&page_size=1');
-          // JWT-looking cookies readable from this origin — try each as a Bearer.
-          const jars = document.cookie.split(';').map(s => s.trim()).filter(Boolean);
-          for (const kv of jars) {
-            const eq = kv.indexOf('='); if (eq < 0) continue;
-            const name = kv.slice(0, eq); let val = kv.slice(eq + 1);
-            try { val = decodeURIComponent(val) } catch {}
-            diag.cookie_names.push(name);
-            if (val.startsWith('eyJ') && val.split('.').length === 3 && Object.keys(diag.tests).length < 14) {
-              const cc = decodeJwt(val) || {};
-              diag.tests['cookie_' + name] = { claims: { aud: cc.aud, exp: cc.exp, company_id: cc['company-id'] } };
-              await t('cookie_jwt_' + name, probeUrl, val);
-            }
-          }
-          await supaFetch('/rest/v1/qiwa_probe_log', {
-            method: 'POST', headers: { Prefer: 'return=minimal' },
-            body: JSON.stringify({ origin: location.host, results: diag }),
-          });
-          fileResult += ' · تشخيص مسجّل';
+      msg('مزامنة شاملة لكل المنشآت (' + sweepList.length + ')...');
+      let done = 0, okCount = 0, blocked = 0;
+      // Serial by necessity: the active company is global session state, so two
+      // concurrent switches would race and store one company's data under another.
+      for (const c of sweepList) {
+        try {
+          // A company with an expired/pending subscription can't be activated —
+          // PATCH returns 403 and the context stays on the PREVIOUS company, so
+          // skip rather than write the previous company's data under this id.
+          const ok = await switchCtx(c.company_id);
+          if (!ok) { blocked++; }
+          else { await syncActiveCompany(); okCount++; }
+        } catch (e) {}
+        done++;
+        if (done % 5 === 0 || done === sweepList.length) {
+          msg('مزامنة شاملة: ' + done + '/' + sweepList.length + ' · تم ' + okCount + ' · متخطّى ' + blocked);
         }
-        msg('⚠️ ملف المنشآت غير متاح — ' + why + ' · سُجّل تشخيص كامل');
-      } else {
-        msg('جلب تفاصيل ملفات كل المنشآت (' + sweepList.length + ')...');
-        let fIdx = 0, fDone = 0, fOk = 0;
-        // Serial: only one company can be the active session context at a time.
-        const FCONC = 1;
-        const fetchFile = (eid) => Promise.all([
-          qiwaGet(API_FILE + '/api/establishments/' + eid + '/', fileTok),
-          qiwaGet(API_FILE + '/api/establishments/' + eid + '/financial-information/general', fileTok),
-          qiwaGet(API_FILE + '/api/establishments/' + eid + '/violation-statistics', fileTok),
-          qiwaGet(API_FILE + '/api/establishments/' + eid + '/visa-balance/seasonal-work-visas', fileTok),
-          qiwaGet(API_FILE + '/api/establishments/' + eid + '/visa-balance/permanent-work-visas', fileTok),
-          qiwaGet(API_FILE + '/api/establishments/' + eid + '/workers-housing-license', fileTok),
-          qiwaGet(API_FILE + '/api/establishments/' + eid + '/financial-information/account', fileTok),
-        ]);
-        const fileWorker = async () => {
-          while (fIdx < sweepList.length) {
-            const i = fIdx++;
-            const c = sweepList[i];
-            if (!c.company_labor_office_id || !c.company_sequence_number || !c.company_id) { fDone++; continue; }
-            const idPair = c.company_labor_office_id + '-' + c.company_sequence_number;
-            const eid = encodeURIComponent(idPair);
-            // Activate this company first. A company with an expired/pending
-            // subscription can't be switched to (PATCH 403) and the context
-            // stays on the previous one — skip it rather than read stale data.
-            const fSwitched = await switchCtx(c.company_id);
-            if (!fSwitched) { fDone++; continue; }
-            let [d0, dg, dv, dvs, dvp, dh, da] = await fetchFile(eid);
-            // 403 = context switch hadn't propagated yet; re-switch and retry once.
-            if (d0 && d0.status === 403) {
-              await switchCtx(c.company_id);
-              [d0, dg, dv, dvs, dvp, dh, da] = await fetchFile(eid);
-            }
-            // Skip when the core registry endpoint has no data (expired/blocked).
-            if (!d0.ok || !d0.data || !d0.data.establishment_information) { fDone++; continue; }
-            // Contamination guard: the file-api path is keyed by estId, but the
-            // establishment_group_id in the body must match the company we mean
-            // to store under — never write another establishment's file.
-            if (d0.data.establishment_information.establishment_group_id &&
-                d0.data.establishment_information.establishment_group_id !== idPair) { fDone++; continue; }
-            const info = d0.data.establishment_information || {};
-            const reg = d0.data.establishment_registration || {};
-            const fp = {
-              company_id: c.company_id,
-              cr_number: reg.cr_number || null,
-              cr_national_number: reg.national_unified_number || null,
-              cr_status_ar: reg.cr_status?.ar || null,
-              cr_status_en: reg.cr_status?.en || null,
-              est_file_raw: d0.data,
-              est_license_number: info.license_number || null,
-              est_license_issue_date: info.license_issue_date || null,
-              est_license_expiration_date: info.license_expiration_date || null,
-              est_licenses_count: info.licenses_count ?? null,
-              est_licenses_status: info.licenses_status || null,
-              est_opening_date: info.opening_date || null,
-              est_labor_office_name_ar: info.labor_office_name?.ar || null,
-              est_labor_office_name_en: info.labor_office_name?.en || null,
-              est_source_type: reg.source_type || null,
-              est_is_merged: reg.is_establishment_merged ?? null,
-              detail_synced_at: new Date().toISOString(),
-            };
-            if (dg.ok && dg.data) {
-              const ad = dg.data.address || {};
-              fp.addr_raw = dg.data;
-              fp.addr_city_ar = ad.cityAr || null;
-              fp.addr_city_en = ad.cityEn || null;
-              fp.addr_district_ar = ad.districtAreaAr || null;
-              fp.addr_district_en = ad.districtAreaEn || null;
-              fp.addr_street_ar = ad.streetNameAr || null;
-              fp.addr_street_en = ad.streetNameEn || null;
-              fp.addr_building_no = ad.buildingNo != null ? String(ad.buildingNo) : null;
-              fp.addr_additional_no = ad.additionalNo != null ? String(ad.additionalNo) : null;
-              fp.addr_zip_code = ad.zipCode || null;
-              fp.addr_unit_no = ad.unitNo != null ? String(ad.unitNo) : null;
-              fp.addr_zatca_id = dg.data.zatcaId || null;
-              if (dg.data.vatNumber) fp.vat_number = dg.data.vatNumber;
-            }
-            if (dv.ok && dv.data) {
-              fp.violations_raw = dv.data;
-              fp.violations_open = dv.data.open ?? null;
-              fp.violations_not_paid = dv.data.not_paid ?? null;
-              fp.violations_objection = dv.data.objection ?? null;
-              fp.violations_cancelled = dv.data.cancelled ?? null;
-            }
-            if (dvs.ok) fp.visa_seasonal_raw = dvs.data;
-            if (dvp.ok) fp.visa_permanent_raw = dvp.data;
-            if (dh.ok && dh.data) {
-              fp.housing_license_raw = dh.data;
-              fp.housing_license_required = dh.data.isLicenseRequired ?? null;
-              fp.housing_total_laborers = dh.data.totalLaborers ?? null;
-              fp.housing_compliant = dh.data.totalCompliant ?? null;
-              fp.housing_incompliant = dh.data.totalIncompliant ?? null;
-              fp.housing_result = dh.data.resultDescription || null;
-            }
-            if (da.ok) fp.financial_account_raw = da.data;
-            const up = await supaFetch('/rest/v1/qiwa_companies?on_conflict=company_id', {
-              method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
-              body: JSON.stringify([fp]),
-            });
-            if (up.ok) fOk++;
-            fDone++;
-            if (fDone % 10 === 0 || fDone === sweepList.length) {
-              msg('ملفات المنشآت: ' + fDone + '/' + sweepList.length + ' · نجح ' + fOk);
-            }
-          }
-        };
-        await Promise.all(Array.from({ length: FCONC }, fileWorker));
-        fileResult = 'ملفات ' + fOk + '/' + sweepList.length;
       }
+      // Leave the session on the company the user originally had active.
+      if (originalCompanyId) await switchCtx(originalCompanyId);
+      sweepLabel = ' · شامل ' + okCount + '/' + sweepList.length + (blocked ? ' · متخطّى ' + blocked : '');
     } else {
-      fileResult = '⚠️ لا توجد قائمة منشآت (زامن من auth.qiwa.sa أولاً)';
-    }
-    // Restore the company the user originally had active, so the sweep leaves
-    // the session where they left it.
-    if (originalCompanyId) await switchCtx(originalCompanyId);
-
-    // Per-company detailed-employee sweep — the rich per-worker records
-    // (iqama, work-permit, contract, occupation, nationality, GOSI…) live on
-    // employee-management-api, whose CORS is scoped to employee-management.qiwa.sa
-    // and which — like establishment-file-api — serves ONLY the active company.
-    // So this reuses the same serial context-switch machinery as the file sweep.
-    // The old /api/v1/work-permits/laborers path is dead (404); this replaces it.
-    // Because CORS forbids reaching employee-management-api from other origins,
-    // this sweep only runs when the button is fired from employee-management.qiwa.sa
-    // (probe decides) — the file sweep and this one are the two per-origin halves.
-    const API_EMP = 'https://employee-management-api.qiwa.sa';
-    const empFields = (e, cid) => ({
-      company_id: cid,
-      employee_id: e.id,
-      id_no: e.idNo || e.idIqamaNationalBorder || null,
-      name_full: [e.firstName, e.secondName, e.thirdName, e.fourthName].filter(Boolean).join(' ') || null,
-      first_name: e.firstName || null, second_name: e.secondName || null,
-      third_name: e.thirdName || null, fourth_name: e.fourthName || null,
-      gender_id: e.genderId ?? null,
-      nationality_id: e.nationalityId ?? null,
-      nationality_ar: e.nationalityNameAR || null, nationality_en: e.nationalityNameEN || null,
-      is_saudi: e.isSaudi ?? null,
-      border_no: e.borderNo != null ? String(e.borderNo) : null,
-      iqama_status: e.iqamaStatus || null,
-      iqama_expiry_date: e.iqamaExpiryDate || null,
-      job_id: e.jobId ?? null,
-      job_name_ar: e.jobName_ar || e.jobTitleAR || null, job_name_en: e.jobName_en || e.jobTitleEN || null,
-      occupation_ar: e.contractOccupationAR || null, occupation_en: e.contractOccupationEN || null,
-      work_permit_number: e.workPermitNumber ?? null,
-      work_permit_status: e.workPermitStatus || null,
-      work_permit_start_date: e.workPermitStartDate || null,
-      work_permit_expiry_date: e.workPermitExpiryDate || null,
-      contract_number: e.contractNumber ?? null,
-      contract_type_ar: e.contractTypeAR || null, contract_type_en: e.contractTypeEN || null,
-      contract_start_date: e.contractStartDate || null,
-      contract_expiry_date: e.contractExpiryDate || null,
-      contract_period: e.contractPeriod ?? null,
-      employment_status_ar: e.employmentContractStatusAR || null,
-      employment_status_en: e.employmentContractStatusEN || null,
-      assigned_location: e.assignedLocation || null,
-      assigned_location_id: e.assignedLocationId ?? null,
-      gosi_registration: e.gosiRegistration ?? null,
-      establishment_id: e.establishmentId ?? null,
-      establishment_sequence_number: e.establishmentSequenceNumber ?? null,
-      raw: e,
-      synced_at: new Date().toISOString(),
-    });
-    // Probe employee-management-api reachability from this origin (CORS + context).
-    let empReachable = false, empProbeErr = null;
-    if (sweepList.length > 0) {
-      const p0 = sweepList.find(c => c.company_id);
-      if (p0) {
-        await switchCtx(p0.company_id);
-        const pr = await qiwaGet(API_EMP + '/api/employees?pageIndex=0&pageSize=1&sort=newest%2Cdesc');
-        empReachable = pr.ok && pr.data && Array.isArray(pr.data.content);
-        empProbeErr = pr.error ? 'CORS/شبكة' : pr.ok ? null : 'HTTP ' + (pr.status || '?');
-      }
-    }
-    let workersLabel = '';
-    if (sweepList.length > 0 && empReachable) {
-      msg('جلب موظفي كل المنشآت (' + sweepList.length + ')...');
-      let eIdx = 0, eDone = 0, workersSeen = 0;
-      const empWorker = async () => {
-        while (eIdx < sweepList.length) {
-          const i = eIdx++;
-          const c = sweepList[i];
-          if (!c.company_id) { eDone++; continue; }
-          // Companies with an expired/pending subscription can't be activated —
-          // PATCH returns 403 and the session context stays on the PREVIOUS
-          // company. Skipping on a failed switch (and the row-level guard below)
-          // is what prevents storing one company's employees under another.
-          const switched = await switchCtx(c.company_id);
-          if (!switched) { eDone++; continue; }
-          // Page through all employees for this company (pageSize 100).
-          const rows = [];
-          let page = 0, pages = 1;
-          while (page < pages && page < 50) {
-            let r = await qiwaGet(API_EMP + '/api/employees?pageIndex=' + page + '&pageSize=100&sort=newest%2Cdesc');
-            if (r.status === 403) { await switchCtx(c.company_id); r = await qiwaGet(API_EMP + '/api/employees?pageIndex=' + page + '&pageSize=100&sort=newest%2Cdesc'); }
-            if (!r.ok || !r.data || !Array.isArray(r.data.content)) break;
-            pages = r.data.totalPages || 1;
-            for (const e of r.data.content) {
-              if (!e || e.id == null) continue;
-              // Row-level contamination guard: only keep employees whose true
-              // establishment matches the target company's sequence number.
-              if (c.company_sequence_number != null && e.establishmentSequenceNumber != null &&
-                  Number(e.establishmentSequenceNumber) !== Number(c.company_sequence_number)) continue;
-              rows.push(empFields(e, c.company_id));
-            }
-            page++;
-          }
-          if (rows.length > 0) {
-            await supaFetch('/rest/v1/qiwa_employees?on_conflict=company_id,employee_id', {
-              method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
-              body: JSON.stringify(rows),
-            });
-            workersSeen += rows.length;
-          }
-          eDone++;
-          if (eDone % 10 === 0 || eDone === sweepList.length) {
-            msg('موظفو المنشآت: ' + eDone + '/' + sweepList.length + ' · ' + workersSeen + ' موظف');
-          }
-        }
-      };
-      // Serial — active company is global session state.
-      await empWorker();
-      if (originalCompanyId) await switchCtx(originalCompanyId);
-      workersLabel = ' · موظفون ' + workersSeen;
-    } else if (sweepList.length > 0 && empProbeErr) {
-      workersLabel = ' · موظفون ✗ (' + empProbeErr + ' — افتح employee-management.qiwa.sa)';
-    }
-    // The employees probe may have switched context even when the sweep didn't
-    // run; always leave the session on the user's original company.
-    if (originalCompanyId) await switchCtx(originalCompanyId);
-
-    // Per-company visa sweep — visa-proxy (api.qiwa.sa) is context-scoped and
-    // its Qiwa Gateway allows only auth/dashboard origins (403 elsewhere), so
-    // this is the dashboard.qiwa.sa half. Writes per-request rows +, N+1, the
-    // per-visa border-number breakdown — the same shape the active-company path
-    // stores, but for every company via context switching.
-    let visaLabel = '';
-    let visaReachable = false, visaProbeErr = null;
-    if (sweepList.length > 0) {
-      const p0 = sweepList.find(c => c.company_id);
-      if (p0) {
-        await switchCtx(p0.company_id);
-        const pr = await qiwaGet(API_CORE + '/visa-proxy/v3/visa-requests?sort_by=desc&page=1&per=1');
-        visaReachable = pr.ok && pr.data && Array.isArray(pr.data.data);
-        visaProbeErr = pr.error ? 'CORS/شبكة' : pr.ok ? null : 'HTTP ' + (pr.status || '?');
-      }
-    }
-    if (sweepList.length > 0 && visaReachable) {
-      msg('جلب تأشيرات كل المنشآت (' + sweepList.length + ')...');
-      let vIdx = 0, vDone = 0, visaSeen = 0;
-      const visaWorker = async () => {
-        while (vIdx < sweepList.length) {
-          const i = vIdx++;
-          const c = sweepList[i];
-          if (!c.company_id) { vDone++; continue; }
-          // Skip when the company can't be activated (expired/pending sub) — a
-          // failed switch would otherwise read the previous company's visas.
-          const vSwitched = await switchCtx(c.company_id);
-          if (!vSwitched) { vDone++; continue; }
-          let vr = await qiwaGet(API_CORE + '/visa-proxy/v3/visa-requests?sort_by=desc&page=1&per=1000');
-          if (vr.status === 403) { await switchCtx(c.company_id); vr = await qiwaGet(API_CORE + '/visa-proxy/v3/visa-requests?sort_by=desc&page=1&per=1000'); }
-          const list = (vr.ok && vr.data && Array.isArray(vr.data.data)) ? vr.data.data : [];
-          if (list.length) {
-            const reqRows = list.map(r => ({
-              id: r.id, company_id: c.company_id,
-              request_id: r.request_id || null, type_id: r.type_id || null, type_name: r.type_name || null,
-              subtype: r.subtype || null, status: r.status || null,
-              starting_date: r.starting_date || null, approval_date: r.approval_date || null,
-              closing_date: r.closing_date || null, rejection_reason: r.rejection_reason || null,
-              visa_number: r.visa_number || null, visa_number_sum: r.visa_number_sum ?? null,
-              raw: r, synced_at: new Date().toISOString(),
-            }));
-            await supaFetch('/rest/v1/qiwa_visa_requests?on_conflict=id', {
-              method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
-              body: JSON.stringify(reqRows),
-            });
-            visaSeen += reqRows.length;
-            // Border-number detail per request (context is still this company).
-            const bnRows = [];
-            for (const r of list) {
-              const reqId = r.request_id; if (!reqId) continue;
-              const rt = r.type_id || '1';
-              const bn = await qiwaGet(API_CORE + '/visa-proxy/v3/visa-requests/' + encodeURIComponent(reqId) + '/border-numbers?page=1&request_type=' + encodeURIComponent(rt) + '&per=1000');
-              if (!bn.ok || !bn.data || !Array.isArray(bn.data.data)) continue;
-              for (const b of bn.data.data) {
-                if (b.number == null) continue;
-                bnRows.push({
-                  company_id: c.company_id, request_id: String(reqId), border_number: String(b.number),
-                  border_row_id: b.id ?? null,
-                  gender_code: b.gender?.code || null, gender_ar: b.gender?.name_ar || null, gender_en: b.gender?.name_en || null,
-                  nationality_code: b.national?.code || null, nationality_ar: b.national?.name_ar || null, nationality_en: b.national?.name_en || null,
-                  occupation_code: b.occupation?.code || null, occupation_ar: b.occupation?.name_ar || null, occupation_en: b.occupation?.name_en || null,
-                  embassy_code: b.embassy?.code || null, embassy_ar: b.embassy?.name_ar || null, embassy_en: b.embassy?.name_en || null,
-                  religion_code: b.religion?.code || null, status: b.status != null ? String(b.status) : null,
-                  can_be_canceled: b.can_be_canceled ?? null, raw: b, synced_at: new Date().toISOString(),
-                });
-              }
-            }
-            if (bnRows.length) {
-              await supaFetch('/rest/v1/qiwa_visa_border_numbers?on_conflict=company_id,request_id,border_number', {
-                method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
-                body: JSON.stringify(bnRows),
-              });
-            }
-          }
-          vDone++;
-          if (vDone % 10 === 0 || vDone === sweepList.length) {
-            msg('تأشيرات المنشآت: ' + vDone + '/' + sweepList.length + ' · ' + visaSeen + ' طلب');
-          }
-        }
-      };
-      await visaWorker();
-      if (originalCompanyId) await switchCtx(originalCompanyId);
-      visaLabel = ' · تأشيرات ' + visaSeen;
-    } else if (sweepList.length > 0 && visaProbeErr) {
-      visaLabel = ' · تأشيرات ✗ (' + visaProbeErr + ' — افتح dashboard.qiwa.sa)';
-      if (originalCompanyId) await switchCtx(originalCompanyId);
+      // No list to sweep — still sync whatever company is currently active.
+      await syncActiveCompany();
+      sweepLabel = ' · ⚠️ لا توجد قائمة منشآت (زامن من auth.qiwa.sa أولاً)';
     }
 
     await supaFetch('/rest/v1/sync_runs?id=eq.' + runId, {
@@ -1692,8 +1404,8 @@ function body({ sourceId, personId }) {
       body: JSON.stringify({ status: 'success', completed_at: new Date().toISOString(), records_fetched: added }),
     });
 
-    const detailLabel = activeCompany ? ' + تفاصيل المنشأة الحالية' : '';
-    msg('✅ قائمة: ' + added + ' · ' + (fileResult || 'بدون تفاصيل') + workersLabel + visaLabel + detailLabel);
+    const detailLabel = activeCompany ? ' + تفاصيل المنشأة' : '';
+    msg('✅ قائمة: ' + added + sweepLabel + detailLabel);
     setTimeout(() => { document.getElementById('_jisr_qiwa_ui')?.remove(); }, 30000);
   } catch (e) {
     msg('❌ ' + (e && e.message ? e.message : String(e)));
