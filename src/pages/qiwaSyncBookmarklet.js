@@ -1287,11 +1287,12 @@ function body({ sourceId, personId }) {
     // The sweep therefore reads the company list from Supabase (already synced
     // from auth/dashboard) rather than this run's in-memory list, so it works
     // when run from establishment-information.qiwa.sa. Probe reachability first.
-    let sweepList = companies;
+    let sweepList = companies, fileResult = '';
     if (!sweepList.length) {
       const lr = await supaFetch('/rest/v1/qiwa_companies?select=company_id,company_labor_office_id,company_sequence_number&limit=5000');
       if (lr.ok) { try { sweepList = await lr.json(); } catch { sweepList = []; } }
     }
+    if (!Array.isArray(sweepList)) sweepList = [];
     if (sweepList.length > 0) {
       const probe = sweepList.find(c => c.company_labor_office_id && c.company_sequence_number);
       let fileReachable = false;
@@ -1300,7 +1301,8 @@ function body({ sourceId, personId }) {
         fileReachable = pr.ok && pr.data && !!pr.data.establishment_information;
       }
       if (!fileReachable) {
-        msg('⚠️ لجلب تفاصيل كل المنشآت: افتح establishment-information.qiwa.sa ثم زامن');
+        fileResult = '⚠️ ملف المنشآت غير متاح من هذا الموقع';
+        msg('⚠️ افتح establishment-information.qiwa.sa ثم زامن لجلب تفاصيل المنشآت');
       } else {
         msg('جلب تفاصيل ملفات كل المنشآت (' + sweepList.length + ')...');
         let fIdx = 0, fDone = 0, fOk = 0;
@@ -1389,7 +1391,10 @@ function body({ sourceId, personId }) {
           }
         };
         await Promise.all(Array.from({ length: FCONC }, fileWorker));
+        fileResult = 'ملفات ' + fOk + '/' + sweepList.length;
       }
+    } else {
+      fileResult = '⚠️ لا توجد قائمة منشآت (زامن من auth.qiwa.sa أولاً)';
     }
 
     // Per-company laborer sweep — fetches wp/laborers for ALL workspaces, not
@@ -1398,14 +1403,14 @@ function body({ sourceId, personId }) {
     // context-switch is needed. Without this sweep only the active-company's
     // workers ever land in qiwa_wp_laborers, so most facility detail pages
     // show no worker data even after a successful sync.
-    if (companies.length > 0) {
-      msg('جلب عمال كل المنشآت (' + companies.length + ')...');
+    if (sweepList.length > 0) {
+      msg('جلب عمال كل المنشآت (' + sweepList.length + ')...');
       let companyIdx = 0; let workersSeen = 0; let companiesDone = 0;
       const CONCURRENCY = 3;
       const sweepWorker = async () => {
-        while (companyIdx < companies.length) {
+        while (companyIdx < sweepList.length) {
           const i = companyIdx++;
-          const c = companies[i];
+          const c = sweepList[i];
           if (!c.company_labor_office_id || !c.company_sequence_number) { companiesDone++; continue; }
           const cQ = '?labor_office_id=' + c.company_labor_office_id + '&sequence_number=' + c.company_sequence_number + '&page_index=1&page_size=1000';
           const [activeR, expiredR] = await Promise.all([
@@ -1442,8 +1447,8 @@ function body({ sourceId, personId }) {
             workersSeen += rows.size;
           }
           companiesDone++;
-          if (companiesDone % 10 === 0 || companiesDone === companies.length) {
-            msg('جلب عمال: ' + companiesDone + '/' + companies.length + ' منشأة · ' + workersSeen + ' عامل');
+          if (companiesDone % 10 === 0 || companiesDone === sweepList.length) {
+            msg('جلب عمال: ' + companiesDone + '/' + sweepList.length + ' منشأة · ' + workersSeen + ' عامل');
           }
         }
       };
@@ -1456,8 +1461,8 @@ function body({ sourceId, personId }) {
     });
 
     const detailLabel = activeCompany ? ' + تفاصيل المنشأة الحالية' : '';
-    msg('✅ ' + added + ' منشأة' + detailLabel);
-    setTimeout(() => { document.getElementById('_jisr_qiwa_ui')?.remove(); }, 8000);
+    msg('✅ قائمة: ' + added + ' · ' + (fileResult || 'بدون تفاصيل') + detailLabel);
+    setTimeout(() => { document.getElementById('_jisr_qiwa_ui')?.remove(); }, 30000);
   } catch (e) {
     msg('❌ ' + (e && e.message ? e.message : String(e)));
   }
