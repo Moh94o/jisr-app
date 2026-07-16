@@ -1476,68 +1476,107 @@ function body({ sourceId, personId }) {
     // the session where they left it.
     if (originalCompanyId) await switchCtx(originalCompanyId);
 
-    // Per-company laborer sweep — fetches wp/laborers for ALL workspaces, not
-    // just the active company. The /api/v1/work-permits/laborers endpoint
-    // accepts labor_office_id + sequence_number as query params so no SPA
-    // context-switch is needed. Without this sweep only the active-company's
-    // workers ever land in qiwa_wp_laborers, so most facility detail pages
-    // show no worker data even after a successful sync.
-    let workersLabel = '';
+    // Per-company detailed-employee sweep — the rich per-worker records
+    // (iqama, work-permit, contract, occupation, nationality, GOSI…) live on
+    // employee-management-api, whose CORS is scoped to employee-management.qiwa.sa
+    // and which — like establishment-file-api — serves ONLY the active company.
+    // So this reuses the same serial context-switch machinery as the file sweep.
+    // The old /api/v1/work-permits/laborers path is dead (404); this replaces it.
+    // Because CORS forbids reaching employee-management-api from other origins,
+    // this sweep only runs when the button is fired from employee-management.qiwa.sa
+    // (probe decides) — the file sweep and this one are the two per-origin halves.
+    const API_EMP = 'https://employee-management-api.qiwa.sa';
+    const empFields = (e, cid) => ({
+      company_id: cid,
+      employee_id: e.id,
+      id_no: e.idNo || e.idIqamaNationalBorder || null,
+      name_full: [e.firstName, e.secondName, e.thirdName, e.fourthName].filter(Boolean).join(' ') || null,
+      first_name: e.firstName || null, second_name: e.secondName || null,
+      third_name: e.thirdName || null, fourth_name: e.fourthName || null,
+      gender_id: e.genderId ?? null,
+      nationality_id: e.nationalityId ?? null,
+      nationality_ar: e.nationalityNameAR || null, nationality_en: e.nationalityNameEN || null,
+      is_saudi: e.isSaudi ?? null,
+      border_no: e.borderNo != null ? String(e.borderNo) : null,
+      iqama_status: e.iqamaStatus || null,
+      iqama_expiry_date: e.iqamaExpiryDate || null,
+      job_id: e.jobId ?? null,
+      job_name_ar: e.jobName_ar || e.jobTitleAR || null, job_name_en: e.jobName_en || e.jobTitleEN || null,
+      occupation_ar: e.contractOccupationAR || null, occupation_en: e.contractOccupationEN || null,
+      work_permit_number: e.workPermitNumber ?? null,
+      work_permit_status: e.workPermitStatus || null,
+      work_permit_start_date: e.workPermitStartDate || null,
+      work_permit_expiry_date: e.workPermitExpiryDate || null,
+      contract_number: e.contractNumber ?? null,
+      contract_type_ar: e.contractTypeAR || null, contract_type_en: e.contractTypeEN || null,
+      contract_start_date: e.contractStartDate || null,
+      contract_expiry_date: e.contractExpiryDate || null,
+      contract_period: e.contractPeriod ?? null,
+      employment_status_ar: e.employmentContractStatusAR || null,
+      employment_status_en: e.employmentContractStatusEN || null,
+      assigned_location: e.assignedLocation || null,
+      assigned_location_id: e.assignedLocationId ?? null,
+      gosi_registration: e.gosiRegistration ?? null,
+      establishment_id: e.establishmentId ?? null,
+      establishment_sequence_number: e.establishmentSequenceNumber ?? null,
+      raw: e,
+      synced_at: new Date().toISOString(),
+    });
+    // Probe employee-management-api reachability from this origin (CORS + context).
+    let empReachable = false, empProbeErr = null;
     if (sweepList.length > 0) {
-      msg('جلب عمال كل المنشآت (' + sweepList.length + ')...');
-      let companyIdx = 0; let workersSeen = 0; let companiesDone = 0; let wErr = null;
-      const CONCURRENCY = 3;
-      const sweepWorker = async () => {
-        while (companyIdx < sweepList.length) {
-          const i = companyIdx++;
+      const p0 = sweepList.find(c => c.company_id);
+      if (p0) {
+        await switchCtx(p0.company_id);
+        const pr = await qiwaGet(API_EMP + '/api/employees?pageIndex=0&pageSize=1&sort=newest%2Cdesc');
+        empReachable = pr.ok && pr.data && Array.isArray(pr.data.content);
+        empProbeErr = pr.error ? 'CORS/شبكة' : pr.ok ? null : 'HTTP ' + (pr.status || '?');
+      }
+    }
+    let workersLabel = '';
+    if (sweepList.length > 0 && empReachable) {
+      msg('جلب موظفي كل المنشآت (' + sweepList.length + ')...');
+      let eIdx = 0, eDone = 0, workersSeen = 0;
+      const empWorker = async () => {
+        while (eIdx < sweepList.length) {
+          const i = eIdx++;
           const c = sweepList[i];
-          if (!c.company_labor_office_id || !c.company_sequence_number) { companiesDone++; continue; }
-          const cQ = '?labor_office_id=' + c.company_labor_office_id + '&sequence_number=' + c.company_sequence_number + '&page_index=1&page_size=1000';
-          const [activeR, expiredR] = await Promise.all([
-            qiwaGet(API_CORE + '/api/v1/work-permits/laborers' + cQ + '&has_exceptional_balance=0&is_investment_establishment=0&is_in_red_ntiqat=0&is_establishing=0'),
-            qiwaGet(API_CORE + '/api/v1/work-permits/laborers/expired' + cQ + '&query='),
-          ]);
-          const rows = new Map();
-          const collect = (resp, isExpired) => {
-            if (!resp.ok || !resp.data || !Array.isArray(resp.data.items)) {
-              if (!wErr) wErr = resp.error ? 'CORS' : resp.status ? 'HTTP ' + resp.status : 'استجابة غير متوقعة';
-              return;
-            }
-            for (const l of resp.data.items) {
-              if (l.employee_id == null) continue;
-              const key = String(l.employee_id);
-              const existing = rows.get(key) || {};
-              rows.set(key, {
-                company_id: c.company_id,
-                employee_id: l.employee_id,
-                employee_name: l.employee_name || existing.employee_name || null,
-                employee_id_exp_date: l.employee_id_exp_date || existing.employee_id_exp_date || null,
-                work_permit_exp_date: l.work_permit_exp_date || existing.work_permit_exp_date || null,
-                status: l.status ?? existing.status ?? null,
-                is_wp_expired: isExpired || existing.is_wp_expired || false,
-                raw: l,
-                synced_at: new Date().toISOString(),
-              });
-            }
-          };
-          collect(activeR, false);
-          collect(expiredR, true);
-          if (rows.size > 0) {
-            await supaFetch('/rest/v1/qiwa_wp_laborers?on_conflict=company_id,employee_id', {
-              method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
-              body: JSON.stringify([...rows.values()]),
-            });
-            workersSeen += rows.size;
+          if (!c.company_id) { eDone++; continue; }
+          await switchCtx(c.company_id);
+          // Page through all employees for this company (pageSize 100).
+          const rows = [];
+          let page = 0, pages = 1;
+          while (page < pages && page < 50) {
+            let r = await qiwaGet(API_EMP + '/api/employees?pageIndex=' + page + '&pageSize=100&sort=newest%2Cdesc');
+            if (r.status === 403) { await switchCtx(c.company_id); r = await qiwaGet(API_EMP + '/api/employees?pageIndex=' + page + '&pageSize=100&sort=newest%2Cdesc'); }
+            if (!r.ok || !r.data || !Array.isArray(r.data.content)) break;
+            pages = r.data.totalPages || 1;
+            for (const e of r.data.content) if (e && e.id != null) rows.push(empFields(e, c.company_id));
+            page++;
           }
-          companiesDone++;
-          if (companiesDone % 10 === 0 || companiesDone === sweepList.length) {
-            msg('جلب عمال: ' + companiesDone + '/' + sweepList.length + ' منشأة · ' + workersSeen + ' عامل');
+          if (rows.length > 0) {
+            await supaFetch('/rest/v1/qiwa_employees?on_conflict=company_id,employee_id', {
+              method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+              body: JSON.stringify(rows),
+            });
+            workersSeen += rows.length;
+          }
+          eDone++;
+          if (eDone % 10 === 0 || eDone === sweepList.length) {
+            msg('موظفو المنشآت: ' + eDone + '/' + sweepList.length + ' · ' + workersSeen + ' موظف');
           }
         }
       };
-      await Promise.all(Array.from({ length: CONCURRENCY }, sweepWorker));
-      workersLabel = ' · عمال ' + workersSeen + (workersSeen === 0 && wErr ? ' (⚠️ ' + wErr + ')' : '');
+      // Serial — active company is global session state.
+      await empWorker();
+      if (originalCompanyId) await switchCtx(originalCompanyId);
+      workersLabel = ' · موظفون ' + workersSeen;
+    } else if (sweepList.length > 0 && empProbeErr) {
+      workersLabel = ' · موظفون ✗ (' + empProbeErr + ' — افتح employee-management.qiwa.sa)';
     }
+    // The employees probe may have switched context even when the sweep didn't
+    // run; always leave the session on the user's original company.
+    if (originalCompanyId) await switchCtx(originalCompanyId);
 
     await supaFetch('/rest/v1/sync_runs?id=eq.' + runId, {
       method: 'PATCH',
