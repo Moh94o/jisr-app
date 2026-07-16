@@ -1389,9 +1389,13 @@ function body({ sourceId, personId }) {
             const i = fIdx++;
             const c = sweepList[i];
             if (!c.company_labor_office_id || !c.company_sequence_number || !c.company_id) { fDone++; continue; }
-            const eid = encodeURIComponent(c.company_labor_office_id + '-' + c.company_sequence_number);
-            // Activate this company, then read its file under the active context.
-            await switchCtx(c.company_id);
+            const idPair = c.company_labor_office_id + '-' + c.company_sequence_number;
+            const eid = encodeURIComponent(idPair);
+            // Activate this company first. A company with an expired/pending
+            // subscription can't be switched to (PATCH 403) and the context
+            // stays on the previous one — skip it rather than read stale data.
+            const fSwitched = await switchCtx(c.company_id);
+            if (!fSwitched) { fDone++; continue; }
             let [d0, dg, dv, dvs, dvp, dh, da] = await fetchFile(eid);
             // 403 = context switch hadn't propagated yet; re-switch and retry once.
             if (d0 && d0.status === 403) {
@@ -1400,6 +1404,11 @@ function body({ sourceId, personId }) {
             }
             // Skip when the core registry endpoint has no data (expired/blocked).
             if (!d0.ok || !d0.data || !d0.data.establishment_information) { fDone++; continue; }
+            // Contamination guard: the file-api path is keyed by estId, but the
+            // establishment_group_id in the body must match the company we mean
+            // to store under — never write another establishment's file.
+            if (d0.data.establishment_information.establishment_group_id &&
+                d0.data.establishment_information.establishment_group_id !== idPair) { fDone++; continue; }
             const info = d0.data.establishment_information || {};
             const reg = d0.data.establishment_registration || {};
             const fp = {
@@ -1542,7 +1551,12 @@ function body({ sourceId, personId }) {
           const i = eIdx++;
           const c = sweepList[i];
           if (!c.company_id) { eDone++; continue; }
-          await switchCtx(c.company_id);
+          // Companies with an expired/pending subscription can't be activated —
+          // PATCH returns 403 and the session context stays on the PREVIOUS
+          // company. Skipping on a failed switch (and the row-level guard below)
+          // is what prevents storing one company's employees under another.
+          const switched = await switchCtx(c.company_id);
+          if (!switched) { eDone++; continue; }
           // Page through all employees for this company (pageSize 100).
           const rows = [];
           let page = 0, pages = 1;
@@ -1551,7 +1565,14 @@ function body({ sourceId, personId }) {
             if (r.status === 403) { await switchCtx(c.company_id); r = await qiwaGet(API_EMP + '/api/employees?pageIndex=' + page + '&pageSize=100&sort=newest%2Cdesc'); }
             if (!r.ok || !r.data || !Array.isArray(r.data.content)) break;
             pages = r.data.totalPages || 1;
-            for (const e of r.data.content) if (e && e.id != null) rows.push(empFields(e, c.company_id));
+            for (const e of r.data.content) {
+              if (!e || e.id == null) continue;
+              // Row-level contamination guard: only keep employees whose true
+              // establishment matches the target company's sequence number.
+              if (c.company_sequence_number != null && e.establishmentSequenceNumber != null &&
+                  Number(e.establishmentSequenceNumber) !== Number(c.company_sequence_number)) continue;
+              rows.push(empFields(e, c.company_id));
+            }
             page++;
           }
           if (rows.length > 0) {
@@ -1602,7 +1623,10 @@ function body({ sourceId, personId }) {
           const i = vIdx++;
           const c = sweepList[i];
           if (!c.company_id) { vDone++; continue; }
-          await switchCtx(c.company_id);
+          // Skip when the company can't be activated (expired/pending sub) — a
+          // failed switch would otherwise read the previous company's visas.
+          const vSwitched = await switchCtx(c.company_id);
+          if (!vSwitched) { vDone++; continue; }
           let vr = await qiwaGet(API_CORE + '/visa-proxy/v3/visa-requests?sort_by=desc&page=1&per=1000');
           if (vr.status === 403) { await switchCtx(c.company_id); vr = await qiwaGet(API_CORE + '/visa-proxy/v3/visa-requests?sort_by=desc&page=1&per=1000'); }
           const list = (vr.ok && vr.data && Array.isArray(vr.data.data)) ? vr.data.data : [];
