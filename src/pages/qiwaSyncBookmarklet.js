@@ -1274,6 +1274,115 @@ function body({ sourceId, personId }) {
       }
     }
 
+    // Per-company establishment-file sweep — fetches registry/detail for ALL
+    // companies, not just the active one. establishment-file-api endpoints are
+    // path-scoped by labor_office-sequence (estId), so no SPA context-switch is
+    // needed. This writes cr_number for every company, which is the bridge the
+    // facility pages match on (qiwa_companies.cr_number == facility.cr_number),
+    // so all facilities show Qiwa data after a single sync instead of needing
+    // each company opened individually.
+    // CORS: establishment-file-api only allows establishment-information.qiwa.sa,
+    // so we probe first and skip the sweep (with a hint) when unreachable.
+    if (companies.length > 0) {
+      const probe = companies.find(c => c.company_labor_office_id && c.company_sequence_number);
+      let fileReachable = false;
+      if (probe) {
+        const pr = await qiwaGet(API_FILE + '/api/establishments/' + encodeURIComponent(probe.company_labor_office_id + '-' + probe.company_sequence_number) + '/');
+        fileReachable = pr.ok && pr.data && !!pr.data.establishment_information;
+      }
+      if (!fileReachable) {
+        msg('⚠️ لجلب تفاصيل كل المنشآت: افتح establishment-information.qiwa.sa ثم زامن');
+      } else {
+        msg('جلب تفاصيل ملفات كل المنشآت (' + companies.length + ')...');
+        let fIdx = 0, fDone = 0, fOk = 0;
+        const FCONC = 3;
+        const fileWorker = async () => {
+          while (fIdx < companies.length) {
+            const i = fIdx++;
+            const c = companies[i];
+            if (!c.company_labor_office_id || !c.company_sequence_number) { fDone++; continue; }
+            const eid = encodeURIComponent(c.company_labor_office_id + '-' + c.company_sequence_number);
+            const [d0, dg, dv, dvs, dvp, dh, da] = await Promise.all([
+              qiwaGet(API_FILE + '/api/establishments/' + eid + '/'),
+              qiwaGet(API_FILE + '/api/establishments/' + eid + '/financial-information/general'),
+              qiwaGet(API_FILE + '/api/establishments/' + eid + '/violation-statistics'),
+              qiwaGet(API_FILE + '/api/establishments/' + eid + '/visa-balance/seasonal-work-visas'),
+              qiwaGet(API_FILE + '/api/establishments/' + eid + '/visa-balance/permanent-work-visas'),
+              qiwaGet(API_FILE + '/api/establishments/' + eid + '/workers-housing-license'),
+              qiwaGet(API_FILE + '/api/establishments/' + eid + '/financial-information/account'),
+            ]);
+            // Skip when the core registry endpoint has no data (expired/blocked).
+            if (!d0.ok || !d0.data || !d0.data.establishment_information) { fDone++; continue; }
+            const info = d0.data.establishment_information || {};
+            const reg = d0.data.establishment_registration || {};
+            const fp = {
+              company_id: c.company_id,
+              cr_number: reg.cr_number || null,
+              cr_national_number: reg.national_unified_number || null,
+              cr_status_ar: reg.cr_status?.ar || null,
+              cr_status_en: reg.cr_status?.en || null,
+              est_file_raw: d0.data,
+              est_license_number: info.license_number || null,
+              est_license_issue_date: info.license_issue_date || null,
+              est_license_expiration_date: info.license_expiration_date || null,
+              est_licenses_count: info.licenses_count ?? null,
+              est_licenses_status: info.licenses_status || null,
+              est_opening_date: info.opening_date || null,
+              est_labor_office_name_ar: info.labor_office_name?.ar || null,
+              est_labor_office_name_en: info.labor_office_name?.en || null,
+              est_source_type: reg.source_type || null,
+              est_is_merged: reg.is_establishment_merged ?? null,
+              detail_synced_at: new Date().toISOString(),
+            };
+            if (dg.ok && dg.data) {
+              const ad = dg.data.address || {};
+              fp.addr_raw = dg.data;
+              fp.addr_city_ar = ad.cityAr || null;
+              fp.addr_city_en = ad.cityEn || null;
+              fp.addr_district_ar = ad.districtAreaAr || null;
+              fp.addr_district_en = ad.districtAreaEn || null;
+              fp.addr_street_ar = ad.streetNameAr || null;
+              fp.addr_street_en = ad.streetNameEn || null;
+              fp.addr_building_no = ad.buildingNo != null ? String(ad.buildingNo) : null;
+              fp.addr_additional_no = ad.additionalNo != null ? String(ad.additionalNo) : null;
+              fp.addr_zip_code = ad.zipCode || null;
+              fp.addr_unit_no = ad.unitNo != null ? String(ad.unitNo) : null;
+              fp.addr_zatca_id = dg.data.zatcaId || null;
+              if (dg.data.vatNumber) fp.vat_number = dg.data.vatNumber;
+            }
+            if (dv.ok && dv.data) {
+              fp.violations_raw = dv.data;
+              fp.violations_open = dv.data.open ?? null;
+              fp.violations_not_paid = dv.data.not_paid ?? null;
+              fp.violations_objection = dv.data.objection ?? null;
+              fp.violations_cancelled = dv.data.cancelled ?? null;
+            }
+            if (dvs.ok) fp.visa_seasonal_raw = dvs.data;
+            if (dvp.ok) fp.visa_permanent_raw = dvp.data;
+            if (dh.ok && dh.data) {
+              fp.housing_license_raw = dh.data;
+              fp.housing_license_required = dh.data.isLicenseRequired ?? null;
+              fp.housing_total_laborers = dh.data.totalLaborers ?? null;
+              fp.housing_compliant = dh.data.totalCompliant ?? null;
+              fp.housing_incompliant = dh.data.totalIncompliant ?? null;
+              fp.housing_result = dh.data.resultDescription || null;
+            }
+            if (da.ok) fp.financial_account_raw = da.data;
+            const up = await supaFetch('/rest/v1/qiwa_companies?on_conflict=company_id', {
+              method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+              body: JSON.stringify([fp]),
+            });
+            if (up.ok) fOk++;
+            fDone++;
+            if (fDone % 10 === 0 || fDone === companies.length) {
+              msg('ملفات المنشآت: ' + fDone + '/' + companies.length + ' · نجح ' + fOk);
+            }
+          }
+        };
+        await Promise.all(Array.from({ length: FCONC }, fileWorker));
+      }
+    }
+
     // Per-company laborer sweep — fetches wp/laborers for ALL workspaces, not
     // just the active company. The /api/v1/work-permits/laborers endpoint
     // accepts labor_office_id + sequence_number as query params so no SPA
