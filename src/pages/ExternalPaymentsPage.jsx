@@ -19,7 +19,7 @@ const fmtDate = (s) => { if (!s) return '—'; const d = new Date(s + 'T12:00:00
 const OBLIG_LABEL = { rent: 'إيجار', utility_electricity: 'كهرباء', utility_water: 'ماء', utility_internet: 'إنترنت', phone: 'جوال' }
 const OBLIG_COLOR = { rent: C.gold, utility_electricity: C.warn, utility_water: C.blue, utility_internet: C.cyan, phone: C.purple }
 
-const card = { background: 'var(--card-grad2)', border: '1px solid rgba(255,255,255,.05)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', borderRadius: 16 }
+const card = { background: 'var(--card-grad2)', border: '1px solid rgba(255,255,255,.05)', boxShadow: 'var(--shadow-sm)', borderRadius: 16 }
 const inputS = { height: 42, padding: '0 12px', borderRadius: 10, background: 'rgba(0,0,0,.18)', border: '1px solid rgba(255,255,255,.06)', color: 'var(--tx)', fontFamily: F, fontSize: 13, fontWeight: 600, outline: 'none', boxSizing: 'border-box', width: '100%' }
 
 export default function ExternalPaymentsPage({ sb, user, toast, lang = 'ar', branchId }) {

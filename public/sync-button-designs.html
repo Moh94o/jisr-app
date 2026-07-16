@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>تصاميم أزرار المزامنة</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* Theme tokens copied verbatim from App.jsx Css() so the gallery renders
+     exactly what the real page will render. */
+  :root[data-theme="light"] {
+    --bg:#f2ece0; --card-grad2:#faf8f3;
+    --tx:rgba(40,32,18,.9); --tx2:rgba(50,42,25,.74); --tx3:rgba(90,75,50,.56);
+    --tx4:rgba(110,95,65,.46); --tx5:rgba(88,72,46,.72);
+    --bd:rgba(120,100,60,.16); --bd2:rgba(120,100,60,.08);
+    --inputBg:rgba(176,125,0,.06); --search-bg:rgba(176,125,0,.06);
+    --accent:#B07D00; --accent-soft:rgba(176,125,0,.12); --accent-bd:rgba(176,125,0,.32);
+    --shadow-sm:0 1px 2px rgba(90,70,30,.08); --shadow-md:0 4px 14px rgba(90,70,30,.10);
+  }
+  :root[data-theme="dark"] {
+    --bg:#0E0E0E; --card-grad2:#1c1c1c;
+    --tx:rgba(255,255,255,.92); --tx2:rgba(255,255,255,.82); --tx3:rgba(255,255,255,.55);
+    --tx4:rgba(255,255,255,.4); --tx5:rgba(255,255,255,.6);
+    --bd:rgba(255,255,255,.07); --bd2:rgba(255,255,255,.04);
+    --inputBg:rgba(176,125,0,.1); --search-bg:rgba(176,125,0,.1);
+    --accent:#B07D00; --accent-soft:rgba(176,125,0,.12); --accent-bd:rgba(176,125,0,.4);
+    --shadow-sm:0 1px 2px rgba(0,0,0,.28); --shadow-md:0 4px 14px rgba(0,0,0,.34);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--tx);
+    font-family: 'Cairo', 'Tajawal', sans-serif;
+    padding: 28px; min-height: 100vh;
+  }
+  .head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:26px; }
+  h1 { font-size:22px; font-weight:600; letter-spacing:-.3px; }
+  .sub { font-size:13px; font-weight:500; color:var(--tx4); margin-top:8px; line-height:1.6; max-width:560px; }
+  .toggle {
+    height:38px; padding:0 16px; border-radius:11px; cursor:pointer;
+    background:var(--card-grad2); border:1px solid var(--bd); color:var(--tx2);
+    font-family:inherit; font-size:12.5px; font-weight:600; flex-shrink:0;
+  }
+  .design { margin-bottom:14px; border-radius:16px; background:var(--card-grad2);
+            border:1px solid var(--bd); box-shadow:var(--shadow-sm); padding:18px 20px; }
+  .dhead { display:flex; align-items:center; gap:10px; margin-bottom:16px; }
+  .dnum { width:24px; height:24px; border-radius:7px; background:var(--accent-soft);
+          border:1px solid var(--accent-bd); color:var(--accent);
+          font-size:11px; font-weight:700; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .dname { font-size:13.5px; font-weight:600; color:var(--tx); }
+  .dnote { font-size:11.5px; font-weight:500; color:var(--tx4); }
+  .row { display:flex; flex-flow:wrap; align-items:center; gap:10px; direction:ltr; }
+
+  /* Shared grip + icon primitives */
+  .grip { display:inline-flex; padding-inline:2px; opacity:.5; flex-shrink:0; }
+  .pill { text-decoration:none; font-family:inherit; font-size:12.5px; font-weight:600;
+          cursor:grab; direction:ltr; display:inline-flex; align-items:center;
+          white-space:nowrap; user-select:none; transition:.18s; }
+  .soon { font-size:9px; font-weight:700; padding:1px 6px; border-radius:999px;
+          background:var(--bd); color:var(--tx4); white-space:nowrap; }
+
+  /* ═══ 1. الحالي — حبّة ملوّنة + مقبض ═══ */
+  .d1 { height:40px; padding-inline:6px 13px; border-radius:12px; gap:9px;
+        background:linear-gradient(180deg, color-mix(in srgb, var(--c) 12%, transparent), color-mix(in srgb, var(--c) 6%, transparent));
+        border:1px solid color-mix(in srgb, var(--c) 40%, transparent); color:var(--c);
+        box-shadow:0 1px 2px rgba(0,0,0,.15), inset 0 1px 0 color-mix(in srgb, var(--c) 10%, transparent); }
+  .d1:hover { transform:translateY(-1px); border-color:var(--c); box-shadow:0 7px 18px color-mix(in srgb, var(--c) 20%, transparent); }
+  .d1.off { background:none; border:1px dashed var(--bd); color:var(--tx5); cursor:not-allowed; box-shadow:none; }
+  .d1.off:hover { transform:none; border-color:var(--bd); box-shadow:none; }
+
+  /* ═══ 2. رِكاب الأيقونة — لوح لون في الطرف مثل كروت الإحصاء ═══ */
+  .d2 { height:40px; border-radius:12px; gap:0; overflow:hidden;
+        background:var(--card-grad2); border:1px solid var(--bd); color:var(--tx);
+        box-shadow:var(--shadow-sm); }
+  .d2 .rail { width:38px; align-self:stretch; display:inline-flex; align-items:center; justify-content:center;
+              background:linear-gradient(180deg, color-mix(in srgb, var(--c) 18%, transparent), color-mix(in srgb, var(--c) 6%, transparent));
+              border-inline-end:1px solid var(--bd); color:var(--c); flex-shrink:0; }
+  .d2 .txt { padding-inline:12px; display:inline-flex; align-items:center; gap:8px; }
+  .d2:hover { border-color:color-mix(in srgb, var(--c) 45%, transparent); box-shadow:var(--shadow-md); }
+  .d2.off { opacity:.55; cursor:not-allowed; }
+  .d2.off:hover { border-color:var(--bd); box-shadow:var(--shadow-sm); }
+
+  /* ═══ 3. أحادي + نقطة لون — هادئ وموحّد ═══ */
+  .d3 { height:40px; padding-inline:12px; border-radius:12px; gap:9px;
+        background:var(--inputBg); border:1px solid transparent; color:var(--tx2); }
+  .d3 .dot { width:7px; height:7px; border-radius:50%; background:var(--c); flex-shrink:0;
+             box-shadow:0 0 8px color-mix(in srgb, var(--c) 60%, transparent); }
+  .d3:hover { border-color:color-mix(in srgb, var(--c) 40%, transparent); color:var(--tx); background:var(--search-bg); }
+  .d3.off { opacity:.5; cursor:not-allowed; }
+  .d3.off .dot { background:var(--tx4); box-shadow:none; }
+
+  /* ═══ 4. شبح محدَّد — شفاف بحد ملوّن ═══ */
+  .d4 { height:40px; padding-inline:14px; border-radius:12px; gap:8px;
+        background:transparent; border:1px solid color-mix(in srgb, var(--c) 35%, transparent); color:var(--c); }
+  .d4 .grip { opacity:0; width:0; overflow:hidden; transition:.18s; }
+  .d4:hover { background:color-mix(in srgb, var(--c) 8%, transparent); border-color:var(--c); }
+  .d4:hover .grip { opacity:.5; width:10px; }
+  .d4.off { border-style:dashed; border-color:var(--bd); color:var(--tx5); cursor:not-allowed; }
+  .d4.off:hover { background:transparent; }
+
+  /* ═══ 5. ممتلئ — لون كامل، أوضح تباين ═══ */
+  .d5 { height:40px; padding-inline:6px 14px; border-radius:12px; gap:9px;
+        background:var(--c); border:1px solid var(--c); color:#fff;
+        box-shadow:0 2px 8px color-mix(in srgb, var(--c) 30%, transparent), inset 0 1px 0 rgba(255,255,255,.2); }
+  .d5:hover { transform:translateY(-1px); box-shadow:0 7px 18px color-mix(in srgb, var(--c) 40%, transparent), inset 0 1px 0 rgba(255,255,255,.25); }
+  .d5 .grip { opacity:.65; }
+  .d5.off { background:var(--bd2); border:1px dashed var(--bd); color:var(--tx4); box-shadow:none; cursor:not-allowed; }
+  .d5.off:hover { transform:none; box-shadow:none; }
+
+  /* ═══ 6. تبويب بخط سفلي — مسطّح مثل تبويبات الفترة ═══ */
+  .d6 { height:40px; padding:0 12px 6px; border-radius:0; gap:8px;
+        background:none; border:none; border-bottom:2px solid transparent; color:var(--tx2); }
+  .d6:hover { color:var(--c); border-bottom-color:var(--c); }
+  .d6.off { color:var(--tx4); cursor:not-allowed; }
+  .d6.off:hover { border-bottom-color:var(--bd); color:var(--tx4); }
+
+  /* ═══ 7. بلاطة شعار — الشعار الحقيقي فوق الاسم ═══ */
+  .d7 { width:96px; height:78px; border-radius:14px; gap:7px; padding:10px 8px;
+        flex-direction:column; justify-content:center;
+        background:var(--card-grad2); border:1px solid var(--bd); box-shadow:var(--shadow-sm); color:var(--tx2); }
+  .d7 img { width:26px; height:26px; object-fit:contain; border-radius:6px; }
+  .d7 .ico { color:var(--c); }
+  .d7 .nm { font-size:11.5px; font-weight:600; }
+  .d7:hover { transform:translateY(-2px); border-color:color-mix(in srgb, var(--c) 45%, transparent); box-shadow:var(--shadow-md); }
+  .d7.off { opacity:.5; cursor:not-allowed; }
+  .d7.off:hover { transform:none; border-color:var(--bd); }
+
+  /* ═══ 8. حد جانبي — مثل تاق «الصافي النقدي» ═══ */
+  .d8 { height:40px; padding-inline:12px; border-radius:0 8px 8px 0; gap:9px;
+        background:color-mix(in srgb, var(--c) 7%, transparent);
+        border:none; border-inline-start:3px solid var(--c); color:var(--c); }
+  .d8:hover { background:color-mix(in srgb, var(--c) 14%, transparent); }
+  .d8.off { border-inline-start-color:var(--tx4); color:var(--tx4); background:var(--bd2); cursor:not-allowed; }
+
+  /* ═══ 9. إطار ذهبي — مثل زر «فاتورة جديدة» ═══ */
+  .d9 { height:40px; padding-inline:8px 14px; border-radius:11px; gap:9px;
+        background:linear-gradient(160deg,#23201a,#141210);
+        border:1px solid rgba(176,125,0,.5); color:#F0CB6A;
+        box-shadow:0 2px 7px rgba(0,0,0,.12), inset 0 1px 0 rgba(176,125,0,.1); }
+  .d9 .ico { color:var(--c); }
+  .d9:hover { background:linear-gradient(160deg,#2c2820,#1a1714); border-color:rgba(176,125,0,.75); }
+  .d9.off { opacity:.45; cursor:not-allowed; }
+  .d9.off:hover { background:linear-gradient(160deg,#23201a,#141210); }
+
+  /* ═══ 10. نص + مقبض — أقل ضجيج ممكن ═══ */
+  .d10 { height:36px; padding-inline:8px; border-radius:9px; gap:8px;
+         background:none; border:1px solid transparent; color:var(--tx2); }
+  .d10 .ico { color:var(--c); }
+  .d10:hover { background:var(--inputBg); border-color:var(--bd); }
+  .d10.off { color:var(--tx4); cursor:not-allowed; }
+  .d10.off:hover { background:none; border-color:transparent; }
+</style>
+</head>
+<body>
+  <div class="head">
+    <div>
+      <h1>تصاميم أزرار المزامنة</h1>
+      <div class="sub">
+        كل صف يعرض نفس المصادر الستّة بتصميم مختلف — أربعة فعّالة (تُسحب لشريط الإشارات)
+        واثنان بحالة «قريباً». قل لي رقم التصميم اللي تبيه وأطبّقه.
+      </div>
+    </div>
+    <button class="toggle" id="tg">تبديل الثيم</button>
+  </div>
+  <div id="out"></div>
+
+<script>
+// Accent colors + icons mirror SOURCE_BRAND and the live DragBookmark icons.
+const I = {
+  sbc:  '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M3 9h18"/>',
+  gosi: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
+  qiwa: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  muqeem:'<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M15 9h3M15 13h3M6 16c.6-1.5 1.8-2 3-2s2.4.5 3 2"/>',
+  chambers:'<path d="M3 21h18M4 21V10l8-5 8 5v11M9 21v-6h6v6"/>',
+  zatca:'<path d="M6 3h12l-2 4H8L6 3zM5 7h14v14H5V7zM9 12h6M9 16h6"/>',
+};
+const SRC = [
+  { k:'sbc',      ar:'المركز',    c:'#9b59b6', logo:'sbc-logo.jpg' },
+  { k:'gosi',     ar:'التأمينات', c:'#22c55e', logo:'gosi.logo.png' },
+  { k:'qiwa',     ar:'قوى',       c:'#3b82f6', logo:'qiwa-logo.jpg' },
+  { k:'muqeem',   ar:'مقيم',      c:'#f59e0b', logo:'muqeem-logo.png' },
+  { k:'chambers', ar:'الغرف',     c:'#06b6d4', off:true },
+  { k:'zatca',    ar:'الزكاة',    c:'#7dd3fc', off:true },
+];
+const DESIGNS = [
+  { n:1,  name:'الحالي — حبّة ملوّنة + مقبض', note:'ما هو مطبَّق الآن' },
+  { n:2,  name:'رِكاب الأيقونة',              note:'لوح لون في الطرف — نفس لغة كروت الإحصاء' },
+  { n:3,  name:'أحادي + نقطة لون',            note:'هادئ وموحّد؛ اللون إشارة فقط' },
+  { n:4,  name:'شبح محدَّد',                  note:'شفاف بحد ملوّن؛ المقبض يظهر عند المرور' },
+  { n:5,  name:'ممتلئ',                       note:'أعلى تباين وأوضح ظهور' },
+  { n:6,  name:'تبويب بخط سفلي',              note:'مسطّح تمامًا — مثل تبويبات الفترة' },
+  { n:7,  name:'بلاطة شعار',                  note:'الشعار الحقيقي فوق الاسم' },
+  { n:8,  name:'حد جانبي',                    note:'مثل تاق «الصافي النقدي»' },
+  { n:9,  name:'إطار ذهبي',                   note:'يطابق زر «فاتورة جديدة»' },
+  { n:10, name:'نص + مقبض',                   note:'أقل ضجيج ممكن' },
+];
+const grip = '<span class="grip"><svg width="10" height="16" viewBox="0 0 10 16" fill="currentColor">'
+  + [3,8,13].map(y => `<circle cx="3" cy="${y}" r="1.3"/><circle cx="7" cy="${y}" r="1.3"/>`).join('')
+  + '</svg></span>';
+const icon = (k, cls) => `<span class="ico ${cls||''}" style="display:inline-flex"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${I[k]}</svg></span>`;
+const soon = s => s.off ? '<span class="soon">قريباً</span>' : '';
+
+// Per-design markup. Each returns the inner HTML of one pill.
+const BODY = {
+  1:  s => grip + `<span>${s.ar}</span>` + soon(s),
+  2:  s => `<span class="rail">${icon(s.k)}</span><span class="txt">${grip}<span>${s.ar}</span>${soon(s)}</span>`,
+  3:  s => `<span class="dot"></span><span>${s.ar}</span>` + soon(s),
+  4:  s => grip + icon(s.k) + `<span>${s.ar}</span>` + soon(s),
+  5:  s => grip + `<span>${s.ar}</span>` + soon(s),
+  6:  s => icon(s.k) + `<span>${s.ar}</span>` + soon(s),
+  7:  s => (s.logo ? `<img src="${s.logo}" alt="">` : icon(s.k)) + `<span class="nm">${s.ar}</span>` + soon(s),
+  8:  s => `<span>${s.ar}</span>` + soon(s),
+  9:  s => grip + icon(s.k) + `<span>${s.ar}</span>` + soon(s),
+  10: s => grip + icon(s.k) + `<span>${s.ar}</span>` + soon(s),
+};
+
+document.getElementById('out').innerHTML = DESIGNS.map(d => `
+  <div class="design">
+    <div class="dhead">
+      <span class="dnum">${d.n}</span>
+      <span class="dname">${d.name}</span>
+      <span class="dnote">— ${d.note}</span>
+    </div>
+    <div class="row">
+      ${SRC.map(s => `<a class="pill d${d.n}${s.off ? ' off' : ''}" style="--c:${s.c}"
+          onclick="return false" ${s.off ? '' : 'draggable="true"'}>${BODY[d.n](s)}</a>`).join('')}
+    </div>
+  </div>
+`).join('');
+
+// Default to light — matches what the app currently shows.
+const root = document.documentElement;
+root.setAttribute('data-theme', 'light');
+document.getElementById('tg').onclick = () =>
+  root.setAttribute('data-theme', root.getAttribute('data-theme') === 'light' ? 'dark' : 'light');
+</script>
+</body>
+</html>

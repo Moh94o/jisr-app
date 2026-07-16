@@ -297,7 +297,7 @@ export default function PaymentsPage({ sb, lang, user, branchId, toast, emptyIco
           position: 'relative', padding: '18px 22px', borderRadius: 16,
           background: 'var(--card-grad2)',
           border: '1px solid var(--bd)',
-          boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
+          boxShadow: 'var(--shadow-sm)',
           display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
           overflow: 'hidden', minHeight: 190,
         }}>
@@ -320,7 +320,7 @@ export default function PaymentsPage({ sb, lang, user, branchId, toast, emptyIco
           borderRadius: 16,
           background: 'var(--card-grad2)',
           border: '1px solid var(--bd)',
-          boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
+          boxShadow: 'var(--shadow-sm)',
           display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 190,
         }}>
           {[
@@ -357,7 +357,7 @@ export default function PaymentsPage({ sb, lang, user, branchId, toast, emptyIco
               borderRadius: 16,
               background: 'var(--card-grad2)',
               border: '1px solid var(--bd)',
-              boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
+              boxShadow: 'var(--shadow-sm)',
               padding: '12px 16px',
               display: 'flex', flexDirection: 'column', gap: 10, minHeight: 190,
             }}>

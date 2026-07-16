@@ -13,7 +13,7 @@ const cardChrome = {
   borderRadius: 14,
   background: 'var(--card-grad2)',
   border: '1px solid var(--bd)',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
+  boxShadow: 'var(--shadow-sm)',
   overflow: 'hidden',
 }
 const cardHeader = {

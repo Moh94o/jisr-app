@@ -112,7 +112,7 @@ export default function SaudizationRequestsPage({ sb, user, toast, lang, branchI
       {loading ? <PageSkeleton columns={['22%', '16%', '16%', '13%', '13%', '20%']} rows={8} /> : (<>
         {/* Stats — Overview hero + status breakdown (نفس تصميم صفحة المعاملات) */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: 14, marginBottom: 24 }}>
-          <div style={{ position: 'relative', padding: '18px 22px', borderRadius: 16, background: 'var(--card-grad2)', border: '1px solid var(--bd)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', overflow: 'hidden', height: 188, boxSizing: 'border-box' }}>
+          <div style={{ position: 'relative', padding: '18px 22px', borderRadius: 16, background: 'var(--card-grad2)', border: '1px solid var(--bd)', boxShadow: 'var(--shadow-sm)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', overflow: 'hidden', height: 188, boxSizing: 'border-box' }}>
             <div style={{ position: 'absolute', insetInlineStart: -60, top: -60, width: 180, height: 180, borderRadius: '50%', background: `radial-gradient(circle, ${C.gold}18 0%, transparent 70%)`, pointerEvents: 'none' }} />
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: -6 }}>
               <span style={{ width: 8, height: 8, borderRadius: '50%', background: C.gold, boxShadow: `0 0 10px ${C.gold}aa` }} />
@@ -133,7 +133,7 @@ export default function SaudizationRequestsPage({ sb, user, toast, lang, branchI
               </div>
             </div>
           </div>
-          <div style={{ borderRadius: 16, background: 'var(--card-grad2)', border: '1px solid var(--bd)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: 12, height: 188, boxSizing: 'border-box' }}>
+          <div style={{ borderRadius: 16, background: 'var(--card-grad2)', border: '1px solid var(--bd)', boxShadow: 'var(--shadow-sm)', padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: 12, height: 188, boxSizing: 'border-box' }}>
             <span style={{ fontSize: 13, color: 'var(--tx2)', fontWeight: 600 }}>{T('الحالات', 'Statuses')}</span>
             <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
               {[{ k: 'inprog', label: T('قيد التنفيذ', 'In progress'), c: C.blue }, { k: 'done', label: T('منجز', 'Done'), c: C.ok }, { k: 'cancelled', label: T('ملغي', 'Cancelled'), c: C.red }].map(s => {

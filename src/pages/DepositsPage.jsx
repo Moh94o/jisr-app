@@ -358,7 +358,7 @@ export default function DepositsPage({ sb, lang, user, branchId, toast, emptyIco
 
   // Stat card styled to match the Invoices page cards: gradient surface, colored dot + title, big figure, footer sub-stat.
   const dCard = (label, value, count, color, footLabel, grow = 1) => (
-    <div style={{ position: 'relative', flex: `${grow} 1 0%`, minWidth: 200, padding: '18px 22px', borderRadius: 16, background: 'var(--card-grad2)', border: '1px solid var(--bd)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', overflow: 'hidden', minHeight: 190 }}>
+    <div style={{ position: 'relative', flex: `${grow} 1 0%`, minWidth: 200, padding: '18px 22px', borderRadius: 16, background: 'var(--card-grad2)', border: '1px solid var(--bd)', boxShadow: 'var(--shadow-sm)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', overflow: 'hidden', minHeight: 190 }}>
       <div style={{ position: 'absolute', insetInlineStart: -60, top: -60, width: 180, height: 180, borderRadius: '50%', background: `radial-gradient(circle, ${color}18 0%, transparent 70%)`, pointerEvents: 'none' }} />
       <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: -6 }}>
         <span style={{ width: 8, height: 8, borderRadius: '50%', background: color, boxShadow: `0 0 10px ${color}aa` }} />
@@ -379,7 +379,7 @@ export default function DepositsPage({ sb, lang, user, branchId, toast, emptyIco
     // Keep the card at the same 150px height even with 3 rows by compacting padding/fonts.
     const compact = parts.length >= 3
     return (
-    <div style={{ position: 'relative', flex: 1, minWidth: 200, minHeight: 190, borderRadius: 16, background: 'var(--card-grad2)', border: '1px solid var(--bd)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <div style={{ position: 'relative', flex: 1, minWidth: 200, minHeight: 190, borderRadius: 16, background: 'var(--card-grad2)', border: '1px solid var(--bd)', boxShadow: 'var(--shadow-sm)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       {parts.map((s, i) => (
         <div key={i} style={{ position: 'relative', padding: compact ? '7px 16px' : '12px 16px', flex: 1, minHeight: 0, borderTop: i > 0 ? '1px solid var(--bd)' : 'none', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: compact ? 3 : 6, overflow: 'hidden' }}>
           <div style={{ position: 'absolute', insetInlineStart: -25, top: '50%', transform: 'translateY(-50%)', width: 70, height: 70, borderRadius: '50%', background: `radial-gradient(circle, ${s.color}10 0%, transparent 70%)`, pointerEvents: 'none' }} />

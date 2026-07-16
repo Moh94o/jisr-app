@@ -86,7 +86,7 @@ const cardChrome = {
   borderRadius: 14,
   background: 'var(--card-grad2)',
   border: '1px solid var(--bd)',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
+  boxShadow: 'var(--shadow-sm)',
   overflow: 'hidden',
 }
 const cardHeader = {
@@ -1055,7 +1055,7 @@ export default function TempWorkforcePage({ sb, toast, lang, user, onTabChange }
           position: 'relative', padding: '18px 22px', borderRadius: 16,
           background: 'var(--card-grad2)',
           border: '1px solid var(--bd)',
-          boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
+          boxShadow: 'var(--shadow-sm)',
           display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
           overflow: 'hidden', minHeight: 150,
         }}>
@@ -1082,7 +1082,7 @@ export default function TempWorkforcePage({ sb, toast, lang, user, onTabChange }
           borderRadius: 16,
           background: 'var(--card-grad2)',
           border: '1px solid var(--bd)',
-          boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
+          boxShadow: 'var(--shadow-sm)',
           padding: '14px 16px',
           display: 'flex', flexDirection: 'column', gap: 12, minHeight: 150,
         }}>
@@ -1139,7 +1139,7 @@ export default function TempWorkforcePage({ sb, toast, lang, user, onTabChange }
           borderRadius: 16,
           background: 'var(--card-grad2)',
           border: '1px solid var(--bd)',
-          boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
+          boxShadow: 'var(--shadow-sm)',
           padding: '14px 16px',
           display: 'flex', flexDirection: 'column', gap: 12, minHeight: 150,
         }}>
@@ -1488,7 +1488,7 @@ function WorkerEditLog({ entries, created, fileUrls = {}, T }) {
   const chrono = [...(createdEntry ? [createdEntry] : []), ...logEntries]
   if (!chrono.length) return null
   return (
-    <div style={{ background: 'var(--card-grad2)', border: '1px solid var(--bd)', borderRadius: 16, boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', overflow: 'hidden' }}>
+    <div style={{ background: 'var(--card-grad2)', border: '1px solid var(--bd)', borderRadius: 16, boxShadow: 'var(--shadow-sm)', overflow: 'hidden' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '13px 18px', borderBottom: '1px solid var(--bd)' }}>
         <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.blue }} />
         <span style={{ fontSize: 16, fontWeight: 600, letterSpacing: '.2px', color: C.blue }}>{T('سجل الإضافات والتعديلات', 'Activity log')}</span>

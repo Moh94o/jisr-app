@@ -62,7 +62,7 @@ export function SkeletonCards({ count = 3, cols = 'repeat(auto-fit, minmax(260px
 // strip used on Invoices / Payments / Transfer-Calc (grid 2.2fr 1fr 1.5fr, minHeight 190).
 // `breakdownRows` controls how many label rows the right-hand breakdown card shows.
 export function StatStripSkeleton({ breakdownRows = 6, cols = '2.2fr 1fr 1.5fr' }) {
-  const card = { borderRadius: 16, background: 'var(--card-grad2)', border: '1px solid var(--bd)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', minHeight: 190 }
+  const card = { borderRadius: 16, background: 'var(--card-grad2)', border: '1px solid var(--bd)', boxShadow: 'var(--shadow-sm)', minHeight: 190 }
   return (
     <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 14, marginBottom: 24 }}>
       <style>{SK_KEYFRAMES}</style>

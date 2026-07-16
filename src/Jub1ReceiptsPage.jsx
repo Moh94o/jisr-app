@@ -17,6 +17,7 @@ import {
 import { ALL_SERVICES, SVC_CODE_MAP } from './ServiceRequestPage.jsx'
 import { can, isGM as isGmUser, cardVisible, canCardBtn, fieldVisible, fieldEditable, modalAllowed, stageVisible } from './lib/permissions.js'
 import { swrGet, swrSet, useLiveRefresh } from './lib/liveData.js'
+import { buildRefIndex, matchReceipt, fieldDiffers } from './lib/jub1ExcelMatch.js'
 import BackButton from './components/BackButton'
 
 const TAB = 'jub1_receipts'
@@ -101,6 +102,8 @@ export default function Jub1ReceiptsPage({ sb, user, toast, lang = 'ar', emptyIc
   const [sortMode, setSortMode] = useState('created_desc')
   const [onlyFlagged, setOnlyFlagged] = useState(false)
   const [linkedFilter, setLinkedFilter] = useState('') // '' = الكل · 'yes' = مرتبط بسند آخر · 'no' = غير مرتبط
+  const [excelFilter, setExcelFilter] = useState('')   // '' = الكل · match/diff/weak/none — حالة المطابقة مع مرجع الإكسل
+  const [excelRef, setExcelRef] = useState(() => swrGet('jub1_excel_ref') || [])  // صفوف jub1_excel_ref (مرجع تحقّق فقط)
   const [editing, setEditing] = useState(null)       // كائن نموذج التعديل المفتوح أو null
   const [creating, setCreating] = useState(false)     // نافذة «سند جديد» = رفع صور + قراءة آلية + حفظ مسودة
 
@@ -161,6 +164,53 @@ export default function Jub1ReceiptsPage({ sb, user, toast, lang = 'ar', emptyIc
     setLoading(false)
   }, [sb])
 
+  // مرجع «اكسل المكتب» (jub1_excel_ref) — مساعد تحقّق للعرض فقط: المصدر الرسمي هو صورة السند،
+  // ولا تُنسخ منه أي قيمة تلقائياً. يُستورد بالسكربت scripts/jub1-excel-ref.mjs.
+  const loadExcelRef = useCallback(async () => {
+    const { data } = await sb.from('jub1_excel_ref')
+      .select('id,sheet,row_no,kind,sanads,client_name,client_id_no,client_phone,party,company,total_amount,paid_amount,remaining_amount,notes')
+      .limit(10000)
+    if (data) { swrSet('jub1_excel_ref', data); setExcelRef(data) }
+  }, [sb])
+
+  const excelIndex = useMemo(() => buildRefIndex(excelRef), [excelRef])
+  // نتيجة مطابقة كل سند مع الإكسل — تُحسب مرة لكل تحميل (خرائط id → نتيجة)
+  const excelMatches = useMemo(() => {
+    const m = new Map()
+    if (excelRef.length) entries.forEach(e => m.set(e.id, matchReceipt(e, excelIndex)))
+    return m
+  }, [entries, excelIndex, excelRef.length])
+  // تصنيف الحالة للعرض والتصفية: match=مطابق · diff=فيه اختلاف · weak=بالرقم فقط · none=بلا مقابل
+  const excelStateOf = useCallback((e) => {
+    const m = excelMatches.get(e.id)
+    return !m ? 'none' : m.weak ? 'weak' : m.diffs.length ? 'diff' : 'match'
+  }, [excelMatches])
+
+  // «متبقي المعاملة» — السندات المرتبطة (linked_receipt_ids) معاملة واحدة: إجماليها مشترك
+  // ومقبوضها مجموع مقبوض كل أعضائها. نبني المكوّنات المتصلة (الربط ثنائي الاتجاه ونحتاط للاتجاه الواحد)
+  // ونستبعد الملغي وحسبات التنازل من الجمع.
+  const groupOf = useMemo(() => {
+    const byId = new Map(entries.map(e => [e.id, e]))
+    const adj = new Map()
+    const add = (a, b) => { if (!adj.has(a)) adj.set(a, new Set()); adj.get(a).add(b) }
+    entries.forEach(e => (e.linked_receipt_ids || []).forEach(id => { if (byId.has(id)) { add(e.id, id); add(id, e.id) } }))
+    const m = new Map(), seen = new Set()
+    entries.forEach(e => {
+      if (seen.has(e.id)) return
+      const comp = []; const stack = [e.id]; seen.add(e.id)
+      while (stack.length) {
+        const id = stack.pop(); comp.push(id)
+        for (const nb of (adj.get(id) || [])) if (!seen.has(nb)) { seen.add(nb); stack.push(nb) }
+      }
+      const active = comp.map(id => byId.get(id)).filter(x => x && !x.is_transfer_calc && x.review_status !== 'cancelled')
+      const total = active.length ? Math.max(...active.map(x => num(x.total_amount))) : 0
+      const received = active.reduce((s, x) => s + paidOf(x), 0)
+      const info = { size: active.length, total, received, remaining: Math.max(0, total - received) }
+      comp.forEach(id => m.set(id, info))
+    })
+    return m
+  }, [entries])
+
   // الإحصاءات خادمياً (RPC) — كروت الأعلى تظهر بأرقامها فوراً بلا انتظار جلب كل الصفوف.
   // للمدير العام فقط (غيره يرى أصفاراً)، ونحدّثها صامتاً مع كل تحديث بيانات.
   const loadStats = useCallback(async () => {
@@ -173,8 +223,8 @@ export default function Jub1ReceiptsPage({ sb, user, toast, lang = 'ar', emptyIc
   useEffect(() => {
     const cachedRefs = swrGet('jub1_refs'); if (cachedRefs) applyRefs(cachedRefs)
     const cachedEntries = swrGet('jub1_entries'); if (cachedEntries) { setEntries(cachedEntries); setLoading(false) }
-    loadRefs(); loadStats(); loadEntries()
-  }, [loadRefs, loadEntries, loadStats, applyRefs])
+    loadRefs(); loadStats(); loadEntries(); loadExcelRef()
+  }, [loadRefs, loadEntries, loadStats, applyRefs, loadExcelRef])
   // تحديث تلقائي: أي إضافة/تعديل/حذف سند أو دفعة (من هذا الجهاز أو غيره) يعيد الجلب صامتاً.
   useLiveRefresh(['jub1_receipts', 'jub1_receipt_payments'], () => { loadStats(); loadEntries() })
 
@@ -233,6 +283,7 @@ export default function Jub1ReceiptsPage({ sb, user, toast, lang = 'ar', emptyIc
         if (linkedFilter === 'yes' && !isLinked) return false
         if (linkedFilter === 'no' && isLinked) return false
       }
+      if (excelFilter && excelStateOf(e) !== excelFilter) return false
       if (!qq) return true
       const hay = [e.client_name, e.client_phone, e.client_id_no, e.agent_name, e.primary_receipt_no, e.service_code,
         ...(e.payments || []).map(p => p.sanad_no)].join(' ').toLowerCase()
@@ -248,10 +299,10 @@ export default function Jub1ReceiptsPage({ sb, user, toast, lang = 'ar', emptyIc
       }
     })
     return out
-  }, [entries, q, statusSel, onlyFlagged, from, to, svcFilter, payFilter, agentFilter, linkedFilter, sortMode, flagsOf])
+  }, [entries, q, statusSel, onlyFlagged, from, to, svcFilter, payFilter, agentFilter, linkedFilter, excelFilter, excelStateOf, sortMode, flagsOf])
 
   // العرض التدريجي: أعد العدّ إلى الصفحة الأولى عند تغيّر البحث/التصفية/الفرز
-  useEffect(() => { setVisibleCount(150) }, [q, statusSel, onlyFlagged, from, to, svcFilter, payFilter, agentFilter, linkedFilter, sortMode])
+  useEffect(() => { setVisibleCount(150) }, [q, statusSel, onlyFlagged, from, to, svcFilter, payFilter, agentFilter, linkedFilter, excelFilter, sortMode])
   // تحميل المزيد تلقائياً عند الاقتراب من نهاية القائمة (بلا آلاف الصفوف في الـDOM دفعة واحدة)
   useEffect(() => {
     const el = sentinelRef.current
@@ -395,7 +446,7 @@ export default function Jub1ReceiptsPage({ sb, user, toast, lang = 'ar', emptyIc
   // ═══ صفحة التفاصيل (تحل محل القائمة عند فتح سند) ═══
   if (detail) return (
     <div style={{ fontFamily: 'Cairo, Tajawal, sans-serif', paddingBottom: 60 }}>
-      <ReceiptDetail e={detail} atts={detailAtts} services={services} methods={methods} agents={agents} flags={flagsOf(detail)} T={T} sb={sb} tt={tt} user={user}
+      <ReceiptDetail e={detail} atts={detailAtts} services={services} methods={methods} agents={agents} flags={flagsOf(detail)} excelMatch={excelMatches.get(detail.id)} T={T} sb={sb} tt={tt} user={user}
         entries={entries} orderedIds={filtered.map(x => x.id)} onOpenId={(id) => setViewId(id)} onOpenLinked={openLinked} onLinkToggle={toggleLink}
         onBack={backSmart} backLabel={recStack.length ? T('رجوع لسند #', 'Back to #') + (recStack[recStack.length - 1].no || '—') : T('رجوع للقائمة', 'Back to list')}
         onEditModal={() => openEdit(detail)} onStatus={(s) => setReviewStatus(detail.id, s)}
@@ -558,8 +609,8 @@ export default function Jub1ReceiptsPage({ sb, user, toast, lang = 'ar', emptyIc
             style={{ width: '100%', height: 44, padding: '0 14px 0 38px', borderRadius: 12, background: 'var(--search-bg)', border: '1px solid transparent', color: 'var(--tx)', fontSize: 13, fontFamily: 'Cairo, Tajawal, sans-serif', boxSizing: 'border-box' }} />
         </div>
         {(() => {
-          const hasFilters = !!(statusSel.length || svcFilter.length || payFilter.length || agentFilter || from || to || onlyFlagged || linkedFilter)
-          const clearAll = () => { setStatusSel([]); setSvcFilter([]); setPayFilter([]); setAgentFilter(''); setFrom(''); setTo(''); setOnlyFlagged(false); setLinkedFilter('') }
+          const hasFilters = !!(statusSel.length || svcFilter.length || payFilter.length || agentFilter || from || to || onlyFlagged || linkedFilter || excelFilter)
+          const clearAll = () => { setStatusSel([]); setSvcFilter([]); setPayFilter([]); setAgentFilter(''); setFrom(''); setTo(''); setOnlyFlagged(false); setLinkedFilter(''); setExcelFilter('') }
           const active = advOpen || hasFilters
           return (
             <button onClick={() => setAdvOpen(o => !o)}
@@ -649,6 +700,17 @@ export default function Jub1ReceiptsPage({ sb, user, toast, lang = 'ar', emptyIc
                   options={[{ v: '', l: T('الكل', 'All') }, { v: 'yes', l: T('نعم — مرتبط بسند آخر', 'Yes — linked') }, { v: 'no', l: T('لا — غير مرتبط', 'No — not linked') }]} />
               </div>
               <div>
+                <div style={fLbl}>{T('مطابقة الإكسل', 'Excel match')}</div>
+                <FKDropdown value={excelFilter} onChange={v => setExcelFilter(v || '')} placeholder={T('الكل', 'All')} getKey={o => o.v} getLabel={o => o.l}
+                  options={[
+                    { v: '', l: T('الكل', 'All') },
+                    { v: 'match', l: T('مطابق للإكسل', 'Matches Excel') },
+                    { v: 'diff', l: T('مختلف عن الإكسل', 'Differs from Excel') },
+                    { v: 'weak', l: T('مطابقة بالرقم فقط', 'Number-only match') },
+                    { v: 'none', l: T('بلا مقابل في الإكسل', 'Not in Excel') },
+                  ]} />
+              </div>
+              <div>
                 <div style={fLbl}>{T('الملاحظات', 'Flags')}</div>
                 <button onClick={() => setOnlyFlagged(v => !v)}
                   style={{ height: 42, width: '100%', padding: '0 14px', borderRadius: 9, cursor: 'pointer', fontFamily: 'Cairo, Tajawal, sans-serif', fontSize: 13, fontWeight: 600, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7, transition: '.18s',
@@ -681,15 +743,15 @@ export default function Jub1ReceiptsPage({ sb, user, toast, lang = 'ar', emptyIc
             .jub-tbl tbody tr:last-child td:first-child{border-bottom-right-radius:9px}
             .jub-tbl tbody tr:last-child td:last-child{border-bottom-left-radius:9px}
           `}</style>
-          <table className="jub-tbl" style={{ minWidth: 980 }}>
+          <table className="jub-tbl" style={{ minWidth: 1040 }}>
             <colgroup>
-              {[10, 11, 16, 15, 10, 10, 10, 9, 9].map((w, i) => <col key={i} style={{ width: w + '%' }} />)}
+              {[9, 10, 14, 13, 9, 9, 9, 10, 8, 9].map((w, i) => <col key={i} style={{ width: w + '%' }} />)}
             </colgroup>
             <thead>
               <tr>
                 {[T('رقم السند', 'Receipt#'), T('التاريخ', 'Date'), T('العميل', 'Client'),
                   T('الخدمة', 'Service'), T('الإجمالي', 'Total'), T('المقبوض', 'Received'),
-                  T('المتبقي', 'Remaining'), T('الحالة', 'Status'), T('ملاحظات', 'Flags')].map((h, i) => (
+                  T('المتبقي', 'Remaining'), T('متبقي الفاتورة', 'Invoice remaining'), T('الإكسل', 'Excel'), T('الحالة', 'Status')].map((h, i) => (
                   <th key={i}>{h}</th>
                 ))}
               </tr>
@@ -698,7 +760,7 @@ export default function Jub1ReceiptsPage({ sb, user, toast, lang = 'ar', emptyIc
               {filtered.slice(0, visibleCount).map(e => {
                 const paid = paidOf(e)
                 const total = num(e.total_amount)
-                const flags = flagsOf(e)
+                const g = groupOf.get(e.id)
                 const st = STATUS[e.review_status] || STATUS.draft
                 return (
                   <tr key={e.id} onClick={() => openFromList(e.id)}>
@@ -713,16 +775,36 @@ export default function Jub1ReceiptsPage({ sb, user, toast, lang = 'ar', emptyIc
                     <td style={{ color: 'var(--ok)', direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{fmt(paid)}</td>
                     <td style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums', color: total - paid > 0.5 ? 'var(--warn)' : 'var(--tx3)' }}>{total ? fmt(Math.max(0, total - paid)) : '—'}</td>
                     <td>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, borderInlineStart: '3px solid ' + st.c, background: st.c + '10', padding: '5px 10px', color: st.c, fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap' }}><st.Ico size={13} />{st.l}</span>
+                      {/* متبقي الفاتورة — إجمالي المعاملة المشترك ناقص مقبوض كل سنداتها المرتبطة */}
+                      {(() => {
+                        if (!g || !g.total) return <span style={{ color: 'var(--tx5)', fontSize: 11 }}>—</span>
+                        const title = g.size > 1
+                          ? T(`${g.size} سندات مرتبطة — الإجمالي ${fmt(g.total)} · مجموع المقبوض ${fmt(g.received)}`, `${g.size} linked receipts — total ${fmt(g.total)} · received ${fmt(g.received)}`)
+                          : T('سند غير مرتبط — يطابق متبقي السند', 'Unlinked — same as receipt remaining')
+                        return (
+                          <span title={title} style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums', fontWeight: g.size > 1 ? 700 : 400, color: g.remaining > 0.5 ? 'var(--warn)' : 'var(--ok)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                            {fmt(g.remaining)}
+                            {g.size > 1 && <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--tx4)', background: 'var(--bd2)', padding: '1px 5px', borderRadius: 5 }}>×{g.size}</span>}
+                          </span>
+                        )
+                      })()}
                     </td>
                     <td>
-                      <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        {flags.length ? (
-                          <span title={flags.join('، ')} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: '#c0392b', fontSize: 11, fontWeight: 700 }}>
-                            <AlertTriangle size={13} /> {flags.length}
-                          </span>
-                        ) : <Check size={14} style={{ color: 'var(--ok)' }} />}
-                      </span>
+                      {/* مطابقة «اكسل المكتب» — للاسترشاد فقط: المصدر هو السند الورقي */}
+                      {(() => {
+                        const m = excelMatches.get(e.id)
+                        const pill = (c, txt, title) => (
+                          <span title={title} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 7, background: c + '14', color: c, fontSize: 10.5, fontWeight: 700, whiteSpace: 'nowrap' }}>{txt}</span>
+                        )
+                        if (!excelRef.length) return <span style={{ color: 'var(--tx5)' }}>…</span>
+                        if (!m) return <span title={T('لا يوجد صف بالإكسل يذكر أرقام سندات هذا السند', 'No Excel row mentions this receipt')} style={{ color: 'var(--tx5)', fontSize: 11 }}>—</span>
+                        if (m.weak) return pill('#8a8f98', T('بالرقم فقط', 'No.-only'), T('طابق رقم السند صفاً بالإكسل لكن بلا اتفاق في الاسم/الإقامة — قد يكون صفاً آخر', 'Sanad number matched a row but no identity agreement — may be a different row'))
+                        if (m.diffs.length) return pill('#e67e22', '≠ ' + m.diffs.length, T('يختلف عن الإكسل في: ', 'Differs in: ') + m.diffs.map(d => T(d.label[0], d.label[1])).join('، '))
+                        return pill('#1f7a45', '✓', T('مطابق للإكسل (الاسم/الإقامة/الإجمالي)', 'Matches Excel'))
+                      })()}
+                    </td>
+                    <td>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, borderInlineStart: '3px solid ' + st.c, background: st.c + '10', padding: '5px 10px', color: st.c, fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap' }}><st.Ico size={13} />{st.l}</span>
                     </td>
                   </tr>
                 )
@@ -892,7 +974,7 @@ function DateBox({ label, value, onChange }) {
   )
 }
 
-function ReceiptDetail({ e, atts, services, methods, agents, flags, T, sb, tt, user, entries = [], orderedIds = [], onOpenId, onOpenLinked, onLinkToggle, onBack, backLabel, onEditModal, onStatus, onSave, onOpenByNo, onAttsChanged, onDelete }) {
+function ReceiptDetail({ e, atts, services, methods, agents, flags, excelMatch, T, sb, tt, user, entries = [], orderedIds = [], onOpenId, onOpenLinked, onLinkToggle, onBack, backLabel, onEditModal, onStatus, onSave, onOpenByNo, onAttsChanged, onDelete }) {
   // الانتقال لسند القبض التالي — بنفس ترتيب القائمة التي يراها المستخدم (تصفية + فرز)،
   // ويسقط إلى ترتيب التحميل الكامل إن لم يكن السند ضمن القائمة المصفّاة حالياً.
   const navIds = (orderedIds.length ? orderedIds : entries.map(x => x.id))
@@ -1156,7 +1238,7 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, T, sb, tt, u
   const inpS = (ltr) => ({ width: '100%', background: 'transparent', border: 'none', outline: 'none', fontSize: 13.5, fontWeight: 600, color: 'var(--tx)', fontFamily: 'Cairo, Tajawal, sans-serif', direction: ltr ? 'ltr' : undefined, textAlign: ltr ? 'right' : 'start', padding: 0, fontVariantNumeric: 'tabular-nums' })
   // fld = مفتاح الحقل في كتالوج الصلاحيات (افتراضياً = مفتاح الحالة). يُخفى إن مُنِع عرضه،
   // ويصبح للقراءة فقط إن قُفِل تعديله لهذا الدور (fieldEditable يتحقق أيضاً من صلاحية التعديل).
-  const inp = (k, key, { ltr, type = 'text', placeholder, list, fld = key } = {}) => {
+  const inp = (k, key, { ltr, type = 'text', placeholder, list, fld = key, hint } = {}) => {
     if (fld && !fVis(fld)) return null
     const ro = fld ? !fEdit(fld) : !canEditReceipt
     return (
@@ -1164,6 +1246,26 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, T, sb, tt, u
         <div style={lblS}>{k}</div>
         <input type={type} value={f[key] ?? ''} onChange={ev => { if (!ro) set(key, ev.target.value) }} readOnly={ro}
           placeholder={placeholder || '—'} list={list} style={{ ...inpS(ltr), opacity: ro ? .65 : 1, cursor: ro ? 'not-allowed' : 'text' }} />
+        {hint}
+      </div>
+    )
+  }
+  // تلميح «الإكسل» تحت الحقل — للاسترشاد فقط: يقارن قيمة النموذج الحيّة بأفضل صف مطابق في اكسل المكتب.
+  // المصدر الرسمي هو السند الورقي؛ لا يُنسخ من الإكسل شيء تلقائياً، والقرار للمراجع.
+  // برتقالي = القيمتان مختلفتان · رمادي = حقل السند فارغ والإكسل يحمل قيمة.
+  const xBest = (excelMatch && !excelMatch.weak) ? excelMatch.best : null
+  const xh = (key) => {
+    if (!xBest) return null
+    const ex = xBest[key]
+    if (ex == null || String(ex).trim() === '') return null
+    const mine = f[key]
+    const mineEmpty = mine == null || String(mine).trim() === ''
+    if (!mineEmpty && !fieldDiffers(key, mine, ex)) return null
+    const shown = key === 'total_amount' ? fmt(num(ex)) : String(ex)
+    return (
+      <div title={T('قيمة «اكسل المكتب» — للاسترشاد فقط، المصدر هو السند الورقي', 'Office-Excel value — reference only; the paper receipt is the source')}
+        style={{ marginTop: 4, fontSize: 10.5, fontWeight: 700, color: mineEmpty ? 'var(--tx3)' : '#e67e22', direction: 'ltr', textAlign: 'right' }}>
+        {T('الإكسل: ', 'Excel: ')}{shown}
       </div>
     )
   }
@@ -1356,11 +1458,54 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, T, sb, tt, u
         <div style={cardStyle('client')}>
           {cardTitle(T('العميل', 'Client'), T('عدّل مباشرة ثم احفظ من الشريط السفلي', 'Edit inline, save below'))}
           <div style={grid2}>
-            {inp(T('الاسم', 'Name'), 'client_name')}
+            {inp(T('الاسم', 'Name'), 'client_name', { hint: xh('client_name') })}
             {inp(T('الجوال', 'Phone'), 'client_phone', { ltr: true })}
-            {inp(T('الهوية', 'ID no'), 'client_id_no', { ltr: true })}
+            {inp(T('الهوية', 'ID no'), 'client_id_no', { ltr: true, hint: xh('client_id_no') })}
           </div>
         </div>
+
+        {/* مرجع «اكسل المكتب» — عرض فقط للمقارنة: المصدر الرسمي هو السند الورقي ولا يُنسخ من هنا شيء تلقائياً */}
+        {excelMatch && (() => {
+          const b = excelMatch.best
+          const others = excelMatch.candidates.filter(c => c.id !== b.id)
+          const xbox = (label, val, ltr) => (val == null || String(val).trim() === '') ? null : (
+            <div style={box}>
+              <div style={lblS}>{label}</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx2)', ...(ltr ? { direction: 'ltr', textAlign: 'right', fontVariantNumeric: 'tabular-nums' } : {}) }}>{val}</div>
+            </div>
+          )
+          return (
+            <div style={{ ...cardStyle('client'), border: '1px solid rgba(176,125,0,.3)', background: 'rgba(176,125,0,.04)' }}>
+              {cardTitle(T('مرجع اكسل المكتب', 'Office-Excel reference'), T('للاسترشاد فقط — المصدر هو السند الورقي', 'Reference only — the paper receipt is the source'))}
+              {excelMatch.weak && (
+                <div style={{ marginBottom: 10, padding: '8px 12px', borderRadius: 10, background: 'rgba(138,143,152,.1)', border: '1px solid rgba(138,143,152,.35)', fontSize: 11.5, fontWeight: 700, color: '#8a8f98', display: 'flex', alignItems: 'center', gap: 7 }}>
+                  <AlertTriangle size={14} />
+                  {T('مطابقة بالرقم فقط — لا اتفاق في الاسم أو الإقامة؛ قد يكون هذا صفاً لسند آخر يحمل الرقم نفسه', 'Number-only match — no name/ID agreement; this may be a different receipt sharing the number')}
+                </div>
+              )}
+              <div style={grid2}>
+                {xbox(T('الموقع في الملف', 'Location'), `${b.sheet} — ${T('صف', 'row')} ${b.row_no}`)}
+                {xbox(T('أرقام السندات في الصف', 'Sanads in row'), (b.sanads || []).join(' / '), true)}
+                {xbox(T('الاسم', 'Name'), b.client_name)}
+                {xbox(T('الإقامة/الهوية', 'ID no'), b.client_id_no, true)}
+                {xbox(T('الجوال', 'Phone'), b.client_phone, true)}
+                {xbox(T('الطرف', 'Party'), b.party)}
+                {xbox(T('الشركة', 'Company'), b.company)}
+                {xbox(T('الإجمالي', 'Total'), b.total_amount != null ? fmt(num(b.total_amount)) : null, true)}
+                {xbox(T('المدفوع', 'Paid'), b.paid_amount != null ? fmt(num(b.paid_amount)) : null, true)}
+                {xbox(T('المتبقي', 'Remaining'), b.remaining_amount != null ? fmt(num(b.remaining_amount)) : null, true)}
+                {xbox(T('ملاحظات الإكسل', 'Excel notes'), b.notes)}
+              </div>
+              {others.length > 0 && (
+                <div style={{ marginTop: 10, fontSize: 11, fontWeight: 600, color: 'var(--tx4)', lineHeight: 1.8 }}>
+                  {T(`طابق الرقم ${others.length} صفاً آخر — عُرض الأنسب. الأخرى: `, `${others.length} other row(s) share the number — best shown. Others: `)}
+                  {others.slice(0, 3).map(o => `${o.sheet} ${T('صف', 'row')} ${o.row_no}${o.client_name ? ` (${o.client_name})` : ''}`).join(' · ')}
+                  {others.length > 3 ? ' …' : ''}
+                </div>
+              )}
+            </div>
+          )
+        })()}
 
         {/* سند القبض — تحرير مباشر + أرقام السندات السابقة كرقائق */}
         <div style={cardStyle('receipt_voucher')}>
@@ -1403,7 +1548,7 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, T, sb, tt, u
               : roField(T('نوع الخدمة', 'Service type'), services.find(s => s.id === f.service_item_id)?.value_ar || '—'))}
             {/* لا يظهر خيار «بلا خدمة» بعد الاختيار — الفراغ يظهر كـ placeholder فقط */}
             {inp(T('الكمية', 'Quantity'), 'quantity', { ltr: true })}
-            {inp(T('المبلغ الإجمالي للخدمة', 'Service total'), 'total_amount', { ltr: true })}
+            {inp(T('المبلغ الإجمالي للخدمة', 'Service total'), 'total_amount', { ltr: true, hint: xh('total_amount') })}
           </div>
         </div>
 
@@ -1537,6 +1682,18 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, T, sb, tt, u
             {fVis('totals_total') && roField(T('الإجمالي', 'Total'), liveTotal ? fmt(liveTotal) : '—')}
             {fVis('totals_received') && roField(T('المقبوض', 'Received'), fmt(livePaid))}
             {fVis('totals_remaining') && roField(T('المتبقي', 'Remaining'), liveTotal ? fmt(Math.max(0, liveTotal - livePaid)) : '—', true)}
+            {/* متبقي الفاتورة — إجمالي المعاملة ناقص مقبوض كل سنداتها المرتبطة؛ خلفية ذهبية تميّزه عن متبقي السند */}
+            {fVis('totals_invoice_remaining') && (
+              <div title={linkedRows.length
+                ? T(`${linkedRows.length + 1} سندات مرتبطة — مجموع المقبوض ${fmt(groupPaid)}`, `${linkedRows.length + 1} linked receipts — received ${fmt(groupPaid)}`)
+                : T('سند غير مرتبط — يطابق متبقي السند', 'Unlinked — same as receipt remaining')}
+                style={{ ...box, background: 'rgba(176,125,0,.09)', border: '1px solid rgba(176,125,0,.35)' }}>
+                <div style={{ ...lblS, color: '#B07D00' }}>{T('متبقي الفاتورة', 'Invoice remaining')}{linkedRows.length ? ` ×${linkedRows.length + 1}` : ''}</div>
+                <div style={{ fontSize: 14.5, fontWeight: 700, color: '#B07D00', direction: 'ltr', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                  {liveTotal ? fmt(Math.max(0, liveTotal - groupPaid)) : '—'}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

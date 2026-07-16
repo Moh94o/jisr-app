@@ -345,7 +345,7 @@ export default function WorkVisasPage({ sb, toast, lang, user, onTabChange }) {
       {/* KPI Row — ٣ بطاقات */}
       <div style={{ display: 'grid', gridTemplateColumns: '2.2fr 1.7fr 1.6fr', gap: 14, marginBottom: 24 }}>
         {/* إجمالي التأشيرات */}
-        <div style={{ position: 'relative', padding: '18px 22px', borderRadius: 16, background: 'var(--card-grad2)', border: '1px solid rgba(255,255,255,.05)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', overflow: 'hidden', minHeight: 150 }}>
+        <div style={{ position: 'relative', padding: '18px 22px', borderRadius: 16, background: 'var(--card-grad2)', border: '1px solid rgba(255,255,255,.05)', boxShadow: 'var(--shadow-sm)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', overflow: 'hidden', minHeight: 150 }}>
           <div style={{ position: 'absolute', insetInlineStart: -60, top: -60, width: 180, height: 180, borderRadius: '50%', background: `radial-gradient(circle, ${C.blue}26 0%, transparent 70%)`, pointerEvents: 'none' }} />
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: -6 }}>
             <span style={{ width: 8, height: 8, borderRadius: '50%', background: C.blue, boxShadow: `0 0 10px ${C.blue}aa` }} />
@@ -365,7 +365,7 @@ export default function WorkVisasPage({ sb, toast, lang, user, onTabChange }) {
         </div>
 
         {/* Donut — توزيع الحالات */}
-        <div style={{ borderRadius: 16, background: 'var(--card-grad2)', border: '1px solid rgba(255,255,255,.05)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12, minHeight: 150 }}>
+        <div style={{ borderRadius: 16, background: 'var(--card-grad2)', border: '1px solid rgba(255,255,255,.05)', boxShadow: 'var(--shadow-sm)', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12, minHeight: 150 }}>
           <div style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600, letterSpacing: '.2px' }}>{T('حالة التأشيرات', 'Visa Status')}</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, flex: 1 }}>
             <div style={{ position: 'relative', width: 112, height: 112, flexShrink: 0 }}>
@@ -408,7 +408,7 @@ export default function WorkVisasPage({ sb, toast, lang, user, onTabChange }) {
         </div>
 
         {/* الجنسيات — أعلى ٤ */}
-        <div style={{ borderRadius: 16, background: 'var(--card-grad2)', border: '1px solid rgba(255,255,255,.05)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12, minHeight: 150 }}>
+        <div style={{ borderRadius: 16, background: 'var(--card-grad2)', border: '1px solid rgba(255,255,255,.05)', boxShadow: 'var(--shadow-sm)', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12, minHeight: 150 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600, letterSpacing: '.2px' }}>{T('الجنسيات', 'Nationalities')}</span>
             <span style={{ fontSize: 10.5, color: C.purple, fontWeight: 600 }}>{num(natTop.length)} {T('جنسية', 'total')}</span>

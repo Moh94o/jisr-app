@@ -3,6 +3,7 @@ import BackButton from '../components/BackButton'
 import { buildBookmarklet, buildPdfBookmarklet } from './sbcSyncBookmarklet.js'
 import { buildGosiBookmarklet } from './gosiSyncBookmarklet.js'
 import { buildQiwaBookmarklet } from './qiwaSyncBookmarklet.js'
+import { buildMuqeemBookmarklet } from './muqeemSyncBookmarklet.js'
 import { Sel } from './KafalaCalculator.jsx'
 import { EmptyState } from '../components/ui/FormKit.jsx'
 
@@ -15,19 +16,43 @@ const C = {
 const PAGE = 24
 const num = (v) => Number(v || 0).toLocaleString('en-US')
 
+// هيئة كروت التفاصيل — مطابقة لكروت تفاصيل المنشأة في صفحة المنشآت (FacilitiesPage):
+// ظل توكن (لا rgba داكن ثابت يكسر الثيم الفاتح) وعنوان ذهبي 16px.
 const cardChrome = {
   borderRadius: 14,
   background: 'var(--card-grad2)',
   border: '1px solid var(--bd)',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
+  boxShadow: 'var(--shadow-sm)',
   overflow: 'hidden',
 }
+// KPI stat-card chrome — identical to InvoicePage's SC_CARD so the sync hub's
+// stat strip reads as the same component family as the invoices one. Shadow
+// must stay a token: a hardcoded dark rgba turns the card white-on-white in
+// the light theme.
+const SC_CARD = {
+  borderRadius: 16,
+  background: 'var(--card-grad2)',
+  border: '1px solid var(--bd)',
+  boxShadow: 'var(--shadow-sm)',
+  minHeight: 190,
+}
+// Same card, tinted red when the figure it carries is a liability. The tint is
+// layered OVER --card-grad2 rather than fading into a fixed dark, so it holds
+// up in both themes.
+const scCardDanger = (danger) => ({
+  ...SC_CARD,
+  background: danger
+    ? 'linear-gradient(180deg, rgba(232,114,101,.10) 0%, transparent 70%), var(--card-grad2)'
+    : 'var(--card-grad2)',
+  border: `1px solid ${danger ? 'rgba(232,114,101,.25)' : 'var(--bd)'}`,
+})
+
 const cardHeader = {
-  display: 'flex', alignItems: 'center', gap: 8,
-  padding: '12px 22px',
+  display: 'flex', alignItems: 'center', gap: 10,
+  padding: '14px 22px',
   borderBottom: '1px solid var(--bd)',
 }
-const cardTitle = { fontSize: 12, color: 'var(--tx2)', fontWeight: 600, letterSpacing: '.2px' }
+const cardTitle = { fontSize: 16, color: '#B07D00', fontWeight: 600, letterSpacing: '.2px' }
 const btnGold = { height: 40, padding: '0 16px', borderRadius: 11, background: 'linear-gradient(180deg,rgba(176,125,0,.22) 0%,rgba(176,125,0,.10) 100%)', border: '1px solid rgba(176,125,0,.45)', color: '#B07D00', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7, fontFamily: F, fontSize: 12, fontWeight: 600, transition: '.2s', boxShadow: '0 2px 8px rgba(176,125,0,.18), inset 0 1px 0 rgba(176,125,0,.18)' }
 const btnFilter = (active) => ({ height: 44, padding: '0 16px', borderRadius: 12, background: active ? 'var(--accent-soft)' : 'var(--search-bg)', border: '1px solid ' + (active ? 'var(--accent-bd)' : 'transparent'), color: active ? 'var(--accent)' : 'var(--tx2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 8, boxSizing: 'border-box', boxShadow: active ? 'var(--shadow-sm)' : 'none' })
 
@@ -1759,58 +1784,57 @@ function _GosiBillRow({ bill: b, isAr, T }) {
 
 // Dropdown selector used by toggle design #4 — clicked button shows active
 // platform with brand dot, menu lists all 4 with name + subtitle.
-function _PlatformDropdown({ PLATFORMS, tableView, setTableView, counter, T, F }) {
+// منسدلة اختيار المنصة — تُرسم داخل صف البحث بين حقل البحث وزر «تصفية»،
+// بنفس مقاسات زر التصفية (ارتفاع 44 / حواف 12 / خلفية var(--search-bg)) لتتناسق معه.
+function _PlatformDropdown({ PLATFORMS, tableView, setTableView, T, F }) {
   const [open, setOpen] = useState(false)
   const active = PLATFORMS.find(p => p.v === tableView) || PLATFORMS[0]
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, justifyContent: 'space-between', padding: '0 14px', position: 'relative' }}>
-      <div style={{ position: 'relative' }}>
-        <button onClick={() => setOpen(v => !v)} style={{
-          cursor: 'pointer', padding: '8px 14px', fontSize: 12, fontWeight: 600,
-          borderRadius: 10, border: '1px solid var(--bd)',
-          background: 'rgba(255,255,255,.04)', color: 'var(--tx)',
-          display: 'inline-flex', alignItems: 'center', gap: 8,
-          fontFamily: F, minWidth: 200, justifyContent: 'space-between',
+    <div style={{ position: 'relative' }}>
+      <button type="button" onClick={() => setOpen(v => !v)} style={{
+        cursor: 'pointer', height: 44, padding: '0 16px', fontSize: 13, fontWeight: 600,
+        borderRadius: 12, border: '1px solid ' + (open ? 'var(--accent-bd)' : 'transparent'),
+        background: 'var(--search-bg)', color: 'var(--tx)',
+        display: 'inline-flex', alignItems: 'center', gap: 8,
+        fontFamily: F, minWidth: 200, justifyContent: 'space-between', boxSizing: 'border-box',
+      }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: active.c }} />
+          <span style={{ color: 'var(--tx5)', fontWeight: 500, fontSize: 10 }}>{T('العرض:', 'View:')}</span>
+          {active.l}
+        </span>
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transform: open ? 'rotate(180deg)' : 'rotate(0deg)', transition: '.15s' }}>
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </button>
+      {open && (
+        <div style={{
+          position: 'absolute', top: 'calc(100% + 4px)', insetInlineStart: 0,
+          background: 'var(--modal-bg)', border: '1px solid var(--bd)',
+          borderRadius: 10, padding: 4, minWidth: 240, zIndex: 10,
+          boxShadow: 'var(--shadow-md)',
         }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: active.c }} />
-            <span style={{ color: 'var(--tx5)', fontWeight: 500, fontSize: 10 }}>{T('العرض:', 'View:')}</span>
-            {active.l}
-          </span>
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transform: open ? 'rotate(180deg)' : 'rotate(0deg)', transition: '.15s' }}>
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
-        </button>
-        {open && (
-          <div style={{
-            position: 'absolute', top: 'calc(100% + 4px)', insetInlineStart: 0,
-            background: '#161616', border: '1px solid var(--bd)',
-            borderRadius: 10, padding: 4, minWidth: 240, zIndex: 10,
-            boxShadow: '0 8px 24px rgba(0,0,0,.4)',
-          }}>
-            {PLATFORMS.map(p => {
-              const isActive = tableView === p.v
-              return (
-                <button key={p.v} onClick={() => { setTableView(p.v); setOpen(false) }} style={{
-                  cursor: 'pointer', display: 'flex', width: '100%',
-                  padding: '8px 10px', border: 0, borderRadius: 6,
-                  background: isActive ? 'rgba(255,255,255,.04)' : 'transparent',
-                  color: 'var(--tx)', textAlign: 'start', alignItems: 'center', gap: 10,
-                  fontFamily: F,
-                }}>
-                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: p.c, flexShrink: 0 }} />
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1 }}>
-                    <span style={{ fontSize: 12, fontWeight: 600 }}>{p.l}</span>
-                    <span style={{ fontSize: 10, color: 'var(--tx5)' }}>{p.sub}</span>
-                  </div>
-                  {isActive && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={p.c} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
-                </button>
-              )
-            })}
-          </div>
-        )}
-      </div>
-      {counter}
+          {PLATFORMS.map(p => {
+            const isActive = tableView === p.v
+            return (
+              <button key={p.v} onClick={() => { setTableView(p.v); setOpen(false) }} style={{
+                cursor: 'pointer', display: 'flex', width: '100%',
+                padding: '8px 10px', border: 0, borderRadius: 6,
+                background: isActive ? 'rgba(176,125,0,.08)' : 'transparent',
+                color: 'var(--tx)', textAlign: 'start', alignItems: 'center', gap: 10,
+                fontFamily: F,
+              }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: p.c, flexShrink: 0 }} />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1 }}>
+                  <span style={{ fontSize: 12, fontWeight: 600 }}>{p.l}</span>
+                  <span style={{ fontSize: 10, color: 'var(--tx5)' }}>{p.sub}</span>
+                </div>
+                {isActive && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={p.c} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
+              </button>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
@@ -2540,13 +2564,21 @@ const saMobile = (v) => {
 // split because PDFs require a different fetch strategy (direct browser
 // fetch from the user's Saudi network) versus the API endpoints (which
 // work fine through the saudibusiness gateway with CORS).
-function DragBookmark({ href, label, accent, title }) {
+// The drag-grip handle — signals "drag me to the bookmarks bar". Shared by the
+// live bookmarklets and the not-yet-built placeholders so the row stays even.
+const DragGrip = () => (
+  <span aria-hidden="true" style={{ display: 'inline-flex', paddingInline: 2, opacity: .5, flexShrink: 0 }}>
+    <svg width="10" height="16" viewBox="0 0 10 16" fill="currentColor">
+      <circle cx="3" cy="3" r="1.3"/><circle cx="7" cy="3" r="1.3"/>
+      <circle cx="3" cy="8" r="1.3"/><circle cx="7" cy="8" r="1.3"/>
+      <circle cx="3" cy="13" r="1.3"/><circle cx="7" cy="13" r="1.3"/>
+    </svg>
+  </span>
+)
+
+function DragBookmark({ href, label, accent, title, icon }) {
   const ref = useRef(null)
   useEffect(() => { if (ref.current) ref.current.setAttribute('href', href) }, [href])
-  const rest = `linear-gradient(180deg, ${accent}1f 0%, ${accent}0f 100%)`
-  const hover = `linear-gradient(180deg, ${accent}33 0%, ${accent}1c 100%)`
-  const restShadow = `0 1px 2px rgba(0,0,0,.25), inset 0 1px 0 ${accent}1a`
-  const hoverShadow = `0 7px 18px ${accent}33, inset 0 1px 0 ${accent}2e`
   return (
     <a
       ref={ref}
@@ -2554,32 +2586,55 @@ function DragBookmark({ href, label, accent, title }) {
       onClick={e => e.preventDefault()}
       draggable="true"
       style={{
-        height: 40, paddingInlineStart: 6, paddingInlineEnd: 13, borderRadius: 12,
-        background: rest,
-        border: `1px solid ${accent}66`,
-        color: accent,
+        height: 36, paddingInline: 8, borderRadius: 9,
+        background: 'none',
+        // Transparent (not absent) so the hover border doesn't shift layout.
+        border: '1px solid transparent',
+        color: 'var(--tx2)',
         textDecoration: 'none', fontFamily: F, fontSize: 12.5, fontWeight: 600,
         cursor: 'grab',
         // Explicit LTR so the grip handle always sits on the physical right,
         // independent of the surrounding RTL/LTR context.
         direction: 'ltr',
-        display: 'inline-flex', alignItems: 'center', gap: 9,
-        boxShadow: restShadow,
-        transition: 'transform .15s, box-shadow .15s, background .15s, border-color .15s',
+        display: 'inline-flex', alignItems: 'center', gap: 8,
+        transition: 'background .15s, border-color .15s',
         userSelect: 'none',
       }}
-      onMouseEnter={e => { e.currentTarget.style.background = hover; e.currentTarget.style.borderColor = accent; e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = hoverShadow }}
-      onMouseLeave={e => { e.currentTarget.style.background = rest; e.currentTarget.style.borderColor = `${accent}66`; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = restShadow }}>
-      {/* Drag-grip handle — signals "drag me to the bookmarks bar" */}
-      <span aria-hidden="true" style={{ display: 'inline-flex', paddingInline: 2, opacity: .5 }}>
-        <svg width="10" height="16" viewBox="0 0 10 16" fill="currentColor">
-          <circle cx="3" cy="3" r="1.3"/><circle cx="7" cy="3" r="1.3"/>
-          <circle cx="3" cy="8" r="1.3"/><circle cx="7" cy="8" r="1.3"/>
-          <circle cx="3" cy="13" r="1.3"/><circle cx="7" cy="13" r="1.3"/>
-        </svg>
-      </span>
+      onMouseEnter={e => { e.currentTarget.style.background = 'var(--inputBg)'; e.currentTarget.style.borderColor = 'var(--bd)' }}
+      onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.borderColor = 'transparent' }}>
+      <DragGrip />
+      {/* The source's brand colour survives only on the icon — the label stays
+          neutral so a row of six sources doesn't read as six competing chips. */}
+      {icon && <span style={{ display: 'inline-flex', color: accent, flexShrink: 0 }}>{icon}</span>}
       <span style={{ whiteSpace: 'nowrap' }}>{label}</span>
     </a>
+  )
+}
+
+// Placeholder for a source whose scraper isn't built yet. Same pill geometry as
+// DragBookmark so the toolbar row stays even, but flat/greyed and undraggable —
+// there's no bookmarklet body to drag. Swap for a real *SyncBookmarklet once the
+// portal's endpoints are captured.
+function SoonBookmark({ label, accent, title, icon }) {
+  return (
+    <span
+      title={title}
+      style={{
+        height: 36, paddingInline: 8, borderRadius: 9,
+        background: 'none',
+        border: '1px solid transparent',
+        color: 'var(--tx4)',
+        fontFamily: F, fontSize: 12.5, fontWeight: 600,
+        cursor: 'not-allowed', direction: 'ltr',
+        display: 'inline-flex', alignItems: 'center', gap: 8,
+        userSelect: 'none',
+      }}>
+      {/* No grip: there's no bookmarklet to drag yet. The icon keeps its brand
+          colour but dimmed, so the slot still reads as "this source, later". */}
+      <span aria-hidden="true" style={{ display: 'inline-flex', color: accent, opacity: .45, flexShrink: 0 }}>{icon}</span>
+      <span style={{ whiteSpace: 'nowrap' }}>{label}</span>
+      <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 999, background: 'var(--bd)', color: 'var(--tx4)', whiteSpace: 'nowrap' }}>قريباً</span>
+    </span>
   )
 }
 
@@ -2595,7 +2650,7 @@ function SbcSyncBookmarklet({ syncPersonId, T }) {
       href={dataHref}
       accent="#9b59b6"
       title={T('اسحب الزر إلى شريط الإشارات، ثم افتح تيسير واضغط لمزامنة بيانات وملفات المنشآت', 'Drag to bookmarks bar, open Tayseer and click to sync facility data + PDFs')}
-      label={T('المركز السعودي', 'SBC')}
+      label={T('المركز', 'SBC')}
       icon={(
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
           <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M3 9h18"/>
@@ -2616,7 +2671,7 @@ function GosiSyncBookmarklet({ syncPersonId, T }) {
       href={dataHref}
       accent="#22c55e"
       title={T('اسحب الزر إلى شريط الإشارات، ثم افتح أمين التأمينات واضغط لمزامنة بيانات المنشآت', 'Drag to bookmarks bar, open Ameen and click to sync GOSI facility data')}
-      label={T('التأمينات الإجتماعية', 'GOSI')}
+      label={T('التأمينات', 'GOSI')}
       icon={(
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
           <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
@@ -2647,8 +2702,45 @@ function QiwaSyncBookmarklet({ syncPersonId, T }) {
   )
 }
 
+// Muqeem sync bookmarklet — runs on muqeem.sa. Sniffs the org JWT + XSRF token,
+// walks every MOI number the account can reach, and fills muqeem_companies /
+// _residents / _subscriptions / _points_transactions / _payment_history.
+function MuqeemSyncBookmarklet({ syncPersonId, T }) {
+  const proxyBaseUrl = typeof window !== 'undefined' ? window.location.origin : ''
+  const dataHref = buildMuqeemBookmarklet({ sourceId: 'muqeem', personId: syncPersonId || '', proxyBaseUrl })
+  return (
+    <DragBookmark
+      href={dataHref}
+      accent="#f59e0b"
+      title={T('اسحب الزر إلى شريط الإشارات، ثم افتح مقيم واضغط لمزامنة المنشآت والمقيمين', 'Drag to bookmarks bar, open Muqeem and click to sync facilities + residents')}
+      label={T('مقيم', 'Muqeem')}
+      icon={(
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M15 9h3M15 13h3M6 16c.6-1.5 1.8-2 3-2s2.4.5 3 2"/>
+        </svg>
+      )}
+    />
+  )
+}
+
 export default function SbcFacilities({ sb, toast, user, lang, personFilter, onTriggerSync, syncPersonId, onBack }) {
   const T = (ar, en) => (lang || 'ar') !== 'en' ? ar : en
+
+  // The bookmarklets need a sync_persons id to stamp provenance with. SyncHub's
+  // drilldown passes one down, but the standalone tab renders this page with no
+  // prop — resolve the same first-row pick here so the buttons show either way.
+  const [fallbackPersonId, setFallbackPersonId] = useState('')
+  useEffect(() => {
+    if (syncPersonId) return
+    let alive = true
+    ;(async () => {
+      const { data } = await sb.from('sync_persons').select('id')
+        .is('deleted_at', null).order('sort_order').order('name_ar').limit(1)
+      if (alive && data && data[0]) setFallbackPersonId(data[0].id)
+    })()
+    return () => { alive = false }
+  }, [sb, syncPersonId])
+  const spid = syncPersonId || fallbackPersonId
 
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(false)
@@ -3774,22 +3866,9 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
 
   // Quick count of non-empty advanced fields (for the badge on the "بحث متقدم" button).
   const advCount = Object.values(adv).filter(v => String(v || '').trim() !== '').length
-  const advInp = { width: '100%', height: 42, padding: '0 14px', borderRadius: 10, border: '1px solid var(--bd)', background: 'var(--inputBg)', color: 'var(--tx)', fontFamily: F, fontSize: 13, fontWeight: 500, outline: 'none', boxShadow: '0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)', boxSizing: 'border-box' }
+  const advInp = { width: '100%', height: 42, padding: '0 14px', borderRadius: 10, border: '1px solid var(--bd)', background: 'var(--inputBg)', color: 'var(--tx)', fontFamily: F, fontSize: 13, fontWeight: 500, outline: 'none', boxSizing: 'border-box' }
   const advLbl = { fontSize: 12, fontWeight: 500, color: 'var(--tx3)', paddingInlineStart: 2, marginBottom: 7, display: 'block' }
   const resultCount = filtered.length
-
-  // KPI row helpers (matches Invoices page StatCard aesthetic)
-  const glassCard = {
-    background: 'var(--card-grad2)',
-    border: '1px solid var(--bd)',
-    borderRadius: 16,
-    padding: '14px 16px',
-    position: 'relative',
-    overflow: 'hidden',
-    boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
-    transition: '.2s',
-  }
-  const innerBox = { background: 'var(--inputBg)', border: '1px solid var(--bd)' }
 
   // Build smooth area chart paths for the 12-month trend
   const n = periodSeries.length
@@ -3832,9 +3911,9 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
       {!detail && (<>
       {/* Page title + description + sync anchor */}
       <div style={{ marginBottom: 22, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
-        {/* Title + description claim the full row (flex-basis 100%) so the sync
-            buttons wrap onto their own row below instead of squeezing the title. */}
-        <div style={{ flex: '1 1 100%', minWidth: 0 }}>
+        {/* Title shares row 1 with the CTA; the sync bookmarklets carry
+            flex-basis 100% so they always wrap onto their own row below. */}
+        <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             {onBack && (
               <button onClick={onBack}
@@ -3856,39 +3935,53 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                'A unified registry of all your facilities — gathering core data, official numbers, commercial registration status, owners, managers, and regulatory dates in one place.')}
           </div>
         </div>
-        {syncPersonId && (
-        <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap', flex: '1 1 100%', justifyContent: 'flex-start', direction: 'ltr' }}>
-          <SbcSyncBookmarklet syncPersonId={syncPersonId} T={T} />
-          <GosiSyncBookmarklet syncPersonId={syncPersonId} T={T} />
-          <QiwaSyncBookmarklet syncPersonId={syncPersonId} T={T} />
+        {/* Primary CTA — same slot + chrome as «فاتورة جديدة» on the Invoices page. */}
+        <div className="page-cta-row" style={{ display: 'inline-flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
           <button
             onClick={promoteToCanonical}
             disabled={promoting || !rows.length}
+            className="btn-primary-modal"
             title={T('نقل المنشآت وغير السعوديين من التأمينات إلى صفحات السايد بار', 'Promote facilities + non-Saudi GOSI contributors to the sidebar pages')}
             style={{
-              height: 40, paddingInline: 14, borderRadius: 12,
-              background: promoting
-                ? 'linear-gradient(180deg, rgba(176,125,0,.10) 0%, rgba(176,125,0,.04) 100%)'
-                : 'linear-gradient(180deg, rgba(176,125,0,.22) 0%, rgba(176,125,0,.10) 100%)',
-              border: '1px solid rgba(176,125,0,.45)',
-              color: '#B07D00',
+              height: 42, padding: '0 18px', borderRadius: 11, fontFamily: F, fontSize: 13, fontWeight: 600,
               cursor: (promoting || !rows.length) ? 'not-allowed' : 'pointer',
-              fontFamily: F, fontSize: 12.5, fontWeight: 600,
-              direction: 'ltr',
-              display: 'inline-flex', alignItems: 'center', gap: 8,
-              boxShadow: '0 2px 8px rgba(176,125,0,.18), inset 0 1px 0 rgba(176,125,0,.18)',
-              opacity: (!rows.length) ? 0.5 : 1,
-              transition: 'transform .15s, box-shadow .15s, background .15s',
-            }}
-            onMouseEnter={e => { if (!promoting && rows.length) { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 7px 18px rgba(176,125,0,.33), inset 0 1px 0 rgba(176,125,0,.28)' } }}
-            onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(176,125,0,.18), inset 0 1px 0 rgba(176,125,0,.18)' }}>
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+              display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0,
+              opacity: (promoting || !rows.length) ? .5 : 1,
+              transition: 'background .15s ease, border-color .15s ease, box-shadow .15s ease',
+            }}>
+            {promoting ? T('جاري النقل...', 'Promoting...') : T('نقل إلى المنشآت والعمالة', 'Promote to sidebar')}
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
             </svg>
-            <span style={{ whiteSpace: 'nowrap' }}>
-              {promoting ? T('جاري النقل...', 'Promoting...') : T('نقل إلى المنشآت', 'Promote to sidebar')}
-            </span>
           </button>
+        </div>
+        {spid && (
+        <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap', flex: '1 1 100%', justifyContent: 'flex-start', direction: 'ltr' }}>
+          <SbcSyncBookmarklet syncPersonId={spid} T={T} />
+          <GosiSyncBookmarklet syncPersonId={spid} T={T} />
+          <QiwaSyncBookmarklet syncPersonId={spid} T={T} />
+          <MuqeemSyncBookmarklet syncPersonId={spid} T={T} />
+          {/* الغرفة + الزكاة — لا يوجد سكربت/جداول بعد؛ معطّلان لحين التقاط الـ endpoints. */}
+          <SoonBookmark
+            accent={SOURCE_BRAND.chambers.color}
+            title={T('مزامنة الغرفة التجارية — قيد التطوير', 'Chamber of Commerce sync — not built yet')}
+            label={T('الغرف', 'Chambers')}
+            icon={(
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 21h18M4 21V10l8-5 8 5v11M9 21v-6h6v6"/>
+              </svg>
+            )}
+          />
+          <SoonBookmark
+            accent={SOURCE_BRAND.zatca.color}
+            title={T('مزامنة الزكاة والضريبة — قيد التطوير', 'ZATCA sync — not built yet')}
+            label={T('الزكاة', 'ZATCA')}
+            icon={(
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M6 3h12l-2 4H8L6 3zM5 7h14v14H5V7zM9 12h6M9 16h6"/>
+              </svg>
+            )}
+          />
         </div>
         )}
       </div>
@@ -3972,7 +4065,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
             <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx4)' }}>
               {T('الخطوة الأولى — اسحب هذا الزر إلى شريط الإشارات', 'Step one — drag this to your bookmarks bar')}
             </div>
-            <SbcSyncBookmarklet syncPersonId={syncPersonId} T={T} />
+            <SbcSyncBookmarklet syncPersonId={spid} T={T} />
           </div>
 
           {/* 3-step mini guide */}
@@ -4002,14 +4095,12 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
       <div style={{ display: 'grid', gridTemplateColumns: '2.2fr 1.7fr 1.6fr', gap: 14, marginBottom: 24 }}>
         {/* Hero — Total */}
         <div style={{
-          position: 'relative', padding: '18px 22px', borderRadius: 16,
-          background: 'var(--card-grad2)',
-          border: '1px solid var(--bd)',
-          boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
+          ...SC_CARD,
+          position: 'relative', padding: '18px 22px',
           display: 'flex', flexDirection: 'column',
           justifyContent: tableView === 'gosi' ? 'center' : 'space-between',
           gap: tableView === 'gosi' ? 16 : 0,
-          overflow: 'hidden', minHeight: 150,
+          overflow: 'hidden',
         }}>
           <div style={{ position: 'absolute', insetInlineStart: -60, top: -60, width: 180, height: 180, borderRadius: '50%', background: `radial-gradient(circle, ${C.gold}18 0%, transparent 70%)`, pointerEvents: 'none' }} />
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: -6 }}>
@@ -4054,7 +4145,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
           }
           const total = active + suspended
           return (
-            <div style={{ borderRadius: 16, background: 'var(--card-grad2)', border: '1px solid var(--bd)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12, minHeight: 150 }}>
+            <div style={{ ...SC_CARD, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600, letterSpacing: '.2px' }}>{T('المشتركون الأجانب', 'Foreign contributors')}</div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, direction: 'ltr', flex: 1 }}>
                 <span style={{ fontSize: 42, fontWeight: 600, color: C.cyan, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{num(total)}</span>
@@ -4102,14 +4193,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
           // annual-confirm 90-day grace window — both still operate normally.
           const activePct = Math.round((statusBuckets.active + statusBuckets.confirm) / tot * 100)
           return (
-            <div style={{
-              borderRadius: 16,
-              background: 'var(--card-grad2)',
-              border: '1px solid var(--bd)',
-              boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
-              padding: '14px 16px',
-              display: 'flex', flexDirection: 'column', gap: 12, minHeight: 150,
-            }}>
+            <div style={{ ...SC_CARD, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600, letterSpacing: '.2px' }}>{T('حالة السجل التجاري','CR Status')}</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 14, flex: 1 }}>
                 {/* Donut */}
@@ -4189,7 +4273,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
             { k: 'viol', l: T('المخالفات', 'Violations'), v: _gosiMoney(violations), hot: violations > 0 },
           ]
           return (
-            <div style={{ borderRadius: 16, background: danger ? 'linear-gradient(180deg, rgba(232,114,101,.10) 0%, #222 70%)' : 'var(--card-grad2)', border: `1px solid ${danger ? 'rgba(232,114,101,.25)' : 'var(--bd)'}`, boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12, minHeight: 150 }}>
+            <div style={{ ...scCardDanger(danger), padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                 <span style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600, letterSpacing: '.2px' }}>{T('إجمالي المديونيات', 'Total debt')}</span>
                 <span style={{ fontSize: 18, fontWeight: 600, color: danger ? C.red : C.ok, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{_gosiMoney(debt)}</span>
@@ -4217,16 +4301,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
             { k: 'com', l: T('مخالفات اللجان','Committees'),               v: comN },
           ]
           return (
-            <div style={{
-              borderRadius: 16,
-              background: danger
-                ? 'linear-gradient(180deg, rgba(232,114,101,.10) 0%, #222 70%)'
-                : 'var(--card-grad2)',
-              border: `1px solid ${danger ? 'rgba(232,114,101,.25)' : 'var(--bd)'}`,
-              boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
-              padding: '14px 16px',
-              display: 'flex', flexDirection: 'column', gap: 12, minHeight: 150,
-            }}>
+            <div style={{ ...scCardDanger(danger), padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600, letterSpacing: '.2px' }}>{T('مخالفات وزارة التجارة','MoC Violations')}</span>
                 {!hasData ? (
@@ -4278,6 +4353,13 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
             placeholder={T('ابحث بالاسم، السجل، الرقم الموحد، التأمينات، الموارد…', 'Search by name, CR, unified no., GOSI, MOL…')}
             style={{ width: '100%', height: 44, padding: '0 14px 0 38px', borderRadius: 12, background: 'var(--search-bg)', border: '1px solid transparent', color: 'var(--tx)', fontSize: 13, fontFamily: F, boxSizing: 'border-box', outline: 'none' }}/>
         </div>
+        {/* منسدلة المنصة — بين البحث والتصفية وبنفس تصميم زر التصفية */}
+        <_PlatformDropdown PLATFORMS={[
+          { v: 'sbc',    l: T('المركز السعودي', 'SBC'),       c: C.gold,   sub: T('سجلات تجارية', 'CR registry') },
+          { v: 'gosi',   l: T('التأمينات الاجتماعية', 'GOSI'), c: C.ok,     sub: T('اشتراكات ومديونية', 'Contributors & debt') },
+          { v: 'qiwa',   l: T('قوى', 'Qiwa'),                 c: C.blue,   sub: T('الموارد البشرية', 'HR & labor') },
+          { v: 'muqeem', l: T('مقيم', 'Muqeem'),              c: C.purple, sub: T('الإقامات', 'Iqamas') },
+        ]} tableView={tableView} setTableView={setTableView} T={T} F={F} />
         {(() => {
           const hasFilters = advCount > 0
           const clearAll = () => setAdv({ owner: [], manager: [], partnersCount: [], adminsCount: [], city: '', status: [], sortConfirm: '', sortIssue: '', nitaq: [] })
@@ -4307,7 +4389,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
 
       {/* Advanced search panel — matches Invoices page filter panel */}
       {advOpen && (
-        <div style={{ marginBottom: 22, padding: '16px 18px', background: 'var(--card-grad2)', border: '1px solid var(--bd)', borderRadius: 14, boxShadow: '0 4px 16px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.04)' }}>
+        <div style={{ marginBottom: 22, padding: '16px 18px', background: 'var(--card-grad2)', border: '1px solid var(--bd)', borderRadius: 14 }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
             <div>
               <div style={advLbl}>{T('المالك / الشريك', 'Owner / Partner')}</div>
@@ -4433,25 +4515,12 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
         </div>
       )}
 
-      {/* 4-platform toggle — dropdown selector showing the active platform
-          (label + brand dot) with all 4 in a menu below. PLATFORMS is the
-          source of truth and counter shows row totals on the opposite end. */}
-      {(() => {
-        const PLATFORMS = [
-          { v: 'sbc',    l: T('المركز السعودي', 'SBC'),       c: C.gold,   sub: T('سجلات تجارية', 'CR registry') },
-          { v: 'gosi',   l: T('التأمينات الاجتماعية', 'GOSI'), c: C.ok,     sub: T('اشتراكات ومديونية', 'Contributors & debt') },
-          { v: 'qiwa',   l: T('قوى', 'Qiwa'),                 c: C.blue,   sub: T('الموارد البشرية', 'HR & labor') },
-          { v: 'muqeem', l: T('مقيم', 'Muqeem'),              c: C.purple, sub: T('الإقامات', 'Iqamas') },
-        ]
-        const counter = (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {tableView === 'gosi' && gosiAggLoading && <span style={{ fontSize: 9.5, color: 'var(--tx5)' }}>{T('جاري التحميل…', 'Loading…')}</span>}
-            <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--tx2)' }}>{num(displayRows.length)} {T('منشأة','facilities')}</span>
-            {displayRows.length !== rows.length && <span style={{ fontSize: 9.5, color: 'var(--tx5)' }}>{T('من أصل','out of')} {num(rows.length)}</span>}
-          </div>
-        )
-        return <_PlatformDropdown PLATFORMS={PLATFORMS} tableView={tableView} setTableView={setTableView} counter={counter} T={T} F={F} />
-      })()}
+      {/* عدّاد الصفوف — المنسدلة انتقلت إلى صف البحث؛ يبقى العدّاد وحده محاذياً للطرف */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, justifyContent: 'flex-end', padding: '0 14px' }}>
+        {tableView === 'gosi' && gosiAggLoading && <span style={{ fontSize: 9.5, color: 'var(--tx5)' }}>{T('جاري التحميل…', 'Loading…')}</span>}
+        <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--tx2)' }}>{num(displayRows.length)} {T('منشأة','facilities')}</span>
+        {displayRows.length !== rows.length && <span style={{ fontSize: 9.5, color: 'var(--tx5)' }}>{T('من أصل','out of')} {num(rows.length)}</span>}
+      </div>
 
       {/* Card grid — one card per facility, matches Facilities page design */}
       {loading && <div style={{ padding: 60, textAlign: 'center', color: 'var(--tx4)', fontSize: 13 }}>…</div>}

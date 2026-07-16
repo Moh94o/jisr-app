@@ -57,7 +57,7 @@ function HeroStat({ tone, label, value, footer }) {
       position: 'relative', padding: '18px 22px', borderRadius: 16,
       background: 'var(--card-grad2)',
       border: '1px solid var(--bd)',
-      boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
+      boxShadow: 'var(--shadow-sm)',
       display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
       overflow: 'hidden', minHeight: 150,
     }}>
@@ -249,12 +249,12 @@ function UsersTab({ sb, user, toast, lang, loading, users, branches, nationaliti
       {loading && users.length === 0 ? (
         <>
           <div className="usr-hero-grid">
-            <div style={{ padding: '18px 22px', borderRadius: 16, background: 'var(--card-grad2)', border: '1px solid var(--bd)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', minHeight: 150, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 10 }}>
+            <div style={{ padding: '18px 22px', borderRadius: 16, background: 'var(--card-grad2)', border: '1px solid var(--bd)', boxShadow: 'var(--shadow-sm)', minHeight: 150, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 10 }}>
               <Shimmer w="42%" h={20} />
               <Shimmer w="50%" h={40} />
               <Shimmer w="60%" h={11} />
             </div>
-            <div style={{ padding: '12px 16px', borderRadius: 16, background: 'var(--card-grad2)', border: '1px solid var(--bd)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)', minHeight: 150, display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ padding: '12px 16px', borderRadius: 16, background: 'var(--card-grad2)', border: '1px solid var(--bd)', boxShadow: 'var(--shadow-sm)', minHeight: 150, display: 'flex', flexDirection: 'column', gap: 10 }}>
               <Shimmer w="45%" h={12} />
               <div style={{ display: 'flex', alignItems: 'center', gap: 14, flex: 1 }}>
                 <Shimmer w={86} h={86} r="50%" style={{ flexShrink: 0 }} />
@@ -306,7 +306,7 @@ function UsersTab({ sb, user, toast, lang, loading, users, branches, nationaliti
               borderRadius: 16,
               background: 'var(--card-grad2)',
               border: '1px solid var(--bd)',
-              boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.28)',
+              boxShadow: 'var(--shadow-sm)',
               padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10, minHeight: 150,
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

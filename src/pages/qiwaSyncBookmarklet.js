@@ -111,6 +111,12 @@ function body({ sourceId, personId }) {
       if (cur.jwt && !jwtStr) jwtStr = cur.jwt;
     }
 
+    // 3b) Account-level context (GET /context) — 28-permission map + account flags.
+    // Works from any *.qiwa.sa origin; scoped to the account, not the company.
+    let accountContext = null;
+    const acc = await qiwaGet(API_CORE + '/context');
+    if (acc.ok && acc.data) accountContext = acc.data;
+
     // Derive active-company shortcuts up front — work-permits + part-1
     // sections below both need labor_office_id / sequence_number / unified-no.
     const aData = activeCompany && activeCompany.data;
@@ -120,20 +126,22 @@ function body({ sourceId, personId }) {
     const estId = (laborOfficeId && seqNo) ? (laborOfficeId + '-' + seqNo) : null;
     const unifiedNo = aAttr['company-unified-number-id'] || (companies.find(w => w.company_id == (aData && aData.id)) || {}).company_unified_number_id;
 
-    // 4) Indicators / criteria / cases (establishment + employee) / absher.
-    let visaStatuses = null, employeeCases = null;
-    const [cr, ind, csRes, ecRes, abs] = await Promise.all([
+    // 4) Indicators / criteria / cases (establishment + employee) / absher / nitaqat-indicator.
+    let visaStatuses = null, employeeCases = null, nitaqatIndicator = null;
+    const [cr, ind, csRes, ecRes, abs, nitaqInd] = await Promise.all([
       qiwaGet(API_INDICATORS + '/api/v1/criteria/primary'),
       qiwaGet(API_DASHBOARD + '/api/v1/indicators'),
       qiwaGet(API_DASHBOARD + '/api/v1/establishment-cases'),
       qiwaGet(API_DASHBOARD + '/api/v1/employee-cases'),
       qiwaGet(API_CORE + '/visa-proxy/v3/absher-balance'),
+      qiwaGet(API_INDICATORS + '/api/v1/nitaqat-indicator'),
     ]);
     if (cr.ok) criteria = cr.data;
     if (ind.ok) indicators = ind.data;
     if (csRes.ok) cases = csRes.data;
     if (ecRes.ok) employeeCases = ecRes.data;
     if (abs.ok) absher = abs.data;
+    if (nitaqInd.ok) nitaqatIndicator = nitaqInd.data;
 
     // 5) Visa statuses — depends on current entity_number from criteria.
     // Format is e.g. "6-4019841-100" which the visa-proxy needs to scope to company.
@@ -194,14 +202,15 @@ function body({ sourceId, personId }) {
     // 5d) Part-4 employee-management — CORS only from employee-management.qiwa.sa.
     // Scoped via JWT (no labor_office/sequence params needed).
     let empCounts = null, empStats = null, empActions = null, empList = null,
-        empContractAuth = null, empWpIndicator = null;
-    const [ec, es, ea, el, eca, ewi] = await Promise.all([
+        empContractAuth = null, empWpIndicator = null, empGroupEligibility = null;
+    const [ec, es, ea, el, eca, ewi, ege] = await Promise.all([
       qiwaGet(API_EMP_MGT + '/api/employees-statistics/counts'),
       qiwaGet(API_EMP_MGT + '/api/employees-statistics'),
       qiwaGet(API_EMP_MGT + '/api/employees-statistics/actionFilters'),
       qiwaGet(API_EMP_MGT + '/api/employees?pageIndex=0&pageSize=1000&sort=newest%2Cdesc'),
       qiwaGet(API_EMP_MGT + '/api/indicator?type=contract_authentication'),
       qiwaGet(API_EMP_MGT + '/api/indicator?type=work_permit'),
+      qiwaGet(API_EMP_MGT + '/api/establishment-group/eligibility'),
     ]);
     if (ec.ok)  empCounts        = ec.data;
     if (es.ok)  empStats         = es.data;
@@ -209,6 +218,7 @@ function body({ sourceId, personId }) {
     if (el.ok)  empList          = el.data;
     if (eca.ok) empContractAuth  = eca.data;
     if (ewi.ok) empWpIndicator   = ewi.data;
+    if (ege.ok) empGroupEligibility = ege.data;
 
     // 5e) Part-5 occupation management — change + correct occupation flows.
     let occIndicator = null, occChangeLaborers = null, occChangeRequests = null,
@@ -287,9 +297,14 @@ function body({ sourceId, personId }) {
     if (trS.ok) transferSent            = trS.data;
 
     // 6) Part-1 endpoints — best-effort. estId / unifiedNo were derived earlier.
+    // NOTE: addressData (the ZATCA-shaped {address, zatcaId}) comes from
+    // /financial-information/general — NOT from the establishment "/" endpoint,
+    // which returns establishment_information/registration (captured in estFileInfo).
     let addressData = null, wpsEligibility = null, wpsCompliance = null, violations = null,
         locations = null, employeesSummary = null, groupInfo = null,
-        visaSeasonal = null, visaPermanent = null;
+        visaSeasonal = null, visaPermanent = null,
+        estFileInfo = null, finAccount = null, housingLicense = null,
+        unifiedPunishments = null, nitaqInfo = null, workPolicy = null, recruitmentQuota = null;
 
     const part1Promises = [
       // Auth + compliance (api.qiwa.sa — already same-origin if on dashboard.qiwa.sa)
@@ -297,14 +312,23 @@ function body({ sourceId, personId }) {
       qiwaGet(API_CORE + '/wage-protection-system/compliance-rate'),
       // Establishment-file-api (CORS: only from establishment-information.qiwa.sa)
       qiwaGet(API_FILE + '/api/entities/employees-summary'),
+      // JWT-scoped establishment-file endpoints (no id in path)
+      qiwaGet(API_FILE + '/api/establishments/unified-punishments'),
+      qiwaGet(API_FILE + '/api/establishments/nitaq-information'),
+      qiwaGet(API_FILE + '/api/establishments/work-policy'),
+      qiwaGet(API_FILE + '/api/establishments/recruitment-quota-usage'),
     ];
     if (estId) {
-      part1Promises.push(qiwaGet(API_FILE + '/api/establishments/' + encodeURIComponent(estId) + '/'));
-      part1Promises.push(qiwaGet(API_FILE + '/api/establishments/' + encodeURIComponent(estId) + '/violation-statistics'));
-      part1Promises.push(qiwaGet(API_FILE + '/api/establishments/' + encodeURIComponent(estId) + '/visa-balance/seasonal-work-visas'));
-      part1Promises.push(qiwaGet(API_FILE + '/api/establishments/' + encodeURIComponent(estId) + '/visa-balance/permanent-work-visas'));
+      const eid = encodeURIComponent(estId);
+      part1Promises.push(qiwaGet(API_FILE + '/api/establishments/' + eid + '/'));
+      part1Promises.push(qiwaGet(API_FILE + '/api/establishments/' + eid + '/violation-statistics'));
+      part1Promises.push(qiwaGet(API_FILE + '/api/establishments/' + eid + '/visa-balance/seasonal-work-visas'));
+      part1Promises.push(qiwaGet(API_FILE + '/api/establishments/' + eid + '/visa-balance/permanent-work-visas'));
+      part1Promises.push(qiwaGet(API_FILE + '/api/establishments/' + eid + '/financial-information/general'));
+      part1Promises.push(qiwaGet(API_FILE + '/api/establishments/' + eid + '/financial-information/account'));
+      part1Promises.push(qiwaGet(API_FILE + '/api/establishments/' + eid + '/workers-housing-license'));
     } else {
-      part1Promises.push({ ok: false }, { ok: false }, { ok: false }, { ok: false });
+      part1Promises.push({ ok: false }, { ok: false }, { ok: false }, { ok: false }, { ok: false }, { ok: false }, { ok: false });
     }
     if (unifiedNo) {
       part1Promises.push(qiwaGet(API_FILE + '/api/establishments/' + encodeURIComponent(unifiedNo) + '/group-information'));
@@ -314,30 +338,46 @@ function body({ sourceId, personId }) {
     // Locations stats — no ID needed, scoped via JWT.
     part1Promises.push(qiwaGet(API_LOCATIONS + '/api/v3/establishments/locations/statistics'));
 
-    const [wpsE, wpsC, empSum, addr, vio, vsea, vper, ginfo, locs] = await Promise.all(part1Promises);
+    const [wpsE, wpsC, empSum, punish, nitaqI, workPol, recQuota,
+           estF, vio, vsea, vper, finGen, finAcc, housing,
+           ginfo, locs] = await Promise.all(part1Promises);
     if (wpsE.ok) wpsEligibility = wpsE.data;
     if (wpsC.ok) wpsCompliance = wpsC.data;
     if (empSum.ok) employeesSummary = empSum.data;
-    if (addr.ok) addressData = addr.data;
+    if (punish.ok) unifiedPunishments = punish.data;
+    if (nitaqI.ok) nitaqInfo = nitaqI.data;
+    if (workPol.ok) workPolicy = workPol.data;
+    if (recQuota.ok) recruitmentQuota = recQuota.data;
+    if (estF.ok) estFileInfo = estF.data;
     if (vio.ok) violations = vio.data;
     if (vsea.ok) visaSeasonal = vsea.data;
     if (vper.ok) visaPermanent = vper.data;
+    if (finGen.ok) addressData = finGen.data;
+    if (finAcc.ok) finAccount = finAcc.data;
+    if (housing.ok) housingLicense = housing.data;
     if (ginfo.ok) groupInfo = ginfo.data;
     if (locs.ok) locations = locs.data;
 
     // Capture and save session (JWT + claims) for future Netlify-based tooling.
     if (jwtStr) {
       const claims = decodeJwt(jwtStr) || {};
+      const acctBody = {
+        id: 'default', access_token: jwtStr,
+        personal_number: claims.personal_number || claims.user_personal_number || null,
+        account_id: claims['account-id'] || null,
+        login_time: claims['login-time'] || null,
+        expires_at: claims.exp || null,
+        updated_at: new Date().toISOString(),
+      };
+      if (accountContext) {
+        acctBody.account_context_raw = accountContext;
+        acctBody.account_permissions = accountContext.permissions || null;
+        acctBody.foreign_investor = accountContext.foreign_investor ?? null;
+        acctBody.eligible_for_self_subscription = accountContext.eligible_for_self_subscription ?? null;
+      }
       await supaFetch('/rest/v1/qiwa_sessions?on_conflict=id', {
         method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
-        body: JSON.stringify({
-          id: 'default', access_token: jwtStr,
-          personal_number: claims.personal_number || claims.user_personal_number || null,
-          account_id: claims['account-id'] || null,
-          login_time: claims['login-time'] || null,
-          expires_at: claims.exp || null,
-          updated_at: new Date().toISOString(),
-        }),
+        body: JSON.stringify(acctBody),
       });
     }
 
@@ -595,7 +635,56 @@ function body({ sourceId, personId }) {
         patch.addr_zip_code      = ad.zipCode || null;
         patch.addr_unit_no       = ad.unitNo != null ? String(ad.unitNo) : null;
         patch.addr_zatca_id      = addressData.zatcaId || null;
+        patch.vat_number         = addressData.vatNumber || patch.vat_number || null;
       }
+      // Establishment-file "/" endpoint: establishment_information + registration.
+      // (Distinct from context/company — has license + opening_date + source_type.)
+      if (estFileInfo && estFileInfo.establishment_information) {
+        patch.est_file_raw = estFileInfo;
+        const ei = estFileInfo.establishment_information || {};
+        const er = estFileInfo.establishment_registration || {};
+        patch.est_license_number          = ei.license_number || null;
+        patch.est_license_issue_date      = ei.license_issue_date || null;
+        patch.est_license_expiration_date = ei.license_expiration_date || null;
+        patch.est_licenses_count          = ei.licenses_count ?? null;
+        patch.est_licenses_status         = ei.licenses_status || null;
+        patch.est_opening_date            = ei.opening_date || null;
+        patch.est_labor_office_name_ar    = ei.labor_office_name?.ar || null;
+        patch.est_labor_office_name_en    = ei.labor_office_name?.en || null;
+        patch.est_source_type             = er.source_type || null;
+        patch.est_is_merged               = er.is_establishment_merged ?? null;
+      }
+      // Nitaqat benchmark data (indicators-api /nitaqat-indicator).
+      if (nitaqatIndicator) {
+        patch.nitaqat_indicator_raw = nitaqatIndicator;
+        const ni = nitaqatIndicator.nitaqat_indicator || {};
+        patch.nitaqat_leader_rate     = ni.leader_nationalization_rate ?? null;
+        patch.nitaqat_sector_avg_rate = ni.sectors_average_nationalization_rate ?? null;
+        patch.nitaqat_streak          = ni.current_nitaqat_streak ?? null;
+        patch.nitaqat_yoy_improvement = ni.year_on_year_improvement ?? null;
+      }
+      if (nitaqInfo) patch.nitaq_code = nitaqInfo.current_nitaq?.code || null;
+      if (empGroupEligibility) {
+        patch.emp_group_authorized = empGroupEligibility.authorized ?? null;
+        patch.emp_group_establishment_ids = Array.isArray(empGroupEligibility.establishmentIds) ? empGroupEligibility.establishmentIds : null;
+      }
+      if (housingLicense) {
+        patch.housing_license_raw      = housingLicense;
+        patch.housing_license_required = housingLicense.isLicenseRequired ?? null;
+        patch.housing_total_laborers   = housingLicense.totalLaborers ?? null;
+        patch.housing_compliant        = housingLicense.totalCompliant ?? null;
+        patch.housing_incompliant      = housingLicense.totalIncompliant ?? null;
+        patch.housing_result           = housingLicense.resultDescription || null;
+      }
+      if (finAccount) patch.financial_account_raw = finAccount;
+      if (unifiedPunishments) {
+        patch.unified_punishments_raw = unifiedPunishments;
+        patch.punishments_count = Array.isArray(unifiedPunishments) ? unifiedPunishments.length
+          : (Array.isArray(unifiedPunishments.data) ? unifiedPunishments.data.length
+          : (Array.isArray(unifiedPunishments.items) ? unifiedPunishments.items.length : null));
+      }
+      if (recruitmentQuota) patch.recruitment_quota_raw = recruitmentQuota;
+      if (workPolicy && Object.keys(workPolicy).length) patch.work_policy_raw = workPolicy;
       if (employeesSummary) {
         patch.employees_summary_raw = employeesSummary;
         const ent = employeesSummary.entity || {};
@@ -848,6 +937,51 @@ function body({ sourceId, personId }) {
           method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
           body: JSON.stringify(reqRows),
         });
+
+        // Per-visa border-number detail — one call per visa request (N+1, but
+        // typical accounts have only a handful of requests). Upsert into
+        // qiwa_visa_border_numbers by (company_id, request_id, border_number).
+        const companyIdBn = Number(activeCompany.data.id);
+        const bnRows = [];
+        for (const r of visaRequestsList.data) {
+          const reqId = r.request_id;
+          if (!reqId) continue;
+          const rt = r.type_id || '1';
+          const bn = await qiwaGet(API_CORE + '/visa-proxy/v3/visa-requests/' + encodeURIComponent(reqId) + '/border-numbers?page=1&request_type=' + encodeURIComponent(rt) + '&per=1000');
+          if (!bn.ok || !bn.data || !Array.isArray(bn.data.data)) continue;
+          for (const b of bn.data.data) {
+            if (b.number == null) continue;
+            bnRows.push({
+              company_id: companyIdBn,
+              request_id: String(reqId),
+              border_number: String(b.number),
+              border_row_id: b.id ?? null,
+              gender_code: b.gender?.code || null,
+              gender_ar: b.gender?.name_ar || null,
+              gender_en: b.gender?.name_en || null,
+              nationality_code: b.national?.code || null,
+              nationality_ar: b.national?.name_ar || null,
+              nationality_en: b.national?.name_en || null,
+              occupation_code: b.occupation?.code || null,
+              occupation_ar: b.occupation?.name_ar || null,
+              occupation_en: b.occupation?.name_en || null,
+              embassy_code: b.embassy?.code || null,
+              embassy_ar: b.embassy?.name_ar || null,
+              embassy_en: b.embassy?.name_en || null,
+              religion_code: b.religion?.code || null,
+              status: b.status != null ? String(b.status) : null,
+              can_be_canceled: b.can_be_canceled ?? null,
+              raw: b,
+              synced_at: new Date().toISOString(),
+            });
+          }
+        }
+        if (bnRows.length) {
+          await supaFetch('/rest/v1/qiwa_visa_border_numbers?on_conflict=company_id,request_id,border_number', {
+            method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+            body: JSON.stringify(bnRows),
+          });
+        }
       }
 
       // Work-permit requests — upsert by request_reference_number.
