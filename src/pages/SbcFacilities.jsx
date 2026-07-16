@@ -341,18 +341,27 @@ function GosiSourceIcon({ size = 16 }) {
 // for the given company_id when expanded. Empty state when no rows exist.
 function QiwaVisaRequestsCard({ sb, companyId, T }) {
   const [rows, setRows] = useState(null) // null = not loaded, [] = empty, [...] = loaded
+  const [bnByReq, setBnByReq] = useState({}) // request_id -> [border-number rows]
   const [loading, setLoading] = useState(false)
   // Lazy: only query when companyId is set; cache by companyId
   useEffect(() => {
-    if (!sb || !companyId) { setRows(null); return }
+    if (!sb || !companyId) { setRows(null); setBnByReq({}); return }
     let cancelled = false
     setLoading(true)
     ;(async () => {
-      const { data } = await sb.from('qiwa_visa_requests')
-        .select('id, request_id, type_name, subtype, status, starting_date, approval_date, visa_number, visa_number_sum, rejection_reason')
-        .eq('company_id', companyId)
-        .order('starting_date', { ascending: false, nullsFirst: false })
-      if (!cancelled) { setRows(data || []); setLoading(false) }
+      const [reqRes, bnRes] = await Promise.all([
+        sb.from('qiwa_visa_requests')
+          .select('id, request_id, type_name, subtype, status, starting_date, approval_date, visa_number, visa_number_sum, rejection_reason')
+          .eq('company_id', companyId)
+          .order('starting_date', { ascending: false, nullsFirst: false }),
+        sb.from('qiwa_visa_border_numbers')
+          .select('request_id, border_number, nationality_ar, occupation_ar, embassy_ar, gender_ar, status')
+          .eq('company_id', companyId),
+      ])
+      if (cancelled) return
+      const grouped = {}
+      for (const b of (bnRes.data || [])) { (grouped[b.request_id] = grouped[b.request_id] || []).push(b) }
+      setRows(reqRes.data || []); setBnByReq(grouped); setLoading(false)
     })()
     return () => { cancelled = true }
   }, [sb, companyId])
@@ -391,6 +400,20 @@ function QiwaVisaRequestsCard({ sb, companyId, T }) {
               {r.approval_date && <div style={{ color: 'var(--tx4)' }}>{T('تاريخ الموافقة', 'Approved')}: <span style={{ color: 'var(--tx2)', fontWeight: 600, direction: 'ltr' }}>{r.approval_date.slice(0, 10)}</span></div>}
               {r.starting_date && <div style={{ color: 'var(--tx4)' }}>{T('تاريخ البدء', 'Started')}: <span style={{ color: 'var(--tx2)', fontWeight: 600, direction: 'ltr' }}>{r.starting_date.slice(0, 10)}</span></div>}
               {r.rejection_reason && <div style={{ gridColumn: '1 / -1', color: '#ef4444', fontSize: 10.5 }}>{T('سبب الرفض', 'Rejection reason')}: {r.rejection_reason}</div>}
+              {/* أرقام الحدود لكل تأشيرة (qiwa_visa_border_numbers) */}
+              {(bnByReq[r.request_id] || []).length > 0 && (
+                <div style={{ gridColumn: '1 / -1', marginTop: 4, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  {bnByReq[r.request_id].map((b, bi) => (
+                    <div key={b.border_number || bi} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', padding: '5px 8px', borderRadius: 6, background: 'rgba(59,130,246,.06)', border: '1px solid var(--bd2)', fontSize: 10.5 }}>
+                      <span style={{ fontFamily: 'ui-monospace, monospace', direction: 'ltr', color: 'var(--tx3)' }}>{b.border_number}</span>
+                      {b.nationality_ar && <span style={{ color: 'var(--tx2)', fontWeight: 600 }}>{b.nationality_ar}</span>}
+                      {b.occupation_ar && <span style={{ color: 'var(--tx4)' }}>· {b.occupation_ar}</span>}
+                      {b.gender_ar && <span style={{ color: 'var(--tx4)' }}>· {b.gender_ar}</span>}
+                      {b.embassy_ar && <span style={{ color: 'var(--tx5)', marginInlineStart: 'auto' }}>{T('سفارة', 'Embassy')}: {b.embassy_ar}</span>}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )
         })}
@@ -616,6 +639,125 @@ function QiwaWpLaborersCard({ sb, companyId, T }) {
       badge={rows.length + (expiredCount > 0 ? ` · ${expiredCount} ${T('منتهية', 'expired')}` : '')}>
       <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 6 }}>
         {rows.map(r => <LaborerDetailRow key={r.employee_id} r={r} T={T} />)}
+      </div>
+    </CollapsibleCard>
+  )
+}
+
+// Per-employee expandable detail block — reads the rich qiwa_employees row
+// (from employee-management-api). Collapsed header shows name/id/occupation/WP
+// expiry; expanded reveals iqama, work permit, contract, occupation, GOSI.
+function EmployeeDetailRow({ r, T }) {
+  const [open, setOpen] = useState(false)
+  const date = (s) => s ? String(s).slice(0, 10) : null
+  const wpExpired = r.work_permit_status && String(r.work_permit_status).toUpperCase() === 'EXPIRED'
+  const c = wpExpired ? '#ef4444' : '#22c55e'
+  const Field = ({ k, v, ltr, mono }) => (v == null || v === '' ? null : (
+    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, padding: '6px 10px', borderRadius: 6, background: 'rgba(255,255,255,.02)', border: '1px solid var(--bd2)' }}>
+      <span style={{ fontSize: 10.5, color: 'var(--tx3)', fontWeight: 600, whiteSpace: 'nowrap' }}>{k}</span>
+      <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx)', textAlign: 'end', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', direction: ltr ? 'ltr' : undefined, fontFamily: mono ? 'ui-monospace, monospace' : undefined }} title={typeof v === 'string' ? v : undefined}>{v}</span>
+    </div>
+  ))
+  const Section = ({ title, children }) => {
+    const visible = React.Children.toArray(children).filter(Boolean)
+    if (visible.length === 0) return null
+    return (
+      <div style={{ marginTop: 8 }}>
+        <div style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--tx4)', letterSpacing: '.5px', textTransform: 'uppercase', marginBottom: 4, paddingInlineStart: 2 }}>{title}</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>{visible}</div>
+      </div>
+    )
+  }
+  return (
+    <div style={{
+      borderRadius: 8,
+      background: wpExpired ? 'rgba(239,68,68,.05)' : 'rgba(255,255,255,.025)',
+      border: `1px solid ${wpExpired ? 'rgba(239,68,68,.2)' : 'var(--bd)'}`,
+      overflow: 'hidden',
+    }}>
+      <button onClick={() => setOpen(o => !o)}
+        style={{ width: '100%', padding: '8px 12px', display: 'grid', gridTemplateColumns: '1fr 1fr', rowGap: 4, columnGap: 12, alignItems: 'center', fontSize: 11.5, background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', textAlign: 'inherit', fontFamily: 'inherit' }}>
+        <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <span style={{ width: 6, height: 6, borderRadius: '50%', background: c, flexShrink: 0 }} />
+          <span style={{ fontWeight: 600, color: 'var(--tx)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name_full || '—'}</span>
+          <span style={{ fontSize: 10, color: 'var(--tx5)', fontFamily: 'ui-monospace, monospace', direction: 'ltr' }}>{r.id_no}</span>
+          {r.nationality_ar && <span style={{ fontSize: 10, color: 'var(--tx3)' }}>· {r.nationality_ar}</span>}
+          {(r.occupation_ar || r.job_name_ar) && <span style={{ fontSize: 10, color: 'var(--tx3)' }}>· {r.occupation_ar || r.job_name_ar}</span>}
+          {r.work_permit_status && <span style={{ fontSize: 9.5, color: c, fontWeight: 600, padding: '1px 6px', borderRadius: 5, background: c + '14', marginInlineStart: 'auto' }}>{wpExpired ? T('رخصة منتهية', 'WP expired') : T('رخصة سارية', 'WP valid')}</span>}
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--tx5)', transform: open ? 'rotate(180deg)' : 'none', transition: '.2s', marginInlineStart: r.work_permit_status ? 0 : 'auto' }}>
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </div>
+        <div style={{ color: 'var(--tx4)', fontSize: 10.5 }}>{T('انتهاء رخصة العمل', 'WP exp')}: <span style={{ color: c, fontWeight: 600, direction: 'ltr' }}>{date(r.work_permit_expiry_date) || '—'}</span></div>
+        <div style={{ color: 'var(--tx4)', fontSize: 10.5 }}>{T('انتهاء العقد', 'Contract exp')}: <span style={{ color: 'var(--tx2)', fontWeight: 600, direction: 'ltr' }}>{date(r.contract_expiry_date) || '—'}</span></div>
+      </button>
+
+      {open && (
+        <div style={{ padding: '0 12px 10px', borderTop: '1px dashed var(--bd)' }}>
+          <Section title={T('الهوية', 'Identity')}>
+            <Field k={T('الاسم', 'Name')} v={r.name_full} />
+            <Field k={T('رقم الهوية/الإقامة', 'ID / Iqama')} v={r.id_no} mono />
+            <Field k={T('رقم الحدود', 'Border no.')} v={r.border_no} mono />
+            <Field k={T('الجنسية', 'Nationality')} v={r.nationality_ar || r.nationality_en} />
+            <Field k={T('سعودي', 'Saudi')} v={r.is_saudi == null ? null : (r.is_saudi ? T('نعم', 'Yes') : T('لا', 'No'))} />
+          </Section>
+          <Section title={T('الإقامة', 'Iqama')}>
+            <Field k={T('حالة الإقامة', 'Iqama status')} v={r.iqama_status} />
+            <Field k={T('انتهاء الإقامة', 'Iqama expiry')} v={date(r.iqama_expiry_date)} ltr />
+          </Section>
+          <Section title={T('رخصة العمل', 'Work Permit')}>
+            <Field k={T('رقم الرخصة', 'WP number')} v={r.work_permit_number} mono />
+            <Field k={T('حالة الرخصة', 'WP status')} v={r.work_permit_status} />
+            <Field k={T('بداية الرخصة', 'WP start')} v={date(r.work_permit_start_date)} ltr />
+            <Field k={T('انتهاء الرخصة', 'WP expiry')} v={date(r.work_permit_expiry_date)} ltr />
+          </Section>
+          <Section title={T('المهنة', 'Occupation')}>
+            <Field k={T('المهنة (عقد)', 'Occupation (contract)')} v={r.occupation_ar || r.occupation_en} />
+            <Field k={T('المسمى الوظيفي', 'Job title')} v={r.job_name_ar || r.job_name_en} />
+          </Section>
+          <Section title={T('العقد', 'Contract')}>
+            <Field k={T('رقم العقد', 'Contract no.')} v={r.contract_number} mono />
+            <Field k={T('نوع العقد', 'Contract type')} v={r.contract_type_ar || r.contract_type_en} />
+            <Field k={T('حالة العقد', 'Contract status')} v={r.employment_status_ar || r.employment_status_en} />
+            <Field k={T('بداية العقد', 'Contract start')} v={date(r.contract_start_date)} ltr />
+            <Field k={T('انتهاء العقد', 'Contract expiry')} v={date(r.contract_expiry_date)} ltr />
+            <Field k={T('مدة العقد (شهر)', 'Contract period (mo)')} v={r.contract_period} ltr />
+          </Section>
+          <Section title={T('أخرى', 'Other')}>
+            <Field k={T('الموقع', 'Location')} v={r.assigned_location} />
+            <Field k={T('مسجّل في التأمينات', 'GOSI registered')} v={r.gosi_registration == null ? null : (r.gosi_registration ? T('نعم', 'Yes') : T('لا', 'No'))} />
+          </Section>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Qiwa detailed-employees card — reads qiwa_employees (rich per-worker records
+// from employee-management-api). Replaces the empty qiwa_wp_laborers card.
+function QiwaEmployeesCard({ sb, companyId, T }) {
+  const [rows, setRows] = useState(null)
+  useEffect(() => {
+    if (!sb || !companyId) { setRows(null); return }
+    let cancelled = false
+    ;(async () => {
+      const { data } = await sb.from('qiwa_employees')
+        .select('*')
+        .eq('company_id', companyId)
+        .order('work_permit_expiry_date', { ascending: true, nullsFirst: false })
+      if (!cancelled) setRows(data || [])
+    })()
+    return () => { cancelled = true }
+  }, [sb, companyId])
+  if (!rows || rows.length === 0) return null
+  const expiredCount = rows.filter(r => r.work_permit_status && String(r.work_permit_status).toUpperCase() === 'EXPIRED').length
+  return (
+    <CollapsibleCard
+      title={T('الموظفون (تفصيلي)', 'Employees (detailed)')}
+      color="#3b82f6" showQiwaIcon
+      badge={rows.length + (expiredCount > 0 ? ` · ${expiredCount} ${T('رخصة منتهية', 'WP expired')}` : '')}>
+      <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {rows.map(r => <EmployeeDetailRow key={r.employee_id} r={r} T={T} />)}
       </div>
     </CollapsibleCard>
   )
@@ -6338,8 +6480,9 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                             </CollapsibleCard>
                           )}
 
-                          {/* سجل طلبات رخص العمل (qiwa_wp_requests) + العمالة (qiwa_wp_laborers) */}
+                          {/* سجل طلبات رخص العمل (qiwa_wp_requests) + الموظفون التفصيليون (qiwa_employees) */}
                           <QiwaWpRequestsCard sb={sb} companyId={q.company_id} T={T} />
+                          <QiwaEmployeesCard sb={sb} companyId={q.company_id} T={T} />
                           <QiwaWpLaborersCard sb={sb} companyId={q.company_id} T={T} />
 
 
