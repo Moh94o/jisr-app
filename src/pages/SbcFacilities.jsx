@@ -3463,69 +3463,6 @@ function UnifiedWorkersCard({ sb, companyId, muqeemResidents, gosiContributors, 
   )
 }
 
-// شريط حداثة المزامنة — تحت أزرار المزامنة مباشرة: لكل منصة عدد السجلات
-// وآخر مزامنة، مع عدّاد التغييرات المرصودة في sync_row_history. يجيب على
-// «متى آخر مرة زامنت كل منصة؟» بلا فتح أي منشأة.
-function SyncFreshnessStrip({ sb, T, lang }) {
-  const [stats, setStats] = useState(null)
-  useEffect(() => {
-    if (!sb) return
-    let cancelled = false
-    ;(async () => {
-      const latest = (table, col) => sb.from(table).select(col).not(col, 'is', null)
-        .order(col, { ascending: false }).limit(1)
-        .then(r => (r.data && r.data[0] && r.data[0][col]) || null, () => null)
-      const cnt = (table) => sb.from(table).select('*', { count: 'exact', head: true })
-        .then(r => r.count || 0, () => 0)
-      const [sbcAt, sbcN, gosiAt, gosiN, qiwaAt, qiwaN, muqAt, muqN, ajrAt, ajrN, histN] = await Promise.all([
-        latest('sbc_facilities', 'last_synced_at'), cnt('sbc_facilities'),
-        latest('gosi_establishments', 'raw_main_synced_at'), cnt('gosi_establishments'),
-        latest('qiwa_companies', 'synced_at'), cnt('qiwa_companies'),
-        latest('muqeem_companies', 'synced_at'), cnt('muqeem_companies'),
-        latest('ajeer_establishments', 'last_synced_at'), cnt('ajeer_establishments'),
-        cnt('sync_row_history'),
-      ])
-      if (cancelled) return
-      setStats([
-        { src: 'sbc', at: sbcAt, n: sbcN },
-        { src: 'gosi', at: gosiAt, n: gosiN },
-        { src: 'qiwa', at: qiwaAt, n: qiwaN },
-        { src: 'muqeem', at: muqAt, n: muqN },
-        { src: 'ajeer', at: ajrAt, n: ajrN },
-        { hist: histN },
-      ])
-    })()
-    return () => { cancelled = true }
-  }, [sb])
-  if (!stats) return null
-  const staleDays = (iso) => iso ? Math.floor((Date.now() - new Date(iso).getTime()) / 86400000) : null
-  return (
-    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', flex: '1 1 100%', alignItems: 'center' }}>
-      {stats.filter(s => s.src && s.n > 0).map(s => {
-        const b = SOURCE_BRAND[s.src]
-        const d = staleDays(s.at)
-        // أخضر ≤ 3 أيام (دورة المزامنة المعتادة)، كهرماني ≤ 10، أحمر أقدم
-        const freshColor = d == null ? 'var(--tx4)' : d <= 3 ? C.ok : d <= 10 ? C.warn : C.red
-        return (
-          <span key={s.src} title={s.at ? fmtDMYTime(s.at) : ''} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '3px 9px', borderRadius: 999, background: b.color + '0d', border: `1px solid ${b.color}30`, fontSize: 10 }}>
-            <span style={{ width: 5, height: 5, borderRadius: '50%', background: b.color }} />
-            <span style={{ fontWeight: 700, color: b.color }}>{b.ar}</span>
-            <span style={{ color: 'var(--tx3)', fontWeight: 600, direction: 'ltr' }}>{num(s.n)}</span>
-            {s.at && <span style={{ color: freshColor, fontWeight: 700 }}>{fmtAgo(s.at, lang)}</span>}
-          </span>
-        )
-      })}
-      {stats.find(s => s.hist != null)?.hist > 0 && (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '3px 9px', borderRadius: 999, background: 'rgba(187,143,206,.08)', border: '1px solid rgba(187,143,206,.30)', fontSize: 10 }}>
-          <span style={{ width: 5, height: 5, borderRadius: '50%', background: C.purple }} />
-          <span style={{ fontWeight: 700, color: C.purple }}>{T('سجل التغييرات', 'Change log')}</span>
-          <span style={{ color: 'var(--tx3)', fontWeight: 600, direction: 'ltr' }}>{num(stats.find(s => s.hist != null).hist)}</span>
-        </span>
-      )}
-    </div>
-  )
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // سجل التغييرات — الخط الزمني من sync_row_history + إصدارات الملفات المؤرشفة.
 // يعرض «ماذا تغيّر بين مزامنة وأخرى» مع القيمة القديمة والجديدة، وإمكانية
@@ -5200,8 +5137,6 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
           />
         </div>
         )}
-        {/* حداثة المزامنة لكل منصة — عدد السجلات + عمر آخر مزامنة */}
-        <SyncFreshnessStrip sb={sb} T={T} lang={lang} />
       </div>
 
       {err && <Card style={{ marginBottom: 14, borderColor: 'rgba(192,57,43,.35)', background: 'rgba(192,57,43,.06)' }}>
