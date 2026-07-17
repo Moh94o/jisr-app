@@ -5108,8 +5108,10 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
             </svg>
           </button>
         </div>
+        {/* الشريط RTL: المصادر تبدأ من اليمين (المركز أولاً) وتتدفق يساراً.
+            كل زر يفرض ltr داخلياً فيبقى ترتيبه أيقونة ← اسم ← نقاط السحب. */}
         {spid && (
-        <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap', flex: '1 1 100%', justifyContent: 'flex-start', direction: 'ltr' }}>
+        <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap', flex: '1 1 100%', justifyContent: 'flex-start', direction: 'rtl' }}>
           <SbcSyncBookmarklet syncPersonId={spid} T={T} />
           <GosiSyncBookmarklet syncPersonId={spid} T={T} />
           <QiwaSyncBookmarklet syncPersonId={spid} T={T} />
