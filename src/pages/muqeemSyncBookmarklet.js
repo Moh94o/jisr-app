@@ -81,7 +81,7 @@ function body({ sourceId, personId, proxyBaseUrl }) {
       pending.set(id, resolve);
       const timer = setTimeout(() => { pending.delete(id); reject(new Error('timeout from bridge after 45s')); }, 45000);
       try {
-        bridgeWin.postMessage({ id, path, method: opts.method || 'POST', headers: opts.headers || {}, body: opts.body || null }, '*');
+        bridgeWin.postMessage({ id, path, method: opts.method || 'POST', headers: opts.headers || {}, body: opts.body || null, b64: !!opts.b64 }, '*');
       } catch (e) { clearTimeout(timer); pending.delete(id); reject(e); }
     });
     const text = reply.body || '';
@@ -134,12 +134,22 @@ function body({ sourceId, personId, proxyBaseUrl }) {
         return await r.blob();
       } catch (e) { return null; }
     };
+    // PDF upload MUST go through the bridge: muqeem's CSP blocks any direct
+    // request to supabase.co, so a plain fetch to Storage silently fails (this
+    // is why no PDF ever landed). Base64 the blob across postMessage instead.
+    const blobToB64 = (blob) => new Promise((resolve, reject) => {
+      const fr = new FileReader();
+      fr.onload = () => { const s = String(fr.result || ''); const i = s.indexOf(','); resolve(i >= 0 ? s.slice(i + 1) : s); };
+      fr.onerror = reject;
+      fr.readAsDataURL(blob);
+    });
     const uploadPdf = async (path, blob) => {
       try {
-        const r = await fetch(U + '/storage/v1/object/muqeem-pdfs/' + path, {
+        const b64 = await blobToB64(blob);
+        const r = await supaFetch('/storage/v1/object/muqeem-pdfs/' + path, {
           method: 'POST',
-          headers: { apikey: K, Authorization: 'Bearer ' + K, 'Content-Type': 'application/pdf', 'x-upsert': 'true' },
-          body: blob,
+          headers: { 'Content-Type': 'application/pdf', 'x-upsert': 'true' },
+          body: b64, b64: true,
         });
         return r.ok ? path : null;
       } catch (e) { return null; }
@@ -372,7 +382,9 @@ function body({ sourceId, personId, proxyBaseUrl }) {
     let endpointWorks = null;
     outer: for (const ep of residentsEndpoints) {
       for (let page = 0; page < 50; page++) {
-        const rr = await muqPost(ep + '?page=' + page + '&size=1000&sort=iqamaNumber,ASC&dependants=false', { moiNumber: moi });
+        // The residents LIST takes the filter DTO ({basicSearch, sponsorNumber:{equals}}),
+        // NOT {moiNumber} like residents-count/the other reports — that 400s.
+        const rr = await muqPost(ep + '?page=' + page + '&size=1000&sort=iqamaNumber,ASC&dependants=false', { basicSearch: false, sponsorNumber: { equals: moi } });
         if (!rr.ok) { if (page === 0) continue outer; break; }
         const rows = extractRows(rr.data);
         if (!rows) { if (page === 0) continue outer; break; }
