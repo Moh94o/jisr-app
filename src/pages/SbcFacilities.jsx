@@ -763,6 +763,12 @@ function QiwaEmployeesCard({ sb, companyId, T }) {
   )
 }
 
+// Public URL for a file the Muqeem sync uploaded to the muqeem-pdfs bucket
+// (per-resident profile PDFs + the facility-wide residents report). The bucket
+// is public, so the stored path is all we need to link to it.
+const MUQEEM_PDF_BASE = 'https://gcvshzutdslmdkwqwteh.supabase.co/storage/v1/object/public/muqeem-pdfs/'
+const muqeemPdfUrl = (path) => path ? MUQEEM_PDF_BASE + String(path).split('/').map(encodeURIComponent).join('/') : null
+
 // Per-resident expandable detail block used inside the Muqeem residents card.
 // Same UX pattern as LaborerDetailRow: collapsed header shows the essentials,
 // expanded view reveals every column we store on muqeem_residents.
@@ -908,9 +914,17 @@ function MuqeemResidentRow({ r, T }) {
           )}
 
           {r.profile_pdf_path && (
-            <Section title={T('الملفات', 'Files')}>
-              <Field k={T('ملف الإقامة (PDF)', 'Iqama profile PDF')} v={date(r.profile_pdf_at) || '✓'} ltr />
-            </Section>
+            <div style={{ marginTop: 8 }}>
+              <div style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--tx4)', letterSpacing: '.5px', textTransform: 'uppercase', marginBottom: 4, paddingInlineStart: 2 }}>{T('الملفات', 'Files')}</div>
+              <a href={muqeemPdfUrl(r.profile_pdf_path)} target="_blank" rel="noopener noreferrer"
+                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 6, background: 'var(--inputBg)', border: '1px solid rgba(176,125,0,.28)', textDecoration: 'none' }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#B07D00" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>
+                </svg>
+                <span style={{ fontSize: 11, fontWeight: 600, color: '#B07D00' }}>{T('فتح ملف مقيم (PDF)', 'Open Muqeem profile (PDF)')}</span>
+                {r.profile_pdf_at && <span style={{ fontSize: 10, color: 'var(--tx5)', marginInlineStart: 'auto', direction: 'ltr' }}>{date(r.profile_pdf_at)}</span>}
+              </a>
+            </div>
           )}
         </div>
       )}
@@ -6883,6 +6897,16 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                               title={T('المقيمون', 'Residents')}
                               color={muqAccent} showMuqeemIcon badge={String(muqeemResidents.length)}>
                               <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                {m.residents_report_pdf_path && (
+                                  <a href={muqeemPdfUrl(m.residents_report_pdf_path)} target="_blank" rel="noopener noreferrer"
+                                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 11px', borderRadius: 7, background: 'var(--inputBg)', border: '1px solid rgba(176,125,0,.28)', textDecoration: 'none', marginBottom: 2 }}>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#B07D00" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>
+                                    </svg>
+                                    <span style={{ fontSize: 11.5, fontWeight: 600, color: '#B07D00' }}>{T('فتح تقرير المقيمين للمنشأة (PDF)', 'Open facility residents report (PDF)')}</span>
+                                    {m.residents_report_pdf_at && <span style={{ fontSize: 10, color: 'var(--tx5)', marginInlineStart: 'auto', direction: 'ltr' }}>{String(m.residents_report_pdf_at).slice(0, 10)}</span>}
+                                  </a>
+                                )}
                                 {muqeemResidents.map(r => <MuqeemResidentRow key={r.iqama_number} r={r} T={T} />)}
                               </div>
                             </CollapsibleCard>
