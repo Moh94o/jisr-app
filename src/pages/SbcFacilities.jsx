@@ -6436,16 +6436,30 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                       : (_gf?.molofficeID != null && _gf?.molEstID != null)
                         ? `${_gf.molofficeID}-${_gf.molEstID}`
                         : (detail.hrsd_labor_office_id != null ? String(detail.hrsd_labor_office_id) : null)
+                // أرقام الجهات: الزكاة/العنوان الوطني/الغرف/المقاولين/العدل/التجارة
+                // مصدرها الوحيد هو `smartFlow/registrationStatus` في «طلباتي» —
+                // وهو مفهرس بطلب التأسيس لا بالسجل، فالمنشأة التي لا طلب لها في
+                // الحساب المُزامَن لا مصدر لأرقامها اليوم. لذلك لا نخفي الصف
+                // صامتاً: نعرض حالة الجهة من raw_request_status (فرقم فارغ مع
+                // «قيد المعالجة» يعني أن الجهة لم تُصدره بعد، لا أننا فشلنا)،
+                // أو نوضّح أن المصدر لم يُزامَن بعد.
+                const rs = detail.raw_request_status || null
+                const authSt = (k) => {
+                  const node = rs && rs[k]
+                  if (!node) return null
+                  const st = node.status || {}
+                  return { label: lang === 'en' ? (st.nameEn || st.nameAr) : (st.nameAr || st.nameEn), done: st.id === 1 }
+                }
                 const authorities = [
-                  { ar: 'الزكاة والضريبة', en: 'ZATCA',                    fullAr: 'هيئة الزكاة والضريبة والجمارك',              color: '#0f766e', n: detail.zakat_tax_number },
-                  { ar: 'التأمينات الاجتماعية', en: 'GOSI',                  fullAr: 'المؤسسة العامة للتأمينات الاجتماعية',          color: '#22c55e', n: detail.gosi_registration_number },
-                  { ar: 'العنوان الوطني',  en: 'SPL',                      fullAr: 'اشتراك العنوان الوطني للسجل التجاري',         color: '#06b6d4', n: detail.spl_national_address_id },
-                  { ar: 'الغرف التجارية',  en: 'Chamber of Commerce',      fullAr: 'اتحاد الغرف التجارية السعودية',               color: '#0ea5e9', n: detail.coc_chamber_number },
-                  { ar: 'المقاولين',       en: 'Contractors Authority',    fullAr: 'الهيئة السعودية للمقاولين',                   color: '#f59e0b', n: detail.sca_contractor_number },
-                  { ar: 'الموارد البشرية', en: 'HRSD / Qiwa',              fullAr: 'وزارة الموارد البشرية والتنمية الاجتماعية',    color: '#16a085', n: molFileNo },
-                  { ar: 'وزارة العدل',     en: 'MOJ Contract',             fullAr: 'وزارة العدل · رقم العقد',                     color: '#8b5cf6', n: detail.moj_contract_number },
-                  { ar: 'وزارة التجارة',   en: 'MC Contract Auth.',        fullAr: 'وزارة التجارة · رقم توثيق العقد',              color: '#B07D00', n: detail.mc_contract_number },
-                ].filter(row => row.n)
+                  { ar: 'الزكاة والضريبة', en: 'ZATCA',                    fullAr: 'هيئة الزكاة والضريبة والجمارك',              color: '#0f766e', n: detail.zakat_tax_number, st: authSt('zakat') },
+                  { ar: 'التأمينات الاجتماعية', en: 'GOSI',                  fullAr: 'المؤسسة العامة للتأمينات الاجتماعية',          color: '#22c55e', n: detail.gosi_registration_number, st: authSt('gosi') },
+                  { ar: 'العنوان الوطني',  en: 'SPL',                      fullAr: 'اشتراك العنوان الوطني للسجل التجاري',         color: '#06b6d4', n: detail.spl_national_address_id, st: authSt('spl') },
+                  { ar: 'الغرف التجارية',  en: 'Chamber of Commerce',      fullAr: 'اتحاد الغرف التجارية السعودية',               color: '#0ea5e9', n: detail.coc_chamber_number, st: authSt('coc') },
+                  { ar: 'المقاولين',       en: 'Contractors Authority',    fullAr: 'الهيئة السعودية للمقاولين',                   color: '#f59e0b', n: detail.sca_contractor_number, st: authSt('sca') },
+                  { ar: 'الموارد البشرية', en: 'HRSD / Qiwa',              fullAr: 'وزارة الموارد البشرية والتنمية الاجتماعية',    color: '#16a085', n: molFileNo, st: authSt('hrsd') },
+                  { ar: 'وزارة العدل',     en: 'MOJ Contract',             fullAr: 'وزارة العدل · رقم العقد',                     color: '#8b5cf6', n: detail.moj_contract_number, st: authSt('moj') },
+                  { ar: 'وزارة التجارة',   en: 'MC Contract Auth.',        fullAr: 'وزارة التجارة · رقم توثيق العقد',              color: '#B07D00', n: detail.mc_contract_number, st: null },
+                ].filter(row => row.n || row.st)
 
                 const rowBase = {
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -6483,9 +6497,15 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                         <CopyableNumber value={detail.cr_national_number} onToast={toast} copyLabel={T('نُسخ', 'Copied')} />
                       </div>
                       {authorities.map((row, i) => (
-                        <div key={i} style={rowGold} title={T(row.fullAr, row.en)}>
+                        <div key={i} style={rowGold} title={[T(row.fullAr, row.en), row.st && !row.n ? T(`حالة التسجيل: ${row.st.label}`, `Registration status: ${row.st.label}`) : ''].filter(Boolean).join('\n')}>
                           <span style={{ ...lbl, color: C.gold, overflow: 'hidden', textOverflow: 'ellipsis' }}>{T(row.ar, row.en)}</span>
-                          <CopyableNumber value={row.n} onToast={toast} copyLabel={T('نُسخ', 'Copied')} />
+                          {row.n
+                            ? <CopyableNumber value={row.n} onToast={toast} copyLabel={T('نُسخ', 'Copied')} />
+                            /* رقم فارغ مع حالة معروفة = الجهة لم تُصدره بعد؛
+                               نعرض الحالة بدل «—» حتى لا تُقرأ كعطل مزامنة. */
+                            : (
+                              <span style={{ fontSize: 10, fontWeight: 700, color: row.st.done ? C.ok : C.warn, background: (row.st.done ? C.ok : C.warn) + '14', border: `1px solid ${row.st.done ? C.ok : C.warn}40`, borderRadius: 5, padding: '1px 7px', whiteSpace: 'nowrap' }}>{row.st.label}</span>
+                            )}
                         </div>
                       ))}
                       {/* السجل التجاري آخر حقل بناءً على طلب المستخدم */}
