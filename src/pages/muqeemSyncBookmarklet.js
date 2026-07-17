@@ -123,11 +123,13 @@ function body({ sourceId, personId, proxyBaseUrl }) {
       } catch (e) { return { ok: false, error: String(e?.message || e) }; }
     };
     const muqPost = (path, b) => muq(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b || {}) });
-    const muqPostPdf = async (path, b, contentType = 'application/json') => {
+    // extra lets a caller override headers per request — notably Accept-Language,
+    // which is what decides whether Muqeem renders the PDF in Arabic or English.
+    const muqPostPdf = async (path, b, contentType = 'application/json', extra) => {
       try {
         const r = await origFetch(apiBase + path, {
           method: 'POST', credentials: 'include',
-          headers: { ...headers, 'X-Xsrf-Token': getXsrf(), 'Content-Type': contentType },
+          headers: { ...headers, 'X-Xsrf-Token': getXsrf(), 'Content-Type': contentType, ...(extra || {}) },
           body: contentType === 'application/json' ? JSON.stringify(b) : b,
         });
         if (!r.ok) return null;
@@ -403,6 +405,7 @@ function body({ sourceId, personId, proxyBaseUrl }) {
 
     // Per-resident deep profile — bounded concurrency.
     const profilePdfPaths = new Map();
+    const profilePdfEnPaths = new Map();
     const photoPaths = new Map();
     const detailByIqama = new Map();
     if (allResidents.length > 0) {
@@ -439,6 +442,13 @@ function body({ sourceId, personId, proxyBaseUrl }) {
             const path = 'iqama-profile/' + moi + '/' + iqn + '/' + todayStr + '.pdf';
             const uploaded = await uploadPdf(path, blob);
             if (uploaded) profilePdfPaths.set(iqn, uploaded);
+          }
+          // Same endpoint, English rendering — only Accept-Language differs.
+          const blobEn = await muqPostPdf('/api/alien/iqama/print', iqn, 'text/plain', { 'Accept-Language': 'en' });
+          if (blobEn && blobEn.size > 1000) {
+            const pathEn = 'iqama-profile/' + moi + '/' + iqn + '/' + todayStr + '-en.pdf';
+            const uploadedEn = await uploadPdf(pathEn, blobEn);
+            if (uploadedEn) profilePdfEnPaths.set(iqn, uploadedEn);
           }
           try {
             const det = await fetchDetail(iqn);
@@ -477,6 +487,8 @@ function body({ sourceId, personId, proxyBaseUrl }) {
           raw: r, synced_at: new Date().toISOString(),
         };
         if (pdfPath) { row.profile_pdf_path = pdfPath; row.profile_pdf_at = new Date().toISOString(); }
+        const pdfEnPath = profilePdfEnPaths.get(iqn);
+        if (pdfEnPath) { row.profile_pdf_en_path = pdfEnPath; row.profile_pdf_en_at = new Date().toISOString(); }
         const photoPath = photoPaths.get(iqn);
         if (photoPath) { row.photo_path = photoPath; row.photo_at = new Date().toISOString(); }
         const detail = detailByIqama.get(iqn);

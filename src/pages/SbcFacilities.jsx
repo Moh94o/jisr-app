@@ -769,6 +769,33 @@ function QiwaEmployeesCard({ sb, companyId, T }) {
 const MUQEEM_PDF_BASE = 'https://gcvshzutdslmdkwqwteh.supabase.co/storage/v1/object/public/muqeem-pdfs/'
 const muqeemPdfUrl = (path) => path ? MUQEEM_PDF_BASE + String(path).split('/').map(encodeURIComponent).join('/') : null
 
+// Link tile for a stored Muqeem PDF. Renders a muted "not available" state when
+// the file is missing so an absent language reads as absent, not as a dead link.
+function PdfLink({ path, label, at, wide }) {
+  const url = muqeemPdfUrl(path)
+  const style = {
+    gridColumn: wide ? '1 / -1' : undefined,
+    display: 'flex', alignItems: 'center', gap: 7, padding: '8px 10px', borderRadius: 6,
+    background: 'var(--inputBg)', textDecoration: 'none',
+    border: '1px solid ' + (url ? 'rgba(176,125,0,.28)' : 'var(--bd2)'),
+  }
+  const icon = (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={url ? '#B07D00' : 'var(--tx5)'} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>
+    </svg>
+  )
+  if (!url) return (
+    <div style={style}>{icon}<span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--tx5)' }}>{label} — —</span></div>
+  )
+  return (
+    <a href={url} target="_blank" rel="noopener noreferrer" style={style}>
+      {icon}
+      <span style={{ fontSize: 10.5, fontWeight: 600, color: '#B07D00' }}>{label}</span>
+      {at && <span style={{ fontSize: 9.5, color: 'var(--tx5)', marginInlineStart: 'auto', direction: 'ltr' }}>{String(at).slice(0, 10)}</span>}
+    </a>
+  )
+}
+
 // Per-resident expandable detail block used inside the Muqeem residents card.
 // Same UX pattern as LaborerDetailRow: collapsed header shows the essentials,
 // expanded view reveals every column we store on muqeem_residents.
@@ -915,17 +942,13 @@ function MuqeemResidentRow({ r, T }) {
             </div>
           )}
 
-          {r.profile_pdf_path && (
+          {(r.profile_pdf_path || r.profile_pdf_en_path) && (
             <div style={{ marginTop: 8 }}>
-              <div style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--tx4)', letterSpacing: '.5px', textTransform: 'uppercase', marginBottom: 4, paddingInlineStart: 2 }}>{T('الملفات', 'Files')}</div>
-              <a href={muqeemPdfUrl(r.profile_pdf_path)} target="_blank" rel="noopener noreferrer"
-                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 6, background: 'var(--inputBg)', border: '1px solid rgba(176,125,0,.28)', textDecoration: 'none' }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#B07D00" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>
-                </svg>
-                <span style={{ fontSize: 11, fontWeight: 600, color: '#B07D00' }}>{T('فتح ملف مقيم (PDF)', 'Open Muqeem profile (PDF)')}</span>
-                {r.profile_pdf_at && <span style={{ fontSize: 10, color: 'var(--tx5)', marginInlineStart: 'auto', direction: 'ltr' }}>{date(r.profile_pdf_at)}</span>}
-              </a>
+              <div style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--tx4)', letterSpacing: '.5px', textTransform: 'uppercase', marginBottom: 4, paddingInlineStart: 2 }}>{T('ملف مقيم (PDF)', 'Muqeem profile (PDF)')}</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
+                <PdfLink path={r.profile_pdf_path} label={T('عربي', 'Arabic')} at={r.profile_pdf_at} />
+                <PdfLink path={r.profile_pdf_en_path} label={T('إنجليزي', 'English')} at={r.profile_pdf_en_at} />
+              </div>
             </div>
           )}
         </div>
