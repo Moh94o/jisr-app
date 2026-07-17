@@ -2844,9 +2844,14 @@ function QiwaSyncBookmarklet({ syncPersonId, T }) {
   )
 }
 
-// Muqeem sync bookmarklet — runs on muqeem.sa. Sniffs the org JWT + XSRF token,
-// walks every MOI number the account can reach, and fills muqeem_companies /
-// _residents / _subscriptions / _points_transactions / _payment_history.
+// Muqeem sync bookmarklet — runs on muqeem.sa. Two auto-detected modes:
+//   • On the "الدخول الموحد" picker page it pulls the full establishment list via
+//     /api/sso/absher/get-users and deep-syncs EVERY establishment in one
+//     resumable pass (mints a per-org token via get-application-jwt — no manual
+//     paging, no session switching).
+//   • On any normal org page it syncs the active org only (legacy).
+// Fills muqeem_companies / _residents / _subscriptions / _points_transactions /
+// _payment_history.
 function MuqeemSyncBookmarklet({ syncPersonId, T }) {
   const proxyBaseUrl = typeof window !== 'undefined' ? window.location.origin : ''
   const dataHref = buildMuqeemBookmarklet({ sourceId: 'muqeem', personId: syncPersonId || '', proxyBaseUrl })
@@ -2854,7 +2859,7 @@ function MuqeemSyncBookmarklet({ syncPersonId, T }) {
     <DragBookmark
       href={dataHref}
       accent="#f59e0b"
-      title={T('اسحب الزر إلى شريط الإشارات، ثم افتح مقيم واضغط لمزامنة المنشآت والمقيمين', 'Drag to bookmarks bar, open Muqeem and click to sync facilities + residents')}
+      title={T('اسحب الزر إلى شريط الإشارات. لمزامنة كل المنشآت: افتح «الدخول الموحد» من أبشر واضغط الزر — يمرّ على كل منشأة تلقائياً وقابل للاستئناف. أو افتح منشأة واحدة واضغط لمزامنتها فقط.', 'Drag to bookmarks bar. To sync ALL establishments: open the Absher "Unified Login" page and click — it auto-loops every establishment (resumable). Or open a single org and click to sync just that one.')}
       label={T('مقيم', 'Muqeem')}
       icon={(
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
