@@ -769,6 +769,23 @@ function QiwaEmployeesCard({ sb, companyId, T }) {
 function MuqeemResidentRow({ r, T }) {
   const [open, setOpen] = useState(false)
   const date = (s) => s ? String(s).slice(0, 10) : null
+  // detail_raw holds the per-resident bundle the Muqeem sync pulls alongside the
+  // list row: photo (base64 JPEG), insurance, visas, dependents, vehicles,
+  // jawazat balance/services and traffic violations.
+  const d = r.detail_raw || {}
+  const photoSrc = d.photo ? 'data:image/jpeg;base64,' + d.photo : null
+  const ins = d.insurance && !d.insurance._status ? d.insurance : null
+  const gregOf = (x) => (x && typeof x === 'object' ? x.gregorian : x) || null
+  const listOf = (v, key) => Array.isArray(v) ? v : (v && Array.isArray(v[key]) ? v[key] : null)
+  const vehicles = listOf(d.vehicles, 'vehiclesList')
+  const dependents = listOf(d.dependents, 'dependents')
+  const violations = listOf(d.violations, 'violations')
+  const violationsTotal = d.violations && !Array.isArray(d.violations) ? d.violations.totalTrafficViolations : (violations ? violations.length : null)
+  const balance = d.jawazat_balance && !d.jawazat_balance._status ? d.jawazat_balance.balance : null
+  const services = Array.isArray(d.jawazat_services) ? d.jawazat_services.filter(s => s && s.available) : null
+  // Muqeem answers "visa not found" with a 400, which the sync stores as _status.
+  const visas = listOf(d.visas, 'visas')
+  const visasMissing = !!(d.visas && d.visas._status)
   const today = new Date(); today.setHours(0,0,0,0)
   const iqamaExp = r.iqama_expiry_date ? new Date(r.iqama_expiry_date).getTime() : null
   const daysToExpiry = iqamaExp ? Math.ceil((iqamaExp - today.getTime()) / 86400000) : null
@@ -802,6 +819,10 @@ function MuqeemResidentRow({ r, T }) {
         style={{ width: '100%', padding: '8px 12px', display: 'grid', gridTemplateColumns: '1fr 1fr', rowGap: 4, columnGap: 12, alignItems: 'center', fontSize: 11.5, background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', textAlign: 'inherit', fontFamily: 'inherit' }}>
         <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <span style={{ width: 6, height: 6, borderRadius: '50%', background: c, flexShrink: 0 }} />
+          {photoSrc && (
+            <img src={photoSrc} alt="" loading="lazy"
+              style={{ width: 26, height: 26, borderRadius: '50%', objectFit: 'cover', border: '1px solid var(--bd)', flexShrink: 0 }} />
+          )}
           <span style={{ fontWeight: 600, color: 'var(--tx)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name_ar || r.name_en || '—'}</span>
           <span style={{ fontSize: 10, color: 'var(--tx5)', fontFamily: 'ui-monospace, monospace', direction: 'ltr' }}>{r.iqama_number}</span>
           {r.nationality_ar && <span style={{ fontSize: 10, color: 'var(--tx3)' }}>· {r.nationality_ar}</span>}
@@ -818,6 +839,12 @@ function MuqeemResidentRow({ r, T }) {
 
       {open && (
         <div style={{ padding: '0 12px 10px', borderTop: '1px dashed var(--bd)' }}>
+          {photoSrc && (
+            <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 12 }}>
+              <img src={photoSrc} alt={r.name_ar || r.name_en || r.iqama_number} loading="lazy"
+                style={{ width: 104, height: 132, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--bd)', background: 'var(--inputBg)' }} />
+            </div>
+          )}
           <Section title={T('الهوية والبيانات الشخصية', 'Identity & personal')}>
             <Field k={T('الاسم بالعربي', 'Name (AR)')} v={r.name_ar} />
             <Field k={T('الاسم بالإنجليزي', 'Name (EN)')} v={r.name_en} />
@@ -851,6 +878,34 @@ function MuqeemResidentRow({ r, T }) {
             <Field k={T('رقم الجواز', 'Passport number')} v={r.passport_number} mono />
             <Field k={T('انتهاء الجواز', 'Passport expiry')} v={date(r.passport_expiry)} ltr />
           </Section>
+
+          <Section title={T('التأمين الطبي', 'Medical insurance')}>
+            <Field k={T('رقم البوليصة', 'Policy no.')} v={ins?.policyNumber} mono />
+            <Field k={T('شركة التأمين', 'Insurer')} v={ins?.companyNameAr || ins?.companyNameEn} />
+            <Field k={T('بداية التأمين', 'Start')} v={gregOf(ins?.startDate)} ltr />
+            <Field k={T('نهاية التأمين', 'End')} v={gregOf(ins?.endDate)} ltr />
+          </Section>
+
+          <Section title={T('الجوازات والمخالفات', 'Jawazat & violations')}>
+            <Field k={T('رصيد الجوازات', 'Jawazat balance')} v={balance == null ? null : String(balance)} ltr />
+            <Field k={T('عدد المخالفات المرورية', 'Traffic violations')} v={violationsTotal == null ? null : String(violationsTotal)} ltr />
+            <Field k={T('التأشيرات', 'Visas')} v={visasMissing ? T('لا توجد تأشيرة', 'No visa') : (visas ? String(visas.length) : null)} />
+            <Field k={T('المركبات', 'Vehicles')} v={vehicles ? String(vehicles.length) : null} ltr />
+            <Field k={T('المرافقون', 'Dependents')} v={dependents ? String(dependents.length) : null} ltr />
+          </Section>
+
+          {services && services.length > 0 && (
+            <div style={{ marginTop: 8 }}>
+              <div style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--tx4)', letterSpacing: '.5px', textTransform: 'uppercase', marginBottom: 4, paddingInlineStart: 2 }}>{T('الخدمات المتاحة', 'Available services')}</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                {services.map(s => (
+                  <span key={s.serviceName} style={{ fontSize: 9.5, fontWeight: 600, color: '#22c55e', background: '#22c55e14', border: '1px solid #22c55e33', borderRadius: 5, padding: '2px 7px' }}>
+                    {s.serviceName}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
 
           {r.profile_pdf_path && (
             <Section title={T('الملفات', 'Files')}>
