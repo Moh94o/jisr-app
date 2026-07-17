@@ -357,15 +357,20 @@ function body({ sourceId, personId, proxyBaseUrl }) {
     assign(rDrop,        'report_drop_resident_raw',         'report_drop_resident_count');
     assign(rTranslated,  'report_update_translated_name_raw','report_update_translated_name_count');
 
-    // Residents report PDF — dependants=true so the report covers accompanying
-    // family members too, not just the sponsored workers.
-    const reportPdf = await muqPostPdf('/api/report/residents/print?dependants=true', {
-      basicSearch: false, sponsorNumber: { equals: moi },
-    });
+    // Residents report PDF — kept as two cuts: workers only, and the same report
+    // including accompanying dependents. Same endpoint, dependants flag differs.
+    const reportBodyPdf = { basicSearch: false, sponsorNumber: { equals: moi } };
+    const reportPdf = await muqPostPdf('/api/report/residents/print?dependants=false', reportBodyPdf);
     if (reportPdf && reportPdf.size > 1000) {
       const path = 'residents-report/' + moi + '/' + todayStr + '.pdf';
       const uploaded = await uploadPdf(path, reportPdf);
       if (uploaded) { patch.residents_report_pdf_path = uploaded; patch.residents_report_pdf_at = new Date().toISOString(); }
+    }
+    const reportPdfDep = await muqPostPdf('/api/report/residents/print?dependants=true', reportBodyPdf);
+    if (reportPdfDep && reportPdfDep.size > 1000) {
+      const pathDep = 'residents-report/' + moi + '/' + todayStr + '-dep.pdf';
+      const uploadedDep = await uploadPdf(pathDep, reportPdfDep);
+      if (uploadedDep) { patch.residents_report_dep_pdf_path = uploadedDep; patch.residents_report_dep_pdf_at = new Date().toISOString(); }
     }
 
     await supaFetch('/rest/v1/muqeem_companies?on_conflict=moi_number', {

@@ -7554,15 +7554,14 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                               title={T('المقيمون', 'Residents')}
                               color={muqAccent} showMuqeemIcon badge={String(muqeemResidents.length)}>
                               <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                {m.residents_report_pdf_path && (
-                                  <a href={muqeemPdfUrl(m.residents_report_pdf_path)} target="_blank" rel="noopener noreferrer"
-                                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 11px', borderRadius: 7, background: 'var(--inputBg)', border: '1px solid rgba(176,125,0,.28)', textDecoration: 'none', marginBottom: 2 }}>
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#B07D00" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-                                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>
-                                    </svg>
-                                    <span style={{ fontSize: 11.5, fontWeight: 600, color: '#B07D00' }}>{T('فتح تقرير المقيمين للمنشأة (PDF)', 'Open facility residents report (PDF)')}</span>
-                                    {m.residents_report_pdf_at && <span style={{ fontSize: 10, color: 'var(--tx5)', marginInlineStart: 'auto', direction: 'ltr' }}>{String(m.residents_report_pdf_at).slice(0, 10)}</span>}
-                                  </a>
+                                {(m.residents_report_pdf_path || m.residents_report_dep_pdf_path) && (
+                                  <div style={{ marginBottom: 4 }}>
+                                    <div style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--tx4)', letterSpacing: '.5px', textTransform: 'uppercase', marginBottom: 4, paddingInlineStart: 2 }}>{T('تقرير المقيمين للمنشأة (PDF)', 'Facility residents report (PDF)')}</div>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
+                                      <PdfLink path={m.residents_report_pdf_path} label={T('بدون المرافقين', 'Workers only')} at={m.residents_report_pdf_at} />
+                                      <PdfLink path={m.residents_report_dep_pdf_path} label={T('مع المرافقين', 'With dependants')} at={m.residents_report_dep_pdf_at} />
+                                    </div>
+                                  </div>
                                 )}
                                 {muqeemResidents.map(r => <MuqeemResidentRow key={r.iqama_number} r={r} T={T} />)}
                               </div>
