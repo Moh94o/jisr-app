@@ -2847,8 +2847,9 @@ function DragBookmark({ href, label, accent, title, icon }) {
         color: 'var(--tx2)',
         textDecoration: 'none', fontFamily: F, fontSize: 12.5, fontWeight: 600,
         cursor: 'grab',
-        // Explicit LTR so the grip handle always sits on the physical right,
-        // independent of the surrounding RTL/LTR context.
+        // Explicit LTR so the pill's internal order never flips with the
+        // surrounding RTL/LTR context; the grip is last, so it sits on the
+        // physical right.
         direction: 'ltr',
         display: 'inline-flex', alignItems: 'center', gap: 8,
         transition: 'background .15s, border-color .15s',
@@ -2856,11 +2857,11 @@ function DragBookmark({ href, label, accent, title, icon }) {
       }}
       onMouseEnter={e => { e.currentTarget.style.background = 'var(--inputBg)'; e.currentTarget.style.borderColor = 'var(--bd)' }}
       onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.borderColor = 'transparent' }}>
-      <DragGrip />
       {/* The source's brand colour survives only on the icon — the label stays
           neutral so a row of six sources doesn't read as six competing chips. */}
       {icon && <span style={{ display: 'inline-flex', color: accent, flexShrink: 0 }}>{icon}</span>}
       <span style={{ whiteSpace: 'nowrap' }}>{label}</span>
+      <DragGrip />
     </a>
   )
 }
