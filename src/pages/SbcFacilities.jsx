@@ -4,6 +4,7 @@ import { buildBookmarklet, buildPdfBookmarklet } from './sbcSyncBookmarklet.js'
 import { buildGosiBookmarklet } from './gosiSyncBookmarklet.js'
 import { buildQiwaBookmarklet } from './qiwaSyncBookmarklet.js'
 import { buildMuqeemBookmarklet } from './muqeemSyncBookmarklet.js'
+import { buildAjeerBookmarklet } from './ajeerSyncBookmarklet.js'
 import { Sel } from './KafalaCalculator.jsx'
 import { EmptyState } from '../components/ui/FormKit.jsx'
 
@@ -56,6 +57,39 @@ const cardTitle = { fontSize: 16, color: '#B07D00', fontWeight: 600, letterSpaci
 const btnGold = { height: 40, padding: '0 16px', borderRadius: 11, background: 'linear-gradient(180deg,rgba(176,125,0,.22) 0%,rgba(176,125,0,.10) 100%)', border: '1px solid rgba(176,125,0,.45)', color: '#B07D00', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7, fontFamily: F, fontSize: 12, fontWeight: 600, transition: '.2s', boxShadow: '0 2px 8px rgba(176,125,0,.18), inset 0 1px 0 rgba(176,125,0,.18)' }
 const btnFilter = (active) => ({ height: 44, padding: '0 16px', borderRadius: 12, background: active ? 'var(--accent-soft)' : 'var(--search-bg)', border: '1px solid ' + (active ? 'var(--accent-bd)' : 'transparent'), color: active ? 'var(--accent)' : 'var(--tx2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 8, boxSizing: 'border-box', boxShadow: active ? 'var(--shadow-sm)' : 'none' })
 
+// «طلباتي» provenance pill. Marks a facility whose data came from the user's
+// own requests on the companies portal rather than the CR list — the CR list
+// only returns records this account owns, so companies it merely established
+// are invisible there and would otherwise show up blank.
+function RequestsBadge({ row, T, compact }) {
+  if (!row || !row.requests_synced_at) return null
+  const ref = row.request_reference_no
+  const svc = row.request_service_ar
+  const title = [
+    T('تمت المزامنة من «طلباتي»', 'Synced from "My Requests"'),
+    ref ? T('رقم الطلب: ', 'Request no: ') + ref : '',
+    svc ? T('الخدمة: ', 'Service: ') + svc : '',
+  ].filter(Boolean).join('\n')
+  return (
+    <span
+      title={title}
+      style={{
+        display: 'inline-flex', alignItems: 'center', gap: 3,
+        fontSize: compact ? 8.5 : 10, fontWeight: 700, whiteSpace: 'nowrap',
+        color: '#c084fc',
+        background: 'rgba(192,132,252,.12)',
+        border: '1px solid rgba(192,132,252,.35)',
+        borderRadius: 5, padding: compact ? '0 4px' : '1px 6px', lineHeight: compact ? '13px' : '16px',
+      }}
+    >
+      <svg width={compact ? 8 : 9} height={compact ? 8 : 9} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 15l2 2 4-4"/>
+      </svg>
+      {T('طلباتي', 'Requests')}
+    </span>
+  )
+}
+
 // Brand colors + short labels per sync source. Used by the provenance strip to
 // signal "this facility's data came from {source} via {operator}".
 const SOURCE_BRAND = {
@@ -67,6 +101,9 @@ const SOURCE_BRAND = {
   zatca:    { color: '#7dd3fc', ar: 'زكاة',   en: 'ZATCA' },
   ajeer:    { color: '#eab308', ar: 'أجير',   en: 'Ajeer' },
   chambers: { color: '#06b6d4', ar: 'الغرف',  en: 'Chambers' },
+  // Not a portal of its own — the طلباتي channel inside the companies portal.
+  // Kept distinct from `sbc` because it reaches a different set of facilities.
+  sbc_requests: { color: '#c084fc', ar: 'طلباتي', en: 'Requests' },
 }
 
 const fmtAgo = (iso, lang) => {
@@ -80,6 +117,42 @@ const fmtAgo = (iso, lang) => {
   const h = Math.floor(m / 60); if (h < 24) return isAr ? `قبل ${h}س` : `${h}h`
   const d = Math.floor(h / 24); if (d < 30) return isAr ? `قبل ${d}ي` : `${d}d`
   const mo = Math.floor(d / 30); return isAr ? `قبل ${mo}ش` : `${mo}mo`
+}
+
+// الصيغة الموحّدة للتواريخ في مركز المزامنة: يوم-شهر-سنة (DD-MM-YYYY).
+// تقبل ISO strings و Date وكائنات مقيم/SBC الملفوفة {gregorianDate|dateG|...}
+// وتُرجع «—» لأي قيمة فارغة. التواريخ الهجرية تمرّ كما هي إذا كانت أصلاً DD-MM-YYYY.
+const fmtDMY = (s) => {
+  if (!s && s !== 0) return '—'
+  let v = s
+  if (typeof v === 'object' && v !== null) {
+    v = v.gregorianDate || v.dateG || v.gregorian || v.date || v.hijriDate || ''
+  }
+  v = String(v).trim()
+  if (!v) return '—'
+  // JSON-wrapped object («{"gregorianDate":"2024-01-05", ...}»)
+  if (v.startsWith('{')) {
+    try {
+      const o = JSON.parse(v)
+      v = String(o.gregorianDate || o.dateG || o.gregorian || o.date || o.hijriDate || '').trim()
+      if (!v) return '—'
+    } catch { /* fall through */ }
+  }
+  // Already DD-MM-YYYY (hijri from portals often arrives this way)
+  let m = v.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/)
+  if (m) return `${m[1].padStart(2, '0')}-${m[2].padStart(2, '0')}-${m[3]}`
+  // ISO YYYY-MM-DD (with optional time part)
+  m = v.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/)
+  if (m) return `${m[3].padStart(2, '0')}-${m[2].padStart(2, '0')}-${m[1]}`
+  return v
+}
+// تاريخ + وقت بصيغة يوم-شهر-سنة ساعة:دقيقة
+const fmtDMYTime = (s) => {
+  if (!s) return '—'
+  const d = new Date(s)
+  if (Number.isNaN(d.getTime())) return fmtDMY(s)
+  const p = (n) => String(n).padStart(2, '0')
+  return `${p(d.getDate())}-${p(d.getMonth() + 1)}-${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`
 }
 
 // Monospace number + trailing copy icon. Flashes gold briefly on successful copy.
@@ -397,8 +470,8 @@ function QiwaVisaRequestsCard({ sb, companyId, T }) {
               {r.type_name && <div style={{ color: 'var(--tx4)' }}>{T('النوع', 'Type')}: <span style={{ color: 'var(--tx2)', fontWeight: 600 }}>{r.type_name}</span></div>}
               {r.subtype && <div style={{ color: 'var(--tx4)' }}>{T('الفئة', 'Subtype')}: <span style={{ color: 'var(--tx2)', fontWeight: 600 }}>{r.subtype}</span></div>}
               {r.visa_number && <div style={{ color: 'var(--tx4)' }}>{T('رقم التأشيرة', 'Visa no.')}: <span style={{ color: 'var(--tx2)', fontWeight: 600, fontFamily: 'ui-monospace, monospace', direction: 'ltr' }}>{r.visa_number}</span></div>}
-              {r.approval_date && <div style={{ color: 'var(--tx4)' }}>{T('تاريخ الموافقة', 'Approved')}: <span style={{ color: 'var(--tx2)', fontWeight: 600, direction: 'ltr' }}>{r.approval_date.slice(0, 10)}</span></div>}
-              {r.starting_date && <div style={{ color: 'var(--tx4)' }}>{T('تاريخ البدء', 'Started')}: <span style={{ color: 'var(--tx2)', fontWeight: 600, direction: 'ltr' }}>{r.starting_date.slice(0, 10)}</span></div>}
+              {r.approval_date && <div style={{ color: 'var(--tx4)' }}>{T('تاريخ الموافقة', 'Approved')}: <span style={{ color: 'var(--tx2)', fontWeight: 600, direction: 'ltr' }}>{fmtDMY(r.approval_date)}</span></div>}
+              {r.starting_date && <div style={{ color: 'var(--tx4)' }}>{T('تاريخ البدء', 'Started')}: <span style={{ color: 'var(--tx2)', fontWeight: 600, direction: 'ltr' }}>{fmtDMY(r.starting_date)}</span></div>}
               {r.rejection_reason && <div style={{ gridColumn: '1 / -1', color: '#ef4444', fontSize: 10.5 }}>{T('سبب الرفض', 'Rejection reason')}: {r.rejection_reason}</div>}
               {/* أرقام الحدود لكل تأشيرة (qiwa_visa_border_numbers) */}
               {(bnByReq[r.request_id] || []).length > 0 && (
@@ -466,7 +539,7 @@ function QiwaWpRequestsCard({ sb, companyId, T }) {
               <div style={{ color: 'var(--tx4)' }}>{T('عدد الموظفين', 'Employees')}: <span style={{ color: 'var(--tx2)', fontWeight: 600, direction: 'ltr' }}>{r.number_of_employees}</span></div>
               <div style={{ color: 'var(--tx4)' }}>{T('إجمالي الرسوم', 'Total fees')}: <span style={{ color: 'var(--tx2)', fontWeight: 600, direction: 'ltr' }}>{r.total_fees} {T('ر.س', 'SAR')}</span></div>
               <div style={{ color: 'var(--tx4)' }}>{T('رقم سداد', 'Sadad')}: <span style={{ color: 'var(--tx2)', fontWeight: 600, direction: 'ltr', fontFamily: 'ui-monospace, monospace' }}>{r.sadad_number}</span></div>
-              {r.request_submission_date && <div style={{ color: 'var(--tx4)' }}>{T('تاريخ التقديم', 'Submitted')}: <span style={{ color: 'var(--tx2)', fontWeight: 600, direction: 'ltr' }}>{r.request_submission_date.slice(0, 10)}</span></div>}
+              {r.request_submission_date && <div style={{ color: 'var(--tx4)' }}>{T('تاريخ التقديم', 'Submitted')}: <span style={{ color: 'var(--tx2)', fontWeight: 600, direction: 'ltr' }}>{fmtDMY(r.request_submission_date)}</span></div>}
             </div>
           )
         })}
@@ -486,7 +559,7 @@ function LaborerDetailRow({ r, T }) {
   const expired = r.is_wp_expired
   const c = expired ? '#ef4444' : '#22c55e'
   const yesNo = (b) => b == null ? null : (b ? T('نعم', 'Yes') : T('لا', 'No'))
-  const date = (s) => s ? String(s).slice(0, 10) : null
+  const date = (s) => s ? fmtDMY(s) : null
   // Tightly packed two-column key/value grid. Hides null/empty rows so the
   // user only sees populated fields per worker.
   const Field = ({ k, v, ltr, mono }) => (v == null || v === '' ? null : (
@@ -649,7 +722,7 @@ function QiwaWpLaborersCard({ sb, companyId, T }) {
 // expiry; expanded reveals iqama, work permit, contract, occupation, GOSI.
 function EmployeeDetailRow({ r, T }) {
   const [open, setOpen] = useState(false)
-  const date = (s) => s ? String(s).slice(0, 10) : null
+  const date = (s) => s ? fmtDMY(s) : null
   const wpExpired = r.work_permit_status && String(r.work_permit_status).toUpperCase() === 'EXPIRED'
   const c = wpExpired ? '#ef4444' : '#22c55e'
   const Field = ({ k, v, ltr, mono }) => (v == null || v === '' ? null : (
@@ -791,7 +864,7 @@ function PdfLink({ path, label, at, wide }) {
     <a href={url} target="_blank" rel="noopener noreferrer" style={style}>
       {icon}
       <span style={{ fontSize: 10.5, fontWeight: 600, color: '#B07D00' }}>{label}</span>
-      {at && <span style={{ fontSize: 9.5, color: 'var(--tx5)', marginInlineStart: 'auto', direction: 'ltr' }}>{String(at).slice(0, 10)}</span>}
+      {at && <span style={{ fontSize: 9.5, color: 'var(--tx5)', marginInlineStart: 'auto', direction: 'ltr' }}>{fmtDMY(at)}</span>}
     </a>
   )
 }
@@ -801,7 +874,7 @@ function PdfLink({ path, label, at, wide }) {
 // expanded view reveals every column we store on muqeem_residents.
 function MuqeemResidentRow({ r, T }) {
   const [open, setOpen] = useState(false)
-  const date = (s) => s ? String(s).slice(0, 10) : null
+  const date = (s) => s ? fmtDMY(s) : null
   // detail_raw holds the per-resident bundle the Muqeem sync pulls alongside the
   // list row: photo (base64 JPEG), insurance, visas, dependents, vehicles,
   // jawazat balance/services and traffic violations.
@@ -989,7 +1062,7 @@ function QiwaTransferRequestsList({ sb, companyId, T }) {
         <div style={{ display: 'flex', gap: 12, color: 'var(--tx5)', fontSize: 10, flexWrap: 'wrap', direction: 'ltr', justifyContent: 'flex-start' }}>
           {r.current_employer_name && <span>{T('من:', 'From:')} <span style={{ color: 'var(--tx3)' }}>{r.current_employer_name}</span></span>}
           {r.new_employer_name && <span>{T('إلى:', 'To:')} <span style={{ color: 'var(--tx3)' }}>{r.new_employer_name}</span></span>}
-          {r.created_at_qiwa && <span style={{ marginInlineStart: 'auto' }}>{r.created_at_qiwa.slice(0, 10)}</span>}
+          {r.created_at_qiwa && <span style={{ marginInlineStart: 'auto' }}>{fmtDMY(r.created_at_qiwa)}</span>}
         </div>
       </div>
     )
@@ -1103,7 +1176,7 @@ function QiwaMonthlyReportCard({ sb, companyId, T }) {
         {row.phase_status && <span><strong>{T('مرحلة المنشأة', 'Phase')}:</strong> {row.phase_status}</span>}
         {row.nitaqat_ar && <span><strong>{T('النطاق', 'Nitaq')}:</strong> {row.nitaqat_ar}</span>}
         {row.company_size_ar && <span><strong>{T('الحجم', 'Size')}:</strong> {row.company_size_ar}</span>}
-        {row.created_time && <span style={{ marginInlineStart: 'auto', direction: 'ltr' }}>{T('صدر في', 'Created')}: {row.created_time.slice(0, 10)}</span>}
+        {row.created_time && <span style={{ marginInlineStart: 'auto', direction: 'ltr' }}>{T('صدر في', 'Created')}: {fmtDMY(row.created_time)}</span>}
       </div>
     </CollapsibleCard>
   )
@@ -1154,9 +1227,9 @@ function QiwaContractsCard({ sb, companyId, T }) {
                 <span style={{ marginInlineStart: 'auto', fontSize: 9.5, color: gosiColor, fontWeight: 600 }}>GOSI: {r.gosi_status || '—'}</span>
               </div>
               <div style={{ color: 'var(--tx4)', fontSize: 10.5 }}>{T('نوع العقد', 'Contract type')}: <span style={{ color: 'var(--tx2)', fontWeight: 600 }}>{r.contract_type_ar}</span></div>
-              <div style={{ color: 'var(--tx4)', fontSize: 10.5 }}>{T('انتهاء العقد', 'Expires')}: <span style={{ color: 'var(--tx2)', fontWeight: 600, direction: 'ltr' }}>{r.expiry_date_gregorian?.slice(0, 10)}</span></div>
+              <div style={{ color: 'var(--tx4)', fontSize: 10.5 }}>{T('انتهاء العقد', 'Expires')}: <span style={{ color: 'var(--tx2)', fontWeight: 600, direction: 'ltr' }}>{fmtDMY(r.expiry_date_gregorian)}</span></div>
               <div style={{ color: 'var(--tx4)', fontSize: 10.5 }}>{T('رقم العقد', 'Contract no.')}: <span style={{ color: 'var(--tx2)', fontWeight: 600, direction: 'ltr', fontFamily: 'ui-monospace, monospace' }}>{r.contract_id}</span></div>
-              <div style={{ color: 'var(--tx4)', fontSize: 10.5 }}>{T('آخر تعديل', 'Last modified')}: <span style={{ color: 'var(--tx2)', fontWeight: 600, direction: 'ltr' }}>{r.last_modified_gregorian?.slice(0, 10)}</span></div>
+              <div style={{ color: 'var(--tx4)', fontSize: 10.5 }}>{T('آخر تعديل', 'Last modified')}: <span style={{ color: 'var(--tx2)', fontWeight: 600, direction: 'ltr' }}>{fmtDMY(r.last_modified_gregorian)}</span></div>
               {r.gosi_description && r.gosi_status === 'ERROR' && (
                 <div style={{ gridColumn: '1 / -1', color: '#ef4444', fontSize: 10, lineHeight: 1.5, marginTop: 4, paddingTop: 6, borderTop: '1px dashed rgba(239,68,68,.2)' }}>
                   ⚠ {r.gosi_description}
@@ -1233,8 +1306,17 @@ function MuqeemSourceIcon({ size = 16 }) {
 // Reusable collapsible card — click header to expand/collapse. Used for cards
 // that contain a lot of fields the user usually skips (e.g. WPS compliance).
 // Matches the same chrome + chevron pattern as ActivitiesCard below.
-function CollapsibleCard({ title, color, badge, defaultExpanded = false, children, showSbcIcon = false, showGosiIcon = false, showQiwaIcon = false, showMuqeemIcon = false }) {
+// Listens for the page-wide `synchub-expand-all` event so the detail header's
+// «توسيع الكل / طي الكل» buttons reach every card without prop-threading
+// (cards are nested several component levels deep).
+function CollapsibleCard({ title, color, badge, defaultExpanded = false, children, showSbcIcon = false, showGosiIcon = false, showQiwaIcon = false, showMuqeemIcon = false, sourcePill }) {
   const [expanded, setExpanded] = useState(defaultExpanded)
+  useEffect(() => {
+    const onAll = (e) => setExpanded(!!(e && e.detail && e.detail.expand))
+    window.addEventListener('synchub-expand-all', onAll)
+    return () => window.removeEventListener('synchub-expand-all', onAll)
+  }, [])
+  const brand = sourcePill ? SOURCE_BRAND[sourcePill] : null
   return (
     <div style={cardChrome}>
       <div
@@ -1246,6 +1328,9 @@ function CollapsibleCard({ title, color, badge, defaultExpanded = false, childre
         {showQiwaIcon && <QiwaSourceIcon />}
         {showMuqeemIcon && <MuqeemSourceIcon />}
         <span style={cardTitle}>{title}</span>
+        {brand && (
+          <span style={{ fontSize: 9, fontWeight: 700, color: brand.color, background: brand.color + '14', border: `1px solid ${brand.color}45`, borderRadius: 5, padding: '1px 6px', lineHeight: '14px' }}>{brand.ar}</span>
+        )}
         {badge != null && (
           <span style={{ marginInlineStart: 'auto', fontSize: 11, color, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: color + '14' }}>{badge}</span>
         )}
@@ -1260,33 +1345,18 @@ function CollapsibleCard({ title, color, badge, defaultExpanded = false, childre
 }
 
 function ActivitiesCard({ activities, lang, T }) {
-  const [expanded, setExpanded] = useState(false)
   if (!activities?.length) return null
   return (
-    <div style={cardChrome}>
-      <div
-        onClick={() => setExpanded(v => !v)}
-        style={{ ...cardHeader, cursor: 'pointer', userSelect: 'none' }}>
-        <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.orange }} />
-        <SbcSourceIcon />
-        <span style={cardTitle}>{T('الأنشطة التجارية', 'Commercial Activities')}</span>
-        <span style={{ marginInlineStart: 'auto', fontSize: 11, color: C.orange, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: C.orange + '14' }}>{num(activities.length)}</span>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
-          style={{ color: 'var(--tx3)', transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform .15s' }}>
-          <polyline points="6 9 12 15 18 9" />
-        </svg>
+    <CollapsibleCard title={T('الأنشطة التجارية', 'Commercial Activities')} color={C.orange} badge={num(activities.length)} showSbcIcon>
+      <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {activities.map((a, i) => (
+          <div key={i} style={{ padding: '8px 12px', background: 'rgba(255,255,255,.025)', borderRadius: 10, border: '1px solid var(--bd2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 11.5, color: 'var(--tx)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lang === 'en' ? (a.activityDescriptionEn || a.activityDescriptionAr) : (a.activityDescriptionAr || a.activityDescriptionEn)}</span>
+            <span style={{ fontSize: 10, fontFamily: 'ui-monospace, monospace', color: 'var(--tx3)', direction: 'ltr', whiteSpace: 'nowrap' }}>({a.activityID})</span>
+          </div>
+        ))}
       </div>
-      {expanded && (
-        <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {activities.map((a, i) => (
-            <div key={i} style={{ padding: '8px 12px', background: 'linear-gradient(180deg,#252525 0%,#1f1f1f 100%)', borderRadius: 10, border: '1px solid var(--bd2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
-              <span style={{ fontSize: 11.5, color: 'var(--tx)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lang === 'en' ? (a.activityDescriptionEn || a.activityDescriptionAr) : (a.activityDescriptionAr || a.activityDescriptionEn)}</span>
-              <span style={{ fontSize: 10, fontFamily: 'ui-monospace, monospace', color: 'var(--tx3)', direction: 'ltr', whiteSpace: 'nowrap' }}>({a.activityID})</span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
+    </CollapsibleCard>
   )
 }
 
@@ -1327,7 +1397,7 @@ function GosiEstablishmentCard({ data, T, lang }) {
   const pickLang = (obj) => obj ? (isAr ? (obj.arabic || obj.english) : (obj.english || obj.arabic)) : null
   const fmtDate = (d) => {
     if (!d) return null
-    const g = d.gregorian ? String(d.gregorian).slice(0, 10) : null
+    const g = d.gregorian ? fmtDMY(d.gregorian) : null
     const h = d.hijiri || null
     if (!g && !h) return null
     return (
@@ -1534,7 +1604,7 @@ function GosiEstablishmentCard({ data, T, lang }) {
               {r.violation.map((v, i) => (
                 <div key={i} style={{ padding: '10px 12px', background: 'rgba(239,68,68,.06)', border: '1px solid rgba(239,68,68,.18)', borderRadius: 8 }}>
                   <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--tx)' }}>{v.description}</div>
-                  {v.violationDate && <div style={{ fontSize: 10, color: 'var(--tx5)', marginTop: 4, direction: 'ltr' }}>{String(v.violationDate).slice(0, 10)}</div>}
+                  {v.violationDate && <div style={{ fontSize: 10, color: 'var(--tx5)', marginTop: 4, direction: 'ltr' }}>{fmtDMY(v.violationDate)}</div>}
                 </div>
               ))}
             </div>
@@ -1569,15 +1639,15 @@ const _gosiMoney = (n) => {
 // year → month → day. One canonical ISO shape used everywhere — Gregorian
 // and Hijri alike — so every date in the app stays consistent. Do NOT flip
 // the segments: GOSI already sends Gregorian in this shape.
-const _gosiDate = (s) => s ? String(s).slice(0, 10) : null
-// Hijri normalized to the same YYYY-MM-DD shape. GOSI sometimes sends it
-// day-first (DD-MM-YYYY) — detected by a short (≤2-char) first segment — so
-// we flip those back to year-first.
+const _gosiDate = (s) => s ? fmtDMY(s) : null
+// Hijri normalized to the app-wide DD-MM-YYYY shape. GOSI sometimes sends it
+// year-first — detected by a 4-char first segment — so we flip those to
+// day-first.
 const _gosiHijriNorm = (h) => {
   if (!h) return null
   const s = String(h).slice(0, 10)
   const parts = s.split('-')
-  return parts.length === 3 && parts[0].length <= 2 ? parts.reverse().join('-') : s
+  return parts.length === 3 && parts[0].length === 4 ? parts.reverse().join('-') : s
 }
 // Whole-day span between two YYYY-MM-DD dates. Drives the employment duration
 // shown for non-active contributors. Returns null for missing/invalid/negative.
@@ -1591,12 +1661,12 @@ const _gosiDaysBetween = (start, end) => {
 }
 // Normalize dates embedded inside GOSI free-text (e.g. a violation description
 // "الغاء مدة من 22/02/2026 الى 28/02/2026") from DD/MM/YYYY to the app-wide
-// YYYY-MM-DD shape, leaving the surrounding text untouched, so dates inside
+// DD-MM-YYYY shape, leaving the surrounding text untouched, so dates inside
 // sentences match every other date field.
 const _gosiTextDates = (str) => {
   if (!str) return str
   return String(str).replace(/\b(\d{1,2})\/(\d{1,2})\/(\d{4})\b/g,
-    (_, d, m, y) => y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0'))
+    (_, d, m, y) => String(d).padStart(2, '0') + '-' + String(m).padStart(2, '0') + '-' + y)
 }
 const _gosiDatePair = (greg, hijri) => {
   const g = _gosiDate(greg)
@@ -1756,18 +1826,7 @@ function GosiAccountCard({ data, bills, contributors, T, lang }) {
     sinToName[String(c.social_insurance_no)] = nm || c.full_name_en || String(c.social_insurance_no)
   }
   return (
-    <div style={cardChrome}>
-      <div style={cardHeader}>
-        <span style={{ width: 6, height: 6, borderRadius: '50%', background: accent }} />
-        <GosiSourceIcon />
-        <span style={cardTitle}>{T('الحساب والفواتير', 'Account & Bills')}</span>
-        {hasDebt && (
-          <span style={{
-            marginInlineStart: 'auto', fontSize: 11, color: accent, fontWeight: 600,
-            padding: '2px 8px', borderRadius: 6, background: accent + '14', direction: 'ltr',
-          }}>{_gosiMoney(data.outstanding_amount)}</span>
-        )}
-      </div>
+    <CollapsibleCard title={T('الحساب والفواتير', 'Account & Bills')} color={accent} defaultExpanded showGosiIcon badge={hasDebt ? <span style={{ direction: 'ltr' }}>{_gosiMoney(data.outstanding_amount)}</span> : undefined}>
       <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 10 }}>
         {/* Bills first — they're the most actionable surface: a bill is what
             actually has to be paid. The aggregate balances/payments below
@@ -1961,7 +2020,7 @@ function GosiAccountCard({ data, bills, contributors, T, lang }) {
           )
         })()}
       </div>
-    </div>
+    </CollapsibleCard>
   )
 }
 
@@ -2220,13 +2279,7 @@ function GosiOwnersCard({ owners, T, lang }) {
   if (!owners || !owners.length) return null
   const isAr = (lang || 'ar') !== 'en'
   return (
-    <div style={cardChrome}>
-      <div style={cardHeader}>
-        <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.blue }} />
-        <GosiSourceIcon />
-        <span style={cardTitle}>{T('الملاك والشركاء', 'Owners & Partners')}</span>
-        <_GosiCountBadge n={owners.length} color={C.blue} />
-      </div>
+    <CollapsibleCard title={T('الملاك والشركاء', 'Owners & Partners')} color={C.blue} badge={num(owners.length)} defaultExpanded showGosiIcon>
       <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 8 }}>
         {owners.map((o) => {
           const personName = isAr
@@ -2260,7 +2313,7 @@ function GosiOwnersCard({ owners, T, lang }) {
           )
         })}
       </div>
-    </div>
+    </CollapsibleCard>
   )
 }
 
@@ -2280,13 +2333,7 @@ function GosiAdminsCard({ admins, T, lang }) {
   if (!admins || !admins.length) return null
   const isAr = (lang || 'ar') !== 'en'
   return (
-    <div style={cardChrome}>
-      <div style={cardHeader}>
-        <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.purple }} />
-        <GosiSourceIcon />
-        <span style={cardTitle}>{T('المشرفون', 'Admins')}</span>
-        <_GosiCountBadge n={admins.length} color={C.purple} />
-      </div>
+    <CollapsibleCard title={T('المشرفون', 'Admins')} color={C.purple} badge={num(admins.length)} defaultExpanded showGosiIcon>
       <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 8 }}>
         {admins.map((a) => {
           const name = isAr
@@ -2316,7 +2363,7 @@ function GosiAdminsCard({ admins, T, lang }) {
           )
         })}
       </div>
-    </div>
+    </CollapsibleCard>
   )
 }
 
@@ -2342,7 +2389,7 @@ function GosiCertificatesCard({ certificates, T }) {
   }
   const STORAGE_BASE = 'https://gcvshzutdslmdkwqwteh.supabase.co/storage/v1/object/public/gosi-certificates/'
   const order = ['17_02_0011', '17_02_0050', '22_07_0007']
-  const fmtDate = (s) => s ? String(s).slice(0, 10) : null
+  const fmtDate = (s) => s ? fmtDMY(s) : null
   const fmtSize = (n) => {
     if (n == null) return null
     if (n < 1024) return n + ' B'
@@ -2350,13 +2397,7 @@ function GosiCertificatesCard({ certificates, T }) {
     return (n / (1024 * 1024)).toFixed(1) + ' MB'
   }
   return (
-    <div style={cardChrome}>
-      <div style={cardHeader}>
-        <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.cyan }} />
-        <GosiSourceIcon />
-        <span style={cardTitle}>{T('ملفات التأمينات الاجتماعية', 'GOSI Certificates')}</span>
-        <_GosiCountBadge n={certificates.length} color={C.cyan} />
-      </div>
+    <CollapsibleCard title={T('ملفات التأمينات الاجتماعية', 'GOSI Certificates')} color={C.cyan} badge={num(certificates.length)} defaultExpanded showGosiIcon>
       <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 8 }}>
         {order.map((type) => {
           const c = byType[type]
@@ -2417,7 +2458,7 @@ function GosiCertificatesCard({ certificates, T }) {
           )
         })}
       </div>
-    </div>
+    </CollapsibleCard>
   )
 }
 
@@ -2550,13 +2591,7 @@ function GosiContributorsCard({ contributors, est, T, lang, title }) {
     </div>
   )
   return (
-    <div style={cardChrome}>
-      <div style={cardHeader}>
-        <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.cyan }} />
-        <GosiSourceIcon />
-        <span style={cardTitle}>{title || T('الموظفون / المشتركون', 'Contributors')}</span>
-        <_GosiCountBadge n={contributors.length} color={C.cyan} />
-      </div>
+    <CollapsibleCard title={title || T('الموظفون / المشتركون', 'Contributors')} color={C.cyan} badge={num(contributors.length)} defaultExpanded showGosiIcon>
       <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 10 }}>
         {/* Status strip — active / inactive / suspended. Computed from the
             contributors array so it stays accurate after we sync INACTIVE and
@@ -2664,7 +2699,7 @@ function GosiContributorsCard({ contributors, est, T, lang, title }) {
           )
         })}
       </div>
-    </div>
+    </CollapsibleCard>
   )
 }
 
@@ -2716,19 +2751,7 @@ function PersonList({ people, lang }) {
   )
 }
 
-const fmtDate = (s) => {
-  if (!s) return '—'
-  let v = s
-  if (typeof v === 'string' && v.trim().startsWith('{')) {
-    try { v = JSON.parse(v) } catch {}
-  }
-  if (v && typeof v === 'object') {
-    const g = v.gregorianDate || v.dateG || v.date || v.gregorian || v.Gregorian
-    if (g) return String(g).slice(0, 10)
-    return '—'
-  }
-  return String(v).slice(0, 10)
-}
+const fmtDate = (s) => fmtDMY(s)
 
 // SBC returns lookups as { xId, xDescAr, xDescEn } objects. PostgREST returns them as JSON strings.
 // Parse-on-demand and extract the Ar/En label.
@@ -2753,12 +2776,7 @@ const label = (v, lang) => {
   return null
 }
 
-const fmtTime = (s) => {
-  if (!s) return '—'
-  const d = new Date(s)
-  if (Number.isNaN(d.getTime())) return '—'
-  return d.toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })
-}
+const fmtTime = (s) => fmtDMYTime(s)
 
 const statusTheme = (s) => {
   const v = String(s || '').toLowerCase()
@@ -2880,12 +2898,17 @@ function SbcSyncBookmarklet({ syncPersonId, T }) {
   // fire-and-forget inside the data bookmarklet itself — token-expiry
   // prevented the previous split design (separate PDF button) from working.
   const proxyBaseUrl = typeof window !== 'undefined' ? window.location.origin : ''
+  // One bookmarklet, two flows — it branches on the portal it's clicked in.
+  // On تيسير it walks the CR list; on the companies portal it walks طلباتي,
+  // which is the only channel that reaches facilities this account
+  // established but doesn't own. See sbcSyncBookmarklet.js for why the split
+  // is forced by CORS rather than chosen.
   const dataHref = buildBookmarklet({ sourceId: 'sbc', personId: syncPersonId || '', proxyBaseUrl })
   return (
     <DragBookmark
       href={dataHref}
       accent="#9b59b6"
-      title={T('اسحب الزر إلى شريط الإشارات، ثم افتح تيسير واضغط لمزامنة بيانات وملفات المنشآت', 'Drag to bookmarks bar, open Tayseer and click to sync facility data + PDFs')}
+      title={T('اسحب الزر إلى شريط الإشارات، ثم اضغطه:\n• داخل تيسير (e2.business.sa) → مزامنة بيانات وملفات المنشآت\n• داخل بوابة الشركات (companies.saudibusiness.gov.sa) → مزامنة المنشآت من «طلباتي»', 'Drag to bookmarks bar, then click it:\n• on Tayseer (e2.business.sa) → sync facility data + PDFs\n• on the companies portal (companies.saudibusiness.gov.sa) → sync facilities from "My Requests"')}
       label={T('المركز', 'SBC')}
       icon={(
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
@@ -2938,6 +2961,28 @@ function QiwaSyncBookmarklet({ syncPersonId, T }) {
   )
 }
 
+// Ajeer sync bookmarklet — runs on ajeer.qiwa.sa. Ajeer is a server-rendered Laravel
+// app (no JSON API), so this parses the HTML screens. Sweeps every establishment by
+// switching the session context, recording the ones Ajeer gates behind
+// "تحديث قائمة المسؤولين" instead of writing them empty. Fills ajeer_establishments /
+// _notices / _contracts / _payments, with every page kept whole in ajeer_raw.
+function AjeerSyncBookmarklet({ syncPersonId, T }) {
+  const dataHref = buildAjeerBookmarklet({ sourceId: 'ajeer', personId: syncPersonId || '' })
+  return (
+    <DragBookmark
+      href={dataHref}
+      accent="#10b981"
+      title={T('اسحب الزر إلى شريط الإشارات، ثم افتح أجير واضغط — يمرّ على كل المنشآت ويجلب التصاريح والعقود والمدفوعات', 'Drag to bookmarks bar, open Ajeer and click — sweeps every establishment for permits, contracts and payments')}
+      label={T('أجير', 'Ajeer')}
+      icon={(
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M8 13h8"/>
+        </svg>
+      )}
+    />
+  )
+}
+
 // Muqeem sync bookmarklet — runs on muqeem.sa. Two auto-detected modes:
 //   • On the "الدخول الموحد" picker page it pulls the full establishment list via
 //     /api/sso/absher/get-users and deep-syncs EVERY establishment in one
@@ -2961,6 +3006,717 @@ function MuqeemSyncBookmarklet({ syncPersonId, T }) {
         </svg>
       )}
     />
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// مطابقة المصادر — مقارنة نفس الحقل المنطقي عبر المنصات وإبراز الفروقات.
+// per project_field_provenance: كل قيمة تحمل مصدرها، والاختلاف لا يُطوى بصمت.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// تطبيع للمقارنة فقط (لا يغيّر العرض): توحيد الهمزات/التاء المربوطة/المسافات
+// وإزالة فواصل الأرقام، حتى لا تُحسب فروقات إملائية شكلية كفروقات حقيقية.
+const _cmpNorm = (v) => {
+  if (v == null) return null
+  let s = String(v).trim()
+  if (!s || s === '—') return null
+  s = s.replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي').replace(/ـ/g, '').replace(/\s+/g, ' ').replace(/,/g, '')
+  return s.toLowerCase()
+}
+
+// شريحة قيمة بمصدرها — لبنة العرض الأساسية في كروت المطابقة.
+function _SrcVal({ src, v, mismatch, mono }) {
+  const brand = SOURCE_BRAND[src] || { color: '#888', ar: src }
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 8px', borderRadius: 7,
+      background: mismatch ? 'rgba(234,179,8,.10)' : 'rgba(255,255,255,.025)',
+      border: `1px solid ${mismatch ? 'rgba(234,179,8,.45)' : 'var(--bd2)'}`,
+      minWidth: 0,
+    }}>
+      <span style={{ fontSize: 8.5, fontWeight: 700, color: brand.color, background: brand.color + '14', border: `1px solid ${brand.color}40`, borderRadius: 4, padding: '0 5px', lineHeight: '13px', whiteSpace: 'nowrap', flexShrink: 0 }}>{brand.ar}</span>
+      <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', direction: mono ? 'ltr' : undefined, fontFamily: mono ? 'ui-monospace, monospace' : undefined }} title={typeof v === 'string' ? v : undefined}>{v}</span>
+    </span>
+  )
+}
+
+// كرت «مطابقة المصادر» — لكل حقل منطقي (الاسم/السجل/الموحد/الحالة/العمالة…)
+// يعرض قيمة كل منصة جنباً إلى جنب: تطابق = صف هادئ بعلامة خضراء،
+// اختلاف = صف مبرز بعلامة تحذير كهرمانية.
+function SourceCompareCard({ detail, gosiEst, qiwa, muqeem, ajeerEst, hrsdLaborers, T, lang }) {
+  const rows = useMemo(() => {
+    const d = detail || {}
+    const g = gosiEst || {}
+    const q = qiwa || {}
+    const m = muqeem || {}
+    const a = ajeerEst || {}
+    const mk = (label, entries, opts = {}) => {
+      const vals = entries.filter(e => e.v != null && String(e.v).trim() !== '' && String(e.v).trim() !== '—')
+      if (vals.length < 2) return null
+      const norms = new Set(vals.map(e => opts.date ? _cmpNorm(fmtDMY(e.v)) : _cmpNorm(e.v)))
+      return { label, vals: vals.map(e => ({ ...e, v: opts.date ? fmtDMY(e.v) : e.v })), mismatch: norms.size > 1, mono: opts.mono || opts.date }
+    }
+    return [
+      mk(T('اسم المنشأة', 'Facility name'), [
+        { src: 'sbc', v: d.entity_full_name_ar },
+        { src: 'gosi', v: g.name_ar },
+        { src: 'qiwa', v: q.establishment_name || q.company_name },
+        { src: 'muqeem', v: m.name_ar || m.cr_name },
+        { src: 'ajeer', v: a.name },
+      ]),
+      mk(T('رقم السجل التجاري', 'CR number'), [
+        { src: 'sbc', v: d.cr_number },
+        { src: 'gosi', v: g.cr_number },
+        { src: 'qiwa', v: q.cr_number },
+        { src: 'muqeem', v: m.cr_number },
+      ], { mono: true }),
+      mk(T('الرقم الموحد (700)', 'Unified number'), [
+        { src: 'sbc', v: d.gosi_unified_national_number },
+        { src: 'gosi', v: g.unified_national_number },
+        { src: 'qiwa', v: q.seven_hundred_number },
+        { src: 'muqeem', v: m.moi_number },
+      ], { mono: true }),
+      mk(T('حالة السجل / المنشأة', 'Status'), [
+        { src: 'sbc', v: d.cr_status_ar || d._status },
+        { src: 'gosi', v: g.status_ar },
+        { src: 'qiwa', v: q.establishment_status_ar },
+        { src: 'muqeem', v: m.cr_status },
+      ]),
+      mk(T('النشاط الرئيسي', 'Main activity'), [
+        { src: 'sbc', v: d.activities_type_ar },
+        { src: 'gosi', v: g.primary_activity_ar },
+        { src: 'qiwa', v: q.main_economic_activity || q.nitaqat_activity_name },
+      ]),
+      mk(T('انتهاء السجل التجاري', 'CR expiry'), [
+        { src: 'gosi', v: g.cr_expiry_date },
+        { src: 'qiwa', v: q.cr_end_date },
+        { src: 'muqeem', v: m.cr_expiry_date },
+      ], { date: true }),
+      mk(T('إجمالي العمالة', 'Total workers'), [
+        { src: 'sbc', v: hrsdLaborers ?? d.hrsd_total_laborers },
+        { src: 'gosi', v: g.contributors_active_count },
+        { src: 'qiwa', v: q.est_employees_total ?? q.emp_total ?? q.nitaq_total_laborers },
+        { src: 'muqeem', v: m.residents_count },
+      ], { mono: true }),
+      mk(T('العمالة السعودية', 'Saudi workers'), [
+        { src: 'sbc', v: d.hrsd_saudi_laborers },
+        { src: 'gosi', v: g.contributors_saudi_count },
+        { src: 'qiwa', v: q.est_employees_saudis ?? q.emp_saudis ?? q.nitaq_saudis },
+      ], { mono: true }),
+      mk(T('المدينة', 'City'), [
+        { src: 'sbc', v: d._city || d.headquarter_city_ar },
+        { src: 'gosi', v: g.city_ar },
+        { src: 'qiwa', v: q.city_name_ar || q.addr_city_ar },
+        { src: 'muqeem', v: m.city_name },
+      ]),
+    ].filter(Boolean)
+  }, [detail, gosiEst, qiwa, muqeem, ajeerEst, hrsdLaborers, lang])
+
+  if (!rows.length) return null
+  const mismatches = rows.filter(r => r.mismatch).length
+  return (
+    <CollapsibleCard
+      title={T('مطابقة المصادر', 'Source reconciliation')}
+      color={mismatches > 0 ? C.warn : C.ok}
+      defaultExpanded={mismatches > 0}
+      badge={mismatches > 0 ? `${num(mismatches)} ${T('فروقات', 'mismatches')}` : T('متطابقة', 'All match')}>
+      <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {rows.map((r, i) => (
+          <div key={i} style={{
+            display: 'flex', flexDirection: 'column', gap: 6, padding: '9px 12px', borderRadius: 8,
+            background: r.mismatch ? 'rgba(234,179,8,.05)' : 'rgba(255,255,255,.02)',
+            border: `1px solid ${r.mismatch ? 'rgba(234,179,8,.30)' : 'var(--bd2)'}`,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: r.mismatch ? C.warn : 'var(--tx3)' }}>{r.label}</span>
+              <span style={{ marginInlineStart: 'auto', display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 9.5, fontWeight: 700, color: r.mismatch ? C.warn : C.ok }}>
+                {r.mismatch ? (
+                  <>
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                    {T('فرق بين المصادر', 'Sources differ')}
+                  </>
+                ) : (
+                  <>
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    {T('متطابق', 'Match')}
+                  </>
+                )}
+              </span>
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {r.vals.map((e, j) => <_SrcVal key={j} src={e.src} v={e.v} mono={r.mono} mismatch={r.mismatch} />)}
+            </div>
+          </div>
+        ))}
+      </div>
+    </CollapsibleCard>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// كروت أجير — التصاريح والعقود والمدفوعات والمؤشرات (ajeer_* tables).
+// ─────────────────────────────────────────────────────────────────────────────
+const AJEER_ACCENT = '#10b981'
+
+// لون حالة تصريح/عقد أجير حسب status_code الآلي (أوثق من النص العربي).
+const _ajeerStatusColor = (code) => {
+  const s = String(code || '').toLowerCase()
+  if (s.includes('expired')) return C.red
+  if (s.includes('cancel')) return C.gray
+  if (s.includes('reject')) return C.red
+  if (s.includes('active') || s.includes('valid')) return C.ok
+  return C.warn
+}
+
+function AjeerCards({ est, notices, contracts, payments, indicators, T, lang }) {
+  const hasAny = est || notices.length || contracts.length || payments.length || indicators.length
+  if (!hasAny) return null
+  const rowBase = {
+    display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 8,
+    background: 'rgba(255,255,255,.025)', border: '1px solid var(--bd2)', minWidth: 0,
+  }
+  const StatusPill = ({ text, code }) => {
+    if (!text) return null
+    const c = _ajeerStatusColor(code || text)
+    return <span style={{ fontSize: 9.5, fontWeight: 700, color: c, background: c + '14', border: `1px solid ${c}40`, borderRadius: 5, padding: '1px 7px', whiteSpace: 'nowrap' }}>{text}</span>
+  }
+  return (
+    <>
+      {/* فاصل قسم أجير */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6 }}>
+        <span style={{ width: 8, height: 8, borderRadius: '50%', background: AJEER_ACCENT }} />
+        <span style={{ fontSize: 13, fontWeight: 700, color: AJEER_ACCENT }}>{T('أجير — العمالة المؤقتة', 'Ajeer — temporary labor')}</span>
+        <span style={{ flex: 1, height: 1, background: 'var(--bd)' }} />
+      </div>
+
+      {est && (
+        <CollapsibleCard title={T('منشأة أجير', 'Ajeer establishment')} color={AJEER_ACCENT} defaultExpanded
+          badge={est.is_blocked ? T('محجوبة — حدّث قائمة المسؤولين', 'Blocked — update representatives') : undefined}>
+          <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            {est.name && <div style={rowBase}><span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>{T('الاسم', 'Name')}</span><span style={{ marginInlineStart: 'auto', fontSize: 11.5, fontWeight: 600, color: 'var(--tx)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{est.name}</span></div>}
+            <div style={rowBase}><span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>{T('رقم المنشأة', 'Establishment no.')}</span><span style={{ marginInlineStart: 'auto', fontSize: 11.5, fontWeight: 600, color: 'var(--tx)', direction: 'ltr', fontFamily: 'ui-monospace, monospace' }}>{est.establishment_no}</span></div>
+            {est.is_blocked && (
+              <div style={{ ...rowBase, gridColumn: '1 / -1', background: 'rgba(232,114,101,.08)', border: '1px solid rgba(232,114,101,.30)' }}>
+                <span style={{ fontSize: 11, fontWeight: 600, color: C.red }}>{T('كل شاشات أجير محجوبة لهذه المنشأة حتى تحديث قائمة المسؤولين من بوابة أجير', 'All Ajeer screens are gated for this establishment until the representatives list is updated')}</span>
+              </div>
+            )}
+            {[
+              { k: T('المؤشر الأسبوعي', 'Weekly indicator'), v: est.indicator_weekly },
+              { k: T('المؤشر الربعي', 'Quarterly'), v: est.indicator_quarterly },
+              { k: T('المؤشر السنوي', 'Yearly'), v: est.indicator_yearly },
+            ].filter(x => x.v != null).map((x, i) => (
+              <div key={i} style={rowBase}>
+                <span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>{x.k}</span>
+                <span style={{ marginInlineStart: 'auto', fontSize: 11.5, fontWeight: 700, color: Number(x.v) >= 80 ? C.ok : Number(x.v) >= 50 ? C.warn : C.red, direction: 'ltr' }}>{Number(x.v).toLocaleString('en-US')}%</span>
+              </div>
+            ))}
+          </div>
+        </CollapsibleCard>
+      )}
+
+      {notices.length > 0 && (
+        <CollapsibleCard title={T('تصاريح أجير', 'Ajeer notices')} color={AJEER_ACCENT} defaultExpanded badge={num(notices.length)}>
+          <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {notices.map((n) => (
+              <div key={n.notice_id} style={{ ...rowBase, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--tx)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 190 }} title={n.worker_name || ''}>{n.worker_name || '—'}</span>
+                {n.iqama_no && <span style={{ fontSize: 10, color: 'var(--tx3)', direction: 'ltr', fontFamily: 'ui-monospace, monospace' }}>{n.iqama_no}</span>}
+                {n.notice_type && <span style={{ fontSize: 10, color: 'var(--tx4)' }}>{n.notice_type}</span>}
+                <span style={{ marginInlineStart: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  {n.contract_no && <span style={{ fontSize: 9.5, color: 'var(--tx5)', direction: 'ltr', fontFamily: 'ui-monospace, monospace' }}>{n.contract_no}</span>}
+                  {n.end_date && <span style={{ fontSize: 10, color: 'var(--tx4)', direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{fmtDMY(n.end_date)}</span>}
+                  <StatusPill text={n.status} code={n.status_code} />
+                </span>
+              </div>
+            ))}
+          </div>
+        </CollapsibleCard>
+      )}
+
+      {contracts.length > 0 && (
+        <CollapsibleCard title={T('عقود أجير', 'Ajeer contracts')} color={AJEER_ACCENT} badge={num(contracts.length)}>
+          <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {contracts.map((c) => (
+              <div key={c.contract_id} style={{ ...rowBase, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--tx)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 220 }} title={c.second_party || ''}>{c.second_party || '—'}</span>
+                {c.contract_no && <span style={{ fontSize: 10, color: 'var(--tx3)', direction: 'ltr', fontFamily: 'ui-monospace, monospace' }}>{c.contract_no}</span>}
+                <span style={{ marginInlineStart: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  {c.end_date && <span style={{ fontSize: 10, color: 'var(--tx4)', direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{fmtDMY(c.end_date)}</span>}
+                  <StatusPill text={c.status} code={c.status_code} />
+                </span>
+              </div>
+            ))}
+          </div>
+        </CollapsibleCard>
+      )}
+
+      {payments.length > 0 && (
+        <CollapsibleCard title={T('مدفوعات أجير', 'Ajeer payments')} color={AJEER_ACCENT} badge={num(payments.length)}>
+          <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {payments.map((p, i) => (
+              <div key={i} style={{ ...rowBase, flexWrap: 'wrap' }}>
+                {p.invoice_no && <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx)', direction: 'ltr', fontFamily: 'ui-monospace, monospace' }}>#{p.invoice_no}</span>}
+                {p.amount != null && <span style={{ fontSize: 11.5, fontWeight: 700, color: C.gold, direction: 'ltr' }}>{Number(p.amount).toLocaleString('en-US')} {T('ر.س', 'SAR')}</span>}
+                <span style={{ marginInlineStart: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  {p.due_date && <span style={{ fontSize: 10, color: 'var(--tx4)', direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{fmtDMY(p.due_date)}</span>}
+                  {p.awaiting_payment && <StatusPill text={T('بانتظار الدفع', 'Awaiting payment')} code="pending" />}
+                  <StatusPill text={p.status} code={p.status} />
+                </span>
+              </div>
+            ))}
+          </div>
+        </CollapsibleCard>
+      )}
+
+      {indicators.length > 0 && (
+        <CollapsibleCard title={T('مؤشرات التزام أجير', 'Ajeer compliance indicators')} color={AJEER_ACCENT} badge={num(indicators.length) + ' ' + T('أسبوع', 'weeks')}>
+          <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {indicators.slice(0, 16).map((w) => (
+              <div key={w.week_no} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 600, width: 64, flexShrink: 0 }}>{T('أسبوع', 'Week')} {w.week_no}</span>
+                <div style={{ flex: 1, height: 6, borderRadius: 4, background: 'rgba(255,255,255,.05)', overflow: 'hidden' }}>
+                  <div style={{ width: `${Math.max(0, Math.min(100, Number(w.weekly) || 0))}%`, height: '100%', borderRadius: 4, background: Number(w.weekly) >= 80 ? C.ok : Number(w.weekly) >= 50 ? C.warn : C.red }} />
+                </div>
+                <span style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--tx2)', direction: 'ltr', width: 46, textAlign: 'end', fontVariantNumeric: 'tabular-nums' }}>{w.weekly != null ? `${Number(w.weekly).toLocaleString('en-US')}%` : '—'}</span>
+              </div>
+            ))}
+            {indicators.length > 16 && <div style={{ fontSize: 10, color: 'var(--tx5)', textAlign: 'center', marginTop: 4 }}>+{num(indicators.length - 16)} {T('أسبوعاً أقدم', 'older weeks')}</div>}
+          </div>
+        </CollapsibleCard>
+      )}
+    </>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// العمالة الموحدة — دمج العامل الواحد من قوى + مقيم + التأمينات + أجير
+// بمفتاح رقم الإقامة/الهوية (وأرقام الحدود احتياطاً)، مع إبراز فروقات
+// الحقول بين المصادر لكل عامل. per project_field_provenance.
+// ─────────────────────────────────────────────────────────────────────────────
+function _UnifiedWorkerRow({ w, T, lang }) {
+  const [open, setOpen] = useState(false)
+  const name = w.names.muqeem || w.names.gosi || w.names.qiwa || w.names.ajeer || '—'
+  const iqamaExp = w.fields.find(f => f.key === 'iqama_expiry')
+  const expVal = iqamaExp && iqamaExp.vals[0] ? iqamaExp.vals[0].v : null
+  const expDays = (() => {
+    if (!expVal) return null
+    const m = String(expVal).match(/^(\d{2})-(\d{2})-(\d{4})$/)
+    if (!m) return null
+    const t = new Date(`${m[3]}-${m[2]}-${m[1]}`).getTime()
+    if (Number.isNaN(t)) return null
+    return Math.floor((t - Date.now()) / 86400000)
+  })()
+  const expColor = expDays == null ? 'var(--tx4)' : expDays < 0 ? C.red : expDays <= 60 ? C.warn : 'var(--tx3)'
+  return (
+    <div style={{ borderRadius: 10, border: `1px solid ${w.mismatches.length ? 'rgba(234,179,8,.35)' : 'var(--bd2)'}`, background: w.mismatches.length ? 'rgba(234,179,8,.04)' : 'rgba(255,255,255,.02)', overflow: 'hidden' }}>
+      <div onClick={() => setOpen(v => !v)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', cursor: 'pointer', userSelect: 'none', flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--tx)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 200 }} title={name}>{name}</span>
+        {w.id && <span style={{ fontSize: 10, color: 'var(--tx3)', direction: 'ltr', fontFamily: 'ui-monospace, monospace' }}>{w.id}</span>}
+        {/* شارات المصادر التي وردت فيها بيانات هذا العامل */}
+        <span style={{ display: 'inline-flex', gap: 3 }}>
+          {w.sources.map(s => {
+            const b = SOURCE_BRAND[s] || { color: '#888', ar: s }
+            return <span key={s} title={b.ar} style={{ fontSize: 8, fontWeight: 700, color: b.color, background: b.color + '14', border: `1px solid ${b.color}40`, borderRadius: 4, padding: '0 4px', lineHeight: '12px' }}>{b.ar}</span>
+          })}
+        </span>
+        {w.mismatches.length > 0 && (
+          <span style={{ fontSize: 9, fontWeight: 700, color: C.warn, background: C.warn + '14', border: `1px solid ${C.warn}45`, borderRadius: 5, padding: '1px 6px', whiteSpace: 'nowrap' }}>
+            {T('فروقات', 'Diff')}: {w.mismatches.join('، ')}
+          </span>
+        )}
+        <span style={{ marginInlineStart: 'auto', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+          {expVal && (
+            <span style={{ fontSize: 10, fontWeight: 600, color: expColor, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }} title={T('انتهاء الإقامة', 'Iqama expiry')}>
+              {expVal}{expDays != null && expDays < 0 ? ` (${T('منتهية', 'expired')})` : ''}
+            </span>
+          )}
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--tx4)', transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }}><polyline points="6 9 12 15 18 9" /></svg>
+        </span>
+      </div>
+      {open && (
+        <div style={{ padding: '10px 12px', borderTop: '1px dashed var(--bd)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {w.fields.map((f, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 10, fontWeight: 700, color: f.mismatch ? C.warn : 'var(--tx4)', width: 92, flexShrink: 0, paddingTop: 4 }}>{f.label}</span>
+              <span style={{ display: 'flex', flexWrap: 'wrap', gap: 4, flex: 1 }}>
+                {f.vals.map((e, j) => <_SrcVal key={j} src={e.src} v={e.v} mono={f.mono} mismatch={f.mismatch} />)}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function UnifiedWorkersCard({ sb, companyId, muqeemResidents, gosiContributors, ajeerNotices, T, lang }) {
+  const [qiwaEmployees, setQiwaEmployees] = useState([])
+  useEffect(() => {
+    if (!sb || !companyId) { setQiwaEmployees([]); return }
+    let cancelled = false
+    ;(async () => {
+      const { data } = await sb.from('qiwa_employees').select('*').eq('company_id', companyId)
+      if (!cancelled) setQiwaEmployees(data || [])
+    })()
+    return () => { cancelled = true }
+  }, [sb, companyId])
+
+  const workers = useMemo(() => {
+    const map = new Map()
+    const at = (id) => {
+      const k = String(id)
+      if (!map.has(k)) map.set(k, { id: k, sources: [], names: {}, q: null, m: null, g: null, a: [] })
+      return map.get(k)
+    }
+    for (const r of (qiwaEmployees || [])) {
+      const id = r.id_no || r.border_no
+      if (!id) continue
+      const w = at(id)
+      w.q = r; w.sources.push('qiwa'); w.names.qiwa = r.name_full
+    }
+    for (const r of (muqeemResidents || [])) {
+      if (!r.iqama_number) continue
+      const w = at(r.iqama_number)
+      w.m = r; w.sources.push('muqeem'); w.names.muqeem = lang === 'en' ? (r.name_en || r.name_ar) : (r.name_ar || r.name_en)
+    }
+    for (const r of (gosiContributors || [])) {
+      const id = r.iqama_no || r.national_id || r.border_no
+      if (!id) continue
+      const w = at(id)
+      w.g = r; w.sources.push('gosi')
+      w.names.gosi = [r.first_name_ar, r.second_name_ar, r.third_name_ar, r.family_name_ar].filter(Boolean).join(' ') || r.full_name_en
+    }
+    for (const r of (ajeerNotices || [])) {
+      if (!r.iqama_no) continue
+      const w = at(r.iqama_no)
+      w.a.push(r)
+      if (!w.sources.includes('ajeer')) w.sources.push('ajeer')
+      if (!w.names.ajeer) w.names.ajeer = r.worker_name
+    }
+    // بناء حقول المقارنة لكل عامل + رصد الفروقات
+    const out = []
+    for (const w of map.values()) {
+      const fields = []
+      const mismatches = []
+      const push = (key, label, entries, opts = {}) => {
+        const vals = entries.filter(e => e.v != null && String(e.v).trim() !== '')
+          .map(e => ({ ...e, v: opts.date ? fmtDMY(e.v) : e.v }))
+        if (!vals.length) return
+        const norms = new Set(vals.map(e => _cmpNorm(e.v)))
+        const mismatch = vals.length > 1 && norms.size > 1
+        if (mismatch && opts.flag !== false) mismatches.push(label)
+        fields.push({ key, label, vals, mismatch, mono: opts.mono || opts.date })
+      }
+      push('name', T('الاسم', 'Name'), [
+        { src: 'qiwa', v: w.names.qiwa }, { src: 'muqeem', v: w.names.muqeem },
+        { src: 'gosi', v: w.names.gosi }, { src: 'ajeer', v: w.names.ajeer },
+      ], { flag: false })
+      push('nationality', T('الجنسية', 'Nationality'), [
+        { src: 'qiwa', v: w.q?.nationality_ar || w.q?.nationality_en },
+        { src: 'muqeem', v: w.m?.nationality_ar || w.m?.nationality_en },
+        { src: 'gosi', v: w.g?.nationality_ar || w.g?.nationality_en },
+      ])
+      push('occupation', T('المهنة', 'Occupation'), [
+        { src: 'qiwa', v: w.q?.occupation_ar || w.q?.job_name_ar },
+        { src: 'muqeem', v: w.m?.occupation_ar },
+        { src: 'gosi', v: w.g?.occupation_ar },
+      ])
+      push('iqama_expiry', T('انتهاء الإقامة', 'Iqama expiry'), [
+        { src: 'muqeem', v: w.m?.iqama_expiry_date },
+        { src: 'qiwa', v: w.q?.iqama_expiry_date },
+        { src: 'gosi', v: w.g?.iqama_expiry_date },
+      ], { date: true })
+      push('status', T('الحالة', 'Status'), [
+        { src: 'muqeem', v: w.m?.status_ar },
+        { src: 'qiwa', v: w.q?.employment_status_ar || w.q?.iqama_status },
+        { src: 'gosi', v: w.g?.status_type },
+      ], { flag: false })
+      push('wp', T('رخصة العمل', 'Work permit'), [
+        { src: 'qiwa', v: w.q?.work_permit_expiry_date ? `${w.q?.work_permit_status || ''} ${fmtDMY(w.q.work_permit_expiry_date)}`.trim() : w.q?.work_permit_status },
+      ], { flag: false })
+      push('contract', T('العقد', 'Contract'), [
+        { src: 'qiwa', v: w.q?.contract_expiry_date ? `${w.q?.contract_type_ar || ''} ← ${fmtDMY(w.q.contract_expiry_date)}`.trim() : w.q?.contract_type_ar },
+        { src: 'ajeer', v: w.a.length ? `${w.a.length} ${T('تصريح', 'notices')}` : null },
+      ], { flag: false })
+      push('wage', T('الأجر (تأمينات)', 'Wage (GOSI)'), [
+        { src: 'gosi', v: w.g?.wage_total != null ? Number(w.g.wage_total).toLocaleString('en-US') : null },
+      ], { mono: true, flag: false })
+      out.push({ ...w, fields, mismatches })
+    }
+    // العمالة متعددة المصادر أولاً، ثم بالفروقات، ثم بالاسم
+    out.sort((x, y) => (y.sources.length - x.sources.length) || (y.mismatches.length - x.mismatches.length))
+    return out
+  }, [qiwaEmployees, muqeemResidents, gosiContributors, ajeerNotices, lang])
+
+  if (!workers.length) return null
+  const withDiff = workers.filter(w => w.mismatches.length).length
+  const multi = workers.filter(w => w.sources.length > 1).length
+  return (
+    <CollapsibleCard
+      title={T('العمالة الموحدة — كل المصادر', 'Unified workers — all sources')}
+      color={withDiff ? C.warn : C.gold} defaultExpanded
+      badge={`${num(workers.length)}${multi ? ` · ${num(multi)} ${T('متعدد المصادر', 'multi-source')}` : ''}${withDiff ? ` · ${num(withDiff)} ${T('بفروقات', 'with diffs')}` : ''}`}>
+      <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {workers.map(w => <_UnifiedWorkerRow key={w.id} w={w} T={T} lang={lang} />)}
+      </div>
+    </CollapsibleCard>
+  )
+}
+
+// شريط حداثة المزامنة — تحت أزرار المزامنة مباشرة: لكل منصة عدد السجلات
+// وآخر مزامنة، مع عدّاد التغييرات المرصودة في sync_row_history. يجيب على
+// «متى آخر مرة زامنت كل منصة؟» بلا فتح أي منشأة.
+function SyncFreshnessStrip({ sb, T, lang }) {
+  const [stats, setStats] = useState(null)
+  useEffect(() => {
+    if (!sb) return
+    let cancelled = false
+    ;(async () => {
+      const latest = (table, col) => sb.from(table).select(col).not(col, 'is', null)
+        .order(col, { ascending: false }).limit(1)
+        .then(r => (r.data && r.data[0] && r.data[0][col]) || null, () => null)
+      const cnt = (table) => sb.from(table).select('*', { count: 'exact', head: true })
+        .then(r => r.count || 0, () => 0)
+      const [sbcAt, sbcN, gosiAt, gosiN, qiwaAt, qiwaN, muqAt, muqN, ajrAt, ajrN, histN] = await Promise.all([
+        latest('sbc_facilities', 'last_synced_at'), cnt('sbc_facilities'),
+        latest('gosi_establishments', 'raw_main_synced_at'), cnt('gosi_establishments'),
+        latest('qiwa_companies', 'synced_at'), cnt('qiwa_companies'),
+        latest('muqeem_companies', 'synced_at'), cnt('muqeem_companies'),
+        latest('ajeer_establishments', 'last_synced_at'), cnt('ajeer_establishments'),
+        cnt('sync_row_history'),
+      ])
+      if (cancelled) return
+      setStats([
+        { src: 'sbc', at: sbcAt, n: sbcN },
+        { src: 'gosi', at: gosiAt, n: gosiN },
+        { src: 'qiwa', at: qiwaAt, n: qiwaN },
+        { src: 'muqeem', at: muqAt, n: muqN },
+        { src: 'ajeer', at: ajrAt, n: ajrN },
+        { hist: histN },
+      ])
+    })()
+    return () => { cancelled = true }
+  }, [sb])
+  if (!stats) return null
+  const staleDays = (iso) => iso ? Math.floor((Date.now() - new Date(iso).getTime()) / 86400000) : null
+  return (
+    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', flex: '1 1 100%', alignItems: 'center' }}>
+      {stats.filter(s => s.src && s.n > 0).map(s => {
+        const b = SOURCE_BRAND[s.src]
+        const d = staleDays(s.at)
+        // أخضر ≤ 3 أيام (دورة المزامنة المعتادة)، كهرماني ≤ 10، أحمر أقدم
+        const freshColor = d == null ? 'var(--tx4)' : d <= 3 ? C.ok : d <= 10 ? C.warn : C.red
+        return (
+          <span key={s.src} title={s.at ? fmtDMYTime(s.at) : ''} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '3px 9px', borderRadius: 999, background: b.color + '0d', border: `1px solid ${b.color}30`, fontSize: 10 }}>
+            <span style={{ width: 5, height: 5, borderRadius: '50%', background: b.color }} />
+            <span style={{ fontWeight: 700, color: b.color }}>{b.ar}</span>
+            <span style={{ color: 'var(--tx3)', fontWeight: 600, direction: 'ltr' }}>{num(s.n)}</span>
+            {s.at && <span style={{ color: freshColor, fontWeight: 700 }}>{fmtAgo(s.at, lang)}</span>}
+          </span>
+        )
+      })}
+      {stats.find(s => s.hist != null)?.hist > 0 && (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '3px 9px', borderRadius: 999, background: 'rgba(187,143,206,.08)', border: '1px solid rgba(187,143,206,.30)', fontSize: 10 }}>
+          <span style={{ width: 5, height: 5, borderRadius: '50%', background: C.purple }} />
+          <span style={{ fontWeight: 700, color: C.purple }}>{T('سجل التغييرات', 'Change log')}</span>
+          <span style={{ color: 'var(--tx3)', fontWeight: 600, direction: 'ltr' }}>{num(stats.find(s => s.hist != null).hist)}</span>
+        </span>
+      )}
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// سجل التغييرات — الخط الزمني من sync_row_history + إصدارات الملفات المؤرشفة.
+// يعرض «ماذا تغيّر بين مزامنة وأخرى» مع القيمة القديمة والجديدة، وإمكانية
+// فتح اللقطة القديمة كاملة (الرجوع للماضي).
+// ─────────────────────────────────────────────────────────────────────────────
+const HISTORY_TABLE_LABELS = {
+  sbc_facilities: { ar: 'السجل التجاري', en: 'CR record' },
+  gosi_establishments: { ar: 'منشأة التأمينات', en: 'GOSI establishment' },
+  gosi_establishment_owners: { ar: 'ملاك التأمينات', en: 'GOSI owners' },
+  gosi_establishment_admins: { ar: 'مشرفو التأمينات', en: 'GOSI admins' },
+  gosi_establishment_contributors: { ar: 'مشتركو التأمينات', en: 'GOSI contributors' },
+  gosi_establishment_bills: { ar: 'فواتير التأمينات', en: 'GOSI bills' },
+  gosi_establishment_certificates: { ar: 'شهادات التأمينات', en: 'GOSI certificates' },
+  qiwa_companies: { ar: 'منشأة قوى', en: 'Qiwa company' },
+  qiwa_employees: { ar: 'موظفو قوى', en: 'Qiwa employees' },
+  qiwa_visa_border_numbers: { ar: 'تأشيرات قوى', en: 'Qiwa visas' },
+  muqeem_companies: { ar: 'منشأة مقيم', en: 'Muqeem company' },
+  muqeem_residents: { ar: 'مقيمو مقيم', en: 'Muqeem residents' },
+  muqeem_subscriptions: { ar: 'اشتراكات مقيم', en: 'Muqeem subscriptions' },
+  ajeer_establishments: { ar: 'منشأة أجير', en: 'Ajeer establishment' },
+  ajeer_notices: { ar: 'تصاريح أجير', en: 'Ajeer notices' },
+  ajeer_contracts: { ar: 'عقود أجير', en: 'Ajeer contracts' },
+  ajeer_payments: { ar: 'مدفوعات أجير', en: 'Ajeer payments' },
+  ajeer_indicators: { ar: 'مؤشرات أجير', en: 'Ajeer indicators' },
+}
+// تسميات عربية للحقول الشائعة في diff — والحقل غير المعروف يُعرض باسمه التقني.
+const HISTORY_FIELD_LABELS = {
+  name_ar: 'الاسم', name_en: 'الاسم (EN)', entity_full_name_ar: 'اسم المنشأة', entity_full_name_en: 'اسم المنشأة (EN)',
+  status_ar: 'الحالة', status_en: 'الحالة (EN)', cr_status: 'حالة السجل', cr_status_ar: 'حالة السجل', status: 'الحالة', status_type: 'حالة الاشتراك', status_code: 'رمز الحالة',
+  occupation_ar: 'المهنة', occupation_en: 'المهنة (EN)', nationality_ar: 'الجنسية',
+  iqama_expiry_date: 'انتهاء الإقامة', iqama_issue_date: 'إصدار الإقامة', iqama_expiry_hijri: 'انتهاء الإقامة (هجري)',
+  passport_number: 'رقم الجواز', passport_expiry: 'انتهاء الجواز',
+  capital: 'رأس المال', cr_expiry_date: 'انتهاء السجل', cr_end_date: 'انتهاء السجل', cr_issue_date: 'إصدار السجل',
+  wage_total: 'إجمالي الأجر', wage_basic: 'الأجر الأساسي',
+  work_permit_status: 'حالة رخصة العمل', work_permit_expiry_date: 'انتهاء رخصة العمل',
+  contract_expiry_date: 'انتهاء العقد', contract_start_date: 'بداية العقد',
+  outstanding_amount: 'المبلغ المستحق', balance_due: 'الرصيد المستحق', paid_amount: 'المدفوع',
+  residents_count: 'عدد المقيمين', point_balance: 'رصيد النقاط', sms_balance: 'رصيد الرسائل',
+  nitaqat_color_ar: 'نطاق السعودة', saudization_rate: 'نسبة السعودة', is_outside_kingdom: 'خارج المملكة',
+  end_date: 'تاريخ الانتهاء', start_date: 'تاريخ البداية', due_date: 'تاريخ الاستحقاق', amount: 'المبلغ',
+  is_blocked: 'محجوبة', employment_status_ar: 'حالة التوظيف', iqama_status: 'حالة الإقامة',
+}
+const _histFieldLabel = (k, isAr) => (isAr && HISTORY_FIELD_LABELS[k]) || k
+const _histVal = (v) => {
+  if (v == null) return '—'
+  if (typeof v === 'boolean') return v ? '✓' : '✗'
+  const s = String(typeof v === 'object' ? JSON.stringify(v) : v)
+  // قيم تشبه التواريخ تُعرض بصيغة يوم-شهر-سنة
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return fmtDMY(s)
+  return s.length > 60 ? s.slice(0, 57) + '…' : s
+}
+
+function _HistorySnapshotView({ data, T }) {
+  const entries = Object.entries(data || {}).filter(([, v]) => v != null && v !== '')
+  if (!entries.length) return null
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, marginTop: 8, padding: 10, borderRadius: 8, background: 'rgba(255,255,255,.02)', border: '1px dashed var(--bd)' }}>
+      {entries.map(([k, v]) => (
+        <div key={k} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 10, minWidth: 0 }}>
+          <span style={{ color: 'var(--tx4)', fontWeight: 600, whiteSpace: 'nowrap' }}>{k}</span>
+          <span style={{ color: 'var(--tx2)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', direction: 'ltr' }} title={String(v)}>{_histVal(v)}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function _HistoryEntry({ h, T, lang }) {
+  const [showSnap, setShowSnap] = useState(false)
+  const isAr = (lang || 'ar') !== 'en'
+  const brand = SOURCE_BRAND[h.source_id] || { color: '#888', ar: h.source_id }
+  const tbl = HISTORY_TABLE_LABELS[h.table_name]
+  const opMeta = h.op === 'INSERT'
+    ? { label: T('إضافة', 'Added'), color: C.ok }
+    : h.op === 'DELETE'
+      ? { label: T('حذف', 'Removed'), color: C.red }
+      : { label: T('تحديث', 'Updated'), color: C.blue }
+  const diffEntries = h.diff ? Object.entries(h.diff) : []
+  const extraChanged = (h.changed_fields || []).filter(k => !h.diff || !(k in h.diff))
+  return (
+    <div style={{ borderRadius: 8, border: '1px solid var(--bd2)', background: 'rgba(255,255,255,.02)', padding: '8px 12px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 8.5, fontWeight: 700, color: brand.color, background: brand.color + '14', border: `1px solid ${brand.color}40`, borderRadius: 4, padding: '0 5px', lineHeight: '13px' }}>{brand.ar}</span>
+        <span style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--tx2)' }}>{tbl ? (isAr ? tbl.ar : tbl.en) : h.table_name}</span>
+        <span style={{ fontSize: 9, fontWeight: 700, color: opMeta.color, background: opMeta.color + '14', borderRadius: 4, padding: '0 6px', lineHeight: '14px' }}>{opMeta.label}</span>
+        {h.record_label && <span style={{ fontSize: 10, color: 'var(--tx3)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }} title={h.record_label}>{h.record_label}</span>}
+        {h.record_key && h.record_key !== h.entity_key && <span style={{ fontSize: 9, color: 'var(--tx5)', direction: 'ltr', fontFamily: 'ui-monospace, monospace' }}>{h.record_key}</span>}
+        <span style={{ marginInlineStart: 'auto', fontSize: 9.5, color: 'var(--tx5)', direction: 'ltr' }}>{fmtDMYTime(h.captured_at)}</span>
+      </div>
+      {diffEntries.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginTop: 7 }}>
+          {diffEntries.map(([k, d]) => (
+            <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 10.5, flexWrap: 'wrap' }}>
+              <span style={{ color: 'var(--tx3)', fontWeight: 700, minWidth: 80 }}>{_histFieldLabel(k, isAr)}</span>
+              <span style={{ color: C.red, textDecoration: 'line-through', direction: 'ltr', opacity: .8 }}>{_histVal(d?.o)}</span>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--tx4)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: isAr ? 'scaleX(-1)' : 'none' }}><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+              <span style={{ color: C.ok, fontWeight: 700, direction: 'ltr' }}>{_histVal(d?.n)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {extraChanged.length > 0 && (
+        <div style={{ marginTop: 5, fontSize: 9.5, color: 'var(--tx4)' }}>
+          {T('حقول أخرى تغيّرت', 'Other changed fields')}: {extraChanged.map(k => _histFieldLabel(k, isAr)).join('، ')}
+        </div>
+      )}
+      {(h.old_data || h.new_data) && (
+        <button type="button" onClick={() => setShowSnap(v => !v)}
+          style={{ marginTop: 6, fontSize: 9.5, fontWeight: 700, color: C.gold, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, fontFamily: F }}>
+          {showSnap ? T('إخفاء اللقطة القديمة', 'Hide old snapshot') : T('عرض اللقطة كاملة (الرجوع للماضي)', 'View full snapshot')}
+        </button>
+      )}
+      {showSnap && <_HistorySnapshotView data={h.old_data || h.new_data} T={T} />}
+    </div>
+  )
+}
+
+function SyncHistoryCard({ history, fileVersions, T, lang }) {
+  const [srcFilter, setSrcFilter] = useState(null)
+  if (!history.length && !fileVersions.length) return null
+  const sources = Array.from(new Set(history.map(h => h.source_id)))
+  const filtered = srcFilter ? history.filter(h => h.source_id === srcFilter) : history
+  // تجميع بحسب اليوم (يوم-شهر-سنة)
+  const byDay = []
+  for (const h of filtered) {
+    const day = fmtDMY(h.captured_at)
+    const last = byDay[byDay.length - 1]
+    if (last && last.day === day) last.items.push(h)
+    else byDay.push({ day, items: [h] })
+  }
+  return (
+    <CollapsibleCard
+      title={T('سجل التغييرات بين المزامنات', 'Change history across syncs')}
+      color={C.purple} defaultExpanded={false}
+      badge={`${num(history.length)}${fileVersions.length ? ` · ${num(fileVersions.length)} ${T('ملف مؤرشف', 'archived files')}` : ''}`}>
+      <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {history.length === 0 && (
+          <div style={{ fontSize: 11, color: 'var(--tx4)', textAlign: 'center' }}>
+            {T('لا تغييرات مسجّلة بعد — يبدأ السجل من أول مزامنة بعد تفعيل التتبع', 'No changes recorded yet — history starts from the first sync after tracking was enabled')}
+          </div>
+        )}
+        {sources.length > 1 && (
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            <button type="button" onClick={() => setSrcFilter(null)}
+              style={{ fontSize: 10, fontWeight: 700, padding: '3px 10px', borderRadius: 999, cursor: 'pointer', fontFamily: F, background: !srcFilter ? 'var(--accent-soft)' : 'var(--search-bg)', border: `1px solid ${!srcFilter ? 'var(--accent-bd)' : 'var(--bd)'}`, color: !srcFilter ? 'var(--accent)' : 'var(--tx3)' }}>
+              {T('الكل', 'All')}
+            </button>
+            {sources.map(s => {
+              const b = SOURCE_BRAND[s] || { color: '#888', ar: s }
+              const on = srcFilter === s
+              return (
+                <button key={s} type="button" onClick={() => setSrcFilter(on ? null : s)}
+                  style={{ fontSize: 10, fontWeight: 700, padding: '3px 10px', borderRadius: 999, cursor: 'pointer', fontFamily: F, background: on ? b.color + '22' : 'var(--search-bg)', border: `1px solid ${on ? b.color + '55' : 'var(--bd)'}`, color: on ? b.color : 'var(--tx3)' }}>
+                  {b.ar}
+                </button>
+              )
+            })}
+          </div>
+        )}
+        {byDay.map(g => (
+          <div key={g.day} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 10.5, fontWeight: 700, color: C.gold, direction: 'ltr' }}>{g.day}</span>
+              <span style={{ fontSize: 9, color: 'var(--tx5)' }}>{num(g.items.length)} {T('تغيير', 'changes')}</span>
+              <span style={{ flex: 1, height: 1, background: 'var(--bd2)' }} />
+            </div>
+            {g.items.map(h => <_HistoryEntry key={h.id} h={h} T={T} lang={lang} />)}
+          </div>
+        ))}
+        {fileVersions.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 10.5, fontWeight: 700, color: C.cyan }}>{T('إصدارات الملفات المؤرشفة', 'Archived file versions')}</span>
+              <span style={{ flex: 1, height: 1, background: 'var(--bd2)' }} />
+            </div>
+            {fileVersions.map(f => (
+              <a key={f.id} target="_blank" rel="noopener noreferrer"
+                href={`https://gcvshzutdslmdkwqwteh.supabase.co/storage/v1/object/public/${f.bucket}/${String(f.version_path).split('/').map(encodeURIComponent).join('/')}`}
+                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 12px', borderRadius: 8, background: 'rgba(255,255,255,.02)', border: '1px solid var(--bd2)', textDecoration: 'none' }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#e74c3c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+                <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--tx2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, direction: 'ltr' }}>{f.label || f.object_path}</span>
+                {f.source_id && SOURCE_BRAND[f.source_id] && (
+                  <span style={{ fontSize: 8, fontWeight: 700, color: SOURCE_BRAND[f.source_id].color, background: SOURCE_BRAND[f.source_id].color + '14', borderRadius: 4, padding: '0 4px', lineHeight: '12px' }}>{SOURCE_BRAND[f.source_id].ar}</span>
+                )}
+                <span style={{ fontSize: 9.5, color: 'var(--tx5)', direction: 'ltr' }}>{fmtDMYTime(f.archived_at)}</span>
+              </a>
+            ))}
+          </div>
+        )}
+      </div>
+    </CollapsibleCard>
   )
 }
 
@@ -3055,6 +3811,17 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
   // bookmarklet's section (h) and stored in gosi_establishment_certificates,
   // with the PDFs themselves in the public 'gosi-certificates' storage bucket.
   const [gosiCertificates, setGosiCertificates] = useState([])
+  // أجير — منشأة/تصاريح/عقود/مدفوعات/مؤشرات (ajeerSyncBookmarklet.js).
+  // المفتاح establishment_no = «مكتب-تسلسل» (نفس رقم ملف المنشأة في قوى).
+  const [ajeerEst, setAjeerEst] = useState(null)
+  const [ajeerNotices, setAjeerNotices] = useState([])
+  const [ajeerContracts, setAjeerContracts] = useState([])
+  const [ajeerPayments, setAjeerPayments] = useState([])
+  const [ajeerIndicators, setAjeerIndicators] = useState([])
+  // سجل التغييرات (sync_row_history — تكتبه triggers القاعدة عند أي تغيير فعلي)
+  // وإصدارات الملفات المؤرشفة (sync_file_versions).
+  const [rowHistory, setRowHistory] = useState([])
+  const [fileVersions, setFileVersions] = useState([])
 
   // Build GOSI + HRSD patch from Netlify response payloads.
   const buildFetchPatch = useCallback((g, h) => {
@@ -3093,6 +3860,107 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
     }
     return patch
   }, [])
+
+  // Pull the طلباتي document set (السجل التجاري ar/en + عقد التأسيس) for
+  // facilities the CR list never returns — they have no encrypted CR number,
+  // so the تيسير print pipeline can't reach their files at all.
+  //
+  // This runs from the app rather than from the bookmarklet because the PDFs
+  // sit behind printcr.mc.gov.sa URLs that need a server-side fetch, and the
+  // companies portal origin cannot reach our local function (Chrome stalls
+  // public-HTTPS→localhost from that origin). The bookmarklet parks its token
+  // in sbc_sessions('companies') and we spend it here instead.
+  const [filesRunning, setFilesRunning] = useState(false)
+  const fetchRequestFiles = useCallback(async () => {
+    if (!sb || filesRunning) return
+
+    setFilesRunning(true)
+    try {
+      const { data: s } = await sb.from('sbc_sessions')
+        .select('access_token,token_type,expires_at,client_id,person_id').eq('id', 'companies').maybeSingle()
+      const now = Math.floor(Date.now() / 1000)
+      if (!s?.access_token) {
+        toast?.(T('لا توجد جلسة لبوابة الشركات — افتح companies.saudibusiness.gov.sa واضغط زر المزامنة أولاً.',
+                  'No companies-portal session — run the sync bookmarklet there first.'))
+        return
+      }
+      if (s.expires_at && s.expires_at <= now) {
+        toast?.(T('انتهت صلاحية جلسة بوابة الشركات — اضغط زر المزامنة داخل البوابة مرة أخرى.',
+                  'Companies-portal session expired — re-run the sync bookmarklet there.'))
+        return
+      }
+      const session = { accessToken: s.access_token, tokenType: s.token_type || 'Bearer', expiresAt: s.expires_at, clientId: s.client_id }
+
+      // The token belongs to one portal account, and each account only sees its own
+      // طلباتي — asking it for another account's CR would fail on every row. The
+      // parked session names that account, so only its facilities are fetched;
+      // other accounts' rows wait for their own sync.
+      const pending = rows.filter(r => r.requests_synced_at && r.cr_national_number && !r.requests_files_synced_at
+        && (!s.person_id || r.person_id === s.person_id))
+      if (!pending.length) { toast?.(T('لا توجد ملفات ناقصة من طلباتي لهذا الحساب', 'No missing طلباتي files for this account')); return }
+
+      let ok = 0, fail = 0, idx = 0, dead = false
+      toast?.(T(`جاري جلب ملفات ${pending.length} منشأة...`, `Fetching files for ${pending.length} facilities...`))
+      const worker = async () => {
+        while (!dead) {
+          const i = idx++
+          if (i >= pending.length) return
+          const r = pending[i]
+          const res = await fetch('/.netlify/functions/sbc-request-files', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ session, cr: r.cr_national_number, requestId: r.request_internal_id || null }),
+          }).then(x => x.json()).catch(e => ({ error: String(e?.message || e) }))
+
+          // A dead session fails every remaining row identically — stop rather
+          // than hammer the portal with 300 doomed calls.
+          if (res?.code === 'SESSION_INVALID' || res?.code === 'SESSION_EXPIRED') { dead = true; return }
+
+          if (res?.ok) {
+            ok++
+            const stamp = new Date().toISOString()
+            setRows(prev => prev.map(x => x.cr_national_number === r.cr_national_number ? { ...x, requests_files_synced_at: stamp } : x))
+            sb.from('sbc_facilities').update({ requests_files_synced_at: stamp })
+              .eq('cr_national_number', r.cr_national_number).then(() => {}, () => {})
+          } else fail++
+        }
+      }
+      await Promise.all(Array.from({ length: 3 }, worker))
+      if (dead) toast?.(T('انتهت جلسة بوابة الشركات أثناء الجلب — أعد الضغط على زر المزامنة داخل البوابة.',
+                          'Companies-portal session died mid-run — re-run the bookmarklet there.'))
+      else toast?.(T(`تم جلب ملفات ${ok} منشأة${fail ? ` · فشل ${fail}` : ''}`, `Fetched files for ${ok} facilities${fail ? ` · ${fail} failed` : ''}`))
+    } finally {
+      setFilesRunning(false)
+    }
+  }, [sb, rows, toast, filesRunning])
+
+  // طلباتي files are part of the المركز sync, not a separate step the user has to
+  // remember. They can't be fetched by the bookmarklet itself — the portal origin
+  // hangs forever on calls to our function, and printcr refuses browser fetches — so
+  // the run is triggered here the moment the synced rows reveal missing files and the
+  // bookmarklet has left a live portal session behind.
+  const filesAutoRan = useRef(false)
+  useEffect(() => {
+    if (!sb || filesAutoRan.current || filesRunning) return
+    if (!rows.some(r => r.requests_synced_at && r.cr_national_number && !r.requests_files_synced_at)) return
+    // Claimed synchronously and never released: `rows` (and with it fetchRequestFiles'
+    // identity) churns constantly while the background GOSI/HRSD prefetch below writes
+    // into it, so this effect re-runs many times. An abort-on-cleanup guard would cancel
+    // the session lookup on every one of those re-runs and the fetch would never start.
+    filesAutoRan.current = true
+    ;(async () => {
+      // Without a live session every call fails identically, and fetchRequestFiles would
+      // toast a "no session" warning the user never asked for — so stay silent and let a
+      // later page load (after they run the bookmarklet) pick it up.
+      const { data: s } = await sb.from('sbc_sessions').select('access_token,expires_at,person_id').eq('id', 'companies').maybeSingle()
+      if (!s?.access_token) return
+      if (s.expires_at && s.expires_at <= Math.floor(Date.now() / 1000)) return
+      // Pending rows from a DIFFERENT account can't be fetched with this token, so
+      // don't start a run that would only produce failures.
+      if (!rows.some(r => r.requests_synced_at && r.cr_national_number && !r.requests_files_synced_at
+        && (!s.person_id || r.person_id === s.person_id))) return
+      fetchRequestFiles()
+    })()
+  }, [sb, rows, filesRunning, fetchRequestFiles])
 
   // Background prefetch: on rows load, fetch GOSI + HRSD for rows missing that
   // data so the table shows all three numbers without needing to open details.
@@ -3226,26 +4094,49 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
     try {
       toast?.(T('جاري نقل المنشآت...', 'Promoting facilities...'))
 
+      // Pull GOSI establishments by CR number AND by registration number. The
+      // CR-keyed half misses everything that came in through طلباتي (those rows
+      // carry a GOSI registration number but no cr_number), which is what left
+      // them without a unified_number — and so unlinked — on promote.
       const crNumbers = rows.map(r => r.cr_number).filter(Boolean)
-      const { data: gosiEsts } = await sb.from('gosi_establishments')
-        .select('registration_no,cr_number,unified_national_number,email_primary,mobile_primary,city_ar')
-        .in('cr_number', crNumbers.length ? crNumbers : ['__none__'])
+      const regNumbers = rows.map(r => r.gosi_registration_number).filter(Boolean)
+      const [{ data: gosiByCrRows }, { data: gosiByRegRows }] = await Promise.all([
+        crNumbers.length
+          ? sb.from('gosi_establishments')
+              .select('registration_no,cr_number,unified_national_number,email_primary,mobile_primary,city_ar')
+              .in('cr_number', crNumbers)
+          : Promise.resolve({ data: [] }),
+        regNumbers.length
+          ? sb.from('gosi_establishments')
+              .select('registration_no,cr_number,unified_national_number,email_primary,mobile_primary,city_ar')
+              .in('registration_no', regNumbers)
+          : Promise.resolve({ data: [] }),
+      ])
+      const gosiEsts = [...(gosiByCrRows || []), ...(gosiByRegRows || [])]
       const gosiByCr = {}
       const gosiByReg = {}
-      for (const g of (gosiEsts || [])) {
+      for (const g of gosiEsts) {
         if (g.cr_number && !gosiByCr[g.cr_number]) gosiByCr[g.cr_number] = g
         if (g.registration_no) gosiByReg[String(g.registration_no)] = g
       }
 
       const facilityPayloads = rows.map(r => {
-        const g = gosiByCr[r.cr_number]
+        // Match GOSI by CR number, falling back to the GOSI registration number:
+        // facilities discovered through طلباتي have no cr_number (300 of 301),
+        // so the CR-keyed lookup alone would miss them.
+        const g = gosiByCr[r.cr_number] || gosiByReg[String(r.gosi_registration_number)]
         const hrsd = (r.hrsd_labor_office_id && r.hrsd_sequence_number)
           ? `${r.hrsd_labor_office_id}-${r.hrsd_sequence_number}` : null
         return {
           sbc_facility_id: r.id,
           name_ar: r.entity_full_name_ar || null,
           name_en: r.entity_full_name_en || null,
-          unified_number: r.gosi_unified_national_number || g?.unified_national_number || null,
+          // الرقم الموحد is the canonical link key. cr_national_number IS that
+          // number (identical to gosi_unified_national_number wherever both
+          // exist); it's the last fallback so a facility known only through
+          // طلباتي — no GOSI sync behind it — still links instead of landing
+          // with a null unified_number.
+          unified_number: r.gosi_unified_national_number || g?.unified_national_number || r.cr_national_number || null,
           cr_number: r.cr_number || null,
           gosi_number: r.gosi_registration_number || g?.registration_no || null,
           vat_number: r.zakat_tax_number || null,
@@ -3574,6 +4465,72 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
     return () => { cancelled = true }
   }, [sb, detail?.gosi_unified_national_number])
 
+  // أجير — رقم المنشأة في أجير هو نفسه رقم ملف المنشأة «مكتب-تسلسل»
+  // (مثال 18-4035829). نجرّب كل الصيغ المتاحة من SBC وقوى وGOSI لأن أياً
+  // منها قد يكون المصدر الوحيد المزامَن لهذه المنشأة.
+  const ajeerKeys = useMemo(() => {
+    const ks = new Set()
+    if (detail?.hrsd_labor_office_id != null && detail?.hrsd_sequence_number != null) ks.add(`${detail.hrsd_labor_office_id}-${detail.hrsd_sequence_number}`)
+    if (qiwaCompany?.company_labor_office_id != null && qiwaCompany?.company_sequence_number != null) ks.add(`${qiwaCompany.company_labor_office_id}-${qiwaCompany.company_sequence_number}`)
+    if (gosiEstablishment?.mol_office_id != null && gosiEstablishment?.mol_establishment_id != null) ks.add(`${gosiEstablishment.mol_office_id}-${gosiEstablishment.mol_establishment_id}`)
+    return Array.from(ks)
+  }, [detail?.hrsd_labor_office_id, detail?.hrsd_sequence_number, qiwaCompany, gosiEstablishment])
+
+  useEffect(() => {
+    if (!sb || !detail || ajeerKeys.length === 0) {
+      setAjeerEst(null); setAjeerNotices([]); setAjeerContracts([]); setAjeerPayments([]); setAjeerIndicators([])
+      return
+    }
+    let cancelled = false
+    ;(async () => {
+      const [est, ntc, ctr, pay, ind] = await Promise.all([
+        sb.from('ajeer_establishments').select('*').in('establishment_no', ajeerKeys).limit(1),
+        sb.from('ajeer_notices').select('*').in('establishment_no', ajeerKeys).order('end_date', { ascending: false, nullsFirst: false }),
+        sb.from('ajeer_contracts').select('*').in('establishment_no', ajeerKeys).order('end_date', { ascending: false, nullsFirst: false }),
+        sb.from('ajeer_payments').select('*').in('establishment_no', ajeerKeys).order('due_date', { ascending: false, nullsFirst: false }),
+        sb.from('ajeer_indicators').select('*').in('establishment_no', ajeerKeys).order('week_no', { ascending: false }),
+      ])
+      if (cancelled) return
+      setAjeerEst((est.data || [])[0] || null)
+      setAjeerNotices(ntc.data || [])
+      setAjeerContracts(ctr.data || [])
+      setAjeerPayments(pay.data || [])
+      setAjeerIndicators(ind.data || [])
+    })()
+    return () => { cancelled = true }
+  }, [sb, detail, ajeerKeys])
+
+  // سجل التغييرات + إصدارات الملفات — يُجمَع عبر كل مفاتيح المنشأة لدى
+  // المصادر (سجل تجاري / تأمينات / موحد / قوى / أجير) لأن كل جدول مصدر
+  // يسجّل تاريخه بمفتاحه الخاص.
+  useEffect(() => {
+    if (!sb || !detail) { setRowHistory([]); setFileVersions([]); return }
+    const keys = new Set()
+    if (detail.cr_number) keys.add(String(detail.cr_number))
+    if (detail.cr_national_number) keys.add(String(detail.cr_national_number))
+    if (detail.gosi_registration_number) keys.add(String(detail.gosi_registration_number))
+    if (detail.gosi_unified_national_number) keys.add(String(detail.gosi_unified_national_number))
+    if (qiwaCompany?.company_id != null) keys.add(String(qiwaCompany.company_id))
+    ajeerKeys.forEach(k => keys.add(k))
+    const list = Array.from(keys)
+    if (!list.length) { setRowHistory([]); setFileVersions([]); return }
+    let cancelled = false
+    ;(async () => {
+      const [hist, files] = await Promise.all([
+        sb.from('sync_row_history')
+          .select('id, table_name, source_id, entity_key, record_key, record_label, op, changed_fields, diff, old_data, captured_at')
+          .in('entity_key', list)
+          .order('captured_at', { ascending: false })
+          .limit(400),
+        sb.from('sync_file_versions').select('*').in('entity_key', list).order('archived_at', { ascending: false }).limit(200),
+      ])
+      if (cancelled) return
+      setRowHistory(hist.data || [])
+      setFileVersions(files.data || [])
+    })()
+    return () => { cancelled = true }
+  }, [sb, detail, qiwaCompany?.company_id, ajeerKeys])
+
   useEffect(() => {
     if (!sb || !detail?.gosi_registration_number) {
       setGosiEstablishment(null); setGosiOwners([]); setGosiAdmins([])
@@ -3619,6 +4576,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
         'mcV2/GetCaseViolationsQuery',
         'mcV2/GetEmtethalViolationsQuery',
         'Qawaem/GetQawaemStatistics',
+        'Qawaem/GetCRSubmissionInfo',
         'gosi/establishments-main-info-by-cr-national-number',
         'gosi/establishments-file-info-by-registration-number',
         'gosi/establishment-compliance',
@@ -4178,6 +5136,22 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
         </div>
         {/* Primary CTA — same slot + chrome as «فاتورة جديدة» on the Invoices page. */}
         <div className="page-cta-row" style={{ display: 'inline-flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+          {/* طلباتي files have no button of their own — the sync fetches them itself
+              (see the auto-trigger above). This only surfaces that it's running. */}
+          {filesRunning && (
+            <div
+              title={T('جلب السجل التجاري (عربي/إنجليزي) وعقد التأسيس للمنشآت المزامَنة من طلباتي', 'Fetching CR (AR/EN) + founding contract for facilities synced from طلباتي')}
+              style={{
+                height: 42, padding: '0 16px', borderRadius: 11, fontFamily: F, fontSize: 13, fontWeight: 600,
+                display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0,
+                background: 'rgba(192,132,252,.12)', border: '1px solid rgba(192,132,252,.4)', color: '#c084fc',
+              }}>
+              {T('جاري جلب ملفات طلباتي...', 'Fetching طلباتي files...')}
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+            </div>
+          )}
           <button
             onClick={promoteToCanonical}
             disabled={promoting || !rows.length}
@@ -4202,6 +5176,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
           <GosiSyncBookmarklet syncPersonId={spid} T={T} />
           <QiwaSyncBookmarklet syncPersonId={spid} T={T} />
           <MuqeemSyncBookmarklet syncPersonId={spid} T={T} />
+          <AjeerSyncBookmarklet syncPersonId={spid} T={T} />
           {/* الغرفة + الزكاة — لا يوجد سكربت/جداول بعد؛ معطّلان لحين التقاط الـ endpoints. */}
           <SoonBookmark
             accent={SOURCE_BRAND.chambers.color}
@@ -4225,6 +5200,8 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
           />
         </div>
         )}
+        {/* حداثة المزامنة لكل منصة — عدد السجلات + عمر آخر مزامنة */}
+        <SyncFreshnessStrip sb={sb} T={T} lang={lang} />
       </div>
 
       {err && <Card style={{ marginBottom: 14, borderColor: 'rgba(192,57,43,.35)', background: 'rgba(192,57,43,.06)' }}>
@@ -4859,6 +5836,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                         {r.entity_full_name_en && (
                           <span style={{ fontSize: 9.5, fontWeight: 500, color: 'var(--tx4)', direction: 'ltr', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{r.entity_full_name_en}</span>
                         )}
+                        <RequestsBadge row={r} T={T} compact />
                       </div>
                     </td>
                     <td>
@@ -5005,6 +5983,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                         {r.entity_full_name_en && (
                           <span style={{ fontSize: 9.5, fontWeight: 500, color: 'var(--tx4)', direction: 'ltr', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{r.entity_full_name_en}</span>
                         )}
+                        <RequestsBadge row={r} T={T} compact />
                       </div>
                     </td>
                     {/* Numbers — same as SBC view */}
@@ -5158,17 +6137,17 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
         const SOURCE_COLORS = {
           sbc: '#9b59b6', qiwa: '#3b82f6', muqeem: '#f59e0b',
           gosi: '#22c55e', chambers: '#06b6d4', ajeer: '#eab308',
-          mudad: '#0ea5e9', zatca: '#7dd3fc',
+          mudad: '#0ea5e9', zatca: '#7dd3fc', sbc_requests: '#c084fc',
         }
         const SOURCE_NAMES_AR = {
           sbc: 'المركز السعودي للأعمال', qiwa: 'قوى', muqeem: 'مقيم',
           gosi: 'التأمينات الاجتماعية', chambers: 'الغرف التجارية', ajeer: 'أجير',
-          mudad: 'مدد', zatca: 'الزكاة والدخل',
+          mudad: 'مدد', zatca: 'الزكاة والدخل', sbc_requests: 'طلباتي — بوابة الشركات',
         }
         const SOURCE_NAMES_EN = {
           sbc: 'Saudi Business Center', qiwa: 'Qiwa', muqeem: 'Muqeem',
           gosi: 'GOSI', chambers: 'Chambers', ajeer: 'Ajeer',
-          mudad: 'Mudad', zatca: 'ZATCA',
+          mudad: 'Mudad', zatca: 'ZATCA', sbc_requests: 'My Requests — companies portal',
         }
         const provEntries = provByCr[detail.cr_number] || []
         const provFor = (sourceId) => provEntries.find(e => e.source_id === sourceId) || null
@@ -5417,11 +6396,30 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
         // Without this gate the SBC-labeled cards would render filled with
         // data the user never synced from SBC.
         const hasSbcData = !!(detail?.raw_cr_data || detail?._raw) || prov.some(p => p.source_id === 'sbc')
+        // The طلباتي channel supplies the authority file numbers (zakat, coc,
+        // spl, sca, moj, mc, gosi) for facilities the CR list never returns.
+        // Those are exactly the fields the identifiers card renders, so that
+        // card is unblanked when either channel has data — while the CR-payload
+        // cards below stay gated on hasSbcData alone.
+        const hasRequestsData = !!detail?.requests_synced_at
         return (
         <div style={{ fontFamily: F, paddingTop: 0, paddingBottom: 80, color: 'var(--tx2)' }}>
-          {/* Top bar — Back + sync trigger (mirrors FacilityDetailPage top bar) */}
+          {/* Top bar — Back + expand/collapse-all (mirrors FacilityDetailPage top bar) */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, gap: 12, flexWrap: 'wrap' }}>
             <BackButton onBack={() => setDetail(null)} label={T('رجوع','Back')} />
+            <div style={{ display: 'flex', gap: 8 }}>
+              {[
+                { expand: true, ar: 'توسيع الكل', en: 'Expand all', d: 'M7 13l5 5 5-5M7 6l5 5 5-5' },
+                { expand: false, ar: 'طي الكل', en: 'Collapse all', d: 'M7 18l5-5 5 5M7 11l5-5 5 5' },
+              ].map(b => (
+                <button key={b.ar} type="button"
+                  onClick={() => window.dispatchEvent(new CustomEvent('synchub-expand-all', { detail: { expand: b.expand } }))}
+                  style={{ height: 34, padding: '0 12px', borderRadius: 9, background: 'var(--search-bg)', border: '1px solid var(--bd)', color: 'var(--tx2)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: F, fontSize: 11.5, fontWeight: 600 }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d={b.d} /></svg>
+                  {T(b.ar, b.en)}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Hero header — facility name + main/partner tag only */}
@@ -5446,7 +6444,30 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                 </span>
               )}
               <div style={{ fontSize: 22, fontWeight: 600, color: 'var(--tx)', letterSpacing: '-.2px' }}>{detail.entity_full_name_ar || T('منشأة','Facility')}</div>
+              <RequestsBadge row={detail} T={T} />
             </div>
+            {/* Provenance line — states outright that this facility's data came
+                from طلباتي, since it's absent from the CR list and a reader
+                would otherwise wonder why the SBC cards are missing. */}
+            {hasRequestsData && (
+              <div style={{ marginTop: 8, fontSize: 11.5, fontWeight: 500, color: 'var(--tx3)', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                <span>{T('تمت المزامنة من «طلباتي» — بوابة الشركات', 'Synced from "My Requests" — companies portal')}</span>
+                {detail.request_reference_no && (
+                  <>
+                    <span style={{ color: 'var(--tx4)' }}>·</span>
+                    <span style={{ direction: 'ltr', fontFamily: 'ui-monospace, monospace', color: 'var(--tx2)' }}>{detail.request_reference_no}</span>
+                  </>
+                )}
+                {detail.request_service_ar && (
+                  <>
+                    <span style={{ color: 'var(--tx4)' }}>·</span>
+                    <span>{detail.request_service_ar}</span>
+                  </>
+                )}
+                <span style={{ color: 'var(--tx4)' }}>·</span>
+                <span>{fmtAgo(detail.requests_synced_at, lang)}</span>
+              </div>
+            )}
             {/* Data-source chips moved into the "مصادر البيانات" card in the
                 right sidebar to free up the facility header. */}
           </div>
@@ -5461,8 +6482,10 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                   Compact inline layout (label left + value right) to stay within original card height.
                   Gated on hasSbcData: this card is sourced from SBC's CR registration
                   payload; without SBC sync, the row data would be a misleading mix
-                  of empty/partial values from other syncs. */}
-              {hasSbcData && (() => {
+                  of empty/partial values from other syncs. Also shown for
+                  facilities synced from طلباتي, which populates these same
+                  authority numbers. */}
+              {(hasSbcData || hasRequestsData) && (() => {
                 // MoL/labor file number "office-sequence" (e.g. 18-4044360). Prefer the
                 // synced columns; fall back to the live HRSD/GOSI-file responses so the
                 // chip still appears for facilities mapped from staging (where the
@@ -5497,12 +6520,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                 const lbl = { color: 'var(--tx3)', fontWeight: 600, fontSize: 11, whiteSpace: 'nowrap' }
 
                 return (
-                  <div style={cardChrome}>
-                    <div style={cardHeader}>
-                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
-                      <SbcSourceIcon />
-                      <span style={cardTitle}>{T('المنشأة','Facility')}</span>
-                    </div>
+                  <CollapsibleCard title={T('المنشأة','Facility')} color={C.gold} defaultExpanded showSbcIcon>
                     <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                       {detail.entity_full_name_ar && (
                         <div style={{ ...rowBase, gridColumn: '1 / -1' }}>
@@ -5540,19 +6558,20 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                         <CopyableNumber value={detail.cr_number} onToast={toast} copyLabel={T('نُسخ', 'Copied')} />
                       </div>
                     </div>
-                  </div>
+                  </CollapsibleCard>
                 )
               })()}
 
+              {/* مطابقة المصادر — نفس الحقل من كل منصة جنباً إلى جنب مع
+                  إبراز أي فروقات (per project_field_provenance) */}
+              <SourceCompareCard detail={detail} gosiEst={gosiEstablishment} qiwa={qiwaCompany} muqeem={muqeemCompany} ajeerEst={ajeerEst} T={T} lang={lang} />
+
+              {/* العمالة الموحدة — دمج العامل من قوى/مقيم/التأمينات/أجير */}
+              <UnifiedWorkersCard sb={sb} companyId={qiwaCompany?.company_id} muqeemResidents={muqeemResidents} gosiContributors={gosiContributors} ajeerNotices={ajeerNotices} T={T} lang={lang} />
+
               {/* Partners */}
               {partners.length > 0 && (
-                <div style={cardChrome}>
-                  <div style={cardHeader}>
-                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.blue }} />
-                    <SbcSourceIcon />
-                    <span style={cardTitle}>{T('الملاك والشركاء', 'Partners')}</span>
-                    <span style={{ marginInlineStart: 'auto', fontSize: 11, color: C.blue, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: C.blue + '14' }}>{num(partners.length)}</span>
-                  </div>
+                <CollapsibleCard title={T('الملاك والشركاء', 'Partners')} color={C.blue} badge={num(partners.length)} defaultExpanded showSbcIcon>
                   <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 6 }}>
                     {[...partners]
                       // الأشخاص أولاً ثم المنشآت (إن وُجدت منشأة كشريك). نفس منطق
@@ -5567,22 +6586,16 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                         return <PersonRow key={i} p={p} roleAr={types} />
                       })}
                   </div>
-                </div>
+                </CollapsibleCard>
               )}
 
               {/* Managers */}
               {managers.length > 0 && (
-                <div style={cardChrome}>
-                  <div style={cardHeader}>
-                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.purple }} />
-                    <SbcSourceIcon />
-                    <span style={cardTitle}>{T('المدراء', 'Managers')}</span>
-                    <span style={{ marginInlineStart: 'auto', fontSize: 11, color: C.purple, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: C.purple + '14' }}>{num(managers.length)}</span>
-                  </div>
+                <CollapsibleCard title={T('المدراء', 'Managers')} color={C.purple} badge={num(managers.length)} defaultExpanded showSbcIcon>
                   <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 6 }}>
                     {managers.map((m, i) => <PersonRow key={i} p={m} roleAr={T('مدير', 'Manager')} isManager />)}
                   </div>
-                </div>
+                </CollapsibleCard>
               )}
 
               {/* Classification card — merged with the "Full CR Data" fields
@@ -5592,16 +6605,15 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                    CR payload. */}
               {hasSbcData && (() => {
                 const yesNo = (b) => b ? T('نعم', 'Yes') : T('لا', 'No')
-                // API returns Hijri dates as DD-MM-YYYY; user prefers YYYY-MM-DD
-                // (same order as Gregorian ISO dates shown elsewhere on the page).
+                // API returns Hijri dates as DD-MM-YYYY — already the app-wide
+                // day-first shape, so pass through (flip only if year-first).
                 const reverseHijri = (s) => {
                   if (!s || typeof s !== 'string') return s
                   const parts = s.split('-')
-                  return parts.length === 3 ? parts.reverse().join('-') : s
+                  return parts.length === 3 && parts[0].length === 4 ? parts.reverse().join('-') : s
                 }
                 return (
-                  <div style={cardChrome}>
-                    <div style={cardHeader}><span style={{ width: 6, height: 6, borderRadius: '50%', background: C.blue }} /><SbcSourceIcon /><span style={cardTitle}>{T('السجل التجاري','Commercial Register')}</span></div>
+                  <CollapsibleCard title={T('السجل التجاري','Commercial Register')} color={C.blue} defaultExpanded showSbcIcon>
                     <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                       {/* Each Field is now conditional — null/empty/undefined
                           values are hidden entirely per user request. Boolean
@@ -5664,7 +6676,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                         </div>
                       </div>
                     </div>
-                  </div>
+                  </CollapsibleCard>
                 )
               })()}
 
@@ -5726,13 +6738,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
 
               {/* GOSI — social insurance */}
               {hasGosi && (
-                <div style={cardChrome}>
-                  <div style={cardHeader}>
-                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.ok }} />
-                    <SbcSourceIcon />
-                    <span style={cardTitle}>{T('المؤسسة العامة للتأمينات الإجتماعية', 'General Organization for Social Insurance')}</span>
-                    {gosiState === 'loading' && <span style={{ marginInlineStart: 'auto', fontSize: 10.5, color: 'var(--tx5)' }}>{T('جارٍ الجلب…','loading…')}</span>}
-                  </div>
+                <CollapsibleCard title={T('المؤسسة العامة للتأمينات الإجتماعية', 'General Organization for Social Insurance')} color={C.ok} defaultExpanded showSbcIcon badge={gosiState === 'loading' ? T('جارٍ الجلب…','loading…') : undefined}>
                   <div style={{ padding: '14px 22px' }}>
                     {gosi.name && (
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 8, marginBottom: 8 }}>
@@ -5809,18 +6815,12 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                       </div>
                     )}
                   </div>
-                </div>
+                </CollapsibleCard>
               )}
 
               {/* HRSD / Qiwa — labor office */}
               {hasHrsd && (
-                <div style={cardChrome}>
-                  <div style={cardHeader}>
-                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.cyan }} />
-                    <SbcSourceIcon />
-                    <span style={cardTitle}>{T('وزارة الموارد البشرية والتنمية الإجتماعية', 'Ministry of Human Resources and Social Development')}</span>
-                    {hrsdState === 'loading' && <span style={{ marginInlineStart: 'auto', fontSize: 10.5, color: 'var(--tx5)' }}>{T('جارٍ الجلب…','loading…')}</span>}
-                  </div>
+                <CollapsibleCard title={T('وزارة الموارد البشرية والتنمية الإجتماعية', 'Ministry of Human Resources and Social Development')} color={C.cyan} defaultExpanded showSbcIcon badge={hrsdState === 'loading' ? T('جارٍ الجلب…','loading…') : undefined}>
                   <div style={{ padding: '14px 22px' }}>
                     {(() => {
                       const nitaqColor = (name) => {
@@ -5992,7 +6992,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                       </div>
                     )}
                   </div>
-                </div>
+                </CollapsibleCard>
               )}
 
               {/* Activities */}
@@ -6014,6 +7014,10 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                 const momrahList = momrahData?.data?.result?.list || []
                 const emtethal = ext['mcV2/GetEmtethalViolationsQuery']?.response_body || null
                 const qawaem = ext['Qawaem/GetQawaemStatistics']?.response_body || null
+                // Bare array, one entry per financial year. A 404 (no statements
+                // filed) is stored as a non-array body, so guard on the type.
+                const qawaemStatusRaw = ext['Qawaem/GetCRSubmissionInfo']?.response_body
+                const qawaemStatus = Array.isArray(qawaemStatusRaw) ? qawaemStatusRaw : []
                 const violations = ext['mcV2/GetViolationsQuery']?.response_body || null
                 const caseViolations = ext['mcV2/GetCaseViolationsQuery']?.response_body || null
                 const printAr = ext['mcV2/get-print-cr-by-national-number']?.response_body || null
@@ -6100,6 +7104,47 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                           {[...qawaem.qawaemList].sort((a, b) => (a.year || 0) - (b.year || 0)).map(y => (
                             <Row key={y.year} k={`${T('سنة', 'Year')} ${y.year}`} v={y.count} ltr />
                           ))}
+                        </div>
+                      </CollapsibleCard>
+                    )}
+
+                    {/* حالة القوائم المالية — per-year filing status.
+                        Field naming is a trap worth stating: `filingDate` is
+                        the END of the statutory window (startDate → filingDate
+                        is the period the portal shows), NOT when the statement
+                        was actually filed. The real submission date is
+                        firstPendingDate. */}
+                    {qawaemStatus.length > 0 && (
+                      <CollapsibleCard title={T('حالة القوائم المالية', 'Financial Statements Status')} color="#a78bfa" badge={num(qawaemStatus.length)} showSbcIcon>
+                        <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          {[...qawaemStatus].sort((a, b) => (Number(a.year) || 0) - (Number(b.year) || 0)).map((y, i) => {
+                            const onTime = y.isOnTime === true
+                            const statusColor = onTime ? '#22c55e' : '#eab308'
+                            const dateOnly = (s) => (s ? String(s).split(' ')[0] : null)
+                            return (
+                              <div key={y.filingCode || y.year || i} style={{ ...rowBase, padding: 12, display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'stretch' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                                  <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx)' }}>
+                                    {T('السنة المالية', 'Financial year')} {y.year}
+                                  </div>
+                                  {y.filingStatusDesc && (
+                                    <span style={{ fontSize: 10, fontWeight: 600, padding: '3px 8px', borderRadius: 6, background: statusColor + '26', color: statusColor, whiteSpace: 'nowrap' }}>
+                                      {y.filingStatusDesc}
+                                    </span>
+                                  )}
+                                </div>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                                  <Row k={T('نوع التقويم', 'Calendar')} v={y.isHijriDate ? T('هجري', 'Hijri') : T('ميلادي', 'Gregorian')} />
+                                  <Row k={T('الفترة النظامية للإيداع', 'Statutory period')} v={(y.startDate && y.filingDate) ? `${y.startDate} → ${y.filingDate}` : '—'} ltr />
+                                  <Row k={T('تاريخ الإيداع', 'Filed on')} v={dateOnly(y.firstPendingDate) || '—'} ltr />
+                                  <Row k={T('مكتب المراجعة', 'Audit firm')} v={y.firmName || '—'} />
+                                  <Row k={T('أُودعت خلال المدة النظامية', 'Filed on time')} v={onTime ? T('نعم', 'Yes') : T('لا', 'No')} />
+                                  <Row k={T('غير مدققة', 'Unaudited')} v={y.isUnAudit ? T('نعم', 'Yes') : T('لا', 'No')} />
+                                  {y.isResubmission && <Row k={T('إعادة إيداع', 'Resubmission')} v={T('نعم', 'Yes')} />}
+                                </div>
+                              </div>
+                            )
+                          })}
                         </div>
                       </CollapsibleCard>
                     )}
@@ -6774,7 +7819,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                       const mRow = ({ k, v, mono, ltr }) => (v == null || v === '' ? null : (
                         <Row k={k} v={v} mono={mono} ltr={ltr} />
                       ))
-                      const fmtDate = (s) => s ? String(s).slice(0, 10) : null
+                      const fmtDate = (s) => s ? fmtDMY(s) : null
                       const yesNo = (b) => b == null ? null : (b ? T('نعم', 'Yes') : T('لا', 'No'))
                       return (
                         <>
@@ -6951,6 +7996,12 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                 )
               })()}
 
+              {/* أجير — التصاريح والعقود والمدفوعات والمؤشرات */}
+              <AjeerCards est={ajeerEst} notices={ajeerNotices} contracts={ajeerContracts} payments={ajeerPayments} indicators={ajeerIndicators} T={T} lang={lang} />
+
+              {/* سجل التغييرات بين المزامنات + إصدارات الملفات المؤرشفة */}
+              <SyncHistoryCard history={rowHistory} fileVersions={fileVersions} T={T} lang={lang} />
+
             </div>
 
             {/* Sidebar */}
@@ -6958,12 +8009,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
               {/* Status summary — gated on hasSbcData since the CR issue/confirm
                   dates that drive the status come from the SBC payload. */}
               {hasSbcData && (
-              <div style={cardChrome}>
-                <div style={cardHeader}>
-                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: theme.fg }} />
-                  <span style={cardTitle}>{T('حالة السجل التجاري','CR Status')}</span>
-                  <CrCountdown confirmDate={detail._confirmDate} T={T} style={{ marginInlineStart: 'auto' }} />
-                </div>
+              <CollapsibleCard title={T('حالة السجل التجاري','CR Status')} color={theme.fg} defaultExpanded badge={<CrCountdown confirmDate={detail._confirmDate} T={T} />}>
                 <div style={{ padding: '20px 22px 14px', textAlign: 'center' }}>
                   <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderRadius: 999, background: theme.fg + '18', border: '1px solid ' + theme.fg + '38' }}>
                     <span style={{ width: 8, height: 8, borderRadius: '50%', background: theme.fg, boxShadow: `0 0 8px ${theme.fg}aa` }} />
@@ -7004,15 +8050,14 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                     </div>
                   </div>
                 </div>
-              </div>
+              </CollapsibleCard>
               )}
 
               {/* Data sources — moved from the inline chip strip above the
                   2-column layout. Each row is one source we have synced data
                   from, colored by brand, with a check on the end to confirm
                   we actually have data from it (vs. just "supported"). */}
-              <div style={cardChrome}>
-                <div style={cardHeader}><span style={{ width: 6, height: 6, borderRadius: '50%', background: C.cyan }} /><span style={cardTitle}>{T('مصادر البيانات','Data sources')}</span></div>
+              <CollapsibleCard title={T('مصادر البيانات','Data sources')} color={C.cyan} defaultExpanded>
                 <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {(() => {
                     // Only list sources we actually have data from. The page
@@ -7028,7 +8073,8 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                     const hasQiwa = !!qiwaCompany || prov.some(p => p.source_id === 'qiwa')
                     const hasMuqeem = !!muqeemCompany || muqeemResidents?.length > 0
                       || prov.some(p => p.source_id === 'muqeem')
-                    const derived = [hasSbc && 'sbc', hasQiwa && 'qiwa', hasGosi && 'gosi', hasMuqeem && 'muqeem'].filter(Boolean)
+                    const hasRequests = !!detail?.requests_synced_at
+                    const derived = [hasSbc && 'sbc', hasRequests && 'sbc_requests', hasQiwa && 'qiwa', hasGosi && 'gosi', hasMuqeem && 'muqeem'].filter(Boolean)
                     const sourceIds = Array.from(new Set([...derived, ...prov.map(p => p.source_id).filter(Boolean)]))
                     return sourceIds.map(sid => {
                       const brand = SOURCE_BRAND[sid] || { color: '#888' }
@@ -7037,8 +8083,13 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                       const opLabel = op
                         ? (lang === 'en' ? (op.person_name_en || op.person_name_ar) : (op.person_name_ar || op.person_name_en))
                         : null
-                      const ago = op ? fmtAgo(op.last_synced_at, lang) : null
-                      const title = [fullName, opLabel, ago].filter(Boolean).join(' · ')
+                      // facility_sources carries no row for the طلباتي channel —
+                      // its timestamp lives on the facility itself.
+                      const ago = sid === 'sbc_requests'
+                        ? fmtAgo(detail.requests_synced_at, lang)
+                        : (op ? fmtAgo(op.last_synced_at, lang) : null)
+                      const reqRef = sid === 'sbc_requests' ? detail.request_reference_no : null
+                      const title = [fullName, opLabel, reqRef, ago].filter(Boolean).join(' · ')
                       return (
                         <div key={sid} title={title}
                           style={{
@@ -7049,6 +8100,12 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                           }}>
                           <span style={{ width: 6, height: 6, borderRadius: '50%', background: brand.color, flexShrink: 0 }} />
                           <span style={{ fontSize: 11.5, fontWeight: 600, color: brand.color, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{fullName}</span>
+                          {/* حداثة المزامنة + المشغّل — ظاهرة مباشرة بدل الاكتفاء بالـtooltip */}
+                          {(opLabel || ago) && (
+                            <span style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--tx4)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 110 }}>
+                              {[opLabel, ago].filter(Boolean).join(' · ')}
+                            </span>
+                          )}
                           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={brand.color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
                             <polyline points="20 6 9 17 4 12"/>
                           </svg>
@@ -7057,7 +8114,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                     })
                   })()}
                 </div>
-              </div>
+              </CollapsibleCard>
             </div>
           </div>
 

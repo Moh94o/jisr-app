@@ -4502,6 +4502,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
         'mcV2/GetCaseViolationsQuery',
         'mcV2/GetEmtethalViolationsQuery',
         'Qawaem/GetQawaemStatistics',
+        'Qawaem/GetCRSubmissionInfo',
         'gosi/establishments-main-info-by-cr-national-number',
         'gosi/establishments-file-info-by-registration-number',
         'gosi/establishment-compliance',
@@ -7902,6 +7903,43 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                     </div>
                   </SectionCard>
                 )}
+
+                {/* ── Qawaem filing status (حالة القوائم المالية) ──
+                    Note: filingDate is the END of the statutory window
+                    (startDate → filingDate), not the submission date — that's
+                    firstPendingDate. */}
+                {(() => {
+                  const raw = ext['Qawaem/GetCRSubmissionInfo']?.response_body
+                  const list = Array.isArray(raw) ? raw : []
+                  if (!list.length) return null
+                  return (
+                    <SectionCard title={T('حالة القوائم المالية', 'Financial Statements Status')} color="#a78bfa" count={list.length}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {[...list].sort((a, b) => (Number(a.year) || 0) - (Number(b.year) || 0)).map((y, i) => {
+                          const onTime = y.isOnTime === true
+                          const c = onTime ? '#22c55e' : '#eab308'
+                          const dateOnly = (s) => (s ? String(s).split(' ')[0] : '—')
+                          return (
+                            <div key={y.filingCode || y.year || i} style={{ padding: '10px 12px', background: 'var(--inputBg)', borderRadius: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                                <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx)' }}>{T('السنة المالية', 'Financial year')} {y.year}</span>
+                                {y.filingStatusDesc && (
+                                  <span style={{ fontSize: 10, fontWeight: 600, padding: '3px 8px', borderRadius: 6, background: c + '26', color: c, whiteSpace: 'nowrap' }}>{y.filingStatusDesc}</span>
+                                )}
+                              </div>
+                              <div style={{ fontSize: 11, color: 'var(--tx3)', display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                                <span>{T('الفترة النظامية', 'Statutory period')}: <span style={{ direction: 'ltr', display: 'inline-block' }}>{y.startDate} → {y.filingDate}</span></span>
+                                <span>{T('تاريخ الإيداع', 'Filed on')}: <span style={{ direction: 'ltr', display: 'inline-block' }}>{dateOnly(y.firstPendingDate)}</span></span>
+                                <span>{T('خلال المدة النظامية', 'On time')}: {onTime ? T('نعم', 'Yes') : T('لا', 'No')}</span>
+                                {y.firmName ? <span>{T('مكتب المراجعة', 'Audit firm')}: {y.firmName}</span> : null}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </SectionCard>
+                  )
+                })()}
 
                 {/* ── Momrah municipal licenses ── */}
                 {momrahList.length > 0 && (

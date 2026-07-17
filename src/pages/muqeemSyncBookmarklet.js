@@ -145,9 +145,34 @@ function body({ sourceId, personId, proxyBaseUrl }) {
       fr.onerror = reject;
       fr.readAsDataURL(blob);
     });
+    // أرشفة النسخة الحالية قبل استبدالها (نسخة واحدة كحد أقصى في اليوم —
+    // النسخ لوجهة موجودة يرجع خطأ فيتجاهَل). كلها best-effort: فشل الأرشفة
+    // لا يمنع الرفع. تُسجَّل النسخة في sync_file_versions ليعرضها كرت
+    // «سجل التغييرات» في جسر.
+    const archiveB4Upload = async (path) => {
+      try {
+        const d = new Date();
+        const day = String(d.getDate()).padStart(2, '0') + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + d.getFullYear();
+        const dot = path.lastIndexOf('.');
+        const ext = dot >= 0 ? path.slice(dot) : '';
+        const base = dot >= 0 ? path.slice(0, dot) : path;
+        const versionPath = '_versions/' + base + '/' + day + ext;
+        const cp = await supaFetch('/storage/v1/object/copy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bucketId: 'muqeem-pdfs', sourceKey: path, destinationKey: versionPath }),
+        });
+        if (!cp || !cp.ok) return;
+        await supaFetch('/rest/v1/sync_file_versions', {
+          method: 'POST', headers: { 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+          body: JSON.stringify({ bucket: 'muqeem-pdfs', object_path: path, version_path: versionPath, entity_key: moi, source_id: 'muqeem', label: path.split('/').pop() }),
+        });
+      } catch (e) { /* best-effort */ }
+    };
     const uploadB64 = async (path, b64, contentType) => {
       try {
         if (!b64) return null;
+        await archiveB4Upload(path);
         const r = await supaFetch('/storage/v1/object/muqeem-pdfs/' + path, {
           method: 'POST',
           headers: { 'Content-Type': contentType, 'x-upsert': 'true' },

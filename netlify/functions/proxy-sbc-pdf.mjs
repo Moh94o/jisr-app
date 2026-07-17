@@ -26,6 +26,12 @@ const cors = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  // Private Network Access. The bookmarklets run on public HTTPS gov portals
+  // and call this function on http://localhost during local dev — Chrome
+  // classifies that as a public→private request and stalls the preflight
+  // unless the response opts in explicitly. Without this the fetch hangs
+  // until timeout rather than failing loudly.
+  'Access-Control-Allow-Private-Network': 'true',
 }
 
 const json = (body, statusCode = 200) => ({
@@ -79,6 +85,32 @@ export const handler = async (event) => {
   } catch (e) {
     return json({ error: 'pdf fetch threw: ' + (e?.message || String(e)) }, 502)
   }
+
+  // أرشفة النسخة الحالية قبل استبدالها — نسخة واحدة كحد أقصى في اليوم
+  // (النسخ لوجهة موجودة يفشل فيتجاهَل)، وتُسجَّل في sync_file_versions
+  // ليعرضها كرت «سجل التغييرات». فشل الأرشفة لا يوقف الرفع.
+  try {
+    const d = new Date()
+    const day = `${String(d.getUTCDate()).padStart(2, '0')}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${d.getUTCFullYear()}`
+    const dot = path.lastIndexOf('.')
+    const ext = dot >= 0 ? path.slice(dot) : ''
+    const base = dot >= 0 ? path.slice(0, dot) : path
+    const versionPath = `${base.split('/').slice(0, -1).join('/')}/_versions/${base.split('/').pop()}/${day}${ext}`
+    const cp = await fetch(`${SUPABASE_URL}/storage/v1/object/copy`, {
+      method: 'POST',
+      headers: { apikey: STORAGE_KEY, Authorization: `Bearer ${STORAGE_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bucketId: bucket, sourceKey: path, destinationKey: versionPath }),
+    })
+    if (cp.ok) {
+      // مفتاح الربط: اسم ملف CR يبدأ بالرقم الوطني للسجل ({cr}-{lang}.pdf)
+      const entityKey = (path.split('/').pop() || '').split('-')[0] || null
+      await fetch(`${SUPABASE_URL}/rest/v1/sync_file_versions`, {
+        method: 'POST',
+        headers: { apikey: STORAGE_KEY, Authorization: `Bearer ${STORAGE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+        body: JSON.stringify({ bucket, object_path: path, version_path: versionPath, entity_key: entityKey, source_id: 'sbc', label: path.split('/').pop() }),
+      }).catch(() => {})
+    }
+  } catch { /* best-effort */ }
 
   // Upload via Supabase Storage REST API. Uses the service role key when
   // available — that bypasses RLS so we don't depend on the anon-insert

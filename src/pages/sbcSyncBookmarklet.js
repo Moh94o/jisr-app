@@ -10,6 +10,15 @@
 const SUPABASE_URL = 'https://gcvshzutdslmdkwqwteh.supabase.co'
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdjdnNoenV0ZHNsbWRrd3F3dGVoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4OTkwNjgsImV4cCI6MjA5MDQ3NTA2OH0.5R0I5VvB7lp3wpSrtay3DMcXKsT9l1uK0Ukd1F4_ImM'
 
+// Per-backend clientId constants baked into the SBC portal bundles. The
+// gateway rejects a token whose clientId isn't subscribed to the backend
+// being called ("Cannot find valid subscription for..."), so each backend
+// needs its own. We hardcode them because the طلباتي flow runs on the
+// companies portal, which never calls requestsapi itself — there'd be no
+// live request to capture the header from.
+const CLIENT_ID_REQUESTS = '8b907aa5799863128483d1d4121b0930'
+const CLIENT_ID_COMPANIES_PROCESSING = 'a5fb5f0df5605d7aef65c02d3f36197b'
+
 function body({ sourceId, personId, proxyBaseUrl }) {
   return `
 (async () => {
@@ -60,10 +69,63 @@ function body({ sourceId, personId, proxyBaseUrl }) {
     return origFetch.apply(this, arguments);
   };
 
+  // The captured headers freeze the Authorization token as it was at capture time, but a
+  // تيسير token lives only ~28 min while a full run takes ~2h. A long run's frozen token
+  // expires mid-way and every later call 401s (measured 2026-07-17: 0% → ~40% 401 around
+  // the 20-min mark, then 0% again only because a fresh click re-captured). The portal's
+  // OIDC library silently refreshes the localStorage token (it carries refresh_token +
+  // offline_access), so re-reading it per call always yields a live token — the clientId
+  // and everything else stay frozen (they don't rotate), only the token is refreshed.
+  const OIDC_KEYS = [
+    'oidc.user:https://www.saudibusiness.gov.sa:InvestorPortal',
+    'oidc.user:https://www.saudibusiness.gov.sa:NewCompaniesClient',
+  ];
+  const oidcKey = () => OIDC_KEYS.find(k => localStorage.getItem(k)) || null;
+  const currentToken = () => {
+    const k = oidcKey();
+    if (!k) return null;
+    try { const o = JSON.parse(localStorage.getItem(k)); if (o && o.access_token) return o.access_token; } catch (_) {}
+    return null;
+  };
+
+  // The portal does NOT silently renew an idle tab (verified 2026-07-17: the token just
+  // expired at -17s without refreshing), so a long run's token would die mid-way. But the
+  // OIDC entry carries a refresh_token, and POST /connect/token?grant_type=refresh_token
+  // mints a fresh 30-min token (verified live). A single background keeper refreshes it a
+  // couple of minutes before expiry and writes it back to localStorage — so headersFor
+  // stays synchronous (just reads the fresh token) and only ONE refresh ever runs at a
+  // time, which matters because the refresh_token is single-use/rotating.
+  const AUTH_ISSUER = 'https://www.saudibusiness.gov.sa';
+  const doRefresh = async () => {
+    const k = oidcKey();
+    if (!k) return;
+    let o; try { o = JSON.parse(localStorage.getItem(k)); } catch (_) { return; }
+    if (!o || !o.refresh_token) return;
+    const body = new URLSearchParams({ grant_type: 'refresh_token', refresh_token: o.refresh_token, client_id: k.split(':').pop() });
+    const r = await origFetch(AUTH_ISSUER + '/connect/token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body }).catch(() => null);
+    if (!r || !r.ok) return;
+    const j = await r.json().catch(() => null);
+    if (!j || !j.access_token) return;
+    o.access_token = j.access_token;
+    if (j.refresh_token) o.refresh_token = j.refresh_token;
+    o.expires_at = Math.floor(Date.now() / 1000) + (j.expires_in || 1800);
+    localStorage.setItem(k, JSON.stringify(o));
+  };
+  const startTokenKeeper = () => setInterval(async () => {
+    try {
+      const k = oidcKey(); if (!k) return;
+      const o = JSON.parse(localStorage.getItem(k) || '{}');
+      const now = Math.floor(Date.now() / 1000);
+      if (o.expires_at && o.expires_at - now < 120) await doRefresh();
+    } catch (_) {}
+  }, 60000);
+
   const headersFor = (backend, opts) => {
     opts = opts || {};
     const base = captured[backend] || Object.values(captured).find(h => h && (h.authorization || h.Authorization)) || {};
     const out = { ...base, 'X-Correlation-Id': crypto.randomUUID() };
+    const tok = currentToken();
+    if (tok) { delete out.authorization; delete out.Authorization; out.Authorization = 'Bearer ' + tok; }
     if (opts.noContentType) { delete out['content-type']; delete out['Content-Type']; }
     delete out['content-length']; delete out['Content-Length'];
     return out;
@@ -85,6 +147,7 @@ function body({ sourceId, personId, proxyBaseUrl }) {
     await new Promise(r => setTimeout(r, 800));
   };
 
+  let tokenKeeper = null;
   try {
     if (!location.hostname.includes('saudibusiness') && !location.hostname.endsWith('business.sa'))
       return msg('افتح بوابة تيسير أولاً (e2.business.sa)');
@@ -103,6 +166,9 @@ function body({ sourceId, personId, proxyBaseUrl }) {
       for (let i = 0; i < 30 && !captured['ipapi-nl']; i++) await new Promise(r => setTimeout(r, 200));
     }
     if (!captured['ipapi-nl']) return msg('تعذّر التقاط الجلسة. افتح صفحة «سجلاتي» ثم جرّب مرة أخرى.');
+
+    // Keep the token alive for the whole run (cleared at the end / on error).
+    tokenKeeper = startTokenKeeper();
 
     // ─────────── Step 1: CR list (paged, pageSize 1000) ───────────
     const reqBody = { pageNumber: 1, pageSize: 1000 };
@@ -190,6 +256,14 @@ function body({ sourceId, personId, proxyBaseUrl }) {
       return out;
     };
 
+    // How many facilities to process at once. Measured 2026-07-17: at 2, a full run
+    // showed ZERO 429s (~20 calls/min against a 100/window limit) — the low value was
+    // pure caution, not a real ceiling, so it was doubling the wall clock for nothing.
+    // 4 keeps a wide margin (~4 facilities × ~13 endpoints ≈ 52 in-flight < 100) while
+    // roughly halving the time. Same endpoints, same retries, same data — only more
+    // facilities in parallel. Raise further only if runs stay 429-free.
+    const FACILITY_CONCURRENCY = 4;
+
     // fetchWithRetry: retries on ANY failure (network error OR non-2xx) up
     // to MAX_ATTEMPTS times. 429 honours Retry-After (or 30s). Other failures
     // use 1.5s, 3s backoff. Returns final Response + "seen" array recording
@@ -265,6 +339,20 @@ function body({ sourceId, personId, proxyBaseUrl }) {
         url: ({ enc }) => IP + '/Qawaem/GetQawaemStatistics?nCrNumber=' + encodeURIComponent(enc),
         reqBody: ({ enc, cr }) => ({ nCrNumber_encrypted: enc, crNationalNumber: cr }),
         extractCount: (p) => (p && typeof p.total === 'number') ? p.total : null,
+      },
+      {
+        key: 'qs', label: 'حالة القوائم',
+        name: 'Qawaem/GetCRSubmissionInfo',
+        // Per-year filing status behind the «حالة القوائم المالية» tab —
+        // the sibling of GetQawaemStatistics, which only gives yearly counts.
+        // delegationReference is sent empty, exactly as the portal does.
+        url: ({ enc }) => IP + '/Qawaem/GetCRSubmissionInfo?nCrNumber=' + encodeURIComponent(enc) + '&delegationReference=',
+        reqBody: ({ enc, cr }) => ({ nCrNumber_encrypted: enc, crNationalNumber: cr, delegationReference: '' }),
+        // Response is a bare array, one entry per financial year.
+        extractCount: (p) => Array.isArray(p) ? p.length : null,
+        // 404 is the portal's own "no statements filed" signal — it renders an
+        // empty state for it rather than an error. Don't burn retries on it.
+        noRetryOn: (status) => status === 404,
       },
       {
         key: 'g', label: 'تأمينات',
@@ -537,7 +625,7 @@ function body({ sourceId, personId, proxyBaseUrl }) {
     const progressTimer = setInterval(tickProgress, 2000);
     tickProgress();
 
-    await mapLimit(perFacilityTargets, 2, async (target) => {
+    await mapLimit(perFacilityTargets, FACILITY_CONCURRENCY, async (target) => {
       const { enc, cr } = target;
       facInFlight++;
       inFlightCrs.add(cr || '?');
@@ -702,10 +790,10 @@ function body({ sourceId, personId, proxyBaseUrl }) {
     };
     stats[PRINT_EN_EP.key] = { ok: 0, fail: 0, retried: 0, recovered: 0 };
 
-    msg('المرحلة الثانية: جلب نسخة إنجليزية لكل سجل (تزامن 2)...');
+    msg('المرحلة الثانية: جلب نسخة إنجليزية لكل سجل (تزامن ' + FACILITY_CONCURRENCY + ')...');
     let enDone = 0;
     const enT0 = Date.now();
-    await mapLimit(perFacilityTargets, 2, async (target) => {
+    await mapLimit(perFacilityTargets, FACILITY_CONCURRENCY, async (target) => {
       const result = await runEndpoint(target, PRINT_EN_EP);
       if (result.status === 200) {
         const dlUrl = result.payload && result.payload.downloadUrl;
@@ -738,9 +826,11 @@ function body({ sourceId, personId, proxyBaseUrl }) {
       return ep.label + ' ' + s.ok + '/' + s.fail + (s.retried ? (' (أعيد ' + s.retried + ' تعافى ' + s.recovered + ')') : '');
     }).join(' · ');
     const pdfSummary = 'PDF ' + pdfStats.uploaded + ' نجح · ' + (pdfStats.fetchFail + pdfStats.uploadFail) + ' فشل';
+    clearInterval(tokenKeeper);
     msg('✅ ' + itemsCount + ' سجل · حُفظ ' + mapStats.ok + ' منشأة (فشل ' + mapStats.fail + ') · ' + finalSummary + ' · ' + pdfSummary + ' في ' + (allElapsed + enElapsed) + 's');
     setTimeout(() => { const el = document.getElementById('_jisr_sync_ui'); if (el) el.remove(); }, 30000);
   } catch (e) {
+    try { clearInterval(tokenKeeper); } catch (_) {}
     msg('❌ ' + (e && e.message ? e.message : String(e)));
   }
 })();
@@ -911,6 +1001,334 @@ function bodyPdf({ personId, proxyBaseUrl }) {
 `
 }
 
+// bodyRequests — the «مزامنة من طلباتي» flow.
+//
+// Why this exists: get-crs-by-personal-identifier-number (the CR list the main
+// flow walks) only returns records the person is an owner/partner/manager on.
+// Companies established THROUGH this account but not owned by it never appear
+// there, so they land in sbc_facilities as GOSI-only ghosts — a name and a CR
+// number with no CR payload behind them. Those same companies DO appear under
+// طلباتي, and each request exposes the full registration status.
+//
+// Origin matters: api.saudibusiness.gov.sa only allows the companies* backends
+// from the companies.saudibusiness.gov.sa origin — calling them from
+// e2.business.sa is a CORS failure with no workaround from the page. The
+// reverse is fine: requestsapi accepts the companies origin as long as the
+// requestsapi clientId is used. So this whole flow runs on the companies
+// portal, and the dispatcher below routes to it by hostname.
+//
+// Two calls per request:
+//   app/request?requestId={encryptedId}      → internal GUID + reference no
+//   app/smartFlow/registrationStatus/{guid}  → mc.crNationalNumber + the
+//                                              gosi/hrsd/coc/spl/zakat/sca/moj
+//                                              file numbers
+function bodyRequests({ personId }) {
+  return `
+(async () => {
+  const U='${SUPABASE_URL}', K='${SUPABASE_ANON}';
+  const GW='https://api.saudibusiness.gov.sa/sbc/externalgw';
+  const REQ_API = GW + '/requestsapi/api/app';
+  const CP_API = GW + '/companiesprocessingapi-nl/api/app';
+  const PERSON='${personId}';
+  const CID_REQ='${CLIENT_ID_REQUESTS}';
+  const CID_CP='${CLIENT_ID_COMPANIES_PROCESSING}';
+
+  const msg = (m) => {
+    let d = document.getElementById('_jisr_sync_ui');
+    if (!d) {
+      d = document.createElement('div');
+      d.id = '_jisr_sync_ui';
+      d.style.cssText = 'position:fixed;top:16px;left:16px;background:#111;color:#B07D00;padding:12px 18px;border-radius:10px;z-index:2147483647;font:700 13px/1.5 sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.5);max-width:380px;direction:rtl;text-align:right;border:1px solid rgba(176,125,0,.35)';
+      document.body.appendChild(d);
+    }
+    d.textContent = 'جسر طلباتي: ' + m;
+    return d;
+  };
+
+  const supaFetch = (path, opts) => fetch(U + path, {
+    ...(opts || {}),
+    headers: { apikey: K, Authorization: 'Bearer ' + K, 'Content-Type': 'application/json', ...((opts && opts.headers) || {}) },
+  });
+
+  let tokenKeeper = null;
+  try {
+    // Either portal works — the gateway keys off the token + clientId, not the
+    // calling origin (verified 2026-07-17: requestList returns 200/805 from
+    // e2.business.sa). Each portal parks its own OIDC user under a different
+    // client name, so try both and use whichever this origin is logged into.
+    // NOTE: minify() only strips comments on their OWN line and then joins every line
+    // into one — an end-of-line comment here would swallow the rest of the array.
+    // NewCompaniesClient = بوابة الشركات · InvestorPortal = تيسير / e2.business.sa
+    const TOK_KEYS = [
+      'oidc.user:https://www.saudibusiness.gov.sa:NewCompaniesClient',
+      'oidc.user:https://www.saudibusiness.gov.sa:InvestorPortal',
+    ];
+    let tok = null, tokExp = null, tokIsCompanies = false, tokKey = null;
+    for (const k of TOK_KEYS) {
+      const raw = localStorage.getItem(k);
+      if (!raw) continue;
+      try { const o = JSON.parse(raw); if (o.access_token) { tok = o.access_token; tokExp = o.expires_at || null; tokIsCompanies = k.endsWith('NewCompaniesClient'); tokKey = k; break; } } catch (_) {}
+    }
+    if (!tok) return msg('لم يتم تسجيل الدخول بنفاذ. سجّل الدخول ثم أعد المحاولة.');
+
+    // Re-read the token per call so a long طلباتي run always sends a live one. The portal
+    // does NOT auto-renew an idle tab, so a background keeper refreshes it via the
+    // refresh_token grant a couple of minutes before expiry and writes it back — same
+    // mechanism the CR-list flow uses. liveTok() then just reads the fresh value.
+    const liveTok = () => {
+      try { const o = JSON.parse(localStorage.getItem(tokKey) || '{}'); if (o.access_token) return o.access_token; } catch (_) {}
+      return tok;
+    };
+    const refreshTok = async () => {
+      let o; try { o = JSON.parse(localStorage.getItem(tokKey) || '{}'); } catch (_) { return; }
+      if (!o || !o.refresh_token) return;
+      const body = new URLSearchParams({ grant_type: 'refresh_token', refresh_token: o.refresh_token, client_id: tokKey.split(':').pop() });
+      const r = await fetch('https://www.saudibusiness.gov.sa/connect/token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body }).catch(() => null);
+      if (!r || !r.ok) return;
+      const j = await r.json().catch(() => null);
+      if (!j || !j.access_token) return;
+      o.access_token = j.access_token;
+      if (j.refresh_token) o.refresh_token = j.refresh_token;
+      o.expires_at = Math.floor(Date.now() / 1000) + (j.expires_in || 1800);
+      localStorage.setItem(tokKey, JSON.stringify(o));
+    };
+    tokenKeeper = setInterval(async () => {
+      try { const o = JSON.parse(localStorage.getItem(tokKey) || '{}'); const now = Math.floor(Date.now() / 1000); if (o.expires_at && o.expires_at - now < 120) await refreshTok(); } catch (_) {}
+    }, 60000);
+
+    // requestList answers from either origin, but companiesprocessingapi-nl — which
+    // turns a request into a CR number — is CORS-locked to the companies portal
+    // (re-verified 2026-07-17: it throws from e2.business.sa on every attempt).
+    // Listing requests we can't resolve is pointless, so bail early on تيسير.
+    if (!tokIsCompanies)
+      return msg('طلباتي: افتح بوابة الشركات (companies.saudibusiness.gov.sa) واضغط الزر لجلب طلبات هذا الحساب.');
+
+    // Park the portal token so the app can pull the PDFs server-side later.
+    // The files can't be fetched from this page at all — see
+    // netlify/functions/sbc-request-files.mjs for why — so the token is the
+    // one thing this origin uniquely has and must hand over.
+    await supaFetch('/rest/v1/sbc_sessions?on_conflict=id', {
+      method: 'POST',
+      headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify({
+        id: 'companies',
+        person_id: PERSON || null,
+        access_token: tok,
+        token_type: 'Bearer',
+        expires_at: tokExp,
+        client_id: CID_CP,
+        updated_at: new Date().toISOString(),
+      }),
+    }).catch(() => {});
+
+    // Accept-Language is what selects the CR certificate language — the crFile
+    // endpoint takes no culture param; it echoes this header into the lang of
+    // the printcr download URL it hands back.
+    const hdrs = (cid, lang) => ({ clientId: cid, Authorization: 'Bearer ' + liveTok(), 'Accept-Language': lang || 'ar', 'X-Correlation-Id': crypto.randomUUID(), Accept: 'application/json' });
+
+    const fetchWithRetry = async (url, cid, noRetryOn, lang) => {
+      const MAX_ATTEMPTS = 3;
+      const TIMEOUT_MS = 45000;
+      const seen = [];
+      let lastRes = null, lastErr = null;
+      for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+        const ac = new AbortController();
+        const timer = setTimeout(() => ac.abort(), TIMEOUT_MS);
+        let r = null;
+        try { r = await fetch(url, { headers: hdrs(cid, lang), signal: ac.signal }); }
+        catch (e) { lastErr = (e && e.message) || String(e); r = null; }
+        finally { clearTimeout(timer); }
+        if (!r) { seen.push(0); if (attempt < MAX_ATTEMPTS - 1) await new Promise(res => setTimeout(res, 1500 * (attempt + 1))); continue; }
+        lastRes = r; seen.push(r.status);
+        if (r.ok) return { res: r, seen, netErr: null };
+        if (noRetryOn && noRetryOn(r.status)) return { res: r, seen, netErr: null };
+        if (attempt >= MAX_ATTEMPTS - 1) return { res: r, seen, netErr: null };
+        let waitMs = 1500 * (attempt + 1);
+        if (r.status === 429) {
+          const ra = r.headers.get('Retry-After');
+          waitMs = 30000;
+          if (ra) { const n = parseInt(ra, 10); if (Number.isFinite(n)) waitMs = Math.min(n * 1000, 120000); }
+        }
+        await new Promise(res => setTimeout(res, waitMs));
+      }
+      return { res: lastRes, seen, netErr: lastErr };
+    };
+
+    const jsonOf = async (r) => {
+      if (!r) return null;
+      const t = await r.text().catch(() => '');
+      try { return t ? JSON.parse(t) : null; } catch (_) { return { _parseError: true, raw: t.slice(0, 500) }; }
+    };
+
+    const mapLimit = async (arr, limit, fn) => {
+      const out = new Array(arr.length);
+      let idx = 0;
+      await Promise.all(Array.from({ length: limit }, async () => {
+        while (true) {
+          const i = idx++;
+          if (i >= arr.length) return;
+          try { out[i] = await fn(arr[i], i); } catch (e) { out[i] = null; }
+        }
+      }));
+      return out;
+    };
+
+    // Files are deliberately NOT fetched here. The PDFs live behind
+    // printcr.mc.gov.sa URLs that need a server-side hop, and this origin
+    // cannot reach one: every request from companies.saudibusiness.gov.sa to
+    // the local proxy stalls (the same call from e2.business.sa returns
+    // instantly). The token parked above lets the app pull them instead —
+    // see netlify/functions/sbc-request-files.mjs.
+
+    msg('جلب قائمة الطلبات...');
+    // PAGE_SIZE is a hard server limit — requestList 400s ("لا يمكن أن يكون
+    // MaxResultCount ...") above 1000, so we page with SkipCount instead of
+    // asking for everything at once.
+    const PAGE_SIZE = 1000;
+    const items = [];
+    let total = null;
+    let lastStatus = 0;
+    for (let skip = 0; ; skip += PAGE_SIZE) {
+      const listUrl = REQ_API + '/requestservice/requestList?SkipCount=' + skip + '&MaxResultCount=' + PAGE_SIZE + '&IsDelegator=false';
+      const listRes = await fetchWithRetry(listUrl, CID_REQ);
+      const listPayload = await jsonOf(listRes.res);
+      lastStatus = listRes.res ? listRes.res.status : 0;
+      if (!listRes.res || !listRes.res.ok) {
+        return msg('❌ تعذّر جلب قائمة الطلبات: ' + (listRes.res ? ('HTTP ' + lastStatus) : ('شبكة: ' + listRes.netErr)));
+      }
+      const page = (listPayload && Array.isArray(listPayload.items)) ? listPayload.items : [];
+      if (total === null) total = listPayload && listPayload.totalCount;
+      Array.prototype.push.apply(items, page);
+      await supaFetch('/rest/v1/sbc_sync_debug', {
+        method: 'POST', headers: { Prefer: 'return=minimal' },
+        body: JSON.stringify({
+          person_id: PERSON || null,
+          endpoint: 'requestsapi/requestList',
+          request_method: 'GET',
+          request_body: { SkipCount: skip, MaxResultCount: PAGE_SIZE, IsDelegator: false },
+          response_status: lastStatus,
+          response_body: listPayload,
+          items_count: page.length,
+          notes: 'via طلباتي · totalCount=' + total + ' · تراكمي=' + items.length,
+        }),
+      }).catch(() => {});
+      if (!page.length || items.length >= (total || 0)) break;
+      msg('جلب قائمة الطلبات... ' + items.length + '/' + total);
+    }
+
+    if (!items.length) return msg('لا توجد طلبات في هذا الحساب.');
+
+    const targets = items.filter(it => it && it.encryptedId);
+    // skipped: the companies backend 404s for anything that is not a company
+    // formation it owns — cancelled/rejected requests, and whole service
+    // families handled elsewhere (حجز اسم تجاري, الفرع الرقمي, تعديل الغرفة,
+    // مؤسسة فردية). Those have no facility behind them, so a 404 here is a
+    // normal outcome, not an error. Counted apart from the failure tally so
+    // the summary does not cry wolf.
+    const stats = { resolved: 0, skipped: 0, noCr: 0, failed: 0, saved: 0, saveFail: 0 };
+    let done = 0;
+    const T0 = Date.now();
+    const fmt = (s) => Math.floor(s / 60) + ':' + (s % 60 < 10 ? '0' : '') + (s % 60);
+    const tick = () => {
+      const el = Math.floor((Date.now() - T0) / 1000);
+      let eta = '?';
+      if (done > 0) eta = fmt(Math.ceil((targets.length - done) * (el / done)));
+      msg('طلب ' + done + '/' + targets.length + ' · منشآت ' + stats.saved + ' · لا ينطبق ' + stats.skipped + ' · فشل ' + stats.failed + ' · مضى ' + fmt(el) + ' · متبقي ~' + eta);
+    };
+    const timer = setInterval(tick, 2000);
+    tick();
+
+    await mapLimit(targets, 3, async (it) => {
+      try {
+        const d1 = await fetchWithRetry(CP_API + '/request?requestId=' + encodeURIComponent(it.encryptedId), CID_CP, (s) => s === 404 || s === 403);
+        if (d1.res && (d1.res.status === 404 || d1.res.status === 403)) { stats.skipped++; return; }
+        const j1 = await jsonOf(d1.res);
+        if (!d1.res || !d1.res.ok || !j1 || !j1.requestId) { stats.failed++; return; }
+
+        const d2 = await fetchWithRetry(CP_API + '/smartFlow/registrationStatus/' + j1.requestId, CID_CP, (s) => s === 404 || s === 400 || s === 422);
+        if (d2.res && d2.res.status === 404) { stats.skipped++; return; }
+        const j2 = await jsonOf(d2.res);
+        if (!d2.res || !d2.res.ok || !j2) { stats.failed++; return; }
+
+        const cr = j2.mc && j2.mc.crNationalNumber;
+        supaFetch('/rest/v1/sbc_sync_debug', {
+          method: 'POST', headers: { Prefer: 'return=minimal' },
+          body: JSON.stringify({
+            person_id: PERSON || null,
+            endpoint: 'companiesprocessingapi-nl/smartFlow/registrationStatus',
+            request_method: 'GET',
+            request_body: { requestId: j1.requestId, encryptedId: it.encryptedId, requestReference: it.requestReference, serviceCode: it.serviceCode },
+            response_status: d2.res.status,
+            response_body: j2,
+            items_count: cr ? 1 : 0,
+            notes: 'via طلباتي · cr=' + (cr || 'none') + ' · ' + (it.requestReference || '?'),
+          }),
+        }).catch(() => {});
+
+        if (!cr) { stats.noCr++; return; }
+        stats.resolved++;
+
+        const up = await supaFetch('/rest/v1/rpc/bot_upsert_sbc_facility_from_request', {
+          method: 'POST',
+          body: JSON.stringify({
+            p_person_id: PERSON || null,
+            p_run_id: null,
+            p_cr_national_number: String(cr),
+            p_raw_status: j2,
+            p_request_meta: {
+              requestId: j1.requestId,
+              requestReference: it.requestReference || j1.requestReferenceNumber || null,
+              serviceCode: it.serviceCode || null,
+              serviceNameAr: it.serviceNameAr || null,
+              statusNameAr: it.statusNameAr || null,
+            },
+          }),
+        }).catch(() => null);
+        if (up && up.ok) stats.saved++; else stats.saveFail++;
+      } finally {
+        done++;
+      }
+    });
+
+    clearInterval(timer);
+    clearInterval(tokenKeeper);
+    const el = Math.round((Date.now() - T0) / 1000);
+    msg('✅ ' + targets.length + ' طلب · حُفظ ' + stats.saved + ' منشأة (فشل حفظ ' + stats.saveFail + ') · لا ينطبق ' + stats.skipped + ' · بلا سجل تجاري ' + stats.noCr + ' · فشل جلب ' + stats.failed + ' · في ' + el + 'ث · الملفات تُجلب من مركز المزامنة');
+    setTimeout(() => { const e = document.getElementById('_jisr_sync_ui'); if (e) e.remove(); }, 30000);
+  } catch (e) {
+    try { clearInterval(tokenKeeper); } catch (_) {}
+    msg('❌ ' + (e && e.message ? e.message : String(e)));
+  }
+})();
+`
+}
+
+// One bookmarklet, both flows attempted on every click, in sequence. Each flow guards
+// its own origin/token and bails harmlessly where it can't run, so the click does
+// whatever the current portal allows:
+//   تيسير            → CR-list sync (طلباتي bails: its resolver API is CORS-locked)
+//   بوابة الشركات    → both (CR-list may also answer here)
+// This matters because طلباتي is per-account and the user syncs several accounts —
+// pairing it with every sync keeps the current account's requests from being missed.
+//
+// CR-list runs first: it seeds sbc_facilities, and طلباتي then fills the gaps (its RPC
+// only COALESCEs into missing fields, so it can't clobber what CR-list wrote).
+function bodyDispatch({ sourceId, personId, proxyBaseUrl }) {
+  return `
+(async () => {
+  // Each flow is a self-invoking async IIFE, so it must be awaited — without this
+  // they run concurrently and race each other's writes to the same sbc_facilities
+  // rows. A failure in one must not skip the other, hence the separate try blocks.
+  try {
+    await ${body({ sourceId, personId, proxyBaseUrl })}
+  } catch (e) {}
+  try {
+    await ${bodyRequests({ personId })}
+  } catch (e) {}
+})();
+`
+}
+
 function minify(src) {
   return src
     .replace(/^[ \t]*\/\/.*$/gm, '')
@@ -920,7 +1338,7 @@ function minify(src) {
 }
 
 export function buildBookmarklet({ sourceId, personId, proxyBaseUrl }) {
-  return 'javascript:' + encodeURIComponent(minify(body({ sourceId, personId, proxyBaseUrl })))
+  return 'javascript:' + encodeURIComponent(minify(bodyDispatch({ sourceId, personId, proxyBaseUrl })))
 }
 
 export function buildPdfBookmarklet({ personId, proxyBaseUrl }) {
