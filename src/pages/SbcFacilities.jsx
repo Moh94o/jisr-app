@@ -779,7 +779,9 @@ function MuqeemResidentRow({ r, T }) {
   // list row: photo (base64 JPEG), insurance, visas, dependents, vehicles,
   // jawazat balance/services and traffic violations.
   const d = r.detail_raw || {}
-  const photoSrc = d.photo ? 'data:image/jpeg;base64,' + d.photo : null
+  // Photos now live in Storage (photo_path). detail_raw.photo is the legacy
+  // base64 copy — still honoured for rows synced before the switch.
+  const photoSrc = r.photo_path ? muqeemPdfUrl(r.photo_path) : (d.photo ? 'data:image/jpeg;base64,' + d.photo : null)
   const ins = d.insurance && !d.insurance._status ? d.insurance : null
   const gregOf = (x) => (x && typeof x === 'object' ? x.gregorian : x) || null
   const listOf = (v, key) => Array.isArray(v) ? v : (v && Array.isArray(v[key]) ? v[key] : null)

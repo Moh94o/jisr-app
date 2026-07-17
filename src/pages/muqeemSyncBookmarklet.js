@@ -134,25 +134,29 @@ function body({ sourceId, personId, proxyBaseUrl }) {
         return await r.blob();
       } catch (e) { return null; }
     };
-    // PDF upload MUST go through the bridge: muqeem's CSP blocks any direct
+    // Storage uploads MUST go through the bridge: muqeem's CSP blocks any direct
     // request to supabase.co, so a plain fetch to Storage silently fails (this
-    // is why no PDF ever landed). Base64 the blob across postMessage instead.
+    // is why no file ever landed). Base64 the bytes across postMessage instead.
     const blobToB64 = (blob) => new Promise((resolve, reject) => {
       const fr = new FileReader();
       fr.onload = () => { const s = String(fr.result || ''); const i = s.indexOf(','); resolve(i >= 0 ? s.slice(i + 1) : s); };
       fr.onerror = reject;
       fr.readAsDataURL(blob);
     });
-    const uploadPdf = async (path, blob) => {
+    const uploadB64 = async (path, b64, contentType) => {
       try {
-        const b64 = await blobToB64(blob);
+        if (!b64) return null;
         const r = await supaFetch('/storage/v1/object/muqeem-pdfs/' + path, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/pdf', 'x-upsert': 'true' },
+          headers: { 'Content-Type': contentType, 'x-upsert': 'true' },
           body: b64, b64: true,
         });
         return r.ok ? path : null;
       } catch (e) { return null; }
+    };
+    const uploadPdf = async (path, blob) => {
+      try { return await uploadB64(path, await blobToB64(blob), 'application/pdf'); }
+      catch (e) { return null; }
     };
 
     // Raw capture buffer (every dashboard endpoint saved verbatim).
@@ -351,8 +355,9 @@ function body({ sourceId, personId, proxyBaseUrl }) {
     assign(rDrop,        'report_drop_resident_raw',         'report_drop_resident_count');
     assign(rTranslated,  'report_update_translated_name_raw','report_update_translated_name_count');
 
-    // Residents report PDF.
-    const reportPdf = await muqPostPdf('/api/report/residents/print?dependants=false', {
+    // Residents report PDF — dependants=true so the report covers accompanying
+    // family members too, not just the sponsored workers.
+    const reportPdf = await muqPostPdf('/api/report/residents/print?dependants=true', {
       basicSearch: false, sponsorNumber: { equals: moi },
     });
     if (reportPdf && reportPdf.size > 1000) {
@@ -398,6 +403,7 @@ function body({ sourceId, personId, proxyBaseUrl }) {
 
     // Per-resident deep profile — bounded concurrency.
     const profilePdfPaths = new Map();
+    const photoPaths = new Map();
     const detailByIqama = new Map();
     if (allResidents.length > 0) {
       const CONCURRENCY = 3; let cursor = 0;
@@ -434,7 +440,19 @@ function body({ sourceId, personId, proxyBaseUrl }) {
             const uploaded = await uploadPdf(path, blob);
             if (uploaded) profilePdfPaths.set(iqn, uploaded);
           }
-          try { detailByIqama.set(iqn, await fetchDetail(iqn)); } catch (_) {}
+          try {
+            const det = await fetchDetail(iqn);
+            // The photo comes back as base64 JPEG. Park it in Storage like the
+            // PDFs and strip it from detail_raw — a ~29KB image per resident
+            // inside jsonb bloats every query that reads the column.
+            if (det && det.photo) {
+              const pPath = 'iqama-photo/' + moi + '/' + iqn + '/' + todayStr + '.jpg';
+              const up = await uploadB64(pPath, det.photo, 'image/jpeg');
+              if (up) photoPaths.set(iqn, up);
+              delete det.photo;
+            }
+            detailByIqama.set(iqn, det);
+          } catch (_) {}
         }
       };
       await Promise.all(Array.from({ length: CONCURRENCY }, worker));
@@ -459,6 +477,8 @@ function body({ sourceId, personId, proxyBaseUrl }) {
           raw: r, synced_at: new Date().toISOString(),
         };
         if (pdfPath) { row.profile_pdf_path = pdfPath; row.profile_pdf_at = new Date().toISOString(); }
+        const photoPath = photoPaths.get(iqn);
+        if (photoPath) { row.photo_path = photoPath; row.photo_at = new Date().toISOString(); }
         const detail = detailByIqama.get(iqn);
         if (detail) { row.detail_raw = detail; row.detail_synced_at = new Date().toISOString(); }
         return row;
