@@ -15,7 +15,7 @@
 // build is running ("جسر · تأمينات [v17]"). Bump VERSION below whenever
 // you ship a change so users can confirm they re-dragged the bookmarklet.
 ;(async () => {
-  const VERSION = 'v17';
+  const VERSION = 'v18';
   const U = 'https://gcvshzutdslmdkwqwteh.supabase.co';
   const K = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdjdnNoenV0ZHNsbWRrd3F3dGVoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4OTkwNjgsImV4cCI6MjA5MDQ3NTA2OH0.5R0I5VvB7lp3wpSrtay3DMcXKsT9l1uK0Ukd1F4_ImM';
   const API = 'https://api.gosi.gov.sa';
@@ -947,6 +947,29 @@
 
           const bytes = b64ToBytes(payload.fileData);
           const storagePath = 'gosi/' + reg + '/' + def.type + '.pdf';
+          // أرشفة النسخة الحالية قبل استبدالها — نسخة واحدة كحد أقصى في اليوم
+          // (النسخ لوجهة موجودة يفشل فيتجاهَل). فشل الأرشفة لا يوقف الرفع.
+          // تُسجَّل النسخة في sync_file_versions ليعرضها كرت «سجل التغييرات».
+          try {
+            const _d = new Date();
+            const _day = String(_d.getDate()).padStart(2, '0') + '-' + String(_d.getMonth() + 1).padStart(2, '0') + '-' + _d.getFullYear();
+            const versionPath = 'gosi/' + reg + '/_versions/' + def.type + '/' + _day + '.pdf';
+            const cp = await fetch(U + '/storage/v1/object/copy', {
+              method: 'POST',
+              headers: { apikey: K, Authorization: 'Bearer ' + K, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ bucketId: 'gosi-certificates', sourceKey: storagePath, destinationKey: versionPath }),
+            }).catch(() => null);
+            if (cp && cp.ok) {
+              await supaFetch('/rest/v1/sync_file_versions', {
+                method: 'POST',
+                headers: { Prefer: 'return=minimal' },
+                body: JSON.stringify({
+                  bucket: 'gosi-certificates', object_path: storagePath, version_path: versionPath,
+                  entity_key: String(reg), source_id: 'gosi', label: def.type + '.pdf',
+                }),
+              }).catch(() => {});
+            }
+          } catch (_) { }
           const up = await fetch(U + '/storage/v1/object/' + encodeURIComponent('gosi-certificates') + '/' + storagePath, {
             method: 'POST',
             headers: {
