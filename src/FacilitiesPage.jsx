@@ -429,7 +429,7 @@ function fmtDateTime(iso) {
   try {
     const d = new Date(iso)
     const p = (n) => String(n).padStart(2, '0')
-    return `${p(d.getDate())}-${p(d.getMonth() + 1)}-${d.getFullYear()} · ${p(d.getHours())}:${p(d.getMinutes())}`
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} · ${p(d.getHours())}:${p(d.getMinutes())}`
   } catch { return '—' }
 }
 
@@ -1963,7 +1963,7 @@ function GosiEstablishmentCard({ data, T, lang }) {
   const fmtDate = (d) => {
     if (!d) return null
     const g = d.gregorian ? fmtDMY(d.gregorian) : null
-    const h = d.hijiri || null
+    const h = d.hijiri ? fmtDMY(d.hijiri) : null
     if (!g && !h) return null
     return (
       <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: 1.25 }}>
@@ -2205,14 +2205,14 @@ const _gosiMoney = (n) => {
 // and Hijri alike — so every date in the app stays consistent. Do NOT flip
 // the segments: GOSI already sends Gregorian in this shape.
 const _gosiDate = (s) => s ? fmtDMY(s) : null
-// Hijri normalized to the app-wide DD-MM-YYYY shape. GOSI sometimes sends it
-// year-first — detected by a 4-char first segment — so we flip those to
-// day-first.
+// Hijri normalized to the app-wide YYYY-MM-DD shape. GOSI sometimes sends it
+// day-first (DD-MM-YYYY) — detected by a short (≤2-char) first segment — so we
+// flip those to year-first.
 const _gosiHijriNorm = (h) => {
   if (!h) return null
   const s = String(h).slice(0, 10)
   const parts = s.split('-')
-  return parts.length === 3 && parts[0].length === 4 ? parts.reverse().join('-') : s
+  return parts.length === 3 && parts[0].length <= 2 ? parts.reverse().join('-') : s
 }
 // Whole-day span between two YYYY-MM-DD dates. Drives the employment duration
 // shown for non-active contributors. Returns null for missing/invalid/negative.
@@ -6410,10 +6410,10 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                           </div>
                         )
                       })()}
-                      {detail.company_contract_from_date && <Field k={T('تاريخ عقد التأسيس', 'Contract Date')} v={detail.company_contract_from_date} />}
-                      {detail.last_cr_suspension_date && <Field k={T('تاريخ آخر تعليق', 'Last Suspension')} v={detail.last_cr_suspension_date} />}
-                      {detail.last_cr_reactivation_date && <Field k={T('تاريخ آخر تفعيل', 'Last Reactivation')} v={detail.last_cr_reactivation_date} />}
-                      {detail.delete_date && <Field k={T('تاريخ الشطب', 'Strike-off')} v={detail.delete_date} />}
+                      {detail.company_contract_from_date && <Field k={T('تاريخ عقد التأسيس', 'Contract Date')} v={fmtDMY(detail.company_contract_from_date)} />}
+                      {detail.last_cr_suspension_date && <Field k={T('تاريخ آخر تعليق', 'Last Suspension')} v={fmtDMY(detail.last_cr_suspension_date)} />}
+                      {detail.last_cr_reactivation_date && <Field k={T('تاريخ آخر تفعيل', 'Last Reactivation')} v={fmtDMY(detail.last_cr_reactivation_date)} />}
+                      {detail.delete_date && <Field k={T('تاريخ الشطب', 'Strike-off')} v={fmtDMY(detail.delete_date)} />}
                       {/* Combined issue/confirm dates — one full-width row split
                           into two columns by a vertical divider. Each column
                           shows the gregorian date prominently on top and the
@@ -7816,12 +7816,12 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                     <FieldRow k={T('مدة الشركة', 'Company Duration')} v={detail.company_duration} />
                     <FieldRow k={T('مدينة المركز', 'HQ City')} v={detail.headquarter_city_ar} />
                     <FieldRow k={T('جنسية الشركاء', 'Partners Nationality')} v={detail.partners_nationality_ar} />
-                    <FieldRow k={T('تاريخ الإصدار (هجري)', 'Issue Date (Hijri)')} v={detail.cr_issue_date_hijri} />
-                    <FieldRow k={T('تاريخ التأكيد (هجري)', 'Confirm Date (Hijri)')} v={detail.cr_confirm_date_hijri} />
-                    <FieldRow k={T('تاريخ عقد التأسيس', 'Contract Date')} v={detail.company_contract_from_date} />
-                    <FieldRow k={T('تاريخ آخر تعليق', 'Last Suspension')} v={detail.last_cr_suspension_date} />
-                    <FieldRow k={T('تاريخ آخر تفعيل', 'Last Reactivation')} v={detail.last_cr_reactivation_date} />
-                    <FieldRow k={T('تاريخ الشطب', 'Strike-off Date')} v={detail.delete_date} />
+                    <FieldRow k={T('تاريخ الإصدار (هجري)', 'Issue Date (Hijri)')} v={fmtDMY(detail.cr_issue_date_hijri)} />
+                    <FieldRow k={T('تاريخ التأكيد (هجري)', 'Confirm Date (Hijri)')} v={fmtDMY(detail.cr_confirm_date_hijri)} />
+                    <FieldRow k={T('تاريخ عقد التأسيس', 'Contract Date')} v={fmtDMY(detail.company_contract_from_date)} />
+                    <FieldRow k={T('تاريخ آخر تعليق', 'Last Suspension')} v={fmtDMY(detail.last_cr_suspension_date)} />
+                    <FieldRow k={T('تاريخ آخر تفعيل', 'Last Reactivation')} v={fmtDMY(detail.last_cr_reactivation_date)} />
+                    <FieldRow k={T('تاريخ الشطب', 'Strike-off Date')} v={fmtDMY(detail.delete_date)} />
                     <FieldRow k={T('قائم على ترخيص', 'License-based')} v={yesNo(detail.is_license_based)} />
                     <FieldRow k={T('تجارة إلكترونية', 'E-commerce')} v={yesNo(detail.has_ecommerce)} />
                     <FieldRow k={T('تحت التصفية', 'In Liquidation')} v={yesNo(detail.in_liquidation_process)} />

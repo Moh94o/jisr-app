@@ -133,9 +133,11 @@ const fmtAgo = (iso, lang) => {
   const mo = Math.floor(d / 30); return isAr ? `قبل ${mo}ش` : `${mo}mo`
 }
 
-// الصيغة الموحّدة للتواريخ في مركز المزامنة: يوم-شهر-سنة (DD-MM-YYYY).
+// الصيغة الموحّدة للتواريخ في كل التطبيق: سنة-شهر-يوم (YYYY-MM-DD، الصيغة
+// العالمية ISO) — بطلب المستخدم الصريح. الاسم fmtDMY تاريخي؛ المُخرَج الآن YMD.
 // تقبل ISO strings و Date وكائنات مقيم/SBC الملفوفة {gregorianDate|dateG|...}
-// وتُرجع «—» لأي قيمة فارغة. التواريخ الهجرية تمرّ كما هي إذا كانت أصلاً DD-MM-YYYY.
+// وتُرجع «—» لأي قيمة فارغة. الميلادي مخزَّن أصلاً YYYY-MM-DD فيمرّ كما هو،
+// والهجري يصل DD-MM-YYYY فيُقلَب إلى YYYY-MM-DD.
 export const fmtDMY = (s) => {
   if (!s && s !== 0) return '—'
   let v = s
@@ -152,21 +154,21 @@ export const fmtDMY = (s) => {
       if (!v) return '—'
     } catch { /* fall through */ }
   }
-  // Already DD-MM-YYYY (hijri from portals often arrives this way)
-  let m = v.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/)
-  if (m) return `${m[1].padStart(2, '0')}-${m[2].padStart(2, '0')}-${m[3]}`
-  // ISO YYYY-MM-DD (with optional time part)
-  m = v.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/)
-  if (m) return `${m[3].padStart(2, '0')}-${m[2].padStart(2, '0')}-${m[1]}`
+  // Already YYYY-MM-DD (gregorian from the DB) — kept year-first.
+  let m = v.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/)
+  if (m) return `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`
+  // DD-MM-YYYY (hijri from portals) — flipped to year-first.
+  m = v.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/)
+  if (m) return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`
   return v
 }
-// تاريخ + وقت بصيغة يوم-شهر-سنة ساعة:دقيقة
+// تاريخ + وقت بصيغة سنة-شهر-يوم ساعة:دقيقة
 export const fmtDMYTime = (s) => {
   if (!s) return '—'
   const d = new Date(s)
   if (Number.isNaN(d.getTime())) return fmtDMY(s)
   const p = (n) => String(n).padStart(2, '0')
-  return `${p(d.getDate())}-${p(d.getMonth() + 1)}-${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
 }
 
 // Monospace number + trailing copy icon. Flashes gold briefly on successful copy.
@@ -1444,7 +1446,7 @@ function GosiEstablishmentCard({ data, T, lang }) {
   const fmtDate = (d) => {
     if (!d) return null
     const g = d.gregorian ? fmtDMY(d.gregorian) : null
-    const h = d.hijiri || null
+    const h = d.hijiri ? fmtDMY(d.hijiri) : null
     if (!g && !h) return null
     return (
       <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: 1.25 }}>
@@ -1686,14 +1688,14 @@ const _gosiMoney = (n) => {
 // and Hijri alike — so every date in the app stays consistent. Do NOT flip
 // the segments: GOSI already sends Gregorian in this shape.
 const _gosiDate = (s) => s ? fmtDMY(s) : null
-// Hijri normalized to the app-wide DD-MM-YYYY shape. GOSI sometimes sends it
-// year-first — detected by a 4-char first segment — so we flip those to
-// day-first.
+// Hijri normalized to the app-wide YYYY-MM-DD shape. GOSI sometimes sends it
+// day-first (DD-MM-YYYY) — detected by a short (≤2-char) first segment — so we
+// flip those to year-first.
 const _gosiHijriNorm = (h) => {
   if (!h) return null
   const s = String(h).slice(0, 10)
   const parts = s.split('-')
-  return parts.length === 3 && parts[0].length === 4 ? parts.reverse().join('-') : s
+  return parts.length === 3 && parts[0].length <= 2 ? parts.reverse().join('-') : s
 }
 // Whole-day span between two YYYY-MM-DD dates. Drives the employment duration
 // shown for non-active contributors. Returns null for missing/invalid/negative.
@@ -1707,12 +1709,12 @@ const _gosiDaysBetween = (start, end) => {
 }
 // Normalize dates embedded inside GOSI free-text (e.g. a violation description
 // "الغاء مدة من 22/02/2026 الى 28/02/2026") from DD/MM/YYYY to the app-wide
-// DD-MM-YYYY shape, leaving the surrounding text untouched, so dates inside
+// YYYY-MM-DD shape, leaving the surrounding text untouched, so dates inside
 // sentences match every other date field.
 const _gosiTextDates = (str) => {
   if (!str) return str
   return String(str).replace(/\b(\d{1,2})\/(\d{1,2})\/(\d{4})\b/g,
-    (_, d, m, y) => String(d).padStart(2, '0') + '-' + String(m).padStart(2, '0') + '-' + y)
+    (_, d, m, y) => y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0'))
 }
 const _gosiDatePair = (greg, hijri) => {
   const g = _gosiDate(greg)
@@ -4113,6 +4115,12 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
   // المفتاح الرقم الوطني الموحد، لا mlsd_unified_id: الأخير رقم مكتب العمل.
   const [mudadEst, setMudadEst] = useState(null)
   const [mudadMonths, setMudadMonths] = useState([])
+  // Which CR-document PDFs actually exist in Storage for the open facility.
+  // The card used to trust the CR-list print metadata (printAr.downloadUrl),
+  // but a طلباتي facility whose file-sync hasn't run yet has that metadata with
+  // no file behind it — so the preview iframe 404s. HEAD-checking Storage means
+  // a slot shows a preview only when its PDF is really there.
+  const [crFilesExist, setCrFilesExist] = useState({})
   // سجل التغييرات (sync_row_history — تكتبه triggers القاعدة عند أي تغيير فعلي)
   // وإصدارات الملفات المؤرشفة (sync_file_versions).
   const [rowHistory, setRowHistory] = useState([])
@@ -4834,6 +4842,24 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
     })()
     return () => { cancelled = true }
   }, [sb, detail, mudadKeys])
+
+  // HEAD-check which CR PDFs are actually in Storage for the open facility, so
+  // the «ملفات السجل (PDF)» card never renders a broken 404 preview for a file
+  // that was never fetched. Keyed by the storage suffix (ar/en/contract/invoice).
+  useEffect(() => {
+    const cr = detail?.cr_national_number
+    if (!cr) { setCrFilesExist({}); return }
+    let cancelled = false
+    const base = `https://gcvshzutdslmdkwqwteh.supabase.co/storage/v1/object/public/documents/sbc-cr-certificates/${cr}`
+    ;(async () => {
+      const found = {}
+      await Promise.all(['ar', 'en', 'contract', 'invoice'].map(async (sfx) => {
+        try { const r = await fetch(`${base}-${sfx}.pdf`, { method: 'HEAD' }); if (r.ok) found[sfx] = true } catch {}
+      }))
+      if (!cancelled) setCrFilesExist(found)
+    })()
+    return () => { cancelled = true }
+  }, [detail?.cr_national_number])
 
   // سجل التغييرات + إصدارات الملفات — يُجمَع عبر كل مفاتيح المنشأة لدى
   // المصادر (سجل تجاري / تأمينات / موحد / قوى / أجير) لأن كل جدول مصدر
@@ -6974,13 +7000,9 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                    CR payload. */}
               {hasSbcData && (() => {
                 const yesNo = (b) => b ? T('نعم', 'Yes') : T('لا', 'No')
-                // API returns Hijri dates as DD-MM-YYYY — already the app-wide
-                // day-first shape, so pass through (flip only if year-first).
-                const reverseHijri = (s) => {
-                  if (!s || typeof s !== 'string') return s
-                  const parts = s.split('-')
-                  return parts.length === 3 && parts[0].length === 4 ? parts.reverse().join('-') : s
-                }
+                // Hijri arrives DD-MM-YYYY; fmtDMY flips it to the app-wide
+                // year-first shape (YYYY-MM-DD), same as the Gregorian dates.
+                const reverseHijri = fmtDMY
                 return (
                   <CollapsibleCard title={T('السجل التجاري','Commercial Register')} color={C.blue} defaultExpanded showSbcIcon>
                     <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
@@ -7019,10 +7041,10 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                           </div>
                         )
                       })()}
-                      {detail.company_contract_from_date && <Field k={T('تاريخ عقد التأسيس', 'Contract Date')} v={detail.company_contract_from_date} />}
-                      {detail.last_cr_suspension_date && <Field k={T('تاريخ آخر تعليق', 'Last Suspension')} v={detail.last_cr_suspension_date} />}
-                      {detail.last_cr_reactivation_date && <Field k={T('تاريخ آخر تفعيل', 'Last Reactivation')} v={detail.last_cr_reactivation_date} />}
-                      {detail.delete_date && <Field k={T('تاريخ الشطب', 'Strike-off')} v={detail.delete_date} />}
+                      {detail.company_contract_from_date && <Field k={T('تاريخ عقد التأسيس', 'Contract Date')} v={fmtDMY(detail.company_contract_from_date)} />}
+                      {detail.last_cr_suspension_date && <Field k={T('تاريخ آخر تعليق', 'Last Suspension')} v={fmtDMY(detail.last_cr_suspension_date)} />}
+                      {detail.last_cr_reactivation_date && <Field k={T('تاريخ آخر تفعيل', 'Last Reactivation')} v={fmtDMY(detail.last_cr_reactivation_date)} />}
+                      {detail.delete_date && <Field k={T('تاريخ الشطب', 'Strike-off')} v={fmtDMY(detail.delete_date)} />}
                       {/* Combined issue/confirm dates — one full-width row split
                           into two columns by a vertical divider. Each column
                           shows the gregorian date prominently on top and the
@@ -7585,12 +7607,13 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                           inside an otherwise-empty thumbnail. */}
                       <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
                         {[
-                          { lang: 'ar', label: T('السجل التجاري — عربي', 'CR — Arabic'), available: !!printAr?.downloadUrl },
-                          { lang: 'en', label: T('السجل التجاري — إنجليزي', 'CR — English'), available: !!printEn?.downloadUrl },
-                          { lang: 'contract', label: T('عقد التأسيس', 'Founding Contract'), available: !!printContract?.downloadUrl && detail.entity_type_ar === 'شركة' },
-                          // فاتورة الطلب من طلباتي — تُجلب خادمياً إلى {cr}-invoice.pdf.
-                          // تظهر متى وُجد رقم فاتورة وتمّت مزامنة ملفات طلباتي.
-                          { lang: 'invoice', label: T('فاتورة الطلب', 'Request Invoice'), available: !!(detail.raw_request_status?.invoiceNumber && detail.requests_files_synced_at) },
+                          // Availability = the PDF is really in Storage (HEAD-checked),
+                          // not merely that CR-list print metadata exists — otherwise a
+                          // طلباتي facility whose files aren't fetched yet shows a 404 preview.
+                          { lang: 'ar', label: T('السجل التجاري — عربي', 'CR — Arabic'), available: !!crFilesExist.ar },
+                          { lang: 'en', label: T('السجل التجاري — إنجليزي', 'CR — English'), available: !!crFilesExist.en },
+                          { lang: 'contract', label: T('عقد التأسيس', 'Founding Contract'), available: !!crFilesExist.contract },
+                          { lang: 'invoice', label: T('فاتورة الطلب', 'Request Invoice'), available: !!crFilesExist.invoice },
                         ].map(({ lang: lng, label, available }) => {
                           const href = `${STORAGE_BASE}-${lng}.pdf`
                           if (!available) {
@@ -8561,12 +8584,12 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                     <FieldRow k={T('مدة الشركة', 'Company Duration')} v={detail.company_duration} />
                     <FieldRow k={T('مدينة المركز', 'HQ City')} v={detail.headquarter_city_ar} />
                     <FieldRow k={T('جنسية الشركاء', 'Partners Nationality')} v={detail.partners_nationality_ar} />
-                    <FieldRow k={T('تاريخ الإصدار (هجري)', 'Issue Date (Hijri)')} v={detail.cr_issue_date_hijri} />
-                    <FieldRow k={T('تاريخ التأكيد (هجري)', 'Confirm Date (Hijri)')} v={detail.cr_confirm_date_hijri} />
-                    <FieldRow k={T('تاريخ عقد التأسيس', 'Contract Date')} v={detail.company_contract_from_date} />
-                    <FieldRow k={T('تاريخ آخر تعليق', 'Last Suspension')} v={detail.last_cr_suspension_date} />
-                    <FieldRow k={T('تاريخ آخر تفعيل', 'Last Reactivation')} v={detail.last_cr_reactivation_date} />
-                    <FieldRow k={T('تاريخ الشطب', 'Strike-off Date')} v={detail.delete_date} />
+                    <FieldRow k={T('تاريخ الإصدار (هجري)', 'Issue Date (Hijri)')} v={fmtDMY(detail.cr_issue_date_hijri)} />
+                    <FieldRow k={T('تاريخ التأكيد (هجري)', 'Confirm Date (Hijri)')} v={fmtDMY(detail.cr_confirm_date_hijri)} />
+                    <FieldRow k={T('تاريخ عقد التأسيس', 'Contract Date')} v={fmtDMY(detail.company_contract_from_date)} />
+                    <FieldRow k={T('تاريخ آخر تعليق', 'Last Suspension')} v={fmtDMY(detail.last_cr_suspension_date)} />
+                    <FieldRow k={T('تاريخ آخر تفعيل', 'Last Reactivation')} v={fmtDMY(detail.last_cr_reactivation_date)} />
+                    <FieldRow k={T('تاريخ الشطب', 'Strike-off Date')} v={fmtDMY(detail.delete_date)} />
                     <FieldRow k={T('قائم على ترخيص', 'License-based')} v={yesNo(detail.is_license_based)} />
                     <FieldRow k={T('تجارة إلكترونية', 'E-commerce')} v={yesNo(detail.has_ecommerce)} />
                     <FieldRow k={T('تحت التصفية', 'In Liquidation')} v={yesNo(detail.in_liquidation_process)} />
@@ -8702,10 +8725,10 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                 <SectionCard title={T('ملفات السجل (PDF)', 'CR Documents (PDF)')} color="#9b59b6">
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
                     {[
-                      { lang: 'ar', label: T('السجل التجاري — عربي', 'CR — Arabic'), available: !!printAr?.downloadUrl },
-                      { lang: 'en', label: T('السجل التجاري — إنجليزي', 'CR — English'), available: !!printEn?.downloadUrl },
-                      { lang: 'contract', label: T('عقد التأسيس', 'Founding Contract'), available: !!printContract?.downloadUrl && detail.entity_type_ar === 'شركة' },
-                      { lang: 'invoice', label: T('فاتورة الطلب', 'Request Invoice'), available: !!(detail.raw_request_status?.invoiceNumber && detail.requests_files_synced_at) },
+                      { lang: 'ar', label: T('السجل التجاري — عربي', 'CR — Arabic'), available: !!crFilesExist.ar },
+                      { lang: 'en', label: T('السجل التجاري — إنجليزي', 'CR — English'), available: !!crFilesExist.en },
+                      { lang: 'contract', label: T('عقد التأسيس', 'Founding Contract'), available: !!crFilesExist.contract },
+                      { lang: 'invoice', label: T('فاتورة الطلب', 'Request Invoice'), available: !!crFilesExist.invoice },
                     ].map(({ lang, label, available }) => available ? (
                       <a key={lang}
                         href={`${STORAGE_BASE}-${lang}.pdf`}
