@@ -3,7 +3,7 @@ import BackButton from './components/BackButton'
 import { buildBookmarklet, buildPdfBookmarklet } from './pages/sbcSyncBookmarklet.js'
 import { buildGosiBookmarklet } from './pages/gosiSyncBookmarklet.js'
 import { buildQiwaBookmarklet } from './pages/qiwaSyncBookmarklet.js'
-import { FAC_DETAIL_TYPE_SCALE } from './pages/SbcFacilities.jsx'
+import { FAC_DETAIL_TYPE_SCALE, fmtDMY } from './pages/SbcFacilities.jsx'
 import { can as canPerm, canCardBtn, cardVisible, isGM, userOffices } from './lib/permissions.js'
 import { branchLabel } from './lib/utils.js'
 import { navSetHere } from './lib/navStack.js'
@@ -422,13 +422,14 @@ function dupNumberMessage(error, T) {
   return T('أحد الأرقام النظامية مسجّل مسبقاً لمنشأة أخرى', 'One of the official numbers is already registered to another facility')
 }
 
-// تنسيق التاريخ + الوقت لسجل التعديلات وشريط الشطب (مثل صفحة الفواتير).
+// تنسيق التاريخ + الوقت لسجل التعديلات وشريط الشطب — بصيغة التطبيق الموحّدة
+// يوم-شهر-سنة.
 function fmtDateTime(iso) {
   if (!iso) return '—'
   try {
     const d = new Date(iso)
     const p = (n) => String(n).padStart(2, '0')
-    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} · ${p(d.getHours())}:${p(d.getMinutes())}`
+    return `${p(d.getDate())}-${p(d.getMonth() + 1)}-${d.getFullYear()} · ${p(d.getHours())}:${p(d.getMinutes())}`
   } catch { return '—' }
 }
 
@@ -545,7 +546,7 @@ function FacilityRegistryCards({ facility: f, sb, T, lang, user, toast, onEdit, 
   const nameAr = f.name_ar || f.entity_full_name_ar || '—'
   const nameEn = f.name_en || f.entity_full_name_en || null
   const typeLabel = f.org_type ? T(f.org_type.value_ar, f.org_type.value_en || f.org_type.value_ar) : '—'
-  const confDate = f.confirmation_date ? String(f.confirmation_date).slice(0, 10) : null
+  const confDate = f.confirmation_date ? fmtDMY(f.confirmation_date) : null
   const cd = crNextCountdown(sc, f.confirmation_date)
   const isStruck = !!f.struck_off
   const strikeEntry = (() => {
@@ -1153,8 +1154,8 @@ function QiwaVisaRequestsCard({ sb, companyId, T }) {
               {r.type_name && <div style={{ color: 'var(--tx4)' }}>{T('النوع', 'Type')}: <span style={{ color: 'var(--tx2)', fontWeight: 600 }}>{r.type_name}</span></div>}
               {r.subtype && <div style={{ color: 'var(--tx4)' }}>{T('الفئة', 'Subtype')}: <span style={{ color: 'var(--tx2)', fontWeight: 600 }}>{r.subtype}</span></div>}
               {r.visa_number && <div style={{ color: 'var(--tx4)' }}>{T('رقم التأشيرة', 'Visa no.')}: <span style={{ color: 'var(--tx2)', fontWeight: 600, fontFamily: 'ui-monospace, monospace', direction: 'ltr' }}>{r.visa_number}</span></div>}
-              {r.approval_date && <div style={{ color: 'var(--tx4)' }}>{T('تاريخ الموافقة', 'Approved')}: <span style={{ color: 'var(--tx2)', fontWeight: 600, direction: 'ltr' }}>{r.approval_date.slice(0, 10)}</span></div>}
-              {r.starting_date && <div style={{ color: 'var(--tx4)' }}>{T('تاريخ البدء', 'Started')}: <span style={{ color: 'var(--tx2)', fontWeight: 600, direction: 'ltr' }}>{r.starting_date.slice(0, 10)}</span></div>}
+              {r.approval_date && <div style={{ color: 'var(--tx4)' }}>{T('تاريخ الموافقة', 'Approved')}: <span style={{ color: 'var(--tx2)', fontWeight: 600, direction: 'ltr' }}>{fmtDMY(r.approval_date)}</span></div>}
+              {r.starting_date && <div style={{ color: 'var(--tx4)' }}>{T('تاريخ البدء', 'Started')}: <span style={{ color: 'var(--tx2)', fontWeight: 600, direction: 'ltr' }}>{fmtDMY(r.starting_date)}</span></div>}
               {r.rejection_reason && <div style={{ gridColumn: '1 / -1', color: '#ef4444', fontSize: 10.5 }}>{T('سبب الرفض', 'Rejection reason')}: {r.rejection_reason}</div>}
             </div>
           )
@@ -1208,7 +1209,7 @@ function QiwaWpRequestsCard({ sb, companyId, T }) {
               <div style={{ color: 'var(--tx4)' }}>{T('عدد الموظفين', 'Employees')}: <span style={{ color: 'var(--tx2)', fontWeight: 600, direction: 'ltr' }}>{r.number_of_employees}</span></div>
               <div style={{ color: 'var(--tx4)' }}>{T('إجمالي الرسوم', 'Total fees')}: <span style={{ color: 'var(--tx2)', fontWeight: 600, direction: 'ltr' }}>{r.total_fees} {T('ر.س', 'SAR')}</span></div>
               <div style={{ color: 'var(--tx4)' }}>{T('رقم سداد', 'Sadad')}: <span style={{ color: 'var(--tx2)', fontWeight: 600, direction: 'ltr', fontFamily: 'ui-monospace, monospace' }}>{r.sadad_number}</span></div>
-              {r.request_submission_date && <div style={{ color: 'var(--tx4)' }}>{T('تاريخ التقديم', 'Submitted')}: <span style={{ color: 'var(--tx2)', fontWeight: 600, direction: 'ltr' }}>{r.request_submission_date.slice(0, 10)}</span></div>}
+              {r.request_submission_date && <div style={{ color: 'var(--tx4)' }}>{T('تاريخ التقديم', 'Submitted')}: <span style={{ color: 'var(--tx2)', fontWeight: 600, direction: 'ltr' }}>{fmtDMY(r.request_submission_date)}</span></div>}
             </div>
           )
         })}
@@ -1228,7 +1229,7 @@ function LaborerDetailRow({ r, T }) {
   const expired = r.is_wp_expired
   const c = expired ? '#ef4444' : '#22c55e'
   const yesNo = (b) => b == null ? null : (b ? T('نعم', 'Yes') : T('لا', 'No'))
-  const date = (s) => s ? String(s).slice(0, 10) : null
+  const date = (s) => s ? fmtDMY(s) : null
   // Tightly packed two-column key/value grid. Hides null/empty rows so the
   // user only sees populated fields per worker.
   const Field = ({ k, v, ltr, mono }) => (v == null || v === '' ? null : (
@@ -1417,14 +1418,14 @@ function PdfLink({ path, label, at, wide }) {
     <a href={url} target="_blank" rel="noopener noreferrer" style={style}>
       {icon}
       <span style={{ fontSize: 10.5, fontWeight: 600, color: '#B07D00' }}>{label}</span>
-      {at && <span style={{ fontSize: 9.5, color: 'var(--tx5)', marginInlineStart: 'auto', direction: 'ltr' }}>{String(at).slice(0, 10)}</span>}
+      {at && <span style={{ fontSize: 9.5, color: 'var(--tx5)', marginInlineStart: 'auto', direction: 'ltr' }}>{fmtDMY(at)}</span>}
     </a>
   )
 }
 
 function MuqeemResidentRow({ r, T }) {
   const [open, setOpen] = useState(false)
-  const date = (s) => s ? String(s).slice(0, 10) : null
+  const date = (s) => s ? fmtDMY(s) : null
   // detail_raw holds the per-resident bundle the Muqeem sync pulls alongside the
   // list row: photo (base64 JPEG), insurance, visas, dependents, vehicles,
   // jawazat balance/services and traffic violations.
@@ -1612,7 +1613,7 @@ function QiwaTransferRequestsList({ sb, companyId, T }) {
         <div style={{ display: 'flex', gap: 12, color: 'var(--tx5)', fontSize: 10, flexWrap: 'wrap', direction: 'ltr', justifyContent: 'flex-start' }}>
           {r.current_employer_name && <span>{T('من:', 'From:')} <span style={{ color: 'var(--tx3)' }}>{r.current_employer_name}</span></span>}
           {r.new_employer_name && <span>{T('إلى:', 'To:')} <span style={{ color: 'var(--tx3)' }}>{r.new_employer_name}</span></span>}
-          {r.created_at_qiwa && <span style={{ marginInlineStart: 'auto' }}>{r.created_at_qiwa.slice(0, 10)}</span>}
+          {r.created_at_qiwa && <span style={{ marginInlineStart: 'auto' }}>{fmtDMY(r.created_at_qiwa)}</span>}
         </div>
       </div>
     )
@@ -1726,7 +1727,7 @@ function QiwaMonthlyReportCard({ sb, companyId, T }) {
         {row.phase_status && <span><strong>{T('مرحلة المنشأة', 'Phase')}:</strong> {row.phase_status}</span>}
         {row.nitaqat_ar && <span><strong>{T('النطاق', 'Nitaq')}:</strong> {row.nitaqat_ar}</span>}
         {row.company_size_ar && <span><strong>{T('الحجم', 'Size')}:</strong> {row.company_size_ar}</span>}
-        {row.created_time && <span style={{ marginInlineStart: 'auto', direction: 'ltr' }}>{T('صدر في', 'Created')}: {row.created_time.slice(0, 10)}</span>}
+        {row.created_time && <span style={{ marginInlineStart: 'auto', direction: 'ltr' }}>{T('صدر في', 'Created')}: {fmtDMY(row.created_time)}</span>}
       </div>
     </CollapsibleCard>
   )
@@ -1777,9 +1778,9 @@ function QiwaContractsCard({ sb, companyId, T }) {
                 <span style={{ marginInlineStart: 'auto', fontSize: 9.5, color: gosiColor, fontWeight: 600 }}>GOSI: {r.gosi_status || '—'}</span>
               </div>
               <div style={{ color: 'var(--tx4)', fontSize: 10.5 }}>{T('نوع العقد', 'Contract type')}: <span style={{ color: 'var(--tx2)', fontWeight: 600 }}>{r.contract_type_ar}</span></div>
-              <div style={{ color: 'var(--tx4)', fontSize: 10.5 }}>{T('انتهاء العقد', 'Expires')}: <span style={{ color: 'var(--tx2)', fontWeight: 600, direction: 'ltr' }}>{r.expiry_date_gregorian?.slice(0, 10)}</span></div>
+              <div style={{ color: 'var(--tx4)', fontSize: 10.5 }}>{T('انتهاء العقد', 'Expires')}: <span style={{ color: 'var(--tx2)', fontWeight: 600, direction: 'ltr' }}>{fmtDMY(r.expiry_date_gregorian)}</span></div>
               <div style={{ color: 'var(--tx4)', fontSize: 10.5 }}>{T('رقم العقد', 'Contract no.')}: <span style={{ color: 'var(--tx2)', fontWeight: 600, direction: 'ltr', fontFamily: 'ui-monospace, monospace' }}>{r.contract_id}</span></div>
-              <div style={{ color: 'var(--tx4)', fontSize: 10.5 }}>{T('آخر تعديل', 'Last modified')}: <span style={{ color: 'var(--tx2)', fontWeight: 600, direction: 'ltr' }}>{r.last_modified_gregorian?.slice(0, 10)}</span></div>
+              <div style={{ color: 'var(--tx4)', fontSize: 10.5 }}>{T('آخر تعديل', 'Last modified')}: <span style={{ color: 'var(--tx2)', fontWeight: 600, direction: 'ltr' }}>{fmtDMY(r.last_modified_gregorian)}</span></div>
               {r.gosi_description && r.gosi_status === 'ERROR' && (
                 <div style={{ gridColumn: '1 / -1', color: '#ef4444', fontSize: 10, lineHeight: 1.5, marginTop: 4, paddingTop: 6, borderTop: '1px dashed rgba(239,68,68,.2)' }}>
                   ⚠ {r.gosi_description}
@@ -1960,7 +1961,7 @@ function GosiEstablishmentCard({ data, T, lang }) {
   const pickLang = (obj) => obj ? (isAr ? (obj.arabic || obj.english) : (obj.english || obj.arabic)) : null
   const fmtDate = (d) => {
     if (!d) return null
-    const g = d.gregorian ? String(d.gregorian).slice(0, 10) : null
+    const g = d.gregorian ? fmtDMY(d.gregorian) : null
     const h = d.hijiri || null
     if (!g && !h) return null
     return (
@@ -2167,7 +2168,7 @@ function GosiEstablishmentCard({ data, T, lang }) {
               {r.violation.map((v, i) => (
                 <div key={i} style={{ padding: '10px 12px', background: 'rgba(239,68,68,.06)', border: '1px solid rgba(239,68,68,.18)', borderRadius: 8 }}>
                   <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--tx)' }}>{v.description}</div>
-                  {v.violationDate && <div style={{ fontSize: 10, color: 'var(--tx5)', marginTop: 4, direction: 'ltr' }}>{String(v.violationDate).slice(0, 10)}</div>}
+                  {v.violationDate && <div style={{ fontSize: 10, color: 'var(--tx5)', marginTop: 4, direction: 'ltr' }}>{fmtDMY(v.violationDate)}</div>}
                 </div>
               ))}
             </div>
@@ -2202,15 +2203,15 @@ const _gosiMoney = (n) => {
 // year → month → day. One canonical ISO shape used everywhere — Gregorian
 // and Hijri alike — so every date in the app stays consistent. Do NOT flip
 // the segments: GOSI already sends Gregorian in this shape.
-const _gosiDate = (s) => s ? String(s).slice(0, 10) : null
-// Hijri normalized to the same YYYY-MM-DD shape. GOSI sometimes sends it
-// day-first (DD-MM-YYYY) — detected by a short (≤2-char) first segment — so
-// we flip those back to year-first.
+const _gosiDate = (s) => s ? fmtDMY(s) : null
+// Hijri normalized to the app-wide DD-MM-YYYY shape. GOSI sometimes sends it
+// year-first — detected by a 4-char first segment — so we flip those to
+// day-first.
 const _gosiHijriNorm = (h) => {
   if (!h) return null
   const s = String(h).slice(0, 10)
   const parts = s.split('-')
-  return parts.length === 3 && parts[0].length <= 2 ? parts.reverse().join('-') : s
+  return parts.length === 3 && parts[0].length === 4 ? parts.reverse().join('-') : s
 }
 // Whole-day span between two YYYY-MM-DD dates. Drives the employment duration
 // shown for non-active contributors. Returns null for missing/invalid/negative.
@@ -2970,7 +2971,7 @@ function GosiCertificatesCard({ certificates, T }) {
   }
   const STORAGE_BASE = 'https://gcvshzutdslmdkwqwteh.supabase.co/storage/v1/object/public/gosi-certificates/'
   const order = ['17_02_0011', '17_02_0050', '22_07_0007']
-  const fmtDate = (s) => s ? String(s).slice(0, 10) : null
+  const fmtDate = (s) => s ? fmtDMY(s) : null
   const fmtSize = (n) => {
     if (n == null) return null
     if (n < 1024) return n + ' B'
@@ -3340,10 +3341,10 @@ const fmtDate = (s) => {
   }
   if (v && typeof v === 'object') {
     const g = v.gregorianDate || v.dateG || v.date || v.gregorian || v.Gregorian
-    if (g) return String(g).slice(0, 10)
+    if (g) return fmtDMY(g)
     return '—'
   }
-  return String(v).slice(0, 10)
+  return fmtDMY(v)
 }
 
 // SBC returns lookups as { xId, xDescAr, xDescEn } objects. PostgREST returns them as JSON strings.
@@ -7422,7 +7423,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                       const mRow = ({ k, v, mono, ltr }) => (v == null || v === '' ? null : (
                         <Row k={k} v={v} mono={mono} ltr={ltr} />
                       ))
-                      const fmtDate = (s) => s ? String(s).slice(0, 10) : null
+                      const fmtDate = (s) => s ? fmtDMY(s) : null
                       const yesNo = (b) => b == null ? null : (b ? T('نعم', 'Yes') : T('لا', 'No'))
                       return (
                         <>
@@ -7617,7 +7618,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                 const _statusColor = _sc ? BASIC_STATUS_COLOR[_sc] : C.gray
                 const _statusLabel = _sc ? T(BASIC_STATUS_AR[_sc], BASIC_STATUS_EN[_sc]) : T('غير محدد', 'Undetermined')
                 const _cd = crNextCountdown(_sc, detail.confirmation_date)
-                const _confDate = detail.confirmation_date ? String(detail.confirmation_date).slice(0, 10) : null
+                const _confDate = detail.confirmation_date ? fmtDMY(detail.confirmation_date) : null
                 return (
                   <CollapsibleCard title={T('حالة المنشأة', 'Facility Status')} color={_statusColor} defaultExpanded>
                     <div style={{ padding: '20px 22px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>

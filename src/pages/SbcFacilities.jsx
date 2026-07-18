@@ -136,7 +136,7 @@ const fmtAgo = (iso, lang) => {
 // الصيغة الموحّدة للتواريخ في مركز المزامنة: يوم-شهر-سنة (DD-MM-YYYY).
 // تقبل ISO strings و Date وكائنات مقيم/SBC الملفوفة {gregorianDate|dateG|...}
 // وتُرجع «—» لأي قيمة فارغة. التواريخ الهجرية تمرّ كما هي إذا كانت أصلاً DD-MM-YYYY.
-const fmtDMY = (s) => {
+export const fmtDMY = (s) => {
   if (!s && s !== 0) return '—'
   let v = s
   if (typeof v === 'object' && v !== null) {
@@ -161,7 +161,7 @@ const fmtDMY = (s) => {
   return v
 }
 // تاريخ + وقت بصيغة يوم-شهر-سنة ساعة:دقيقة
-const fmtDMYTime = (s) => {
+export const fmtDMYTime = (s) => {
   if (!s) return '—'
   const d = new Date(s)
   if (Number.isNaN(d.getTime())) return fmtDMY(s)
