@@ -152,20 +152,35 @@ function body({ sourceId, personId, proxyBaseUrl }) {
     if (!location.hostname.includes('saudibusiness') && !location.hostname.endsWith('business.sa'))
       return msg('افتح بوابة تيسير أولاً (e2.business.sa)');
 
-    const raw = localStorage.getItem('oidc.user:https://www.saudibusiness.gov.sa:InvestorPortal');
-    if (!raw) return msg('لم يتم تسجيل الدخول بنفاذ. سجّل الدخول ثم اضغط الإشارة مرة أخرى.');
-    const o = JSON.parse(raw);
-    if (!o.access_token) return msg('الجلسة غير صالحة. أعد تسجيل الدخول.');
+    // Either portal's session works. تيسير parks its OIDC user under
+    // InvestorPortal, بوابة الشركات under NewCompaniesClient — oidcKey() and
+    // currentToken() already read whichever this origin has, and the gateway
+    // keys off token + clientId, not the calling origin. The old guard read the
+    // InvestorPortal key only, which silently killed the CR-list flow on the
+    // companies portal and forced the user to visit both portals for one sync.
+    if (!oidcKey()) return msg('لم يتم تسجيل الدخول بنفاذ. سجّل الدخول ثم اضغط الإشارة مرة أخرى.');
+    if (!currentToken()) return msg('الجلسة غير صالحة. أعد تسجيل الدخول.');
 
-    msg('جارٍ التقاط الجلسة...');
-    try { await visit('/commercial-records'); } catch (_) {}
-    await new Promise(r => setTimeout(r, 1500));
-    try { await visit('/requests'); } catch (_) {}
-    await new Promise(r => setTimeout(r, 1500));
-    if (!captured['ipapi-nl']) {
-      for (let i = 0; i < 30 && !captured['ipapi-nl']; i++) await new Promise(r => setTimeout(r, 200));
+    // Header capture works by making the تيسير SPA fire its own ipapi-nl calls,
+    // and the routes visit() walks exist only there. On بوابة الشركات the
+    // headers are built statically instead: ipapi-nl answers to the same known
+    // clientId as requestsapi (the qawaem tab already relies on that), and
+    // headersFor() adds the live token + correlation id on every call.
+    const onCompanies = location.hostname === 'companies.saudibusiness.gov.sa';
+    if (!onCompanies) {
+      msg('جارٍ التقاط الجلسة...');
+      try { await visit('/commercial-records'); } catch (_) {}
+      await new Promise(r => setTimeout(r, 1500));
+      try { await visit('/requests'); } catch (_) {}
+      await new Promise(r => setTimeout(r, 1500));
+      if (!captured['ipapi-nl']) {
+        for (let i = 0; i < 30 && !captured['ipapi-nl']; i++) await new Promise(r => setTimeout(r, 200));
+      }
     }
-    if (!captured['ipapi-nl']) return msg('تعذّر التقاط الجلسة. افتح صفحة «سجلاتي» ثم جرّب مرة أخرى.');
+    if (!captured['ipapi-nl']) {
+      if (onCompanies) captured['ipapi-nl'] = { clientId: '${CLIENT_ID_REQUESTS}' };
+      else return msg('تعذّر التقاط الجلسة. افتح صفحة «سجلاتي» ثم جرّب مرة أخرى.');
+    }
 
     // Keep the token alive for the whole run (cleared at the end / on error).
     tokenKeeper = startTokenKeeper();
