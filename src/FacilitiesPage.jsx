@@ -4610,9 +4610,12 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
       _currency: currencyShort(pickLang(r, 'capital_currency', lang), lang),
       _city: pickLang(r, 'headquarter_city', lang),
       _status: pickLang(r, 'cr_status', lang),
-      _issueDate: fmtDate(r.cr_issue_date_gregorian || r.cr_issue_date),
+      // Kept RAW (ISO), formatted at render with fmtDMY — precomputing the
+      // formatted string bakes the format into the session-cached rows, so a
+      // later format change wouldn't apply until a refetch.
+      _issueDate: r.cr_issue_date_gregorian || r.cr_issue_date || null,
       _issueDateRaw: r.cr_issue_date_gregorian || r.cr_issue_date || null,
-      _confirmDate: fmtDate(r.cr_confirm_date_gregorian || r.cr_confirm_date),
+      _confirmDate: r.cr_confirm_date_gregorian || r.cr_confirm_date || null,
       _confirmDateRaw: r.cr_confirm_date_gregorian || r.cr_confirm_date || null,
       _parentNatNo: cr.mainCRNationalNumber || cr.mainCrNationalNumber || null,
       _partners: partners,
@@ -5652,7 +5655,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                     </td>
                     <td>
                       {(() => {
-                        const greg = r._confirmDate
+                        const greg = fmtDMY(r._confirmDate)
                         if (!greg || greg === '—') return <span className="muted">—</span>
                         // التاريخ مُلوَّن بلون الحالة الحالية، وتحته عدّاد بعدد الأيام
                         // حتى الحالة التالية بلون تلك الحالة (نشط→تأكيد→معلّق→مشطوب).
@@ -6422,7 +6425,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                         <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, paddingInlineEnd: 14 }}>
                           <span style={{ color: 'var(--tx3)', fontWeight: 600, fontSize: 11 }}>{T('تاريخ الإصدار', 'Issue date')}</span>
                           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2, minWidth: 0 }}>
-                            <span style={{ fontWeight: 600, color: 'var(--tx)', direction: 'ltr', fontSize: 11.5, textAlign: 'end', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{detail._issueDate || '—'}</span>
+                            <span style={{ fontWeight: 600, color: 'var(--tx)', direction: 'ltr', fontSize: 11.5, textAlign: 'end', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{fmtDMY(detail._issueDate)}</span>
                             <span style={{ fontWeight: 600, color: 'var(--tx4)', direction: 'ltr', fontSize: 10, textAlign: 'end', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{reverseHijri(detail.cr_issue_date_hijri) || '—'}</span>
                           </div>
                         </div>
@@ -6430,7 +6433,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                         <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, paddingInlineStart: 14 }}>
                           <span style={{ color: 'var(--tx3)', fontWeight: 600, fontSize: 11 }}>{T('تاريخ التأكيد', 'Confirm date')}</span>
                           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2, minWidth: 0 }}>
-                            <span style={{ fontWeight: 600, color: 'var(--tx)', direction: 'ltr', fontSize: 11.5, textAlign: 'end', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{detail._confirmDate || '—'}</span>
+                            <span style={{ fontWeight: 600, color: 'var(--tx)', direction: 'ltr', fontSize: 11.5, textAlign: 'end', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{fmtDMY(detail._confirmDate)}</span>
                             <span style={{ fontWeight: 600, color: 'var(--tx4)', direction: 'ltr', fontSize: 10, textAlign: 'end', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{reverseHijri(detail.cr_confirm_date_hijri) || '—'}</span>
                           </div>
                         </div>
@@ -7664,7 +7667,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                   <div style={{ marginTop: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 10, color: 'var(--tx4)' }}>
                     <div>
                       <div style={{ fontWeight: 600, letterSpacing: '.3px', textTransform: 'uppercase' }}>{T('إصدار','Issue')}</div>
-                      <div style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600, marginTop: 2, direction: 'ltr' }}>{detail._issueDate}</div>
+                      <div style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600, marginTop: 2, direction: 'ltr' }}>{fmtDMY(detail._issueDate)}</div>
                     </div>
                     <div>
                       <div style={{ fontWeight: 600, letterSpacing: '.3px', textTransform: 'uppercase' }}>{T('تأكيد','Confirm')}</div>
@@ -7683,7 +7686,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                             else color = '#ef4444'
                           }
                         }
-                        return <div style={{ fontSize: 12, color, fontWeight: 600, marginTop: 2, direction: 'ltr' }}>{cd}</div>
+                        return <div style={{ fontSize: 12, color, fontWeight: 600, marginTop: 2, direction: 'ltr' }}>{fmtDMY(cd)}</div>
                       })()}
                     </div>
                   </div>
