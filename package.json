@@ -7,6 +7,7 @@
     "dev": "vite",
     "sandbox": "vite --mode sandbox --port 5174",
     "build": "vite build",
+    "check:bookmarklets": "node scripts/checkBookmarklets.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

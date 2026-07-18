@@ -3,6 +3,7 @@ import BackButton from './components/BackButton'
 import { buildBookmarklet, buildPdfBookmarklet } from './pages/sbcSyncBookmarklet.js'
 import { buildGosiBookmarklet } from './pages/gosiSyncBookmarklet.js'
 import { buildQiwaBookmarklet } from './pages/qiwaSyncBookmarklet.js'
+import { FAC_DETAIL_TYPE_SCALE } from './pages/SbcFacilities.jsx'
 import { can as canPerm, canCardBtn, cardVisible, isGM, userOffices } from './lib/permissions.js'
 import { branchLabel } from './lib/utils.js'
 import { navSetHere } from './lib/navStack.js'
@@ -1866,7 +1867,8 @@ function CollapsibleCard({ title, color, badge, action, collapsible = true, defa
       <div
         onClick={collapsible ? () => setExpanded(v => !v) : undefined}
         style={{ ...cardHeader, cursor: collapsible ? 'pointer' : 'default', userSelect: 'none' }}>
-        <span style={{ width: 6, height: 6, borderRadius: '50%', background: color }} />
+        {/* النقطة ذهبية دائماً في كل الكروت؛ `color` يبقى للشارة ومحتوى الكرت. */}
+        <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
         {showSbcIcon && <SbcSourceIcon />}
         {showGosiIcon && <GosiSourceIcon />}
         {showQiwaIcon && <QiwaSourceIcon />}
@@ -3909,6 +3911,18 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
         confirmation_date: addForm.confirmation_date || null,
         saudi_center: true,   // الافتراضي للمنشأة الجديدة: مسجّلة في المركز السعودي (نعم)
         created_by: user?.id || null,
+      }
+      // المنشأة المحجوبة عن المزامنة يبتلعها حارس قاعدة البيانات بصمت، فالإدراج
+      // «ينجح» بلا صف. نفحص قبله لنعرض سبباً مفهوماً بدل نجاح كاذب.
+      if (payload.unified_number || payload.gosi_number) {
+        const { data: isBlocked } = await sb.rpc('is_facility_blocked', {
+          p_unified: payload.unified_number, p_gosi: payload.gosi_number,
+        })
+        if (isBlocked) {
+          setAddErr(T('هذه المنشأة محجوبة عن المزامنة. ألغِ حجبها من مركز المزامنة أولاً.',
+                      'This facility is blocked from sync. Unblock it from the Sync Hub first.'))
+          return
+        }
       }
       const { error } = await sb.from('facilities').insert(payload)
       if (error) throw error
@@ -6194,7 +6208,8 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
         // data the user never synced from SBC.
         const hasSbcData = !!(detail?.raw_cr_data || detail?._raw) || prov.some(p => p.source_id === 'sbc')
         return (
-        <div style={{ fontFamily: F, paddingTop: 0, paddingBottom: 80, color: 'var(--tx2)' }}>
+        <div className="synchub-detail" style={{ fontFamily: F, paddingTop: 0, paddingBottom: 80, color: 'var(--tx2)' }}>
+          <style>{FAC_DETAIL_TYPE_SCALE}</style>
           {/* Top bar — Back + إجراءات المنشأة (شطب/حذف) */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, gap: 12, flexWrap: 'wrap' }}>
             <BackButton onBack={() => setDetail(null)} label={T('رجوع','Back')} />
@@ -7763,7 +7778,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
             const SectionCard = ({ title, color, children, count }) => (
               <div style={{ ...cardChrome, marginTop: 14 }}>
                 <div style={cardHeader}>
-                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: color }} />
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
                   <span style={cardTitle}>{title}</span>
                   {count != null && <span style={{ marginInlineStart: 'auto', fontSize: 11, color: 'var(--tx5)', fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(count)}</span>}
                 </div>

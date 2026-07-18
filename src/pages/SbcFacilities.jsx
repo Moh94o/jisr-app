@@ -5,8 +5,10 @@ import { buildGosiBookmarklet } from './gosiSyncBookmarklet.js'
 import { buildQiwaBookmarklet } from './qiwaSyncBookmarklet.js'
 import { buildMuqeemBookmarklet } from './muqeemSyncBookmarklet.js'
 import { buildAjeerBookmarklet } from './ajeerSyncBookmarklet.js'
+import { buildMudadBookmarklet } from './mudadSyncBookmarklet.js'
 import { Sel } from './KafalaCalculator.jsx'
-import { EmptyState } from '../components/ui/FormKit.jsx'
+import { Ban, ShieldOff } from 'lucide-react'
+import { Modal as FKModal, ActionButton, SuccessView, TextField, ScrollBox, EmptyState } from '../components/ui/FormKit.jsx'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = {
@@ -54,6 +56,18 @@ const cardHeader = {
   borderBottom: '1px solid var(--bd)',
 }
 const cardTitle = { fontSize: 16, color: '#B07D00', fontWeight: 600, letterSpacing: '.2px' }
+
+// مقياس خطوط كروت صفحة التفاصيل. مقاسات الكروت مكتوبة inline في مئات المواضع،
+// فرفعها من مصدر واحد يحتاج محدِّدات على قيمة الـinline نفسها (نفس أسلوب قواعد
+// الخطوط في App.jsx Css). React يُخرج fontSize:11 كـ«font-size: 11px» — المسافة
+// بعد النقطتين جزء من المطابقة. مقصور على .synchub-detail فلا يمسّ الجدول ولا
+// شريط الإحصاءات. الوسوم الصغيرة (‏9.5px فأقل) متروكة: لها lineHeight ثابت
+// وحشوة ضيّقة، وتكبيرها يفجّر ارتفاعها.
+export const FAC_DETAIL_TYPE_SCALE = [
+  [10, 11], [10.5, 11.5], [11, 12], [11.5, 12.5], [12, 13], [12.5, 13.5], [13, 14],
+].map(([from, to]) =>
+  `.synchub-detail [style*="font-size: ${from}px"]{font-size:${to}px !important}`
+).join('')
 const btnGold = { height: 40, padding: '0 16px', borderRadius: 11, background: 'linear-gradient(180deg,rgba(176,125,0,.22) 0%,rgba(176,125,0,.10) 100%)', border: '1px solid rgba(176,125,0,.45)', color: '#B07D00', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7, fontFamily: F, fontSize: 12, fontWeight: 600, transition: '.2s', boxShadow: '0 2px 8px rgba(176,125,0,.18), inset 0 1px 0 rgba(176,125,0,.18)' }
 const btnFilter = (active) => ({ height: 44, padding: '0 16px', borderRadius: 12, background: active ? 'var(--accent-soft)' : 'var(--search-bg)', border: '1px solid ' + (active ? 'var(--accent-bd)' : 'transparent'), color: active ? 'var(--accent)' : 'var(--tx2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 8, boxSizing: 'border-box', boxShadow: active ? 'var(--shadow-sm)' : 'none' })
 
@@ -1303,13 +1317,43 @@ function MuqeemSourceIcon({ size = 16 }) {
   )
 }
 
+// Mudad source icon — uses the official logo at public/mudad.jpg.
+// Same img-with-text-fallback pattern as the other source icons.
+function MudadSourceIcon({ size = 16 }) {
+  const [failed, setFailed] = useState(false)
+  if (failed) {
+    return (
+      <span
+        title="منصة مدد"
+        style={{
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          width: size, height: size, borderRadius: 4,
+          background: 'rgba(14,165,233,.18)', color: '#0ea5e9',
+          fontSize: Math.round(size * 0.55), fontWeight: 600,
+          flexShrink: 0, lineHeight: 1, fontFamily: F,
+        }}>مدد</span>
+    )
+  }
+  return (
+    <img
+      src="/mudad.jpg"
+      alt="Mudad"
+      title="منصة مدد"
+      width={size}
+      height={size}
+      style={{ width: size, height: size, objectFit: 'contain', flexShrink: 0 }}
+      onError={() => setFailed(true)}
+    />
+  )
+}
+
 // Reusable collapsible card — click header to expand/collapse. Used for cards
 // that contain a lot of fields the user usually skips (e.g. WPS compliance).
 // Matches the same chrome + chevron pattern as ActivitiesCard below.
 // Listens for the page-wide `synchub-expand-all` event so the detail header's
 // «توسيع الكل / طي الكل» buttons reach every card without prop-threading
 // (cards are nested several component levels deep).
-function CollapsibleCard({ title, color, badge, defaultExpanded = false, children, showSbcIcon = false, showGosiIcon = false, showQiwaIcon = false, showMuqeemIcon = false, sourcePill }) {
+function CollapsibleCard({ title, color, badge, defaultExpanded = false, children, showSbcIcon = false, showGosiIcon = false, showQiwaIcon = false, showMuqeemIcon = false, showMudadIcon = false, sourcePill }) {
   const [expanded, setExpanded] = useState(defaultExpanded)
   useEffect(() => {
     const onAll = (e) => setExpanded(!!(e && e.detail && e.detail.expand))
@@ -1322,11 +1366,13 @@ function CollapsibleCard({ title, color, badge, defaultExpanded = false, childre
       <div
         onClick={() => setExpanded(v => !v)}
         style={{ ...cardHeader, cursor: 'pointer', userSelect: 'none' }}>
-        <span style={{ width: 6, height: 6, borderRadius: '50%', background: color }} />
+        {/* النقطة ذهبية دائماً في كل الكروت؛ `color` يبقى للشارة ومحتوى الكرت. */}
+        <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
         {showSbcIcon && <SbcSourceIcon />}
         {showGosiIcon && <GosiSourceIcon />}
         {showQiwaIcon && <QiwaSourceIcon />}
         {showMuqeemIcon && <MuqeemSourceIcon />}
+        {showMudadIcon && <MudadSourceIcon />}
         <span style={cardTitle}>{title}</span>
         {brand && (
           <span style={{ fontSize: 9, fontWeight: 700, color: brand.color, background: brand.color + '14', border: `1px solid ${brand.color}45`, borderRadius: 5, padding: '1px 6px', lineHeight: '14px' }}>{brand.ar}</span>
@@ -3010,6 +3056,27 @@ function MuqeemSyncBookmarklet({ syncPersonId, T }) {
   )
 }
 
+// Mudad sync bookmarklet — runs on mudad.com.sa (نظام الالتزام). Mudad exposes a
+// JSON API (api.mudad.sa) and carries the establishment in an organizationId
+// header rather than a session context, so unlike Qiwa/Ajeer the sweep needs no
+// switching and runs concurrently over every establishment in one pass. Fills
+// mudad_establishments (linked to our facilities by the unified national number)
+// with every response kept whole in mudad_raw. Writes go through sync-bridge.html
+// because Mudad's CSP blocks supabase.co.
+function MudadSyncBookmarklet({ syncPersonId, T }) {
+  const proxyBaseUrl = typeof window !== 'undefined' ? window.location.origin : ''
+  const dataHref = buildMudadBookmarklet({ sourceId: 'mudad', personId: syncPersonId || '', proxyBaseUrl })
+  return (
+    <DragBookmark
+      href={dataHref}
+      accent="#0ea5e9"
+      title={T('اسحب الزر إلى شريط الإشارات، ثم افتح مدد (نظام الالتزام) واضغط — يمرّ على كل المنشآت ويجلب نسبة الالتزام وفترات الأجور. ملاحظة: جلسة مدد تنتهي بعد 20 دقيقة، والزر يجدّدها تلقائياً أثناء المسح.', 'Drag to bookmarks bar, open Mudad (compliance) and click — sweeps every establishment for compliance rate and wage periods. Mudad sessions expire after 20 minutes; the button auto-refreshes the token during the sweep.')}
+      label={T('مدد', 'Mudad')}
+      icon={<MudadSourceIcon size={15} />}
+    />
+  )
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // مطابقة المصادر — مقارنة نفس الحقل المنطقي عبر المنصات وإبراز الفروقات.
 // per project_field_provenance: كل قيمة تحمل مصدرها، والاختلاف لا يُطوى بصمت.
@@ -3151,6 +3218,135 @@ function SourceCompareCard({ detail, gosiEst, qiwa, muqeem, ajeerEst, hrsdLabore
         ))}
       </div>
     </CollapsibleCard>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// كروت مدد — الالتزام وملفات حماية الأجور (mudad_* tables).
+// ─────────────────────────────────────────────────────────────────────────────
+const MUDAD_ACCENT = '#0ea5e9'
+
+// wage_period يأتي «202607» لا تاريخاً — يُعرض كشهر مقروء.
+const _mudadPeriod = (v, lang) => {
+  const s = String(v || '')
+  if (!/^\d{6}$/.test(s)) return s || null
+  const y = Number(s.slice(0, 4)), m = Number(s.slice(4, 6))
+  if (m < 1 || m > 12) return s
+  try {
+    return new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString(lang === 'ar' ? 'ar' : 'en-US', { year: 'numeric', month: 'long', timeZone: 'UTC' })
+  } catch { return s }
+}
+
+const _mudadPctColor = (p) => (p == null ? C.gray : Number(p) >= 100 ? C.ok : Number(p) > 0 ? C.warn : C.red)
+
+function MudadCards({ est, months, T, lang }) {
+  if (!est && !months.length) return null
+  const rowBase = {
+    display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 8,
+    background: 'rgba(255,255,255,.025)', border: '1px solid var(--bd2)', minWidth: 0,
+  }
+  // الالتزام حالة شهرية لا صفة دائمة — الفترة تُعرض بجانب النسبة دائماً حتى لا
+  // تُقرأ نسبة شهر مضى كأنها الوضع الحالي. وتُفضَّل نسبة أحدث شهر في السجل على
+  // قائمة المنشآت لأنها الأدق عند تعدد الفروع.
+  const latest = months[0] || null
+  const pct = latest ? latest.compliance_percentage : est?.compliance_percentage
+  const period = latest ? (lang === 'ar' ? latest.month_year_ar : (latest.month_year_en || latest.month_year_ar)) : _mudadPeriod(est?.wage_period, lang)
+  const suspended = months.find((m) => m.mlsd_status === 'Suspended') || null
+  return (
+    <>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6 }}>
+        <MudadSourceIcon size={18} />
+        <span style={{ fontSize: 13, fontWeight: 700, color: MUDAD_ACCENT }}>{T('مدد — الالتزام وحماية الأجور', 'Mudad — compliance & wage protection')}</span>
+        <span style={{ flex: 1, height: 1, background: 'var(--bd)' }} />
+      </div>
+
+      {est && (
+        <CollapsibleCard title={T('التزام مدد', 'Mudad compliance')} color={MUDAD_ACCENT} defaultExpanded showMudadIcon
+          badge={pct != null ? (Number(pct).toLocaleString('en-US') + '%') : undefined}>
+          <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            {pct != null && (
+              <div style={rowBase}>
+                <span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>{T('نسبة الالتزام', 'Compliance')}</span>
+                <span style={{ marginInlineStart: 'auto', fontSize: 12.5, fontWeight: 700, color: _mudadPctColor(pct), direction: 'ltr' }}>{Number(pct).toLocaleString('en-US')}%</span>
+              </div>
+            )}
+            {period && <div style={rowBase}><span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>{T('فترة الأجور', 'Wage period')}</span><span style={{ marginInlineStart: 'auto', fontSize: 11.5, fontWeight: 600, color: 'var(--tx)' }}>{period}</span></div>}
+            {(() => {
+              const st = latest ? latest.status : est.compliance_status
+              if (!st) return null
+              return <div style={rowBase}><span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>{T('الحالة', 'Status')}</span><span style={{ marginInlineStart: 'auto', fontSize: 11.5, fontWeight: 600, color: st === 'Compliant' ? C.ok : C.red }}>{st === 'Compliant' ? T('ملتزمة', 'Compliant') : st === 'NonCompliant' ? T('غير ملتزمة', 'Non-compliant') : st}</span></div>
+            })()}
+            <div style={rowBase}><span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>{T('رقم منشأة مدد', 'Mudad establishment no.')}</span><span style={{ marginInlineStart: 'auto', fontSize: 11.5, fontWeight: 600, color: 'var(--tx)', direction: 'ltr', fontFamily: 'ui-monospace, monospace' }}>{est.mlsd_unified_id}</span></div>
+            {[
+              { k: T('مخالفات مفتوحة', 'Open violations'), v: est.open_violations },
+              { k: T('مبررات معلّقة', 'Pending justifications'), v: est.pending_justifications },
+            ].filter(x => x.v != null).map((x, i) => (
+              <div key={i} style={rowBase}>
+                <span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>{x.k}</span>
+                <span style={{ marginInlineStart: 'auto', fontSize: 11.5, fontWeight: 700, color: x.v ? C.red : C.ok }}>{x.v ? T('نعم', 'Yes') : T('لا', 'No')}</span>
+              </div>
+            ))}
+            {months.length === 0 && (
+              // بلا هذا يبدو غياب سجل الالتزام كأن المنشأة بلا التزام، وهو فرق جوهري.
+              <div style={{ ...rowBase, gridColumn: '1 / -1', background: 'rgba(245,158,11,.08)', border: '1px solid rgba(245,158,11,.30)' }}>
+                <span style={{ fontSize: 11, fontWeight: 600, color: C.warn }}>{T('لم تُمسح تفاصيل هذه المنشأة بعد — شغّل زر مدد لجلب سجل الالتزام', 'Details not swept yet — run the Mudad button to fetch the compliance record')}</span>
+              </div>
+            )}
+          </div>
+        </CollapsibleCard>
+      )}
+
+      {months.length > 0 && (
+        <CollapsibleCard title={T('معلومات الإلتزام', 'Compliance information')} color={MUDAD_ACCENT} defaultExpanded showMudadIcon badge={num(months.length) + ' ' + T('شهر', 'months')}>
+          <div style={{ padding: '10px 18px' }}>
+            {/* «خدمات الوزارة موقفة» — أثر تشغيلي على المنشأة كلها، فيتصدّر لا
+                يُدفن في عمود داخل الجدول. يُقرأ من أحدث شهر. */}
+            {suspended && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', borderRadius: 8, marginBottom: 10, background: 'rgba(232,114,101,.08)', border: '1px solid rgba(232,114,101,.30)' }}>
+                <span style={{ fontSize: 11.5, fontWeight: 700, color: C.red }}>{T('خدمات الوزارة موقفة', 'Ministry services suspended')}</span>
+                {suspended.mlsd_status_start_ar && <span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>{T('منذ', 'since')} {lang === 'ar' ? suspended.mlsd_status_start_ar : (suspended.mlsd_status_start_en || suspended.mlsd_status_start_ar)}</span>}
+              </div>
+            )}
+            <div className="sbc-tbl-scroll" style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+                <thead>
+                  <tr style={{ color: 'var(--tx4)' }}>
+                    {[T('شهر الرواتب', 'Wage month'), T('مجموع العمال', 'Total'), T('الملتزمين', 'Compliant'), T('غير الملتزمين', 'Violating'), T('النسبة', 'Rate'), T('الحالة', 'Status')].map((h, i) => (
+                      <th key={i} style={{ textAlign: i === 0 ? 'start' : 'center', fontWeight: 600, fontSize: 10, padding: '6px 8px', borderBottom: '1px solid var(--bd)', whiteSpace: 'nowrap' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {months.map((m) => {
+                    const compliant = m.status === 'Compliant'
+                    return (
+                      <tr key={m.wage_period_id}>
+                        <td style={{ padding: '7px 8px', borderBottom: '1px solid var(--bd2)', fontWeight: 600, color: 'var(--tx)', whiteSpace: 'nowrap' }}>{lang === 'ar' ? m.month_year_ar : (m.month_year_en || m.month_year_ar)}</td>
+                        <td style={{ padding: '7px 8px', borderBottom: '1px solid var(--bd2)', textAlign: 'center', color: 'var(--tx2)' }}>
+                          {num(m.total_laborers)}
+                          {/* المستثنون يفسّرون لماذا لا يساوي المجموعُ الملتزمين+المخالفين */}
+                          {m.excluded_laborers > 0 && <span style={{ fontSize: 9.5, color: 'var(--tx4)', marginInlineStart: 4 }}>({T('مستثنى', 'excl')} {num(m.excluded_laborers)})</span>}
+                        </td>
+                        <td style={{ padding: '7px 8px', borderBottom: '1px solid var(--bd2)', textAlign: 'center', color: C.ok, fontWeight: 600 }}>{num(m.compliant_laborers)}</td>
+                        <td style={{ padding: '7px 8px', borderBottom: '1px solid var(--bd2)', textAlign: 'center', color: m.violated_laborers > 0 ? C.red : 'var(--tx3)', fontWeight: 600 }}>{num(m.violated_laborers)}</td>
+                        <td style={{ padding: '7px 8px', borderBottom: '1px solid var(--bd2)', textAlign: 'center', fontWeight: 700, direction: 'ltr', color: _mudadPctColor(m.compliance_percentage) }}>{m.compliance_percentage == null ? '—' : Number(m.compliance_percentage).toLocaleString('en-US') + '%'}</td>
+                        <td style={{ padding: '7px 8px', borderBottom: '1px solid var(--bd2)', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 10, fontWeight: 700, color: compliant ? C.ok : C.red }}>
+                            <span style={{ width: 6, height: 6, borderRadius: '50%', background: compliant ? C.ok : C.red }} />
+                            {compliant ? T('ملتزم', 'Compliant') : T('غير ملتزم', 'Non-compliant')}
+                          </span>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </CollapsibleCard>
+      )}
+
+    </>
   )
 }
 
@@ -3488,6 +3684,8 @@ const HISTORY_TABLE_LABELS = {
   ajeer_contracts: { ar: 'عقود أجير', en: 'Ajeer contracts' },
   ajeer_payments: { ar: 'مدفوعات أجير', en: 'Ajeer payments' },
   ajeer_indicators: { ar: 'مؤشرات أجير', en: 'Ajeer indicators' },
+  mudad_establishments: { ar: 'منشأة مدد', en: 'Mudad establishment' },
+  mudad_compliance_months: { ar: 'التزام مدد الشهري', en: 'Mudad monthly compliance' },
 }
 // تسميات عربية للحقول الشائعة في diff — والحقل غير المعروف يُعرض باسمه التقني.
 const HISTORY_FIELD_LABELS = {
@@ -3658,6 +3856,159 @@ function SyncHistoryCard({ history, fileVersions, T, lang }) {
   )
 }
 
+// ── حذف وحجب منشأة ──
+// الحذف وحده لا يكفي: مُحفِّز trg_sync_gosi_to_sbc يعيد زرع المنشأة في مركز
+// المزامنة مع كل مزامنة تأمينات. الـRPC يضيفها لقائمة حجب دائمة تفحصها حُرّاس
+// قاعدة البيانات عند الكتابة، فلا ترجع أبداً حتى لو أعادتها المنصّة.
+const BLOCK_LINK_LABELS = {
+  workers: ['العمالة', 'workers'],
+  temp_workers: ['العمالة المؤقتة', 'temporary workers'],
+  service_requests: ['طلبات الخدمة', 'service requests'],
+  tasks: ['المهام', 'tasks'],
+  transaction_fees: ['رسوم المعاملات', 'transaction fees'],
+  visa_applications: ['معاملات التأشيرات', 'visa applications'],
+  iqama_issuance_applications: ['معاملات إصدار الإقامة', 'iqama issuance applications'],
+  iqama_renewal_applications: ['معاملات تجديد الإقامة', 'iqama renewal applications'],
+  transfer_applications: ['معاملات نقل الكفالة', 'transfer applications'],
+  other_applications: ['معاملات أخرى', 'other applications'],
+  supplier_payroll_applications: ['معاملات رواتب سبلاير', 'supplier payroll applications'],
+  ajeer_applications: ['معاملات أجير', 'ajeer applications'],
+}
+
+function BlockFacilityAction({ sb, facility, T, lang, onBlocked }) {
+  const [open, setOpen] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [reason, setReason] = useState('')
+  const [err, setErr] = useState(null)
+  const [links, setLinks] = useState(null)
+  const [done, setDone] = useState(false)
+  const nameAr = facility?.entity_full_name_ar || T('منشأة', 'facility')
+
+  const close = () => { if (busy) return; const ok = done; setOpen(false); setDone(false); setErr(null); setLinks(null); setReason(''); if (ok) onBlocked?.() }
+
+  const doBlock = async () => {
+    setBusy(true); setErr(null); setLinks(null)
+    try {
+      const { data, error } = await sb.rpc('block_sync_facility', { p_sbc_id: facility.id, p_reason: reason || null })
+      if (error) throw error
+      if (data?.ok) { setDone(true); return }
+      if (data?.error === 'linked') setLinks(data.links || {})
+      else if (data?.error === 'forbidden') setErr(T('لا تملك صلاحية حجب المنشآت.', 'You are not allowed to block facilities.'))
+      else setErr(T('تعذّر حجب المنشأة.', 'Could not block the facility.'))
+    } catch (e) {
+      setErr(String(e.message || e))
+    } finally { setBusy(false) }
+  }
+
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)}
+        title={T('حذف المنشأة وحجبها عن كل المزامنات', 'Delete the facility and block it from every sync')}
+        style={{ height: 34, padding: '0 12px', borderRadius: 9, background: 'transparent', border: `1px dashed ${C.red}80`, color: C.red, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: F, fontSize: 11.5, fontWeight: 600 }}
+        onMouseEnter={e => { e.currentTarget.style.background = C.red + '1f' }}
+        onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
+        <ShieldOff size={12} strokeWidth={2.2} />
+        {T('حذف وحجب', 'Delete & block')}
+      </button>
+
+      {open && (
+        <FKModal open variant="delete" width={480} Icon={ShieldOff} onClose={close} errorMsg={err}
+          success={done ? <SuccessView title={T('تم حجب المنشأة', 'Facility blocked')} /> : undefined}
+          title={T('حذف المنشأة وحجبها', 'Delete & block facility')}
+          footer={
+            <ActionButton Icon={ShieldOff} color={C.red} disabled={busy || !!links} onClick={doBlock}>
+              {busy ? T('جارٍ الحجب…', 'Blocking…') : T('تأكيد الحذف والحجب', 'Confirm delete & block')}
+            </ActionButton>
+          }>
+          <div style={{ fontSize: 14, color: 'var(--tx2)', lineHeight: 1.8, padding: '2px 2px 10px' }}>
+            {T(`سيتم حذف المنشأة «${nameAr}» من مركز المزامنة ومن صفحة المنشآت، مع حذف بيانات التأمينات الخاصة بها. ولن تظهر مرة أخرى في أي مزامنة قادمة حتى لو أعادتها المنصّة.`,
+               `“${nameAr}” will be removed from the Sync Hub and the facilities page, along with its GOSI data. It will not reappear in any future sync, even if the platform returns it.`)}
+          </div>
+
+          {links && (
+            // المنشأة مرتبطة ببيانات شغّالة — الحجب هنا يترك سجلات معلّقة على
+            // منشأة مخفية، فنمنعه ونعرض ما يمنعه بدل رسالة فشل مبهمة.
+            <div style={{ borderRadius: 10, background: C.warn + '12', border: `1px solid ${C.warn}40`, padding: '10px 12px', marginBottom: 10 }}>
+              <div style={{ fontSize: 12.5, fontWeight: 700, color: C.warn, marginBottom: 6 }}>
+                {T('لا يمكن حجب هذه المنشأة — مرتبطة ببيانات قائمة', 'Cannot block — this facility has linked records')}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {Object.entries(links).map(([k, n]) => (
+                  <div key={k} style={{ fontSize: 12, color: 'var(--tx2)', display: 'flex', gap: 6 }}>
+                    <span style={{ color: C.gold, fontWeight: 700 }}>{num(n)}</span>
+                    <span>{T(BLOCK_LINK_LABELS[k]?.[0] || k, BLOCK_LINK_LABELS[k]?.[1] || k)}</span>
+                  </div>
+                ))}
+              </div>
+              <div style={{ fontSize: 11.5, color: 'var(--tx3)', marginTop: 8, lineHeight: 1.7 }}>
+                {T('افصل هذه السجلات عن المنشأة أولاً ثم أعد المحاولة.', 'Unlink these records from the facility first, then try again.')}
+              </div>
+            </div>
+          )}
+
+          {!links && !done && (
+            <TextField label={T('سبب الحجب (اختياري)', 'Reason (optional)')} value={reason} onChange={setReason}
+              placeholder={T('مثال: غير تابعة لنا', 'e.g. not ours')} />
+          )}
+        </FKModal>
+      )}
+    </>
+  )
+}
+
+// ── قائمة المحجوبة + إلغاء الحجب ──
+// إلغاء الحجب يرفع المنع فقط؛ البيانات نفسها ترجع مع أول مزامنة قادمة، لأن
+// الحجب حذَفها ولم يخفِها.
+function BlockedFacilitiesModal({ sb, blocked, T, lang, onClose, onChanged }) {
+  const [busyId, setBusyId] = useState(null)
+  const [err, setErr] = useState(null)
+
+  const unblock = async (row) => {
+    setBusyId(row.id); setErr(null)
+    try {
+      const { data, error } = await sb.rpc('unblock_sync_facility', { p_id: row.id })
+      if (error) throw error
+      if (data?.error === 'forbidden') { setErr(T('لا تملك صلاحية إلغاء الحجب.', 'You are not allowed to unblock.')); return }
+      if (!data?.ok) { setErr(T('تعذّر إلغاء الحجب.', 'Could not unblock.')); return }
+      await onChanged?.()
+    } catch (e) {
+      setErr(String(e.message || e))
+    } finally { setBusyId(null) }
+  }
+
+  return (
+    <FKModal open width={620} Icon={Ban} onClose={onClose} errorMsg={err}
+      title={T('المنشآت المحجوبة عن المزامنة', 'Facilities blocked from sync')}>
+      <div style={{ fontSize: 12.5, color: 'var(--tx3)', lineHeight: 1.8, padding: '2px 2px 12px' }}>
+        {T('هذه المنشآت لا تظهر في مركز المزامنة ولا في صفحة المنشآت، ولا تدخل أي مزامنة قادمة. إلغاء الحجب يرجّعها مع أول مزامنة.',
+           'These facilities are hidden from the Sync Hub and the facilities page, and are excluded from every future sync. Unblocking brings them back on the next sync.')}
+      </div>
+      <ScrollBox maxHeight={420} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {blocked.map(b => (
+          <div key={b.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10, background: 'var(--card-grad2)', border: '1px solid var(--bd)' }}>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {b.name_ar || b.name_en || T('بلا اسم', 'Unnamed')}
+              </div>
+              <div style={{ fontSize: 10.5, color: 'var(--tx5)', marginTop: 3, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {b.unified_number && <span style={{ direction: 'ltr', fontFamily: 'ui-monospace, monospace' }}>{T('الموحد', 'Unified')}: {b.unified_number}</span>}
+                {b.gosi_number && <span style={{ direction: 'ltr', fontFamily: 'ui-monospace, monospace' }}>{T('التأمينات', 'GOSI')}: {b.gosi_number}</span>}
+                {b.blocked_by_name && <span>{T('حجبها', 'by')}: {b.blocked_by_name}</span>}
+                <span>{fmtAgo(b.blocked_at, lang)}</span>
+              </div>
+              {b.reason && <div style={{ fontSize: 11, color: 'var(--tx4)', marginTop: 3 }}>{b.reason}</div>}
+            </div>
+            <button type="button" disabled={busyId === b.id} onClick={() => unblock(b)}
+              style={{ height: 30, padding: '0 12px', borderRadius: 8, background: 'transparent', border: `1px dashed ${C.ok}80`, color: C.ok, cursor: busyId === b.id ? 'not-allowed' : 'pointer', fontFamily: F, fontSize: 11.5, fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0, opacity: busyId === b.id ? .5 : 1 }}>
+              {busyId === b.id ? T('جارٍ…', 'Working…') : T('إلغاء الحجب', 'Unblock')}
+            </button>
+          </div>
+        ))}
+      </ScrollBox>
+    </FKModal>
+  )
+}
+
 export default function SbcFacilities({ sb, toast, user, lang, personFilter, onTriggerSync, syncPersonId, onBack }) {
   const T = (ar, en) => (lang || 'ar') !== 'en' ? ar : en
 
@@ -3684,6 +4035,8 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
   const [advOpen, setAdvOpen] = useState(false)
   const [adv, setAdv] = useState({ owner: [], manager: [], partnersCount: [], adminsCount: [], city: '', status: [], sortConfirm: '', sortIssue: '', nitaq: [] })
   const [detail, setDetail] = useState(null)
+  const [blocked, setBlocked] = useState([])
+  const [showBlocked, setShowBlocked] = useState(false)
   const [lastSync, setLastSync] = useState(null)
   const [filter, setFilter] = useState('all') // all | main | manager | partner | confirmation
   const [page, setPage] = useState(0)
@@ -3756,6 +4109,10 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
   const [ajeerContracts, setAjeerContracts] = useState([])
   const [ajeerPayments, setAjeerPayments] = useState([])
   const [ajeerIndicators, setAjeerIndicators] = useState([])
+  // مدد — الالتزام وملفات حماية الأجور (mudadSyncBookmarklet.js).
+  // المفتاح الرقم الوطني الموحد، لا mlsd_unified_id: الأخير رقم مكتب العمل.
+  const [mudadEst, setMudadEst] = useState(null)
+  const [mudadMonths, setMudadMonths] = useState([])
   // سجل التغييرات (sync_row_history — تكتبه triggers القاعدة عند أي تغيير فعلي)
   // وإصدارات الملفات المؤرشفة (sync_file_versions).
   const [rowHistory, setRowHistory] = useState([])
@@ -4013,9 +4370,13 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
     if (!sb) return
     setLoading(true); setErr(null)
     try {
-      const { data, error } = await sb.from('sbc_facilities').select('*').order('entity_full_name_ar', { ascending: true })
+      const [{ data, error }, { data: blk }] = await Promise.all([
+        sb.from('sbc_facilities').select('*').order('entity_full_name_ar', { ascending: true }),
+        sb.from('sync_blocked_facilities').select('*').order('blocked_at', { ascending: false }),
+      ])
       if (error) throw error
       setRows(data || [])
+      setBlocked(blk || [])
       setLastSync((data && data.length) ? data.reduce((m, r) => (r.synced_at && (!m || r.synced_at > m)) ? r.synced_at : m, null) : null)
     } catch (e) {
       setErr(String(e.message || e))
@@ -4437,6 +4798,39 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
     })()
     return () => { cancelled = true }
   }, [sb, detail, ajeerKeys])
+
+  // مدد — الربط بالرقم الوطني الموحد (nationalUnifiedId في مدد). كل الصيغ
+  // المتاحة تُجرَّب لأن أياً منها قد يكون المصدر الوحيد المزامَن لهذه المنشأة،
+  // ونفس المنشأة قد تحمل عدة أرقام مكتب عمل تحت رقم موحد واحد (مدد نفسه يقول
+  // «يتم اعتماد الرقم الموحد لجميع فروع المنشأة وعليه تُحسب نسبة الالتزام
+  // كنسبة واحدة») — فالنسبة تُقرأ من أحدث فترة أجور لا من أول صف.
+  const mudadKeys = useMemo(() => {
+    const ks = new Set()
+    for (const v of [detail?.unified_number, detail?.gosi_unified_national_number, detail?.cr_national_number]) {
+      if (v != null && String(v).trim()) ks.add(String(v).trim())
+    }
+    return Array.from(ks)
+  }, [detail?.unified_number, detail?.gosi_unified_national_number, detail?.cr_national_number])
+
+  useEffect(() => {
+    if (!sb || !detail || mudadKeys.length === 0) { setMudadEst(null); setMudadMonths([]); return }
+    let cancelled = false
+    ;(async () => {
+      const est = await sb.from('mudad_establishments').select('*')
+        .in('national_unified_id', mudadKeys)
+        .order('wage_period', { ascending: false, nullsFirst: false })
+      if (cancelled) return
+      const rows = est.data || []
+      setMudadEst(rows[0] || null)
+      if (!rows.length) { setMudadMonths([]); return }
+      const months = await sb.from('mudad_compliance_months').select('*')
+        .in('mlsd_unified_id', rows.map(r => r.mlsd_unified_id))
+        .order('wage_period_id', { ascending: false })
+      if (cancelled) return
+      setMudadMonths(months.data || [])
+    })()
+    return () => { cancelled = true }
+  }, [sb, detail, mudadKeys])
 
   // سجل التغييرات + إصدارات الملفات — يُجمَع عبر كل مفاتيح المنشأة لدى
   // المصادر (سجل تجاري / تأمينات / موحد / قوى / أجير) لأن كل جدول مصدر
@@ -5107,6 +5501,16 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
             </svg>
           </button>
+          {/* المحجوبة غائبة عن القائمة تماماً، فبدون هذا المدخل ما فيه أي طريقة
+              لمراجعة ما حُجب أو التراجع عنه. */}
+          {blocked.length > 0 && (
+            <button type="button" onClick={() => setShowBlocked(true)}
+              title={T('عرض المنشآت المحجوبة عن المزامنة', 'View facilities blocked from sync')}
+              style={{ height: 42, padding: '0 16px', borderRadius: 11, background: 'transparent', border: '1px dashed var(--bd)', color: 'var(--tx3)', cursor: 'pointer', fontFamily: F, fontSize: 13, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0 }}>
+              <Ban size={15} strokeWidth={2.2} />
+              {T(`المنشآت المحجوبة (${num(blocked.length)})`, `Blocked (${num(blocked.length)})`)}
+            </button>
+          )}
         </div>
         {/* الشريط RTL: المصادر تبدأ من اليمين (المركز أولاً) وتتدفق يساراً.
             كل زر يفرض ltr داخلياً فيبقى ترتيبه أيقونة ← اسم ← نقاط السحب. */}
@@ -5117,6 +5521,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
           <QiwaSyncBookmarklet syncPersonId={spid} T={T} />
           <MuqeemSyncBookmarklet syncPersonId={spid} T={T} />
           <AjeerSyncBookmarklet syncPersonId={spid} T={T} />
+          <MudadSyncBookmarklet syncPersonId={spid} T={T} />
           {/* الغرفة + الزكاة — لا يوجد سكربت/جداول بعد؛ معطّلان لحين التقاط الـ endpoints. */}
           <SoonBookmark
             accent={SOURCE_BRAND.chambers.color}
@@ -6341,11 +6746,14 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
         // cards below stay gated on hasSbcData alone.
         const hasRequestsData = !!detail?.requests_synced_at
         return (
-        <div style={{ fontFamily: F, paddingTop: 0, paddingBottom: 80, color: 'var(--tx2)' }}>
+        <div className="synchub-detail" style={{ fontFamily: F, paddingTop: 0, paddingBottom: 80, color: 'var(--tx2)' }}>
+          <style>{FAC_DETAIL_TYPE_SCALE}</style>
           {/* Top bar — Back + expand/collapse-all (mirrors FacilityDetailPage top bar) */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, gap: 12, flexWrap: 'wrap' }}>
             <BackButton onBack={() => setDetail(null)} label={T('رجوع','Back')} />
             <div style={{ display: 'flex', gap: 8 }}>
+              <BlockFacilityAction sb={sb} facility={detail} T={T} lang={lang}
+                onBlocked={() => { setDetail(null); load() }} />
               {[
                 { expand: true, ar: 'توسيع الكل', en: 'Expand all', d: 'M7 13l5 5 5-5M7 6l5 5 5-5' },
                 { expand: false, ar: 'طي الكل', en: 'Collapse all', d: 'M7 18l5-5 5 5M7 11l5-5 5 5' },
@@ -7956,6 +8364,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
 
               {/* أجير — التصاريح والعقود والمدفوعات والمؤشرات */}
               <AjeerCards est={ajeerEst} notices={ajeerNotices} contracts={ajeerContracts} payments={ajeerPayments} indicators={ajeerIndicators} T={T} lang={lang} />
+              <MudadCards est={mudadEst} months={mudadMonths} T={T} lang={lang} />
 
               {/* سجل التغييرات بين المزامنات + إصدارات الملفات المؤرشفة */}
               <SyncHistoryCard history={rowHistory} fileVersions={fileVersions} T={T} lang={lang} />
@@ -8110,7 +8519,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
             const SectionCard = ({ title, color, children, count }) => (
               <div style={{ ...cardChrome, marginTop: 14 }}>
                 <div style={cardHeader}>
-                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: color }} />
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
                   <span style={cardTitle}>{title}</span>
                   {count != null && <span style={{ marginInlineStart: 'auto', fontSize: 11, color: 'var(--tx5)', fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(count)}</span>}
                 </div>
@@ -8378,6 +8787,10 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
         )
       })()}
 
+      {showBlocked && (
+        <BlockedFacilitiesModal sb={sb} blocked={blocked} T={T} lang={lang}
+          onClose={() => setShowBlocked(false)} onChanged={load} />
+      )}
 
     </div>
   )

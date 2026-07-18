@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="ar">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>جسر · قناة الحفظ</title>
+  <style>
+    html,body{margin:0;height:100%;background:#0b0b0d;color:#0ea5e9;
+      font:700 14px/1.6 -apple-system,Segoe UI,Roboto,sans-serif;direction:rtl}
+    .wrap{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;padding:24px}
+    .dot{width:12px;height:12px;border-radius:50%;background:currentColor;animation:p 1.4s infinite}
+    @keyframes p{0%{box-shadow:0 0 0 0 rgba(37,99,235,.6)}70%{box-shadow:0 0 0 16px rgba(37,99,235,0)}100%{box-shadow:0 0 0 0 rgba(37,99,235,0)}}
+    small{color:#9ca3af;font-weight:500;max-width:320px}
+    #n{font-size:22px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="dot"></div>
+    <div id="t">جسر المزامنة — قناة الحفظ</div>
+    <div id="n">0</div>
+    <small>لا تغلق هذا التبويب حتى تنتهي المزامنة. يستقبل البيانات من صفحة المنصة ويحفظها في قاعدة جسر.</small>
+  </div>
+  <script>
+  // ── Generic sync bridge ──────────────────────────────────────────────
+  // Platforms whose CSP has a restrictive connect-src (mudad.com.sa, muqeem.sa)
+  // block a sync bookmarklet from POSTing results straight to supabase.co. This
+  // page lives on the Jisr origin (our own CSP), so it CAN reach Supabase. The
+  // bookmarklet opens it in a popup and pipes every Supabase write here via
+  // postMessage.
+  //
+  // This is the platform-neutral version of muqeem-bridge.html; the label is set
+  // with ?p=<name>. muqeem-bridge.html is left in place untouched so a working
+  // integration isn't put at risk by this refactor.
+  //
+  // Protocol (must match the bookmarklet's side):
+  //   opener → bridge : {hello:true}                          (handshake ping)
+  //   bridge → opener : {ready:true}                          (ack)
+  //   opener → bridge : {id, path, method, headers, body}     (a Supabase call)
+  //   opener → bridge : {id, path, method, headers, body, b64:true}
+  //                                                           (binary upload —
+  //                     body is base64; decoded here before sending)
+  //   bridge → opener : {id, status, body}                    (the response)
+  const U = 'https://gcvshzutdslmdkwqwteh.supabase.co';
+  const K = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdjdnNoenV0ZHNsbWRrd3F3dGVoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4OTkwNjgsImV4cCI6MjA5MDQ3NTA2OH0.5R0I5VvB7lp3wpSrtay3DMcXKsT9l1uK0Ukd1F4_ImM';
+
+  // Label only — no behaviour depends on it. Set via textContent so a crafted
+  // ?p= value can't inject markup.
+  try {
+    const p = new URLSearchParams(location.search).get('p');
+    if (p) { document.getElementById('t').textContent = 'جسر ' + p + ' — قناة الحفظ'; document.title = 'جسر · ' + p; }
+  } catch (_) {}
+
+  let served = 0;
+  const counter = document.getElementById('n');
+  const ackReady = () => { try { if (window.opener) window.opener.postMessage({ ready: true }, '*'); } catch (_) {} };
+
+  window.addEventListener('message', async (e) => {
+    const d = e.data;
+    if (!d || typeof d !== 'object') return;
+
+    // Handshake ping — reply ready.
+    if (d.hello) { ackReady(); return; }
+
+    // A Supabase call to proxy.
+    if (d.id && d.path) {
+      let status = 0, body = '';
+      try {
+        // Binary payloads arrive base64-encoded (postMessage can't carry a Blob
+        // through the bookmarklet cleanly) — decode back to bytes before sending.
+        let payload = d.body != null ? d.body : undefined;
+        if (d.b64 && typeof d.body === 'string') {
+          const bin = atob(d.body);
+          const arr = new Uint8Array(bin.length);
+          for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+          payload = arr;
+        }
+        const r = await fetch(U + d.path, {
+          method: d.method || 'POST',
+          headers: {
+            apikey: K,
+            Authorization: 'Bearer ' + K,
+            'Content-Type': 'application/json',
+            ...(d.headers || {}),
+          },
+          body: payload,
+        });
+        status = r.status;
+        body = await r.text();
+      } catch (err) {
+        status = 0;
+        body = JSON.stringify({ bridgeError: String((err && err.message) || err) });
+      }
+      try { if (window.opener) window.opener.postMessage({ id: d.id, status, body }, '*'); } catch (_) {}
+      served++; if (counter) counter.textContent = String(served);
+    }
+  });
+
+  // Announce readiness as soon as we load (the bookmarklet also pings).
+  ackReady();
+  </script>
+</body>
+</html>
