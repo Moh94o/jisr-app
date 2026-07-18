@@ -4203,7 +4203,10 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
           const r = pending[i]
           const res = await fetch('/.netlify/functions/sbc-request-files', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ session, cr: r.cr_national_number, requestId: r.request_internal_id || null }),
+            body: JSON.stringify({
+              session, cr: r.cr_national_number, requestId: r.request_internal_id || null,
+              invoiceNumber: r.raw_request_status?.invoiceNumber || null,
+            }),
           }).then(x => x.json()).catch(e => ({ error: String(e?.message || e) }))
 
           // A dead session fails every remaining row identically — stop rather
@@ -7585,6 +7588,9 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                           { lang: 'ar', label: T('السجل التجاري — عربي', 'CR — Arabic'), available: !!printAr?.downloadUrl },
                           { lang: 'en', label: T('السجل التجاري — إنجليزي', 'CR — English'), available: !!printEn?.downloadUrl },
                           { lang: 'contract', label: T('عقد التأسيس', 'Founding Contract'), available: !!printContract?.downloadUrl && detail.entity_type_ar === 'شركة' },
+                          // فاتورة الطلب من طلباتي — تُجلب خادمياً إلى {cr}-invoice.pdf.
+                          // تظهر متى وُجد رقم فاتورة وتمّت مزامنة ملفات طلباتي.
+                          { lang: 'invoice', label: T('فاتورة الطلب', 'Request Invoice'), available: !!(detail.raw_request_status?.invoiceNumber && detail.requests_files_synced_at) },
                         ].map(({ lang: lng, label, available }) => {
                           const href = `${STORAGE_BASE}-${lng}.pdf`
                           if (!available) {
@@ -8699,6 +8705,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                       { lang: 'ar', label: T('السجل التجاري — عربي', 'CR — Arabic'), available: !!printAr?.downloadUrl },
                       { lang: 'en', label: T('السجل التجاري — إنجليزي', 'CR — English'), available: !!printEn?.downloadUrl },
                       { lang: 'contract', label: T('عقد التأسيس', 'Founding Contract'), available: !!printContract?.downloadUrl && detail.entity_type_ar === 'شركة' },
+                      { lang: 'invoice', label: T('فاتورة الطلب', 'Request Invoice'), available: !!(detail.raw_request_status?.invoiceNumber && detail.requests_files_synced_at) },
                     ].map(({ lang, label, available }) => available ? (
                       <a key={lang}
                         href={`${STORAGE_BASE}-${lang}.pdf`}

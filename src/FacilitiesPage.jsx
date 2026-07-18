@@ -590,6 +590,7 @@ function FacilityRegistryCards({ facility: f, sb, T, lang, user, toast, onEdit, 
     { key: 'commercial_registration', ar: 'السجل التجاري بالعربي', en: 'Commercial Registration (AR)', syncSuffix: 'ar' },
     { key: 'commercial_registration_en', ar: 'السجل التجاري بالإنجليزي', en: 'Commercial Registration (EN)', syncSuffix: 'en' },
     { key: 'articles_of_incorporation', ar: 'عقد التأسيس', en: 'Founding Contract', syncSuffix: 'contract' },
+    { key: 'request_invoice', ar: 'فاتورة الطلب', en: 'Request Invoice', syncSuffix: 'invoice' },
     { key: 'cr_extract', ar: 'مستخرج السجل التجاري', en: 'CR Extract', syncSuffix: null },
   ]
   const canFilesEdit = canCardBtn(user, 'facilities', 'facility_files', 'edit')

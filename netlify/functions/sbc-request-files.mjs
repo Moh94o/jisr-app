@@ -1,5 +1,5 @@
 // sbc-request-files — server-side fetcher for the طلباتي document set:
-// السجل التجاري (ar/en) + عقد التأسيس.
+// السجل التجاري (ar/en) + عقد التأسيس + فاتورة الطلب.
 //
 // Why server-side, and not from the bookmarklet like the تيسير flow does:
 //
@@ -28,6 +28,9 @@
 const CP_API = 'https://api.saudibusiness.gov.sa/sbc/externalgw/companiesprocessingapi-nl/api/app'
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36'
 const PORTAL = 'https://companies.saudibusiness.gov.sa'
+// The payment gateway that serves the request invoice as a PDF. Unlike the
+// CR/contract set, this needs no auth and no printcr hop — see grabInvoice.
+const PAYMENT_GW = 'https://sbcpaymentgateway.saudibusiness.gov.sa'
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'https://gcvshzutdslmdkwqwteh.supabase.co'
 const SUPABASE_ANON = process.env.VITE_SUPABASE_ANON_KEY ||
@@ -161,6 +164,64 @@ async function grab(session, { url, lang, cr }) {
   return { ok: true, path, sizeBytes: bytes.length }
 }
 
+// The طلباتي invoice PDF. This is nothing like the CR/contract grab above:
+// no portal token, no printcr resolution. The payment gateway renders the
+// invoice as a public, fully deterministic PDF at
+//   /Invoice/Report/{invoiceNumber}?culture=ar&token=disabled
+// The "token" is literally the string "disabled" — verification is switched
+// off server-side (confirmed live: the endpoint returns application/pdf even
+// with no cookies at all). So we just fetch it and store it alongside the rest
+// as {cr}-invoice.pdf. Because it needs no session it can succeed even when the
+// portal token has died, so it's called independently of the session checks.
+async function grabInvoice({ invoiceNumber, cr }) {
+  const url = `${PAYMENT_GW}/Invoice/Report/${encodeURIComponent(invoiceNumber)}?culture=ar&token=disabled`
+  let bytes
+  try {
+    const pdf = await withTimeout((signal) => fetch(url, {
+      headers: {
+        'User-Agent': UA,
+        Accept: 'application/pdf,application/octet-stream,*/*',
+        'Accept-Language': 'ar-SA,ar;q=0.9,en;q=0.8',
+        Referer: `${PAYMENT_GW}/invoice/pay/${encodeURIComponent(invoiceNumber)}?culture=ar`,
+      },
+      signal,
+    }), 60_000)
+    // 503 here is the report service being transiently down (seen live) — a
+    // retry on the next sweep is the right move, so surface it as a plain fail.
+    if (!pdf.ok) return { ok: false, step: 'pdf', status: pdf.status, notFound: pdf.status === 404 }
+    bytes = Buffer.from(await pdf.arrayBuffer())
+  } catch (e) {
+    return { ok: false, step: 'pdf', error: String(e?.message || e) }
+  }
+
+  if (bytes.length < 1000 || bytes.subarray(0, 4).toString('latin1') !== '%PDF') {
+    return { ok: false, step: 'pdf', error: 'not a pdf', sizeBytes: bytes.length }
+  }
+
+  const path = `sbc-cr-certificates/${cr}-invoice.pdf`
+  await archiveExisting(path, cr)
+  try {
+    const up = await fetch(`${SUPABASE_URL}/storage/v1/object/documents/${encodeURI(path)}`, {
+      method: 'POST',
+      headers: {
+        apikey: STORAGE_KEY,
+        Authorization: `Bearer ${STORAGE_KEY}`,
+        'Content-Type': 'application/pdf',
+        'x-upsert': 'true',
+      },
+      body: bytes,
+    })
+    if (!up.ok) {
+      const t = await up.text().catch(() => '')
+      return { ok: false, step: 'upload', status: up.status, error: t.slice(0, 160) }
+    }
+  } catch (e) {
+    return { ok: false, step: 'upload', error: String(e?.message || e) }
+  }
+
+  return { ok: true, path, sizeBytes: bytes.length }
+}
+
 export const handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: cors, body: '' }
   if (event.httpMethod !== 'POST') return json({ error: 'Method not allowed' }, 405)
@@ -169,7 +230,7 @@ export const handler = async (event) => {
   try { body = JSON.parse(event.body || '{}') }
   catch { return json({ error: 'Invalid JSON' }, 400) }
 
-  const { session, cr, requestId } = body
+  const { session, cr, requestId, invoiceNumber } = body
   if (!session?.accessToken) return json({ error: 'لا توجد جلسة لبوابة الشركات.', code: 'NO_SESSION' }, 401)
   if (!cr) return json({ error: 'missing cr' }, 400)
 
@@ -184,6 +245,11 @@ export const handler = async (event) => {
   }
   if (requestId) {
     files.contract = await grab(session, { url: `${CP_API}/request/contract/${requestId}`, lang: 'contract', cr })
+  }
+  // Invoice is public — fetched independently so it lands even if the portal
+  // session died mid-run and the CR/contract grabs above came back 401.
+  if (invoiceNumber) {
+    files.invoice = await grabInvoice({ invoiceNumber, cr })
   }
 
   const sessionDead = Object.values(files).some(f => f?.code === 'SESSION_INVALID')
