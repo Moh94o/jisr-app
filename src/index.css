@@ -8,3 +8,11 @@
    Shimmer/SkeletonTable/SkeletonList primitives directly). */
 @keyframes sk-shimmer { 0% { background-position: 100% 0 } 100% { background-position: -100% 0 } }
 @keyframes sk-spin { to { transform: rotate(360deg) } }
+
+/* قيم الحقول المقصوصة بنقاط (…) — عند تمرير الفأرة تُكشف كاملةً (تلتفّ لأسطر). */
+.val-reveal:hover {
+  overflow: visible !important;
+  white-space: normal !important;
+  text-overflow: clip !important;
+  word-break: break-word;
+}

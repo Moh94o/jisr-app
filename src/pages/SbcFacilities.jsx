@@ -74,7 +74,10 @@ const btnFilter = (active) => ({ height: 44, padding: '0 16px', borderRadius: 12
 // «طلباتي» provenance pill. Marks a facility whose data came from the user's
 // own requests on the companies portal rather than the CR list — the CR list
 // only returns records this account owns, so companies it merely established
-// are invisible there and would otherwise show up blank.
+// are invisible there and would otherwise show up blank. Renders ONLY the
+// طلباتي document icon: the SBC logo now belongs to CrListBadge, so a row that
+// came from both channels shows the logo (السجلات) AND this icon (طلباتي)
+// side by side, and each icon means exactly one source.
 function RequestsBadge({ row, T, compact }) {
   if (!row || !row.requests_synced_at) return null
   const ref = row.request_reference_no
@@ -87,19 +90,27 @@ function RequestsBadge({ row, T, compact }) {
   return (
     <span
       title={title}
-      style={{
-        display: 'inline-flex', alignItems: 'center', gap: 3,
-        fontSize: compact ? 8.5 : 10, fontWeight: 700, whiteSpace: 'nowrap',
-        color: '#c084fc',
-        background: 'rgba(192,132,252,.12)',
-        border: '1px solid rgba(192,132,252,.35)',
-        borderRadius: 5, padding: compact ? '0 4px' : '1px 6px', lineHeight: compact ? '13px' : '16px',
-      }}
+      style={{ display: 'inline-flex', alignItems: 'center', gap: compact ? 3 : 4, color: '#c084fc', flexShrink: 0 }}
     >
-      <svg width={compact ? 8 : 9} height={compact ? 8 : 9} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+      <svg width={compact ? 13 : 16} height={compact ? 13 : 16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 15l2 2 4-4"/>
       </svg>
-      {T('طلباتي', 'Requests')}
+    </span>
+  )
+}
+
+// قائمة السجلات التجارية provenance mark. The SBC logo now stands for the CR
+// list itself — a facility this account owns, returned by the المركز السعودي
+// CR-list sync (`last_synced_at`). Kept separate from RequestsBadge so the
+// logo never implies طلباتي: a طلباتي-only ghost (no CR record) shows no logo.
+function CrListBadge({ row, T, compact }) {
+  if (!row || !row.last_synced_at) return null
+  return (
+    <span
+      title={T('من قائمة السجلات التجارية — المركز السعودي', 'From the commercial-registry list — Saudi Business Center')}
+      style={{ display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}
+    >
+      <SbcSourceIcon size={compact ? 13 : 16} />
     </span>
   )
 }
@@ -328,7 +339,7 @@ function DateRow({ label, value, T, confirm }) {
 // window opens (yellow); within the 90-day window it counts days left before
 // suspension (red). Returns null outside both ranges — nothing actionable.
 // `compact` shrinks it for table cells; the status card uses the default size.
-function CrCountdown({ confirmDate, T, compact, style }) {
+function CrCountdown({ confirmDate, T, compact, pill, style }) {
   if (!confirmDate) return null
   const t = new Date(confirmDate).getTime()
   if (Number.isNaN(t)) return null
@@ -351,6 +362,9 @@ function CrCountdown({ confirmDate, T, compact, style }) {
       display: 'inline-flex', alignItems: 'center', gap: compact ? 4 : 5,
       color, fontSize: compact ? 9.5 : 10.5, fontWeight: 600,
       fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap',
+      // `pill` self-contains the badge so text and background share one color —
+      // avoids the mismatch of a green status-pill wrapping a yellow/red countdown.
+      ...(pill ? { padding: '2px 8px', borderRadius: 6, background: color + '14' } : null),
       ...style,
     }}>
       <svg width={sz} height={sz} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
@@ -440,11 +454,11 @@ function QiwaVisaRequestsCard({ sb, companyId, T }) {
     ;(async () => {
       const [reqRes, bnRes] = await Promise.all([
         sb.from('qiwa_visa_requests')
-          .select('id, request_id, type_name, subtype, status, starting_date, approval_date, visa_number, visa_number_sum, rejection_reason')
+          .select('id, request_id, type_id, type_name, subtype, status, starting_date, approval_date, visa_number, visa_number_sum, rejection_reason')
           .eq('company_id', companyId)
           .order('starting_date', { ascending: false, nullsFirst: false }),
         sb.from('qiwa_visa_border_numbers')
-          .select('request_id, border_number, nationality_ar, occupation_ar, embassy_ar, gender_ar, status')
+          .select('request_id, border_number, nationality_ar, occupation_ar, embassy_ar, gender_ar, religion_code, status, raw')
           .eq('company_id', companyId),
       ])
       if (cancelled) return
@@ -458,6 +472,34 @@ function QiwaVisaRequestsCard({ sb, companyId, T }) {
   if (!rows && !loading) return null
   if (rows && rows.length === 0) return null
 
+  // ترجمة نوع طلب التأشيرة القادم من قوى إلى العربية
+  const VISA_TYPE_AR = { commercial: 'عمل' }
+  const visaTypeAr = (v) => (v == null ? v : (VISA_TYPE_AR[String(v).toLowerCase()] || v))
+  // ترجمة حالة الطلب
+  const VISA_STATUS_AR = { accepted: 'قبلت', rejected: 'رفضت', pending: 'قيد المعالجة' }
+  const visaStatusAr = (v) => (v == null ? v : (VISA_STATUS_AR[String(v).toLowerCase()] || v))
+  // ترجمة فئة الطلب
+  const VISA_SUBTYPE_AR = { establishment_immediate: 'فوري للمنشأة', immediate_track: 'المسار الفوري' }
+  const visaSubtypeAr = (v) => (v == null ? v : (VISA_SUBTYPE_AR[String(v).toLowerCase()] || v))
+  // حالة رقم الحدود (التأشيرة) — رمز رقمي من قوى
+  const BN_STATUS_AR = { '1': 'جديدة', '2': 'متاحة', '3': 'تم استخدامها', '4': 'ملغاة' }
+  const BN_STATUS_EN = { '1': 'New', '2': 'Available', '3': 'Used', '4': 'Cancelled' }
+  const bnStatusColor = (s) => ({ '2': '#3b82f6', '3': '#22c55e', '4': '#ef4444' }[String(s)] || '#94a3b8')
+  const bnStatusLabel = (s) => (s == null ? null : T(BN_STATUS_AR[String(s)] || String(s), BN_STATUS_EN[String(s)] || String(s)))
+  // الديانة من raw — قوى تُرجع "{}" عندما تكون فارغة، فنُخفيها حينها
+  const bnReligionAr = (b) => {
+    const n = b && b.raw && b.raw.religion && b.raw.religion.name_ar
+    return (n && n !== '{}' && n !== '{ }') ? n : null
+  }
+  // أعداد التأشيرات (المطلوبة/المتاحة/المستخدمة/الملغاة) مشتقّة من أرقام الحدود
+  const visaCounts = (r, borders) => {
+    const b = borders || []
+    const used = b.filter(x => String(x.status) === '3').length
+    const cancelled = b.filter(x => String(x.status) === '4').length
+    const requested = r.visa_number_sum != null ? Number(r.visa_number_sum) : b.length
+    const available = Math.max(0, requested - used - cancelled)
+    return { requested, available, used, cancelled }
+  }
   return (
     <CollapsibleCard
       title={T('سجل طلبات التأشيرات', 'Visa Requests History')}
@@ -468,6 +510,8 @@ function QiwaVisaRequestsCard({ sb, companyId, T }) {
         {rows && rows.map(r => {
           const accepted = r.status === 'accepted'
           const dotColor = accepted ? '#22c55e' : (r.status === 'rejected' ? '#ef4444' : '#f59e0b')
+          const borders = bnByReq[r.request_id] || []
+          const counts = visaCounts(r, borders)
           return (
             <div key={r.id}
               style={{
@@ -480,25 +524,33 @@ function QiwaVisaRequestsCard({ sb, companyId, T }) {
               <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{ width: 6, height: 6, borderRadius: '50%', background: dotColor, flexShrink: 0 }} />
                 <span style={{ fontWeight: 600, color: 'var(--tx)', direction: 'ltr', fontFamily: 'ui-monospace, monospace' }}>{r.request_id || `#${r.id}`}</span>
-                <span style={{ fontSize: 10, color: dotColor, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: dotColor + '14' }}>{r.status}</span>
+                <span style={{ fontSize: 10, color: dotColor, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: dotColor + '14' }}>{T(visaStatusAr(r.status), r.status)}</span>
                 {r.visa_number_sum > 0 && <span style={{ marginInlineStart: 'auto', fontSize: 10, color: 'var(--tx5)', fontWeight: 600 }}>{r.visa_number_sum} {T('تأشيرة', 'visa(s)')}</span>}
               </div>
-              {r.type_name && <div style={{ color: 'var(--tx4)' }}>{T('النوع', 'Type')}: <span style={{ color: 'var(--tx2)', fontWeight: 600 }}>{r.type_name}</span></div>}
-              {r.subtype && <div style={{ color: 'var(--tx4)' }}>{T('الفئة', 'Subtype')}: <span style={{ color: 'var(--tx2)', fontWeight: 600 }}>{r.subtype}</span></div>}
+              {r.type_name && <div style={{ color: 'var(--tx4)' }}>{T('النوع', 'Type')}: <span style={{ color: 'var(--tx2)', fontWeight: 600 }}>{T(visaTypeAr(r.type_name), r.type_name)}</span></div>}
+              {r.subtype && <div style={{ color: 'var(--tx4)' }}>{T('الفئة', 'Subtype')}: <span style={{ color: 'var(--tx2)', fontWeight: 600 }}>{T(visaSubtypeAr(r.subtype), r.subtype)}</span></div>}
               {r.visa_number && <div style={{ color: 'var(--tx4)' }}>{T('رقم التأشيرة', 'Visa no.')}: <span style={{ color: 'var(--tx2)', fontWeight: 600, fontFamily: 'ui-monospace, monospace', direction: 'ltr' }}>{r.visa_number}</span></div>}
-              {r.approval_date && <div style={{ color: 'var(--tx4)' }}>{T('تاريخ الموافقة', 'Approved')}: <span style={{ color: 'var(--tx2)', fontWeight: 600, direction: 'ltr' }}>{fmtDMY(r.approval_date)}</span></div>}
-              {r.starting_date && <div style={{ color: 'var(--tx4)' }}>{T('تاريخ البدء', 'Started')}: <span style={{ color: 'var(--tx2)', fontWeight: 600, direction: 'ltr' }}>{fmtDMY(r.starting_date)}</span></div>}
+              {r.approval_date && <div style={{ color: 'var(--tx4)' }}>{T('تاريخ الموافقة', 'Approved')}: <span style={{ color: 'var(--tx2)', fontWeight: 600, direction: 'ltr', unicodeBidi: 'isolate', display: 'inline-block' }}>{fmtDMY(r.approval_date)}</span></div>}
+              {r.starting_date && <div style={{ color: 'var(--tx4)' }}>{T('تاريخ البدء', 'Started')}: <span style={{ color: 'var(--tx2)', fontWeight: 600, direction: 'ltr', unicodeBidi: 'isolate', display: 'inline-block' }}>{fmtDMY(r.starting_date)}</span></div>}
               {r.rejection_reason && <div style={{ gridColumn: '1 / -1', color: '#ef4444', fontSize: 10.5 }}>{T('سبب الرفض', 'Rejection reason')}: {r.rejection_reason}</div>}
+              {/* أعداد التأشيرات المشتقّة — كما في صفحة طباعة قوى */}
+              <div style={{ gridColumn: '1 / -1', display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 2 }}>
+                {[[T('المطلوبة', 'Requested'), counts.requested], [T('المتاحة', 'Available'), counts.available], [T('المستخدمة', 'Used'), counts.used], [T('الملغاة', 'Cancelled'), counts.cancelled]].map(([k, v], i) => (
+                  <span key={i} style={{ fontSize: 10, color: 'var(--tx4)', background: 'rgba(255,255,255,.03)', border: '1px solid var(--bd2)', borderRadius: 6, padding: '2px 8px' }}>{k}: <b style={{ color: 'var(--tx2)' }}>{v}</b></span>
+                ))}
+              </div>
               {/* أرقام الحدود لكل تأشيرة (qiwa_visa_border_numbers) */}
               {(bnByReq[r.request_id] || []).length > 0 && (
                 <div style={{ gridColumn: '1 / -1', marginTop: 4, display: 'flex', flexDirection: 'column', gap: 4 }}>
                   {bnByReq[r.request_id].map((b, bi) => (
                     <div key={b.border_number || bi} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', padding: '5px 8px', borderRadius: 6, background: 'rgba(59,130,246,.06)', border: '1px solid var(--bd2)', fontSize: 10.5 }}>
-                      <span style={{ fontFamily: 'ui-monospace, monospace', direction: 'ltr', color: 'var(--tx3)' }}>{b.border_number}</span>
+                      <span style={{ fontFamily: 'ui-monospace, monospace', direction: 'ltr', color: 'var(--tx)', fontWeight: 700, fontSize: 13 }}>{b.border_number}</span>
                       {b.nationality_ar && <span style={{ color: 'var(--tx2)', fontWeight: 600 }}>{b.nationality_ar}</span>}
+                      {b.embassy_ar && <span style={{ color: 'var(--tx5)' }}>· {b.embassy_ar}</span>}
                       {b.occupation_ar && <span style={{ color: 'var(--tx4)' }}>· {b.occupation_ar}</span>}
                       {b.gender_ar && <span style={{ color: 'var(--tx4)' }}>· {b.gender_ar}</span>}
-                      {b.embassy_ar && <span style={{ color: 'var(--tx5)', marginInlineStart: 'auto' }}>{T('سفارة', 'Embassy')}: {b.embassy_ar}</span>}
+                      {bnReligionAr(b) && <span style={{ color: 'var(--tx4)' }}>· {T('الديانة', 'Religion')}: {bnReligionAr(b)}</span>}
+                      {b.status != null && <span style={{ marginInlineStart: 'auto', fontSize: 9.5, fontWeight: 600, color: bnStatusColor(b.status), padding: '1px 6px', borderRadius: 5, background: bnStatusColor(b.status) + '18' }}>{bnStatusLabel(b.status)}</span>}
                     </div>
                   ))}
                 </div>
@@ -506,6 +558,130 @@ function QiwaVisaRequestsCard({ sb, companyId, T }) {
             </div>
           )
         })}
+      </div>
+    </CollapsibleCard>
+  )
+}
+
+// Qiwa employee-transfer requests history card — lazy-loads from
+// qiwa_transfer_requests for the given company_id. Empty state when no rows.
+// Splits received (وارد) vs sent (صادر) requests. Mirrors the visa-requests card.
+function QiwaTransferRequestsCard({ sb, companyId, T }) {
+  const [rows, setRows] = useState(null) // null = not loaded, [] = empty, [...] = loaded
+  const [loading, setLoading] = useState(false)
+  useEffect(() => {
+    if (!sb || !companyId) { setRows(null); return }
+    let cancelled = false
+    setLoading(true)
+    ;(async () => {
+      const { data } = await sb.from('qiwa_transfer_requests')
+        .select('request_id, direction, status, status_id, status_ar, status_en, employee_id, employee_name, current_employer_name, new_employer_name, release_date, created_at_qiwa, expires_at')
+        .eq('company_id', companyId)
+        .order('created_at_qiwa', { ascending: false, nullsFirst: false })
+      if (cancelled) return
+      setRows(data || []); setLoading(false)
+    })()
+    return () => { cancelled = true }
+  }, [sb, companyId])
+
+  if (!rows && !loading) return null
+  if (rows && rows.length === 0) return null
+
+  const dirAr = (d) => (d === 'received' ? T('وارد', 'Received') : d === 'sent' ? T('صادر', 'Sent') : d)
+  const dirColor = (d) => (d === 'received' ? '#3b82f6' : '#a78bfa')
+
+  // ترجمة حالات طلب نقل الخدمات القادمة نصّاً من قوى إلى العربية
+  const TRANSFER_STATUS_AR = {
+    APPROVED: 'تمت الموافقة',
+    COMPLETED: 'مكتمل',
+    REJECTED: 'مرفوض',
+    REJECTED_BY_CURRENT_EMPLOYER: 'مرفوض من الكفيل الحالي',
+    REJECTED_BY_NEW_EMPLOYER: 'مرفوض من الكفيل الجديد',
+    REJECTED_BY_LABORER: 'مرفوض من العامل',
+    CANCELLED: 'ملغى',
+    CANCELLED_BY_CURRENT_EMPLOYER: 'ملغى من الكفيل الحالي',
+    CANCELLED_BY_NEW_EMPLOYER: 'ملغى من الكفيل الجديد',
+    CANCELLED_BY_LABORER: 'ملغى من العامل',
+    CANCELLED_BY_SYSTEM: 'ملغى من النظام',
+    PENDING: 'قيد الانتظار',
+    PENDING_FOR_LABORER_APPROVAL: 'بانتظار موافقة العامل',
+    PENDING_FOR_CURRENT_EMPLOYER_APPROVAL: 'بانتظار موافقة الكفيل الحالي',
+    PENDING_FOR_NEW_EMPLOYER_APPROVAL: 'بانتظار موافقة الكفيل الجديد',
+    IN_PROGRESS: 'قيد المعالجة',
+    EXPIRED: 'منتهي',
+  }
+  const statusLabel = (r) => {
+    const code = String(r.status || '').toUpperCase()
+    return TRANSFER_STATUS_AR[code] || r.status_ar || r.status_en || r.status || null
+  }
+  const statusColor = (r) => {
+    const code = String(r.status || '').toUpperCase()
+    if (r.status_id === 5 || /APPROVED|COMPLETED/.test(code)) return '#22c55e'
+    if (/CANCELL|REJECT|EXPIRED/.test(code)) return '#ef4444'
+    return '#f59e0b'
+  }
+
+  const renderReq = (r, keyPrefix) => {
+    const dotColor = statusColor(r)
+    const fields = [
+      [T('الموظف', 'Employee'), r.employee_name, false],
+      [T('رقم الإقامة', 'Iqama no.'), r.employee_id, true],
+      [T('من', 'From'), r.current_employer_name, false],
+      [T('إلى', 'To'), r.new_employer_name, false],
+      [T('تاريخ الطلب', 'Requested'), r.created_at_qiwa && fmtDMY(r.created_at_qiwa), true],
+      [T('تاريخ الإفراج', 'Release'), r.release_date && fmtDMY(r.release_date), true],
+      [T('تاريخ الانتهاء', 'Expires'), r.expires_at && fmtDMY(r.expires_at), true],
+    ].filter(([, v]) => v)
+    return (
+      <div key={`${keyPrefix}-${r.request_id}`}
+        style={{
+          padding: '10px 12px', borderRadius: 8,
+          background: 'rgba(255,255,255,.025)',
+          border: '1px solid var(--bd)',
+          display: 'grid', gridTemplateColumns: '1fr 1fr', rowGap: 4, columnGap: 16,
+          fontSize: 11.5,
+        }}>
+        <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <span style={{ width: 6, height: 6, borderRadius: '50%', background: dotColor, flexShrink: 0 }} />
+          <span style={{ fontWeight: 600, color: 'var(--tx)', direction: 'ltr', fontFamily: 'ui-monospace, monospace' }}>{r.request_id}</span>
+          <span style={{ fontSize: 10, color: dirColor(r.direction), fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: dirColor(r.direction) + '14' }}>{dirAr(r.direction)}</span>
+          {statusLabel(r) && <span style={{ marginInlineStart: 'auto', fontSize: 10, color: dotColor, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: dotColor + '14' }}>{statusLabel(r)}</span>}
+        </div>
+        {fields.map(([k, v, mono], i) => (
+          <div key={i} style={{ color: 'var(--tx4)' }}>{k}: <span style={{ color: 'var(--tx2)', fontWeight: 600, ...(mono ? { fontFamily: 'ui-monospace, monospace', direction: 'ltr', unicodeBidi: 'isolate', display: 'inline-block' } : {}) }}>{v}</span></div>
+        ))}
+      </div>
+    )
+  }
+
+  const received = (rows || []).filter(r => r.direction === 'received')
+  const sent = (rows || []).filter(r => r.direction === 'sent')
+  const other = (rows || []).filter(r => r.direction !== 'received' && r.direction !== 'sent')
+
+  return (
+    <CollapsibleCard
+      title={T('سجل طلبات نقل الموظفين', 'Employee Transfer Requests')}
+      color="#3b82f6" showQiwaIcon
+      badge={rows?.length}>
+      <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {loading && <div style={{ fontSize: 11, color: 'var(--tx5)' }}>{T('جارٍ التحميل…', 'Loading…')}</div>}
+        {received.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <span style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600 }}>{T(`الطلبات الواردة (${received.length})`, `Received (${received.length})`)}</span>
+            {received.map(r => renderReq(r, 'r'))}
+          </div>
+        )}
+        {sent.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <span style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600 }}>{T(`الطلبات المرسلة (${sent.length})`, `Sent (${sent.length})`)}</span>
+            {sent.map(r => renderReq(r, 's'))}
+          </div>
+        )}
+        {other.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {other.map(r => renderReq(r, 'o'))}
+          </div>
+        )}
       </div>
     </CollapsibleCard>
   )
@@ -576,12 +752,20 @@ function LaborerDetailRow({ r, T }) {
   const c = expired ? '#ef4444' : '#22c55e'
   const yesNo = (b) => b == null ? null : (b ? T('نعم', 'Yes') : T('لا', 'No'))
   const date = (s) => s ? fmtDMY(s) : null
+  // ترجمة حالة رخصة العمل القادمة نصّاً من قوى (VALID/EXPIRED …) إلى العربية
+  const wpStatusAr = (s) => {
+    const t = String(s || '').toUpperCase()
+    if (t === 'VALID') return T('رخصة سارية', 'Valid')
+    if (t === 'EXPIRED') return T('رخصة منتهية', 'Expired')
+    if (t === 'NO_WORKPERMIT' || t === 'NO_WORK_PERMIT') return T('بدون رخصة', 'No permit')
+    return s
+  }
   // Tightly packed two-column key/value grid. Hides null/empty rows so the
   // user only sees populated fields per worker.
   const Field = ({ k, v, ltr, mono }) => (v == null || v === '' ? null : (
     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, padding: '6px 10px', borderRadius: 6, background: 'rgba(255,255,255,.02)', border: '1px solid var(--bd2)' }}>
       <span style={{ fontSize: 10.5, color: 'var(--tx3)', fontWeight: 600, whiteSpace: 'nowrap' }}>{k}</span>
-      <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx)', textAlign: 'end', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', direction: ltr ? 'ltr' : undefined, fontFamily: mono ? 'ui-monospace, monospace' : undefined }} title={typeof v === 'string' ? v : undefined}>{v}</span>
+      <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx)', textAlign: 'end', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', direction: ltr ? 'ltr' : undefined, unicodeBidi: ltr ? 'isolate' : undefined, fontFamily: mono ? 'ui-monospace, monospace' : undefined }} title={typeof v === 'string' ? v : undefined}>{v}</span>
     </div>
   ))
   const Section = ({ title, children }) => {
@@ -589,7 +773,7 @@ function LaborerDetailRow({ r, T }) {
     if (visible.length === 0) return null
     return (
       <div style={{ marginTop: 8 }}>
-        <div style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--tx4)', letterSpacing: '.5px', textTransform: 'uppercase', marginBottom: 4, paddingInlineStart: 2 }}>{title}</div>
+        <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--tx)', letterSpacing: '.2px', marginBottom: 6, paddingInlineStart: 2 }}>{title}</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>{visible}</div>
       </div>
     )
@@ -610,14 +794,14 @@ function LaborerDetailRow({ r, T }) {
           <span style={{ fontSize: 10, color: 'var(--tx5)', fontFamily: 'ui-monospace, monospace', direction: 'ltr' }}>{r.employee_id}</span>
           {r.nationality_name_ar && <span style={{ fontSize: 10, color: 'var(--tx3)' }}>· {r.nationality_name_ar}</span>}
           {r.job_title_ar && <span style={{ fontSize: 10, color: 'var(--tx3)' }}>· {r.job_title_ar}</span>}
-          {r.wp_status_text && <span style={{ fontSize: 9.5, color: c, fontWeight: 600, padding: '1px 6px', borderRadius: 5, background: c + '14', marginInlineStart: 'auto' }}>{r.wp_status_text}</span>}
-          {r.gosi_registered && <span style={{ fontSize: 9.5, color: '#22c55e', fontWeight: 600, padding: '1px 6px', borderRadius: 5, background: '#22c55e14' }}>GOSI ✓</span>}
+          {r.wp_status_text && <span style={{ fontSize: 9.5, color: c, fontWeight: 600, padding: '1px 6px', borderRadius: 5, background: c + '14', marginInlineStart: 'auto' }}>{wpStatusAr(r.wp_status_text)}</span>}
+          {r.gosi_registered && <span style={{ fontSize: 9.5, color: '#22c55e', fontWeight: 600, padding: '1px 6px', borderRadius: 5, background: '#22c55e14' }}>{T('التأمينات', 'GOSI')} ✓</span>}
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--tx5)', transform: open ? 'rotate(180deg)' : 'none', transition: '.2s', marginInlineStart: r.wp_status_text || r.gosi_registered ? 0 : 'auto' }}>
             <polyline points="6 9 12 15 18 9"/>
           </svg>
         </div>
         <div style={{ color: 'var(--tx4)', fontSize: 10.5 }}>{T('انتهاء الإقامة', 'Iqama exp')}: <span style={{ color: 'var(--tx2)', fontWeight: 600, direction: 'ltr' }}>{date(r.employee_id_exp_date) || '—'}</span></div>
-        <div style={{ color: 'var(--tx4)', fontSize: 10.5 }}>{T('انتهاء الرخصة', 'WP exp')}: <span style={{ color: c, fontWeight: 600, direction: 'ltr' }}>{date(r.work_permit_exp_date) || '—'}</span></div>
+        <div style={{ color: 'var(--tx4)', fontSize: 10.5 }}>{T('انتهاء الرخصة', 'WP exp')}: <span style={{ color: c, fontWeight: 600, direction: 'ltr', unicodeBidi: 'isolate', display: 'inline-block' }}>{date(r.work_permit_exp_date) || '—'}</span></div>
       </button>
 
       {/* Expanded: every column on qiwa_wp_laborers, organized by section */}
@@ -667,9 +851,9 @@ function LaborerDetailRow({ r, T }) {
             <Field k={T('نوع العقد', 'Contract type')} v={r.contract_type_ar || r.contract_type_en} />
             <Field k={T('تاريخ بداية العقد', 'Contract start')} v={date(r.contract_start_date)} ltr />
             <Field k={T('تاريخ انتهاء العقد', 'Contract expiry')} v={date(r.contract_expiry_date)} ltr />
-            <Field k={T('مدة العقد', 'Contract period')} v={r.contract_period != null ? `${r.contract_period} ${T('يوم', 'days')}` : null} ltr />
-            <Field k={T('متبقي من العقد', 'Contract remaining')} v={r.remaining_contract_days != null ? `${r.remaining_contract_days} ${T('يوم', 'days')}` : null} ltr />
-            <Field k={T('فترة الإشعار', 'Notice period')} v={r.notice_period != null ? `${r.notice_period} ${T('يوم', 'days')}` : null} ltr />
+            <Field k={T('مدة العقد', 'Contract period')} v={r.contract_period != null ? `${r.contract_period} ${T('شهر', 'months')}` : null} />
+            <Field k={T('متبقي من العقد', 'Contract remaining')} v={r.remaining_contract_days != null ? `${r.remaining_contract_days} ${T('يوم', 'days')}` : null} />
+            <Field k={T('فترة الإشعار', 'Notice period')} v={r.notice_period != null ? `${r.notice_period} ${T('يوم', 'days')}` : null} />
             <Field k={T('رقم العقد', 'Contract number')} v={r.contract_number} mono />
             <Field k={T('نسخة العقد', 'Contract version')} v={r.contract_version} ltr />
             <Field k={T('مهنة العقد', 'Contract occupation')} v={r.contract_occupation_ar || r.contract_occupation_en} />
@@ -688,7 +872,7 @@ function LaborerDetailRow({ r, T }) {
           <Section title={T('النقل والإنهاء', 'Transfer & termination')}>
             <Field k={T('رقم طلب النقل', 'Transfer request no.')} v={r.transfer_request_number} mono />
             <Field k={T('تاريخ إطلاق الإنهاء', 'Termination release date')} v={date(r.terminate_release_date)} ltr />
-            <Field k={T('أيام متبقية للإنهاء', 'Remaining term days')} v={r.remaining_term_days != null ? `${r.remaining_term_days} ${T('يوم', 'days')}` : null} ltr />
+            <Field k={T('أيام متبقية للإنهاء', 'Remaining term days')} v={r.remaining_term_days != null ? `${r.remaining_term_days} ${T('يوم', 'days')}` : null} />
           </Section>
 
           <Section title={T('الموقع والتأمينات', 'Location & GOSI')}>
@@ -744,7 +928,7 @@ function EmployeeDetailRow({ r, T }) {
   const Field = ({ k, v, ltr, mono }) => (v == null || v === '' ? null : (
     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, padding: '6px 10px', borderRadius: 6, background: 'rgba(255,255,255,.02)', border: '1px solid var(--bd2)' }}>
       <span style={{ fontSize: 10.5, color: 'var(--tx3)', fontWeight: 600, whiteSpace: 'nowrap' }}>{k}</span>
-      <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx)', textAlign: 'end', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', direction: ltr ? 'ltr' : undefined, fontFamily: mono ? 'ui-monospace, monospace' : undefined }} title={typeof v === 'string' ? v : undefined}>{v}</span>
+      <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx)', textAlign: 'end', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', direction: ltr ? 'ltr' : undefined, unicodeBidi: ltr ? 'isolate' : undefined, fontFamily: mono ? 'ui-monospace, monospace' : undefined }} title={typeof v === 'string' ? v : undefined}>{v}</span>
     </div>
   ))
   const Section = ({ title, children }) => {
@@ -752,7 +936,7 @@ function EmployeeDetailRow({ r, T }) {
     if (visible.length === 0) return null
     return (
       <div style={{ marginTop: 8 }}>
-        <div style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--tx4)', letterSpacing: '.5px', textTransform: 'uppercase', marginBottom: 4, paddingInlineStart: 2 }}>{title}</div>
+        <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--tx)', letterSpacing: '.2px', marginBottom: 6, paddingInlineStart: 2 }}>{title}</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>{visible}</div>
       </div>
     )
@@ -777,8 +961,8 @@ function EmployeeDetailRow({ r, T }) {
             <polyline points="6 9 12 15 18 9"/>
           </svg>
         </div>
-        <div style={{ color: 'var(--tx4)', fontSize: 10.5 }}>{T('انتهاء رخصة العمل', 'WP exp')}: <span style={{ color: c, fontWeight: 600, direction: 'ltr' }}>{date(r.work_permit_expiry_date) || '—'}</span></div>
-        <div style={{ color: 'var(--tx4)', fontSize: 10.5 }}>{T('انتهاء العقد', 'Contract exp')}: <span style={{ color: 'var(--tx2)', fontWeight: 600, direction: 'ltr' }}>{date(r.contract_expiry_date) || '—'}</span></div>
+        <div style={{ color: 'var(--tx4)', fontSize: 10.5 }}>{T('انتهاء رخصة العمل', 'WP exp')}: <span style={{ color: c, fontWeight: 600, direction: 'ltr', unicodeBidi: 'isolate', display: 'inline-block' }}>{date(r.work_permit_expiry_date) || '—'}</span></div>
+        <div style={{ color: 'var(--tx4)', fontSize: 10.5 }}>{T('انتهاء العقد', 'Contract exp')}: <span style={{ color: 'var(--tx2)', fontWeight: 600, direction: 'ltr', unicodeBidi: 'isolate', display: 'inline-block' }}>{date(r.contract_expiry_date) || '—'}</span></div>
       </button>
 
       {open && (
@@ -888,9 +1072,19 @@ function PdfLink({ path, label, at, wide }) {
 // Per-resident expandable detail block used inside the Muqeem residents card.
 // Same UX pattern as LaborerDetailRow: collapsed header shows the essentials,
 // expanded view reveals every column we store on muqeem_residents.
-function MuqeemResidentRow({ r, T }) {
+// Muqeem visa status (visaStatusDesc) → Arabic label + badge colour.
+const VISA_STATUS = {
+  'Used': { ar: 'مستخدمة', c: 'var(--tx3)' },
+  'Cancelled': { ar: 'ملغاة', c: 'var(--tx4)' },
+  'Expired': { ar: 'منتهية', c: '#ef4444' },
+  'Not Expired': { ar: 'سارية', c: '#22c55e' },
+}
+function MuqeemResidentRow({ r, T, visas: reportVisas }) {
   const [open, setOpen] = useState(false)
   const date = (s) => s ? fmtDMY(s) : null
+  // عنوان قسم موحّد — أسود وأكبر (بطلب المستخدم)، يُستخدم في مكوّن Section
+  // والعناوين السطرية («الخدمات المتاحة»، «ملف مقيم (PDF)»).
+  const secTitle = { fontSize: 11.5, fontWeight: 600, color: 'var(--tx)', letterSpacing: '.2px', marginBottom: 6, paddingInlineStart: 2 }
   // detail_raw holds the per-resident bundle the Muqeem sync pulls alongside the
   // list row: photo (base64 JPEG), insurance, visas, dependents, vehicles,
   // jawazat balance/services and traffic violations.
@@ -908,8 +1102,38 @@ function MuqeemResidentRow({ r, T }) {
   const balance = d.jawazat_balance && !d.jawazat_balance._status ? d.jawazat_balance.balance : null
   const services = Array.isArray(d.jawazat_services) ? d.jawazat_services.filter(s => s && s.available) : null
   // Muqeem answers "visa not found" with a 400, which the sync stores as _status.
-  const visas = listOf(d.visas, 'visas')
+  const visas = listOf(d.visas, 'visaInfoList')
   const visasMissing = !!(d.visas && d.visas._status)
+  // Exit-reentry / final-exit visas, merged from two sources: the establishment
+  // reports (passed as reportVisas — cover everyone) and this resident's own
+  // /visas history (richer: status + exact return/travel dates). Deduped by
+  // visa number, later sources only filling gaps left by earlier ones.
+  const cleanG = (x) => { const t = x && (typeof x === 'object' ? x.gregorian : x); return (!t || String(t).startsWith('0001')) ? null : t }
+  const visaByNum = new Map()
+  const mergeVisa = (e) => {
+    if (!e || !e.number) return
+    const k = String(e.number)
+    const cur = visaByNum.get(k)
+    if (!cur) { visaByNum.set(k, { ...e }); return }
+    for (const f of ['kind', 'typeAr', 'typeEn', 'issue', 'returnBefore', 'travelBefore', 'departure', 'duration', 'status', 'source']) {
+      if (cur[f] == null && e[f] != null) cur[f] = e[f]
+    }
+    if (e.extended) cur.extended = true
+    if (e.probation) cur.probation = true
+  }
+  ;(Array.isArray(reportVisas) ? reportVisas : []).forEach(mergeVisa)
+  ;(visas || []).forEach(v => mergeVisa({
+    number: String(v.visaNumber),
+    kind: v.visaTypeCode === 3 ? 'final' : 'er',
+    typeAr: v.visaTypeDesc || null,
+    issue: cleanG(v.visaIssueDate),
+    returnBefore: v.visaTypeCode === 3 ? null : cleanG(v.returnBefore),
+    travelBefore: cleanG(v.travelBefore),
+    departure: v.visaTypeCode === 3 ? cleanG(v.travelBefore) : null,
+    duration: v.visaDuration || null,
+    status: v.visaStatusDesc || null,
+  }))
+  const exitVisas = [...visaByNum.values()].sort((a, b) => (fmtDMY(b.issue) > fmtDMY(a.issue) ? 1 : -1))
   const today = new Date(); today.setHours(0,0,0,0)
   const iqamaExp = r.iqama_expiry_date ? new Date(r.iqama_expiry_date).getTime() : null
   const daysToExpiry = iqamaExp ? Math.ceil((iqamaExp - today.getTime()) / 86400000) : null
@@ -919,7 +1143,7 @@ function MuqeemResidentRow({ r, T }) {
   const Field = ({ k, v, ltr, mono }) => (v == null || v === '' ? null : (
     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, padding: '6px 10px', borderRadius: 6, background: 'rgba(255,255,255,.02)', border: '1px solid var(--bd2)' }}>
       <span style={{ fontSize: 10.5, color: 'var(--tx3)', fontWeight: 600, whiteSpace: 'nowrap' }}>{k}</span>
-      <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx)', textAlign: 'end', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', direction: ltr ? 'ltr' : undefined, fontFamily: mono ? 'ui-monospace, monospace' : undefined }} title={typeof v === 'string' ? v : undefined}>{v}</span>
+      <span dir={ltr ? 'ltr' : 'auto'} style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx)', textAlign: 'end', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', direction: ltr ? 'ltr' : undefined, fontFamily: mono ? 'ui-monospace, monospace' : undefined }} title={typeof v === 'string' ? v : undefined}>{v}</span>
     </div>
   ))
   const Section = ({ title, children }) => {
@@ -927,7 +1151,7 @@ function MuqeemResidentRow({ r, T }) {
     if (visible.length === 0) return null
     return (
       <div style={{ marginTop: 8 }}>
-        <div style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--tx4)', letterSpacing: '.5px', textTransform: 'uppercase', marginBottom: 4, paddingInlineStart: 2 }}>{title}</div>
+        <div style={secTitle}>{title}</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>{visible}</div>
       </div>
     )
@@ -957,8 +1181,18 @@ function MuqeemResidentRow({ r, T }) {
             <polyline points="6 9 12 15 18 9"/>
           </svg>
         </div>
-        <div style={{ color: 'var(--tx4)', fontSize: 10.5 }}>{T('انتهاء الإقامة', 'Iqama exp')}: <span style={{ color: c, fontWeight: 600, direction: 'ltr' }}>{date(r.iqama_expiry_date) || '—'}</span>{daysToExpiry != null && <span style={{ marginInlineStart: 6, fontSize: 10, color: 'var(--tx5)' }}>({daysToExpiry >= 0 ? `${daysToExpiry} ${T('يوم', 'd')}` : T('منتهية', 'expired')})</span>}</div>
-        <div style={{ color: 'var(--tx4)', fontSize: 10.5 }}>{T('انتهاء الجواز', 'Passport exp')}: <span style={{ color: 'var(--tx2)', fontWeight: 600, direction: 'ltr' }}>{date(r.passport_expiry) || '—'}</span></div>
+        {/* كل تاريخ في حقل مستقل: العنوان جهة والتاريخ (نص لحاله) الجهة الأخرى. */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, padding: '5px 10px', borderRadius: 6, background: 'rgba(255,255,255,.02)', border: '1px solid var(--bd2)' }}>
+          <span style={{ fontSize: 10, color: 'var(--tx3)', fontWeight: 600, whiteSpace: 'nowrap' }}>
+            {T('انتهاء الإقامة', 'Iqama exp')}
+            {daysToExpiry != null && <span style={{ marginInlineStart: 6, fontSize: 9.5, color: 'var(--tx5)' }}>({daysToExpiry >= 0 ? `${daysToExpiry} ${T('يوم', 'd')}` : T('منتهية', 'expired')})</span>}
+          </span>
+          <span style={{ fontSize: 11, fontWeight: 600, color: c, direction: 'ltr', whiteSpace: 'nowrap' }}>{date(r.iqama_expiry_date) || '—'}</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, padding: '5px 10px', borderRadius: 6, background: 'rgba(255,255,255,.02)', border: '1px solid var(--bd2)' }}>
+          <span style={{ fontSize: 10, color: 'var(--tx3)', fontWeight: 600, whiteSpace: 'nowrap' }}>{T('انتهاء الجواز', 'Passport exp')}</span>
+          <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx2)', direction: 'ltr', whiteSpace: 'nowrap' }}>{date(r.passport_expiry) || '—'}</span>
+        </div>
       </button>
 
       {open && (
@@ -970,7 +1204,7 @@ function MuqeemResidentRow({ r, T }) {
             </div>
           )}
           <Section title={T('الهوية والبيانات الشخصية', 'Identity & personal')}>
-            <Field k={T('الاسم بالعربي', 'Name (AR)')} v={r.name_ar} />
+            <Field k={T('الاسم', 'Name')} v={r.name_ar} />
             <Field k={T('الاسم بالإنجليزي', 'Name (EN)')} v={r.name_en} />
             <Field k={T('رقم الإقامة', 'Iqama no.')} v={r.iqama_number} mono />
             <Field k={T('رقم كفيل (MOI)', 'Sponsor MOI')} v={r.sponsor_moi_number} mono />
@@ -1006,8 +1240,8 @@ function MuqeemResidentRow({ r, T }) {
           <Section title={T('التأمين الطبي', 'Medical insurance')}>
             <Field k={T('رقم البوليصة', 'Policy no.')} v={ins?.policyNumber} mono />
             <Field k={T('شركة التأمين', 'Insurer')} v={ins?.companyNameAr || ins?.companyNameEn} />
-            <Field k={T('بداية التأمين', 'Start')} v={gregOf(ins?.startDate)} ltr />
-            <Field k={T('نهاية التأمين', 'End')} v={gregOf(ins?.endDate)} ltr />
+            <Field k={T('بداية التأمين', 'Start')} v={date(gregOf(ins?.startDate))} ltr />
+            <Field k={T('نهاية التأمين', 'End')} v={date(gregOf(ins?.endDate))} ltr />
           </Section>
 
           <Section title={T('الجوازات والمخالفات', 'Jawazat & violations')}>
@@ -1018,9 +1252,49 @@ function MuqeemResidentRow({ r, T }) {
             <Field k={T('المرافقون', 'Dependents')} v={dependents ? String(dependents.length) : null} ltr />
           </Section>
 
+          {exitVisas.length > 0 && (
+            <div style={{ marginTop: 8 }}>
+              <div style={secTitle}>{T('تأشيرات الخروج والعودة / النهائي', 'Exit-reentry / Final-exit visas')}</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {exitVisas.map((v, i) => {
+                  const isFinal = v.kind === 'final'
+                  const accent = isFinal ? '#ef4444' : '#3b82f6'
+                  const typeLabel = isFinal
+                    ? (T('خروج نهائي', 'Final exit') + (v.probation ? ' — ' + T('فترة تجربة', 'probation') : ''))
+                    : (T('خروج وعودة', 'Exit & re-entry') + (v.typeAr ? ` (${v.typeAr})` : '') + (v.extended ? ' — ' + T('مُمدَّدة', 'extended') : ''))
+                  const st = v.status ? String(v.status) : null
+                  const stMeta = st ? VISA_STATUS[st] : null
+                  const stLabel = stMeta ? T(stMeta.ar, st) : st
+                  const stColor = stMeta ? stMeta.c : 'var(--tx3)'
+                  const expiry = isFinal ? v.departure : v.returnBefore
+                  return (
+                    <div key={v.number || i} style={{ padding: '8px 10px', borderRadius: 8, background: accent + '0d', border: '1px solid ' + accent + '33' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
+                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: accent, flexShrink: 0 }} />
+                        <span style={{ fontSize: 10.5, fontWeight: 700, color: accent }}>{typeLabel}</span>
+                        {st && <span style={{ fontSize: 9, fontWeight: 600, color: stColor, background: stColor + '18', border: '1px solid ' + stColor + '33', borderRadius: 5, padding: '1px 6px' }}>{stLabel}</span>}
+                        <span dir="ltr" style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--tx)', fontFamily: 'ui-monospace, monospace', marginInlineStart: 'auto' }}>{v.number}</span>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
+                        <Field k={T('رقم التأشيرة', 'Visa number')} v={v.number} mono />
+                        <Field k={T('تاريخ الإصدار', 'Issue date')} v={v.issue ? fmtDMY(v.issue) : null} ltr />
+                        {isFinal
+                          ? <Field k={T('المغادرة النهائية', 'Final departure')} v={expiry ? fmtDMY(expiry) : null} ltr />
+                          : <Field k={T('العودة قبل (الانتهاء)', 'Return before (expiry)')} v={expiry ? fmtDMY(expiry) : null} ltr />}
+                        {!isFinal && <Field k={T('السفر قبل', 'Travel before')} v={v.travelBefore ? fmtDMY(v.travelBefore) : null} ltr />}
+                        {!isFinal && <Field k={T('مدة التأشيرة', 'Duration')} v={v.duration != null ? `${v.duration} ${T('يوم', 'days')}` : null} />}
+                      </div>
+                      {v.source && <div style={{ fontSize: 9, color: 'var(--tx5)', marginTop: 5, paddingInlineStart: 2 }}>{T('المصدر', 'Source')}: {v.source}</div>}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
           {services && services.length > 0 && (
             <div style={{ marginTop: 8 }}>
-              <div style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--tx4)', letterSpacing: '.5px', textTransform: 'uppercase', marginBottom: 4, paddingInlineStart: 2 }}>{T('الخدمات المتاحة', 'Available services')}</div>
+              <div style={secTitle}>{T('الخدمات المتاحة', 'Available services')}</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                 {services.map(s => (
                   <span key={s.serviceName} style={{ fontSize: 9.5, fontWeight: 600, color: '#22c55e', background: '#22c55e14', border: '1px solid #22c55e33', borderRadius: 5, padding: '2px 7px' }}>
@@ -1033,7 +1307,7 @@ function MuqeemResidentRow({ r, T }) {
 
           {(r.profile_pdf_path || r.profile_pdf_en_path) && (
             <div style={{ marginTop: 8 }}>
-              <div style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--tx4)', letterSpacing: '.5px', textTransform: 'uppercase', marginBottom: 4, paddingInlineStart: 2 }}>{T('ملف مقيم (PDF)', 'Muqeem profile (PDF)')}</div>
+              <div style={secTitle}>{T('ملف مقيم (PDF)', 'Muqeem profile (PDF)')}</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
                 <PdfLink path={r.profile_pdf_path} label={T('عربي', 'Arabic')} at={r.profile_pdf_at} />
                 <PdfLink path={r.profile_pdf_en_path} label={T('إنجليزي', 'English')} at={r.profile_pdf_en_at} />
@@ -1129,6 +1403,15 @@ function QiwaMonthlyReportCard({ sb, companyId, T }) {
 
   // Format the period as "MMM YYYY" in the user's locale.
   const periodLabel = `${String(row.report_month).padStart(2, '0')}/${row.report_year}`
+  // لون النطاق حسب الفئة: أحمر / أصفر / أخضر / بلاتيني
+  const nitaqColor = (s) => {
+    const t = String(s || '')
+    if (/احمر|أحمر|red/i.test(t)) return '#ef4444'
+    if (/بلاتيني|بلاتين|platinum/i.test(t)) return '#8b5cf6'
+    if (/اخضر|أخضر|green/i.test(t)) return '#22c55e'
+    if (/اصفر|أصفر|yellow/i.test(t)) return '#f59e0b'
+    return 'var(--tx3)'
+  }
   // Score row with diff badge — green up arrow if +, red down if -.
   const ScoreRow = ({ k, v, diff }) => (v == null ? null : (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: '1px dashed var(--bd)', fontSize: 12 }}>
@@ -1190,9 +1473,9 @@ function QiwaMonthlyReportCard({ sb, companyId, T }) {
       </div>
       <div style={{ padding: '0 22px 14px', display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', fontSize: 11, color: 'var(--tx5)' }}>
         {row.phase_status && <span><strong>{T('مرحلة المنشأة', 'Phase')}:</strong> {row.phase_status}</span>}
-        {row.nitaqat_ar && <span><strong>{T('النطاق', 'Nitaq')}:</strong> {row.nitaqat_ar}</span>}
+        {row.nitaqat_ar && <span><strong>{T('النطاق', 'Nitaq')}:</strong> <span style={{ color: nitaqColor(row.nitaqat_ar), fontWeight: 600 }}>{row.nitaqat_ar}</span></span>}
         {row.company_size_ar && <span><strong>{T('الحجم', 'Size')}:</strong> {row.company_size_ar}</span>}
-        {row.created_time && <span style={{ marginInlineStart: 'auto', direction: 'ltr' }}>{T('صدر في', 'Created')}: {fmtDMY(row.created_time)}</span>}
+        {row.created_time && <span style={{ marginInlineStart: 'auto' }}>{T('صدر في', 'Created')}: <span style={{ direction: 'ltr', unicodeBidi: 'isolate', display: 'inline-block' }}>{fmtDMY(row.created_time)}</span></span>}
       </div>
     </CollapsibleCard>
   )
@@ -1349,25 +1632,80 @@ function MudadSourceIcon({ size = 16 }) {
   )
 }
 
+function AjeerSourceIcon({ size = 16 }) {
+  const [failed, setFailed] = useState(false)
+  if (failed) {
+    return (
+      <span
+        title="منصة أجير"
+        style={{
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          width: size, height: size, borderRadius: 4,
+          background: 'rgba(16,185,129,.18)', color: '#10b981',
+          fontSize: Math.round(size * 0.55), fontWeight: 600,
+          flexShrink: 0, lineHeight: 1, fontFamily: F,
+        }}>أجير</span>
+    )
+  }
+  return (
+    <img
+      src="/ajeer.png"
+      alt="Ajeer"
+      title="منصة أجير"
+      width={size}
+      height={size}
+      style={{ width: size, height: size, objectFit: 'contain', flexShrink: 0 }}
+      onError={() => setFailed(true)}
+    />
+  )
+}
+
 // Reusable collapsible card — click header to expand/collapse. Used for cards
 // that contain a lot of fields the user usually skips (e.g. WPS compliance).
 // Matches the same chrome + chevron pattern as ActivitiesCard below.
 // Listens for the page-wide `synchub-expand-all` event so the detail header's
 // «توسيع الكل / طي الكل» buttons reach every card without prop-threading
 // (cards are nested several component levels deep).
-function CollapsibleCard({ title, color, badge, defaultExpanded = false, children, showSbcIcon = false, showGosiIcon = false, showQiwaIcon = false, showMuqeemIcon = false, showMudadIcon = false, sourcePill }) {
-  const [expanded, setExpanded] = useState(defaultExpanded)
+// `alwaysOpen` cards drop the collapse affordance entirely: no chevron, header
+// isn't clickable, content stays rendered, and the «توسيع الكل / طي الكل» event
+// can't fold them shut. Used for cards the user always wants open (e.g. حالة
+// السجل التجاري، مصادر البيانات).
+// Maps a Qiwa Nitaqat band label to its real band colour so the badge + band
+// text match the establishment's actual status. Kept identical to the copy in
+// FacilitiesPage (used by the facilities-list band chip) so list and detail
+// agree exactly. Null = unknown/empty → caller falls back to its default colour.
+function nitaqBandColor(name) {
+  if (!name) return null
+  const n = name.toString()
+  if (n.includes('بلاتيني')) return '#8f96a3'                      // بلاتيني
+  if (n.includes('أحمر') || n.includes('احمر')) return '#ef4444'    // أحمر
+  if (n.includes('أصفر') || n.includes('اصفر')) return '#eab308'    // أصفر
+  if (n.includes('أخضر') || n.includes('اخضر')) {                   // أخضر بمستوياته
+    if (n.includes('مرتفع')) return '#22c55e'
+    if (n.includes('متوسط')) return '#16a085'
+    if (n.includes('منخفض') || n.includes('صغير')) return '#84cc16'
+    return '#22c55e'
+  }
+  return null
+}
+
+function CollapsibleCard({ title, color, badge, badgeColor, badgeBare = false, defaultExpanded = false, alwaysOpen = false, children, showSbcIcon = false, showGosiIcon = false, showQiwaIcon = false, showMuqeemIcon = false, showMudadIcon = false, showAjeerIcon = false, sourcePill }) {
+  // كل الكروت تبدأ مطويّة افتراضياً (بغض النظر عن defaultExpanded)؛
+  // «توسيع الكل / طي الكل» يتحكّمان بالفتح عبر حدث synchub-expand-all.
+  const [expanded, setExpanded] = useState(false)
   useEffect(() => {
+    if (alwaysOpen) return
     const onAll = (e) => setExpanded(!!(e && e.detail && e.detail.expand))
     window.addEventListener('synchub-expand-all', onAll)
     return () => window.removeEventListener('synchub-expand-all', onAll)
-  }, [])
+  }, [alwaysOpen])
+  const open = alwaysOpen || expanded
   const brand = sourcePill ? SOURCE_BRAND[sourcePill] : null
   return (
     <div style={cardChrome}>
       <div
-        onClick={() => setExpanded(v => !v)}
-        style={{ ...cardHeader, cursor: 'pointer', userSelect: 'none' }}>
+        onClick={alwaysOpen ? undefined : () => setExpanded(v => !v)}
+        style={{ ...cardHeader, cursor: alwaysOpen ? 'default' : 'pointer', userSelect: 'none' }}>
         {/* النقطة ذهبية دائماً في كل الكروت؛ `color` يبقى للشارة ومحتوى الكرت. */}
         <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
         {showSbcIcon && <SbcSourceIcon />}
@@ -1375,19 +1713,43 @@ function CollapsibleCard({ title, color, badge, defaultExpanded = false, childre
         {showQiwaIcon && <QiwaSourceIcon />}
         {showMuqeemIcon && <MuqeemSourceIcon />}
         {showMudadIcon && <MudadSourceIcon />}
+        {showAjeerIcon && <AjeerSourceIcon />}
         <span style={cardTitle}>{title}</span>
         {brand && (
           <span style={{ fontSize: 9, fontWeight: 700, color: brand.color, background: brand.color + '14', border: `1px solid ${brand.color}45`, borderRadius: 5, padding: '1px 6px', lineHeight: '14px' }}>{brand.ar}</span>
         )}
         {badge != null && (
-          <span style={{ marginInlineStart: 'auto', fontSize: 11, color, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: color + '14' }}>{badge}</span>
+          badgeBare
+            // The badge carries its own chrome (e.g. a self-colored CrCountdown
+            // pill) — just position it, don't re-wrap it in the card's color.
+            ? <span style={{ marginInlineStart: 'auto', display: 'inline-flex' }}>{badge}</span>
+            : <span style={{ marginInlineStart: 'auto', fontSize: 11, color: badgeColor || color, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: (badgeColor || color) + '14' }}>{badge}</span>
         )}
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
-          style={{ color: 'var(--tx3)', marginInlineStart: badge != null ? 0 : 'auto', transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform .15s' }}>
-          <polyline points="6 9 12 15 18 9" />
-        </svg>
+        {!alwaysOpen && (
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
+            style={{ color: 'var(--tx3)', marginInlineStart: badge != null ? 0 : 'auto', transform: open ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform .15s' }}>
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        )}
       </div>
-      {expanded && children}
+      {open && children}
+    </div>
+  )
+}
+
+// صف نشاط: الاسم عرضه ثابت (flex+min-width:0) فلا يوسّع الكرت مهما طال، ويُقصّ
+// بنقاط. عند تمرير الفأرة يُقاس الفائض الفعلي (scrollWidth-clientWidth) ويُمرَّر
+// الاسم بمقداره بالضبط فيظهر كاملاً ثم يعود.
+function ActivityRow({ name, code }) {
+  const ref = useRef(null)
+  const [over, setOver] = useState(0)
+  return (
+    <div className="act-row"
+      onMouseEnter={() => { const el = ref.current; if (el) setOver(Math.max(0, el.scrollWidth - el.clientWidth)) }}>
+      <span className="act-name" ref={ref} title={name} style={{ ['--act-sx']: over > 0 ? `${over + 6}px` : '0px' }}>
+        <span className="act-inner">{name || '—'}</span>
+      </span>
+      <span style={{ fontSize: 10, fontFamily: 'ui-monospace, monospace', color: 'var(--tx3)', direction: 'ltr', whiteSpace: 'nowrap', flexShrink: 0 }}>({code})</span>
     </div>
   )
 }
@@ -1396,12 +1758,18 @@ function ActivitiesCard({ activities, lang, T }) {
   if (!activities?.length) return null
   return (
     <CollapsibleCard title={T('الأنشطة التجارية', 'Commercial Activities')} color={C.orange} badge={num(activities.length)} showSbcIcon>
+      <style>{`
+        .act-row{padding:8px 12px;background:rgba(255,255,255,.025);border-radius:10px;border:1px solid var(--bd2);display:flex;justify-content:space-between;align-items:center;gap:10px}
+        .act-name{flex:1 1 0;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:11.5px;color:var(--tx);font-weight:600}
+        .act-name .act-inner{display:inline-block;will-change:transform;transition:transform 2.4s ease}
+        .act-row:hover .act-name{text-overflow:clip}
+        .act-row:hover .act-name .act-inner{transform:translateX(var(--act-sx,0px))}
+      `}</style>
       <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 6 }}>
         {activities.map((a, i) => (
-          <div key={i} style={{ padding: '8px 12px', background: 'rgba(255,255,255,.025)', borderRadius: 10, border: '1px solid var(--bd2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: 11.5, color: 'var(--tx)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lang === 'en' ? (a.activityDescriptionEn || a.activityDescriptionAr) : (a.activityDescriptionAr || a.activityDescriptionEn)}</span>
-            <span style={{ fontSize: 10, fontFamily: 'ui-monospace, monospace', color: 'var(--tx3)', direction: 'ltr', whiteSpace: 'nowrap' }}>({a.activityID})</span>
-          </div>
+          <ActivityRow key={i}
+            name={lang === 'en' ? (a.activityDescriptionEn || a.activityDescriptionAr) : (a.activityDescriptionAr || a.activityDescriptionEn)}
+            code={a.activityID} />
         ))}
       </div>
     </CollapsibleCard>
@@ -3074,7 +3442,11 @@ function MudadSyncBookmarklet({ syncPersonId, T }) {
       accent="#0ea5e9"
       title={T('اسحب الزر إلى شريط الإشارات، ثم افتح مدد (نظام الالتزام) واضغط — يمرّ على كل المنشآت ويجلب نسبة الالتزام وفترات الأجور. ملاحظة: جلسة مدد تنتهي بعد 20 دقيقة، والزر يجدّدها تلقائياً أثناء المسح.', 'Drag to bookmarks bar, open Mudad (compliance) and click — sweeps every establishment for compliance rate and wage periods. Mudad sessions expire after 20 minutes; the button auto-refreshes the token during the sweep.')}
       label={T('مدد', 'Mudad')}
-      icon={<MudadSourceIcon size={15} />}
+      icon={(
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/>
+        </svg>
+      )}
     />
   )
 }
@@ -3244,7 +3616,7 @@ const _mudadPctColor = (p) => (p == null ? C.gray : Number(p) >= 100 ? C.ok : Nu
 function MudadCards({ est, months, T, lang }) {
   if (!est && !months.length) return null
   const rowBase = {
-    display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 8,
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '9px 12px', borderRadius: 8,
     background: 'rgba(255,255,255,.025)', border: '1px solid var(--bd2)', minWidth: 0,
   }
   // الالتزام حالة شهرية لا صفة دائمة — الفترة تُعرض بجانب النسبة دائماً حتى لا
@@ -3256,11 +3628,8 @@ function MudadCards({ est, months, T, lang }) {
   const suspended = months.find((m) => m.mlsd_status === 'Suspended') || null
   return (
     <>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6 }}>
-        <MudadSourceIcon size={18} />
-        <span style={{ fontSize: 13, fontWeight: 700, color: MUDAD_ACCENT }}>{T('مدد — الالتزام وحماية الأجور', 'Mudad — compliance & wage protection')}</span>
-        <span style={{ flex: 1, height: 1, background: 'var(--bd)' }} />
-      </div>
+      {/* فاصل بين المنصة السابقة وكروت مدد — نفس فاصل بقية المصادر. */}
+      <div style={{ height: 1, background: 'rgba(255,255,255,.08)', margin: '8px 0' }} />
 
       {est && (
         <CollapsibleCard title={T('التزام مدد', 'Mudad compliance')} color={MUDAD_ACCENT} defaultExpanded showMudadIcon
@@ -3269,23 +3638,23 @@ function MudadCards({ est, months, T, lang }) {
             {pct != null && (
               <div style={rowBase}>
                 <span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>{T('نسبة الالتزام', 'Compliance')}</span>
-                <span style={{ marginInlineStart: 'auto', fontSize: 12.5, fontWeight: 700, color: _mudadPctColor(pct), direction: 'ltr' }}>{Number(pct).toLocaleString('en-US')}%</span>
+                <span style={{ fontSize: 12.5, fontWeight: 700, color: _mudadPctColor(pct), direction: 'ltr' }}>{Number(pct).toLocaleString('en-US')}%</span>
               </div>
             )}
-            {period && <div style={rowBase}><span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>{T('فترة الأجور', 'Wage period')}</span><span style={{ marginInlineStart: 'auto', fontSize: 11.5, fontWeight: 600, color: 'var(--tx)' }}>{period}</span></div>}
+            {period && <div style={rowBase}><span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>{T('فترة الأجور', 'Wage period')}</span><span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--tx)' }}>{period}</span></div>}
             {(() => {
               const st = latest ? latest.status : est.compliance_status
               if (!st) return null
-              return <div style={rowBase}><span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>{T('الحالة', 'Status')}</span><span style={{ marginInlineStart: 'auto', fontSize: 11.5, fontWeight: 600, color: st === 'Compliant' ? C.ok : C.red }}>{st === 'Compliant' ? T('ملتزمة', 'Compliant') : st === 'NonCompliant' ? T('غير ملتزمة', 'Non-compliant') : st}</span></div>
+              return <div style={rowBase}><span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>{T('الحالة', 'Status')}</span><span style={{ fontSize: 11.5, fontWeight: 600, color: st === 'Compliant' ? C.ok : C.red }}>{st === 'Compliant' ? T('ملتزمة', 'Compliant') : st === 'NonCompliant' ? T('غير ملتزمة', 'Non-compliant') : st}</span></div>
             })()}
-            <div style={rowBase}><span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>{T('رقم منشأة مدد', 'Mudad establishment no.')}</span><span style={{ marginInlineStart: 'auto', fontSize: 11.5, fontWeight: 600, color: 'var(--tx)', direction: 'ltr', fontFamily: 'ui-monospace, monospace' }}>{est.mlsd_unified_id}</span></div>
+            <div style={rowBase}><span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>{T('رقم منشأة مدد', 'Mudad establishment no.')}</span><span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--tx)', direction: 'ltr', unicodeBidi: 'isolate', fontFamily: 'ui-monospace, monospace' }}>{est.mlsd_unified_id}</span></div>
             {[
               { k: T('مخالفات مفتوحة', 'Open violations'), v: est.open_violations },
               { k: T('مبررات معلّقة', 'Pending justifications'), v: est.pending_justifications },
             ].filter(x => x.v != null).map((x, i) => (
               <div key={i} style={rowBase}>
                 <span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>{x.k}</span>
-                <span style={{ marginInlineStart: 'auto', fontSize: 11.5, fontWeight: 700, color: x.v ? C.red : C.ok }}>{x.v ? T('نعم', 'Yes') : T('لا', 'No')}</span>
+                <span style={{ fontSize: 11.5, fontWeight: 700, color: x.v ? C.red : C.ok }}>{x.v ? T('نعم', 'Yes') : T('لا', 'No')}</span>
               </div>
             ))}
             {months.length === 0 && (
@@ -3381,15 +3750,11 @@ function AjeerCards({ est, notices, contracts, payments, indicators, T, lang }) 
   }
   return (
     <>
-      {/* فاصل قسم أجير */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6 }}>
-        <span style={{ width: 8, height: 8, borderRadius: '50%', background: AJEER_ACCENT }} />
-        <span style={{ fontSize: 13, fontWeight: 700, color: AJEER_ACCENT }}>{T('أجير — العمالة المؤقتة', 'Ajeer — temporary labor')}</span>
-        <span style={{ flex: 1, height: 1, background: 'var(--bd)' }} />
-      </div>
+      {/* فاصل بين المنصة السابقة وكروت أجير — نفس فاصل بقية المصادر (مسافة أكبر تفصل المنصات). */}
+      <div style={{ height: 1, background: 'rgba(255,255,255,.08)', margin: '8px 0' }} />
 
       {est && (
-        <CollapsibleCard title={T('منشأة أجير', 'Ajeer establishment')} color={AJEER_ACCENT} defaultExpanded
+        <CollapsibleCard title={T('منشأة أجير', 'Ajeer establishment')} color={AJEER_ACCENT} defaultExpanded showAjeerIcon
           badge={est.is_blocked ? T('محجوبة — حدّث قائمة المسؤولين', 'Blocked — update representatives') : undefined}>
           <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             {est.name && <div style={rowBase}><span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>{T('الاسم', 'Name')}</span><span style={{ marginInlineStart: 'auto', fontSize: 11.5, fontWeight: 600, color: 'var(--tx)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{est.name}</span></div>}
@@ -3414,7 +3779,7 @@ function AjeerCards({ est, notices, contracts, payments, indicators, T, lang }) 
       )}
 
       {notices.length > 0 && (
-        <CollapsibleCard title={T('تصاريح أجير', 'Ajeer notices')} color={AJEER_ACCENT} defaultExpanded badge={num(notices.length)}>
+        <CollapsibleCard title={T('تصاريح أجير', 'Ajeer notices')} color={AJEER_ACCENT} defaultExpanded showAjeerIcon badge={num(notices.length)}>
           <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 6 }}>
             {notices.map((n) => (
               <div key={n.notice_id} style={{ ...rowBase, flexWrap: 'wrap' }}>
@@ -3433,7 +3798,7 @@ function AjeerCards({ est, notices, contracts, payments, indicators, T, lang }) 
       )}
 
       {contracts.length > 0 && (
-        <CollapsibleCard title={T('عقود أجير', 'Ajeer contracts')} color={AJEER_ACCENT} badge={num(contracts.length)}>
+        <CollapsibleCard title={T('عقود أجير', 'Ajeer contracts')} color={AJEER_ACCENT} showAjeerIcon badge={num(contracts.length)}>
           <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 6 }}>
             {contracts.map((c) => (
               <div key={c.contract_id} style={{ ...rowBase, flexWrap: 'wrap' }}>
@@ -3450,7 +3815,7 @@ function AjeerCards({ est, notices, contracts, payments, indicators, T, lang }) 
       )}
 
       {payments.length > 0 && (
-        <CollapsibleCard title={T('مدفوعات أجير', 'Ajeer payments')} color={AJEER_ACCENT} badge={num(payments.length)}>
+        <CollapsibleCard title={T('مدفوعات أجير', 'Ajeer payments')} color={AJEER_ACCENT} showAjeerIcon badge={num(payments.length)}>
           <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 6 }}>
             {payments.map((p, i) => (
               <div key={i} style={{ ...rowBase, flexWrap: 'wrap' }}>
@@ -3468,7 +3833,7 @@ function AjeerCards({ est, notices, contracts, payments, indicators, T, lang }) 
       )}
 
       {indicators.length > 0 && (
-        <CollapsibleCard title={T('مؤشرات التزام أجير', 'Ajeer compliance indicators')} color={AJEER_ACCENT} badge={num(indicators.length) + ' ' + T('أسبوع', 'weeks')}>
+        <CollapsibleCard title={T('مؤشرات التزام أجير', 'Ajeer compliance indicators')} color={AJEER_ACCENT} showAjeerIcon badge={num(indicators.length) + ' ' + T('أسبوع', 'weeks')}>
           <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 4 }}>
             {indicators.slice(0, 16).map((w) => (
               <div key={w.week_no} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -4014,21 +4379,26 @@ function BlockedFacilitiesModal({ sb, blocked, T, lang, onClose, onChanged }) {
 export default function SbcFacilities({ sb, toast, user, lang, personFilter, onTriggerSync, syncPersonId, onBack }) {
   const T = (ar, en) => (lang || 'ar') !== 'en' ? ar : en
 
-  // The bookmarklets need a sync_persons id to stamp provenance with. SyncHub's
-  // drilldown passes one down, but the standalone tab renders this page with no
-  // prop — resolve the same first-row pick here so the buttons show either way.
-  const [fallbackPersonId, setFallbackPersonId] = useState('')
+  // The bookmarklets need a sync_persons id to stamp provenance with — this is
+  // the account whose portal login is running the sync. The user picks it from
+  // the strip below before copying a button, so every synced facility is
+  // attributed to the right account (a source can be synced from more than one
+  // account across facilities). SyncHub's drilldown may pass one down; the
+  // standalone tab loads the full list and defaults to the first row.
+  const [syncPersons, setSyncPersons] = useState([])
+  const [chosenPersonId, setChosenPersonId] = useState('')
   useEffect(() => {
-    if (syncPersonId) return
     let alive = true
     ;(async () => {
-      const { data } = await sb.from('sync_persons').select('id')
-        .is('deleted_at', null).order('sort_order').order('name_ar').limit(1)
-      if (alive && data && data[0]) setFallbackPersonId(data[0].id)
+      const { data } = await sb.from('sync_persons').select('id, name_ar, name_en, color')
+        .is('deleted_at', null).order('sort_order').order('name_ar')
+      if (alive && Array.isArray(data)) setSyncPersons(data)
     })()
     return () => { alive = false }
-  }, [sb, syncPersonId])
-  const spid = syncPersonId || fallbackPersonId
+  }, [sb])
+  const fallbackPersonId = syncPersons[0]?.id || ''
+  // Explicit page pick wins; then a drilldown-provided id; then first account.
+  const spid = chosenPersonId || syncPersonId || fallbackPersonId
 
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(false)
@@ -4051,7 +4421,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
   // Per-facility provenance — cr_number → [{ source_id, sync_person_id, person_name_ar, person_color, last_synced_at }]
   // Populated from v_facility_provenance and merged into rows so the table can
   // show "where did this facility's data come from" badges per row.
-  const [provByCr, setProvByCr] = useState({})
+  const [provByCr, setProvByCr] = useState({ byCr: {}, byGosi: {} })
   // GOSI admin counts keyed by GOSI registration_no. Powers the "عدد المشرفين"
   // filter. Loaded once in parallel with the facilities list so we can filter
   // without opening each row's detail.
@@ -4657,18 +5027,21 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
   }, [sb, rows, toast, promoting])
 
   // Load cross-source provenance for all facilities: which operators have synced
-  // each facility from which platforms (SBC, Qiwa, GOSI, Muqeem…). Keyed by
-  // cr_number so it merges cleanly with sbc_facilities rows.
+  // each facility from which platforms (SBC, Qiwa, GOSI, Muqeem…). Indexed by
+  // BOTH cr_number and gosi_number: the facilities table links to sbc_facilities
+  // far more often by GOSI reg (≈1163/1222) than by CR (≈226), so a CR-only key
+  // would drop provenance for most rows. Each sbc_facilities detail then looks
+  // itself up by cr_number OR gosi_registration_number.
   const loadProvenance = useCallback(async () => {
     if (!sb) return
     const { data, error } = await sb.from('v_facility_provenance').select('*')
     if (error || !Array.isArray(data)) return
-    const byCr = {}
+    const byCr = {}, byGosi = {}
     for (const p of data) {
-      if (!p.cr_number) continue
-      ;(byCr[p.cr_number] ||= []).push(p)
+      if (p.cr_number) (byCr[p.cr_number] ||= []).push(p)
+      if (p.gosi_number) (byGosi[p.gosi_number] ||= []).push(p)
     }
-    setProvByCr(byCr)
+    setProvByCr({ byCr, byGosi })
   }, [sb])
 
   // GOSI admin counts per registration_no — used by the "عدد المشرفين" filter.
@@ -4741,18 +5114,22 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
 
   // Load GOSI establishment row by gosi_registration_number when the detail
   // opens. Populated by the GOSI bookmarklet (see gosiSyncBookmarklet.js).
-  // Qiwa company lookup — match by cr_number (most reliable bridge between
-  // sbc_facilities and qiwa_companies). Run separately from the GOSI lookup
-  // since Qiwa data lives in a single row, not the 6-table fan-out.
+  // Qiwa company lookup. Qiwa rows almost always carry the الرقم الوطني الموحد
+  // (cr_national_number) but NOT cr_number, so match on the unified number first
+  // — a cr_number-only match misses nearly every synced company — then fall back
+  // to cr_number. Run separately from the GOSI 6-table fan-out.
   useEffect(() => {
-    if (!sb || !detail?.cr_number) { setQiwaCompany(null); return }
+    const cn = detail?.cr_national_number, cr = detail?.cr_number
+    if (!sb || (!cn && !cr)) { setQiwaCompany(null); return }
     let cancelled = false
     ;(async () => {
-      const { data } = await sb.from('qiwa_companies').select('*').eq('cr_number', String(detail.cr_number)).maybeSingle()
+      let data = null
+      if (cn) ({ data } = await sb.from('qiwa_companies').select('*').eq('cr_national_number', String(cn)).maybeSingle())
+      if (!data && cr) ({ data } = await sb.from('qiwa_companies').select('*').eq('cr_number', String(cr)).maybeSingle())
       if (!cancelled) setQiwaCompany(data || null)
     })()
     return () => { cancelled = true }
-  }, [sb, detail?.cr_number])
+  }, [sb, detail?.cr_national_number, detail?.cr_number])
 
   // Muqeem lookup — moi_number on muqeem_companies = the SBC facility's
   // gosi_unified_national_number. Loads org row + residents + subscriptions
@@ -5494,10 +5871,6 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
               {T('مركز مزامنة المنشآت والعمالة', 'Facilities & Workforce Sync Hub')}
             </div>
           </div>
-          <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 12, lineHeight: 1.6 }}>
-            {T('سجلّ موحّد لجميع المنشآت التابعة لك، يجمع بياناتها الأساسية وأرقامها الرسمية وحالة سجلاتها التجارية وملّاكها ومدرائها وتواريخها النظامية في مكان واحد.',
-               'A unified registry of all your facilities — gathering core data, official numbers, commercial registration status, owners, managers, and regulatory dates in one place.')}
-          </div>
         </div>
         {/* Primary CTA — same slot + chrome as «فاتورة جديدة» on the Invoices page. */}
         <div className="page-cta-row" style={{ display: 'inline-flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
@@ -5526,7 +5899,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
               height: 42, padding: '0 18px', borderRadius: 11, fontFamily: F, fontSize: 13, fontWeight: 600,
               cursor: (promoting || !rows.length) ? 'not-allowed' : 'pointer',
               display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0,
-              opacity: (promoting || !rows.length) ? .5 : 1,
+              opacity: (promoting || !rows.length) ? .5 : 1, order: 2,
               transition: 'background .15s ease, border-color .15s ease, box-shadow .15s ease',
             }}>
             {promoting ? T('جاري النقل...', 'Promoting...') : T('نقل إلى المنشآت والعمالة', 'Promote to sidebar')}
@@ -5545,10 +5918,27 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
             </button>
           )}
         </div>
+        {/* الوصف على سطر كامل تحت العنوان + الأزرار (flex-basis 100%). */}
+        <div style={{ flexBasis: '100%', fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 12, lineHeight: 1.6 }}>
+          {T('سجلّ موحّد لجميع المنشآت التابعة لك، يجمع بياناتها الأساسية وأرقامها الرسمية وحالة سجلاتها التجارية وملّاكها ومدرائها وتواريخها النظامية في مكان واحد.',
+             'A unified registry of all your facilities — gathering core data, official numbers, commercial registration status, owners, managers, and regulatory dates in one place.')}
+        </div>
         {/* الشريط RTL: المصادر تبدأ من اليمين (المركز أولاً) وتتدفق يساراً.
             كل زر يفرض ltr داخلياً فيبقى ترتيبه أيقونة ← اسم ← نقاط السحب. */}
         {spid && (
         <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap', flex: '1 1 100%', justifyContent: 'flex-start', direction: 'rtl' }}>
+          {/* اختيار الحساب قبل النسخ — يُحقن في كل بوكماركت فتُنسب كل منشأة
+              مُزامَنة لصاحب الحساب الصحيح (المصدر الواحد قد يُزامَن من أكثر من حساب). */}
+          {syncPersons.length > 0 && (
+            <div style={{ display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}>
+              <Sel
+                value={spid}
+                onChange={v => setChosenPersonId(v || '')}
+                options={syncPersons.map(p => ({ v: p.id, l: (lang === 'en' ? (p.name_en || p.name_ar) : (p.name_ar || p.name_en)) || '—' }))}
+                searchable={syncPersons.length > 6}
+              />
+            </div>
+          )}
           <SbcSyncBookmarklet syncPersonId={spid} T={T} />
           <GosiSyncBookmarklet syncPersonId={spid} T={T} />
           <QiwaSyncBookmarklet syncPersonId={spid} T={T} />
@@ -6154,7 +6544,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
           .sbcv-tbl .pc-marquee .pc-full{display:none}
           .sbcv-tbl tbody tr:hover .pc-marquee-long .pc-short{display:none}
           .sbcv-tbl tbody tr:hover .pc-marquee-long .pc-full{display:inline-block;animation:name-bounce 9s ease-in-out infinite}
-          .sbcv-pill{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:5px;font-size:10px;font-weight:600;white-space:nowrap;line-height:1.5}
+          .sbcv-pill{display:inline-flex;align-items:center;gap:6px;padding:4px 11px;font-size:10px;font-weight:600;white-space:nowrap;line-height:1.6}
           .sbcv-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
         `}</style>
 
@@ -6212,7 +6602,12 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                         {r.entity_full_name_en && (
                           <span style={{ fontSize: 9.5, fontWeight: 500, color: 'var(--tx4)', direction: 'ltr', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{r.entity_full_name_en}</span>
                         )}
-                        <RequestsBadge row={r} T={T} compact />
+                        {(r.last_synced_at || r.requests_synced_at) && (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                            <CrListBadge row={r} T={T} compact />
+                            <RequestsBadge row={r} T={T} compact />
+                          </span>
+                        )}
                       </div>
                     </td>
                     <td>
@@ -6263,13 +6658,11 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                     </td>
                     <td>
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                        <span className="sbcv-pill" style={{ background: theme.fg + '18', border: '1px solid ' + theme.fg + '38', color: theme.fg }}>
-                          <span className="sbcv-dot" style={{ background: theme.fg }} />
+                        <span className="sbcv-pill" style={{ background: theme.fg + '10', borderInlineStart: '3px solid ' + theme.fg, color: theme.fg }}>
                           {r._status || '—'}
                         </span>
                         {r.is_in_confirmation_period && (
-                          <span className="sbcv-pill" style={{ background: '#facc1518', border: '1px solid #facc1538', color: '#facc15' }}>
-                            <span className="sbcv-dot" style={{ background: '#facc15' }} />
+                          <span className="sbcv-pill" style={{ background: '#eab30810', borderInlineStart: '3px solid #eab308', color: '#eab308' }}>
                             {T('ضمن فترة التأكيد','In Confirm Period')}
                           </span>
                         )}
@@ -6359,7 +6752,12 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                         {r.entity_full_name_en && (
                           <span style={{ fontSize: 9.5, fontWeight: 500, color: 'var(--tx4)', direction: 'ltr', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{r.entity_full_name_en}</span>
                         )}
-                        <RequestsBadge row={r} T={T} compact />
+                        {(r.last_synced_at || r.requests_synced_at) && (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                            <CrListBadge row={r} T={T} compact />
+                            <RequestsBadge row={r} T={T} compact />
+                          </span>
+                        )}
                       </div>
                     </td>
                     {/* Numbers — same as SBC view */}
@@ -6525,8 +6923,25 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
           gosi: 'GOSI', chambers: 'Chambers', ajeer: 'Ajeer',
           mudad: 'Mudad', zatca: 'ZATCA', sbc_requests: 'My Requests — companies portal',
         }
-        const provEntries = provByCr[detail.cr_number] || []
-        const provFor = (sourceId) => provEntries.find(e => e.source_id === sourceId) || null
+        // Merge this facility's provenance from both indexes (CR + GOSI reg),
+        // de-duped by provenance_id since a row can be reachable via either key.
+        const provEntries = (() => {
+          const merged = [
+            ...(provByCr.byCr?.[detail.cr_number] || []),
+            ...(provByCr.byGosi?.[detail.gosi_registration_number] || []),
+          ]
+          const seen = new Set()
+          return merged.filter(e => {
+            const k = e.provenance_id || `${e.source_id}:${e.sync_person_id}`
+            if (seen.has(k)) return false
+            seen.add(k); return true
+          })
+        })()
+        // Most-recently-synced operator wins when a source was synced from more
+        // than one account for this facility.
+        const provFor = (sourceId) => provEntries
+          .filter(e => e.source_id === sourceId)
+          .sort((a, b) => (b.last_synced_at || '').localeCompare(a.last_synced_at || ''))[0] || null
         const fallbackProv = (sourceId) => ({
           source_id: sourceId,
           person_name_ar: '—',
@@ -6765,7 +7180,10 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
         // Always show both sections now (per user request to always fetch). Loading/error states handle UX.
         const hasGosi = true
         const hasHrsd = true
-        const prov = provByCr[detail.cr_number] || []
+        const prov = [
+          ...(provByCr.byCr?.[detail.cr_number] || []),
+          ...(provByCr.byGosi?.[detail.gosi_registration_number] || []),
+        ]
         // SBC data is only present when we have the actual SBC raw payload —
         // facilities created from a GOSI-only sync have detail rows (name,
         // CR no., etc. populated from CR registration) but no SBC payload.
@@ -6785,44 +7203,44 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, gap: 12, flexWrap: 'wrap' }}>
             <BackButton onBack={() => setDetail(null)} label={T('رجوع','Back')} />
             <div style={{ display: 'flex', gap: 8 }}>
-              <BlockFacilityAction sb={sb} facility={detail} T={T} lang={lang}
-                onBlocked={() => { setDetail(null); load() }} />
               {[
                 { expand: true, ar: 'توسيع الكل', en: 'Expand all', d: 'M7 13l5 5 5-5M7 6l5 5 5-5' },
                 { expand: false, ar: 'طي الكل', en: 'Collapse all', d: 'M7 18l5-5 5 5M7 11l5-5 5 5' },
               ].map(b => (
-                <button key={b.ar} type="button"
+                <button key={b.ar} type="button" title={T(b.ar, b.en)}
                   onClick={() => window.dispatchEvent(new CustomEvent('synchub-expand-all', { detail: { expand: b.expand } }))}
-                  style={{ height: 34, padding: '0 12px', borderRadius: 9, background: 'var(--search-bg)', border: '1px solid var(--bd)', color: 'var(--tx2)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: F, fontSize: 11.5, fontWeight: 600 }}>
+                  style={{ height: 34, padding: '0 10px', borderRadius: 9, background: 'var(--search-bg)', border: '1px solid var(--bd)', color: 'var(--tx2)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontFamily: F, fontSize: 11.5, fontWeight: 600 }}>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d={b.d} /></svg>
-                  {T(b.ar, b.en)}
                 </button>
               ))}
+              <BlockFacilityAction sb={sb} facility={detail} T={T} lang={lang}
+                onBlocked={() => { setDetail(null); load() }} />
             </div>
           </div>
 
           {/* Hero header — facility name + main/partner tag only */}
           <div style={{ marginBottom: 18, marginTop: 6 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-                <path d="M3 21h18"/>
-                <path d="M5 21V7l8-4v18"/>
-                <path d="M19 21V11l-6-4"/>
-                <path d="M9 9v.01M9 12v.01M9 15v.01M9 18v.01"/>
-              </svg>
-              {detail.is_partner && !detail.is_manager && (
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 9px', borderRadius: 6, background: C.blue + '18', border: '1px solid ' + C.blue + '38', color: C.blue, fontSize: 10.5, fontWeight: 600 }}>
-                  <span style={{ width: 5, height: 5, borderRadius: '50%', background: C.blue }} />
-                  {T('شريك','Partner')}
-                </span>
-              )}
               {detail.in_liquidation_process && (
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 9px', borderRadius: 6, background: C.red + '18', border: '1px solid ' + C.red + '38', color: C.red, fontSize: 10.5, fontWeight: 600 }}>
                   <span style={{ width: 5, height: 5, borderRadius: '50%', background: C.red }} />
                   {T('تصفية','Liquidation')}
                 </span>
               )}
+              {/* دور المنشأة قبل الاسم. «فرعي» فقط عند وجود دليل فعلي على الفرعية
+                  (سجل رئيسي مرتبط أو علَم فرع)، وإلا فهي رئيسية — فمنشآت طلباتي
+                  التي لا تحمل أي أعلام تظهر «رئيسي» لا «فرعي». */}
+              {(() => {
+                const isBranch = !!(detail._isBranch || detail.main_cr_national_number || detail.main_cr_number)
+                const col = isBranch ? C.blue : C.gold
+                return (
+                  <span className="sbcv-pill" style={{ background: col + '10', borderInlineStart: '3px solid ' + col, color: col, fontSize: 10.5, padding: '5px 14px' }}>
+                    {isBranch ? T('فرعي','Branch') : T('رئيسي','Main')}
+                  </span>
+                )
+              })()}
               <div style={{ fontSize: 22, fontWeight: 600, color: 'var(--tx)', letterSpacing: '-.2px' }}>{detail.entity_full_name_ar || T('منشأة','Facility')}</div>
+              <CrListBadge row={detail} T={T} />
               <RequestsBadge row={detail} T={T} />
             </div>
             {/* Provenance line — states outright that this facility's data came
@@ -6843,18 +7261,21 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                     <span>{detail.request_service_ar}</span>
                   </>
                 )}
-                <span style={{ color: 'var(--tx4)' }}>·</span>
-                <span>{fmtAgo(detail.requests_synced_at, lang)}</span>
               </div>
             )}
             {/* Data-source chips moved into the "مصادر البيانات" card in the
                 right sidebar to free up the facility header. */}
           </div>
 
-          {/* 2-column layout — main content + sidebar */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 14, alignItems: 'flex-start' }}>
+          {/* 2-column layout — main content + sidebar.
+              minmax(0,1fr): plain `1fr` is minmax(auto,1fr), and the `auto`
+              minimum blows the column out to the widest unbreakable text (e.g. a
+              long activity name) the moment a card expands. Clamping the min to 0
+              — with min-width:0 on the column below — keeps the card width fixed
+              and lets inner content truncate instead of stretching the layout. */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 340px', gap: 14, alignItems: 'flex-start' }}>
             {/* Main column */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0 }}>
 
               {/* Identifiers card — CR/national numbers + all government authority registrations
                   consolidated into a single panel so the user sees every "official number" in one place.
@@ -6947,7 +7368,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                             /* رقم فارغ مع حالة معروفة = الجهة لم تُصدره بعد؛
                                نعرض الحالة بدل «—» حتى لا تُقرأ كعطل مزامنة. */
                             : (
-                              <span style={{ fontSize: 10, fontWeight: 700, color: row.st.done ? C.ok : C.warn, background: (row.st.done ? C.ok : C.warn) + '14', border: `1px solid ${row.st.done ? C.ok : C.warn}40`, borderRadius: 5, padding: '1px 7px', whiteSpace: 'nowrap' }}>{row.st.label}</span>
+                              <span style={{ fontSize: 10.5, fontWeight: 700, color: row.st.done ? C.ok : C.warn, whiteSpace: 'nowrap' }}>{row.st.label}</span>
                             )}
                         </div>
                       ))}
@@ -6960,13 +7381,6 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                   </CollapsibleCard>
                 )
               })()}
-
-              {/* مطابقة المصادر — نفس الحقل من كل منصة جنباً إلى جنب مع
-                  إبراز أي فروقات (per project_field_provenance) */}
-              <SourceCompareCard detail={detail} gosiEst={gosiEstablishment} qiwa={qiwaCompany} muqeem={muqeemCompany} ajeerEst={ajeerEst} T={T} lang={lang} />
-
-              {/* العمالة الموحدة — دمج العامل من قوى/مقيم/التأمينات/أجير */}
-              <UnifiedWorkersCard sb={sb} companyId={qiwaCompany?.company_id} muqeemResidents={muqeemResidents} gosiContributors={gosiContributors} ajeerNotices={ajeerNotices} T={T} lang={lang} />
 
               {/* Partners */}
               {partners.length > 0 && (
@@ -7215,7 +7629,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
 
               {/* HRSD / Qiwa — labor office */}
               {hasHrsd && (
-                <CollapsibleCard title={T('وزارة الموارد البشرية والتنمية الإجتماعية', 'Ministry of Human Resources and Social Development')} color={C.cyan} defaultExpanded showSbcIcon badge={hrsdState === 'loading' ? T('جارٍ الجلب…','loading…') : undefined}>
+                <CollapsibleCard title={T('وزارة الموارد البشرية', 'Ministry of Human Resources and Social Development')} color={C.cyan} defaultExpanded showSbcIcon badge={hrsdState === 'loading' ? T('جارٍ الجلب…','loading…') : undefined}>
                   <div style={{ padding: '14px 22px' }}>
                     {(() => {
                       const nitaqColor = (name) => {
@@ -7448,7 +7862,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                       {dup && <DupBadge where={dup} />}
                       {k}
                     </span>
-                    <span style={ltr ? valLtr : val} title={typeof v === 'string' ? v : undefined}>{v != null && v !== '' ? v : '—'}</span>
+                    <span className="val-reveal" style={ltr ? valLtr : val} title={typeof v === 'string' ? v : undefined}>{v != null && v !== '' ? v : '—'}</span>
                   </div>
                 )
 
@@ -7697,17 +8111,22 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                         <Row k={k} v={v} mono={mono} ltr={ltr} />
                       ))
                       const pct = (n) => n != null ? `${Number(n).toFixed(n % 1 ? 1 : 0)}%` : null
+                      // Colour a Nitaqat band value by its real band colour (falls back to plain text).
+                      const band = (v) => { const c = nitaqBandColor(v); return c ? <span style={{ color: c, fontWeight: 700 }}>{v}</span> : v }
                       return (
                         <>
+                          {/* فاصل بين كروت التأمينات وكروت قوى — نفس فاصل المصادر الأخرى. */}
+                          <div style={{ height: 1, background: 'rgba(255,255,255,.08)', margin: '8px 0' }} />
                           {/* النطاقات والسعودة — open by default since these are
                               the headline numbers most operators look at first. */}
                           <CollapsibleCard
                             title={T('النطاقات والسعودة', 'Nitaqat & Saudization')}
                             color="#3b82f6" showQiwaIcon defaultExpanded
+                            badgeColor={nitaqBandColor(q.nitaqat_color_ar || q.color_name)}
                             badge={q.nitaqat_color_ar || q.color_name}>
                             <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                              {qRow({ k: T('النطاق', 'Nitaq band'), v: q.nitaqat_color_ar || q.color_name })}
-                              {qRow({ k: T('النطاق التالي', 'Next band'), v: q.nitaqat_next_color_ar })}
+                              {qRow({ k: T('النطاق', 'Nitaq band'), v: band(q.nitaqat_color_ar || q.color_name) })}
+                              {qRow({ k: T('النطاق التالي', 'Next band'), v: band(q.nitaqat_next_color_ar) })}
                               {qRow({ k: T('حجم المنشأة', 'Entity size'), v: q.nitaqat_entity_size_name || q.size_name })}
                               {qRow({ k: T('نشاط النطاق', 'Nitaq activity'), v: q.nitaqat_activity_name || q.nitaq_economic_activity_name })}
                               {qRow({ k: T('طريقة الاحتساب', 'Calc method'), v: q.nitaqat_calculation_method })}
@@ -7715,10 +8134,10 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                               {qRow({ k: T('إجمالي العمالة', 'Total workforce'), v: fmtNum(q.nitaq_total_laborers), ltr: true })}
                               {qRow({ k: T('عمالة سعودية', 'Saudi workers'), v: fmtNum(q.nitaq_saudis), ltr: true })}
                               {qRow({ k: T('عمالة غير سعودية', 'Foreign workers'), v: fmtNum(q.nitaq_foreigners), ltr: true })}
-                              {qRow({ k: T('سعوديون مرجّحون', 'Factorized Saudi'), v: fmtNum(q.nitaqat_factorized_saudis), ltr: true })}
-                              {qRow({ k: T('غير سعوديين مرجّحون', 'Factorized non-Saudi'), v: fmtNum(q.nitaqat_factorized_expats), ltr: true })}
+                              {qRow({ k: T('سعوديون نطاقات', 'Factorized Saudi'), v: fmtNum(q.nitaqat_factorized_saudis), ltr: true })}
+                              {qRow({ k: T('غير سعوديين نطاقات', 'Factorized non-Saudi'), v: fmtNum(q.nitaqat_factorized_expats), ltr: true })}
                               {qRow({ k: T('سعوديون مطلوب توظيفهم', 'Saudis to hire'), v: fmtNum(q.nitaqat_saudis_to_be_hired), ltr: true })}
-                              {q.nitaqat_is_grace_period && qRow({ k: T('فترة سماح', 'Grace period'), v: `${q.nitaqat_grace_start || '—'} → ${q.nitaqat_grace_end || '—'}` })}
+                              {q.nitaqat_is_grace_period && qRow({ k: T('فترة سماح', 'Grace period'), v: `${q.nitaqat_grace_start || '—'} ← ${q.nitaqat_grace_end || '—'}` })}
                             </div>
                           </CollapsibleCard>
 
@@ -7774,7 +8193,9 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                           {(q.visa_approved != null || q.visa_work_quota != null || q.visa_balances_raw || q.absher_balance != null) && (
                             <CollapsibleCard
                               title={T('التأشيرات', 'Visas')}
-                              color="#3b82f6" showQiwaIcon>
+                              color="#3b82f6" showQiwaIcon
+                              badgeColor="#b07d00"
+                              badge={q.absher_balance != null ? `${T('رصيد أبشر', 'Absher')} = ${num(q.absher_balance)}` : undefined}>
                               <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                                 {qRow({ k: T('تأشيرات عمل — المسموح', 'Work — quota'), v: fmtNum(q.visa_work_quota), ltr: true })}
                                 {qRow({ k: T('تأشيرات عمل — متبقية', 'Work — remaining'), v: fmtNum(q.visa_work_unused), ltr: true })}
@@ -7790,7 +8211,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                                 {qRow({ k: T('غير مستخدمة', 'Not used'), v: fmtNum(q.visa_not_used), ltr: true })}
                                 {qRow({ k: T('ملغاة', 'Cancelled'), v: fmtNum(q.visa_cancelled), ltr: true })}
                                 {qRow({ k: T('مصدّرة', 'Issued'), v: fmtNum(q.visa_issued), ltr: true })}
-                                {qRow({ k: T('رصيد أبشر', 'Absher balance'), v: q.absher_balance != null ? `${num(q.absher_balance)} ${T('ر.س', 'SAR')}` : null, ltr: true })}
+                                {qRow({ k: T('رصيد أبشر', 'Absher balance'), v: q.absher_balance != null ? `${num(q.absher_balance)}` : null, ltr: true })}
                                 {qRow({ k: T('حساب أبشر', 'Absher account'), v: q.absher_account_number, mono: true })}
                               </div>
                               {q.visa_work_eligibility_msg_ar && (
@@ -7824,6 +8245,9 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
 
                           {/* سجل طلبات التأشيرات — جدول منفصل (qiwa_visa_requests) */}
                           <QiwaVisaRequestsCard sb={sb} companyId={q.company_id} T={T} />
+
+                          {/* سجل طلبات نقل الموظفين — جدول منفصل (qiwa_transfer_requests) */}
+                          <QiwaTransferRequestsCard sb={sb} companyId={q.company_id} T={T} />
 
                           {/* رخص العمل — أعداد + حالة المنشأة */}
                           {(q.wp_validate_raw || q.wp_requests_total != null || q.wp_laborers_total != null) && (
@@ -7935,7 +8359,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
                                       <span style={{ fontSize: 12, fontWeight: 600, color: '#22c55e' }}>{T('شهادة التوطين', 'Saudization Certificate')}</span>
                                       <span style={{ fontSize: 10, color: '#22c55e', fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: 'rgba(34,197,94,.15)' }}>{q.sc_status_ar}</span>
-                                      {q.sc_nitaqat_color_ar && <span style={{ marginInlineStart: 'auto', fontSize: 10, color: 'var(--tx2)', fontWeight: 600 }}>{q.sc_nitaqat_color_ar}</span>}
+                                      {q.sc_nitaqat_color_ar && <span style={{ marginInlineStart: 'auto', fontSize: 10, color: nitaqBandColor(q.sc_nitaqat_color_ar) || 'var(--tx2)', fontWeight: 600 }}>{q.sc_nitaqat_color_ar}</span>}
                                     </div>
                                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                                       {qRow({ k: T('رقم الشهادة', 'Certificate no.'), v: q.sc_certificate_number, mono: true })}
@@ -8052,7 +8476,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                             title={T('هوية المنشأة', 'Establishment Identity')}
                             color="#3b82f6" showQiwaIcon>
                             <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                              {qRow({ k: T('معرّف المنشأة (Qiwa ID)', 'Qiwa company ID'), v: fmtNum(q.company_id), mono: true })}
+                              {qRow({ k: T('معرّف المنشأة (Qiwa ID)', 'Qiwa company ID'), v: q.company_id == null ? null : String(q.company_id), mono: true })}
                               {qRow({ k: T('Establishment ID', 'Establishment ID'), v: q.establishment_id, mono: true })}
                               {qRow({ k: T('اسم المنشأة', 'Establishment name'), v: q.establishment_name })}
                               {qRow({ k: T('حالة المنشأة', 'Establishment status'), v: q.establishment_status_ar || q.establishment_status_en })}
@@ -8074,7 +8498,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                               {qRow({ k: T('حساب NIC', 'NIC account'), v: q.nic_account_number, mono: true })}
                               {qRow({ k: T('البريد الإلكتروني', 'Email'), v: q.establishment_email, ltr: true })}
                               {qRow({ k: T('اللون (id)', 'Color id'), v: fmtNum(q.color_id), ltr: true })}
-                              {qRow({ k: T('اللون', 'Color name'), v: q.color_name })}
+                              {qRow({ k: T('اللون', 'Color name'), v: band(q.color_name) })}
                               {qRow({ k: T('كود اللون', 'Color code'), v: q.color_code, mono: true })}
                               {qRow({ k: T('الحجم (id)', 'Size id'), v: fmtNum(q.size_id), ltr: true })}
                               {qRow({ k: T('الحجم', 'Size name'), v: q.size_name })}
@@ -8100,21 +8524,49 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                             </CollapsibleCard>
                           )}
 
-                          {/* قوى — ملخص الموظفين (الكيان vs المنشأة) */}
-                          {(q.entity_employees_total != null || q.est_employees_total != null) && (
-                            <CollapsibleCard
-                              title={T('ملخص الموظفين (كيان vs منشأة)', 'Employees Summary (entity vs establishment)')}
-                              color="#3b82f6" showQiwaIcon>
-                              <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                                {qRow({ k: T('الكيان — الإجمالي', 'Entity — total'), v: fmtNum(q.entity_employees_total), ltr: true })}
-                                {qRow({ k: T('الكيان — سعوديون', 'Entity — Saudis'), v: fmtNum(q.entity_employees_saudis), ltr: true })}
-                                {qRow({ k: T('الكيان — غير سعوديين', 'Entity — non-Saudis'), v: fmtNum(q.entity_employees_non_saudis), ltr: true })}
-                                {qRow({ k: T('المنشأة — الإجمالي', 'Estab. — total'), v: fmtNum(q.est_employees_total), ltr: true })}
-                                {qRow({ k: T('المنشأة — سعوديون', 'Estab. — Saudis'), v: fmtNum(q.est_employees_saudis), ltr: true })}
-                                {qRow({ k: T('المنشأة — غير سعوديين', 'Estab. — non-Saudis'), v: fmtNum(q.est_employees_non_saudis), ltr: true })}
-                              </div>
-                            </CollapsibleCard>
-                          )}
+                          {/* قوى — ملخص الموظفين (الكيان vs المنشأة) — بنفس ترتيب صفحة قوى:
+                              لكل مستوى (كيان/منشأة) الإجمالي، ثم «عدد موظفي المنشأة» و«المحتسب في نطاقات».
+                              «المحتسب في نطاقات» يُقرأ من employees_summary_raw.number_calculated_in_nitaqat. */}
+                          {(q.entity_employees_total != null || q.est_employees_total != null || q.employees_summary_raw) && (() => {
+                            const esr = q.employees_summary_raw || {}
+                            const level = (key, fbTotal, fbSaudis, fbNon) => {
+                              const n = esr[key] || {}
+                              const ec = n.entity_employees_count || {}
+                              const nc = n.number_calculated_in_nitaqat || {}
+                              return {
+                                total: n.total != null ? n.total : fbTotal,
+                                empSaudis: ec.saudis != null ? ec.saudis : fbSaudis,
+                                empNon: ec.non_saudis != null ? ec.non_saudis : fbNon,
+                                nitaqSaudis: nc.saudis, nitaqNon: nc.non_saudis,
+                              }
+                            }
+                            const entity = level('entity', q.entity_employees_total, q.entity_employees_saudis, q.entity_employees_non_saudis)
+                            const estab = level('establishment', q.est_employees_total, q.est_employees_saudis, q.est_employees_non_saudis)
+                            const secTitle = { gridColumn: '1 / -1', fontSize: 12.5, fontWeight: 700, color: 'var(--tx)', marginTop: 6, display: 'flex', alignItems: 'center', gap: 8 }
+                            const totBadge = { fontSize: 11, fontWeight: 700, color: '#3b82f6', background: 'rgba(59,130,246,.12)', borderRadius: 6, padding: '2px 10px', direction: 'ltr' }
+                            const grpTitle = { gridColumn: '1 / -1', fontSize: 10.5, fontWeight: 600, color: 'var(--tx4)', letterSpacing: '.2px', marginTop: 2 }
+                            const Section = (label, d) => (
+                              <React.Fragment>
+                                <div style={secTitle}>{label}<span style={totBadge}>{fmtNum(d.total) ?? '0'}</span></div>
+                                <div style={grpTitle}>{T('عدد موظفي المنشأة', 'Establishment employees')}</div>
+                                {qRow({ k: T('سعوديون', 'Saudis'), v: fmtNum(d.empSaudis), ltr: true })}
+                                {qRow({ k: T('غير سعوديين', 'Non-Saudis'), v: fmtNum(d.empNon), ltr: true })}
+                                <div style={grpTitle}>{T('المحتسب في نطاقات', 'Counted in Nitaqat')}</div>
+                                {qRow({ k: T('سعوديون', 'Saudis'), v: fmtNum(d.nitaqSaudis), ltr: true })}
+                                {qRow({ k: T('غير سعوديين', 'Non-Saudis'), v: fmtNum(d.nitaqNon), ltr: true })}
+                              </React.Fragment>
+                            )
+                            return (
+                              <CollapsibleCard
+                                title={T('ملخص الموظفين (كيان vs منشأة)', 'Employees Summary (entity vs establishment)')}
+                                color="#3b82f6" showQiwaIcon>
+                                <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                                  {Section(T('على مستوى الكيان', 'Entity level'), entity)}
+                                  {Section(T('على مستوى المنشأة', 'Establishment level'), estab)}
+                                </div>
+                              </CollapsibleCard>
+                            )
+                          })()}
 
                           {/* قوى — معلومات المجموعة (group-information) */}
                           {(q.group_total_entities != null || q.group_total_establishments != null) && (
@@ -8132,8 +8584,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                           {(q.indicator_quota_allowed != null
                             || q.indicator_unrelated_occupations != null
                             || q.indicator_nitaqat_level_ar
-                            || q.est_phase_status
-                            || q.absher_amount_per_visa != null) && (
+                            || q.est_phase_status) && (
                             <CollapsibleCard
                               title={T('الكوتا والمؤشرات ومرحلة المنشأة', 'Quota / Indicators / Phase')}
                               color="#3b82f6" showQiwaIcon>
@@ -8149,7 +8600,6 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                                 {qRow({ k: T('مرحلة المنشأة', 'Establishment phase'), v: q.est_phase_status })}
                                 {qRow({ k: T('نهاية فترة السماح', 'Allowance end'), v: q.est_allowance_end_date, ltr: true })}
                                 {qRow({ k: T('في فترة السماح', 'In allowance period'), v: q.in_allowance_period == null ? null : (q.in_allowance_period ? T('نعم', 'Yes') : T('لا', 'No')) })}
-                                {qRow({ k: T('قيمة التأشيرة (أبشر)', 'Visa fee (Absher)'), v: q.absher_amount_per_visa != null ? `${num(q.absher_amount_per_visa)} ${T('ر.س', 'SAR')}` : null, ltr: true })}
                               </div>
                             </CollapsibleCard>
                           )}
@@ -8220,8 +8670,26 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                       ))
                       const fmtDate = (s) => s ? fmtDMY(s) : null
                       const yesNo = (b) => b == null ? null : (b ? T('نعم', 'Yes') : T('لا', 'No'))
+                      // مُعرّفات مقيم تصل أحياناً منسّقة بفواصل ألفية («1,620,736»)؛
+                      // نجرّدها لأنها أرقام هوية لا كميات.
+                      const idNo = (v) => (v == null || v === '' ? null : String(v).replace(/,/g, ''))
+                      // حالة السجل تصل ككائن {id, ar, en} (أو نصّه) — نعرض التسمية
+                      // حسب لغة البرنامج بدل الـJSON الخام.
+                      const crStatusLabel = (() => {
+                        let s = m.cr_status
+                        if (s == null || s === '') return null
+                        if (typeof s === 'string') {
+                          const t = s.trim()
+                          if (t[0] === '{') { try { s = JSON.parse(t) } catch { return t } } else return t
+                        }
+                        if (s && typeof s === 'object') return (lang === 'en' ? (s.en || s.ar) : (s.ar || s.en)) || null
+                        return String(s)
+                      })()
                       return (
                         <>
+                          {/* فاصل بين كروت التأمينات وكروت مقيم — نفس فاصل المركز/التأمينات
+                              (خط رفيع + هامش 8px) ليتساوى الفصل بين كل المصادر. */}
+                          <div style={{ height: 1, background: 'rgba(255,255,255,.08)', margin: '8px 0' }} />
                           {/* Identity + CR + address — opens by default since it's
                               the most-used Muqeem view. */}
                           <CollapsibleCard
@@ -8230,7 +8698,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                             badge={m.residents_count != null ? `${m.residents_count} ${T('مقيم', 'residents')}` : null}>
                             <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                               {mRow({ k: T('رقم المنشأة (MOI)', 'MOI number'), v: m.moi_number, mono: true })}
-                              {mRow({ k: T('Organization ID', 'Organization ID'), v: fmtNum(m.organization_id), ltr: true })}
+                              {mRow({ k: T('Organization ID', 'Organization ID'), v: idNo(m.organization_id), ltr: true })}
                               {mRow({ k: T('الاسم العربي', 'Name (AR)'), v: m.name_ar })}
                               {mRow({ k: T('الاسم الإنجليزي', 'Name (EN)'), v: m.name_en })}
                               {mRow({ k: T('الاسم المختصر (AR)', 'Short name (AR)'), v: m.short_name_ar })}
@@ -8246,7 +8714,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                               {mRow({ k: T('رقم الكيان', 'CR entity no.'), v: m.cr_entity_number, mono: true })}
                               {mRow({ k: T('تاريخ إصدار السجل', 'CR issue date'), v: fmtDate(m.cr_issue_date), ltr: true })}
                               {mRow({ k: T('تاريخ انتهاء السجل', 'CR expiry date'), v: fmtDate(m.cr_expiry_date), ltr: true })}
-                              {mRow({ k: T('حالة السجل', 'CR status'), v: m.cr_status })}
+                              {mRow({ k: T('حالة السجل', 'CR status'), v: crStatusLabel })}
                               {mRow({ k: T('نوع النشاط', 'Business type'), v: m.business_type })}
                               {mRow({ k: T('الرقم الضريبي', 'VAT number'), v: m.vat_number, mono: true })}
                             </div>
@@ -8259,13 +8727,13 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                               color={muqAccent} showMuqeemIcon>
                               <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                                 {mRow({ k: T('المدينة', 'City'), v: m.city_name || m.city_name_en })}
-                                {mRow({ k: T('معرّف المدينة', 'City ID'), v: fmtNum(m.city_id), ltr: true })}
+                                {mRow({ k: T('معرّف المدينة', 'City ID'), v: idNo(m.city_id), ltr: true })}
                                 {mRow({ k: T('الحي', 'District'), v: m.district || m.district_en })}
                                 {mRow({ k: T('الشارع', 'Street'), v: m.street_name || m.street_name_en })}
-                                {mRow({ k: T('رقم المبنى', 'Building no.'), v: fmtNum(m.building_number), ltr: true })}
-                                {mRow({ k: T('الرقم الإضافي', 'Additional no.'), v: fmtNum(m.additional_number), ltr: true })}
-                                {mRow({ k: T('الرمز البريدي', 'ZIP'), v: fmtNum(m.zip_code), ltr: true })}
-                                {mRow({ k: T('الوحدة', 'Unit no.'), v: fmtNum(m.unit_no), ltr: true })}
+                                {mRow({ k: T('رقم المبنى', 'Building no.'), v: idNo(m.building_number), ltr: true })}
+                                {mRow({ k: T('الرقم الإضافي', 'Additional no.'), v: idNo(m.additional_number), ltr: true })}
+                                {mRow({ k: T('الرمز البريدي', 'ZIP'), v: idNo(m.zip_code), ltr: true })}
+                                {mRow({ k: T('الوحدة', 'Unit no.'), v: idNo(m.unit_no), ltr: true })}
                               </div>
                             </CollapsibleCard>
                           )}
@@ -8278,7 +8746,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                               badge={m.subscription_expired ? T('منتهي', 'Expired') : (m.latest_expiry_date ? fmtDate(m.latest_expiry_date) : null)}>
                               <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                                 {mRow({ k: T('الباقة الحالية', 'Current package'), v: m.latest_package_name_ar || m.latest_package_name_en })}
-                                {mRow({ k: T('معرّف الباقة', 'Package ID'), v: fmtNum(m.latest_package_id), ltr: true })}
+                                {mRow({ k: T('معرّف الباقة', 'Package ID'), v: idNo(m.latest_package_id), ltr: true })}
                                 {mRow({ k: T('حد المقيمين (من)', 'Resident count from'), v: fmtNum(m.latest_resident_count_from), ltr: true })}
                                 {mRow({ k: T('حد المقيمين (إلى)', 'Resident count to'), v: fmtNum(m.latest_resident_count_to), ltr: true })}
                                 {mRow({ k: T('بداية الاشتراك', 'Subscription start'), v: fmtDate(m.latest_start_date), ltr: true })}
@@ -8310,7 +8778,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                                     <div>
                                       <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx)' }}>{s.package_name_ar || s.package_name_en || '—'}</div>
                                       <div style={{ fontSize: 10, color: 'var(--tx5)', marginTop: 2, direction: 'ltr', fontFamily: 'ui-monospace, monospace' }}>
-                                        #{s.subscription_id} · {s.resident_count_from}–{s.resident_count_to} · {fmtDate(s.start_date)} → {fmtDate(s.expiry_date)}
+                                        #{s.subscription_id} · {s.resident_count_from}–{s.resident_count_to} · {fmtDate(s.start_date)} ← {fmtDate(s.expiry_date)}
                                       </div>
                                     </div>
                                     <span style={{
@@ -8361,7 +8829,41 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                           )}
 
                           {/* Residents list — collapsible. Each resident expands to show full record. */}
-                          {muqeemResidents.length > 0 && (
+                          {muqeemResidents.length > 0 && (() => {
+                            // Per-resident exit-reentry / final-exit visa index, built
+                            // from the establishment reports (keyed by alienId = iqama).
+                            // These cover every resident with such a visa and carry the
+                            // issue + return/departure dates the per-resident /visas
+                            // endpoint often 400s on. Merged with detail_raw.visas in the row.
+                            const arrOf = (x) => Array.isArray(x) ? x : (x && Array.isArray(x.content) ? x.content : (x && Array.isArray(x.rows) ? x.rows : [])) || []
+                            const visaIdx = new Map()
+                            const pushVisa = (alienId, e) => {
+                              const k = String(alienId || '')
+                              if (!k || !e.number) return
+                              if (!visaIdx.has(k)) visaIdx.set(k, [])
+                              visaIdx.get(k).push(e)
+                            }
+                            arrOf(m.report_issued_er_visa_raw).forEach(v => pushVisa(v.alienId, {
+                              number: String(v.visaNumber), kind: 'er', typeAr: v.visaType?.ar, typeEn: v.visaType?.en,
+                              issue: v.visaIssueDateg || v.visaIssueDateG || null, returnBefore: v.visaReturnBefore || null,
+                              duration: v.visaDuration ?? null, source: T('إصدار خروج وعودة', 'Issued ER'),
+                            }))
+                            arrOf(m.report_extended_er_visa_raw).forEach(v => pushVisa(v.alienId, {
+                              number: String(v.visaNumber), kind: 'er', typeAr: v.visaType?.ar, typeEn: v.visaType?.en, extended: true,
+                              issue: v.visaIssueDateg || v.visaIssueDateG || null, returnBefore: v.visaNewReturnBefore || v.visaReturnBefore || null,
+                              duration: v.visaNewDuration ?? v.visaDuration ?? null, source: T('تمديد خروج وعودة', 'Extended ER'),
+                            }))
+                            arrOf(m.report_final_exit_raw).forEach(v => pushVisa(v.alienId, {
+                              number: String(v.visaNumber), kind: 'final',
+                              issue: v.visaIssueDateG || v.visaIssueDateg || null, departure: v.visaFinalDepartureDateG || null,
+                              source: T('خروج نهائي', 'Final exit'),
+                            }))
+                            arrOf(m.report_probation_final_exit_raw).forEach(v => pushVisa(v.alienId, {
+                              number: String(v.visaNumber), kind: 'final', probation: true,
+                              issue: v.visaIssueDateG || v.visaIssueDateg || null, departure: v.visaFinalDepartureDateG || null,
+                              source: T('خروج نهائي (فترة تجربة)', 'Probation final exit'),
+                            }))
+                            return (
                             <CollapsibleCard
                               title={T('المقيمون', 'Residents')}
                               color={muqAccent} showMuqeemIcon badge={String(muqeemResidents.length)}>
@@ -8375,10 +8877,11 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                                     </div>
                                   </div>
                                 )}
-                                {muqeemResidents.map(r => <MuqeemResidentRow key={r.iqama_number} r={r} T={T} />)}
+                                {muqeemResidents.map(r => <MuqeemResidentRow key={r.iqama_number} r={r} T={T} visas={visaIdx.get(String(r.iqama_number))} />)}
                               </div>
                             </CollapsibleCard>
-                          )}
+                            )
+                          })()}
 
                           {m.detail_synced_at && (
                             <div style={{ marginTop: 8, fontSize: 10, color: 'var(--tx5)', textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}>
@@ -8409,7 +8912,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
               {/* Status summary — gated on hasSbcData since the CR issue/confirm
                   dates that drive the status come from the SBC payload. */}
               {hasSbcData && (
-              <CollapsibleCard title={T('حالة السجل التجاري','CR Status')} color={theme.fg} defaultExpanded badge={<CrCountdown confirmDate={detail._confirmDate} T={T} />}>
+              <CollapsibleCard title={T('حالة السجل التجاري','CR Status')} color={theme.fg} alwaysOpen badgeBare badge={<CrCountdown confirmDate={detail._confirmDate} T={T} pill />}>
                 <div style={{ padding: '20px 22px 14px', textAlign: 'center' }}>
                   <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderRadius: 999, background: theme.fg + '18', border: '1px solid ' + theme.fg + '38' }}>
                     <span style={{ width: 8, height: 8, borderRadius: '50%', background: theme.fg, boxShadow: `0 0 8px ${theme.fg}aa` }} />
@@ -8417,8 +8920,8 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                   </div>
                   {detail.is_in_confirmation_period && (
                     <div style={{ marginTop: 8 }}>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 9px', borderRadius: 6, background: '#facc1518', border: '1px solid #facc1538', color: '#facc15', fontSize: 10.5, fontWeight: 600 }}>
-                        <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#facc15' }} />
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 9px', borderRadius: 6, background: '#eab30818', border: '1px solid #eab30840', color: '#eab308', fontSize: 10.5, fontWeight: 600 }}>
+                        <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#eab308' }} />
                         {T('ضمن فترة التأكيد','In Confirm Period')}
                       </span>
                     </div>
@@ -8457,7 +8960,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                   2-column layout. Each row is one source we have synced data
                   from, colored by brand, with a check on the end to confirm
                   we actually have data from it (vs. just "supported"). */}
-              <CollapsibleCard title={T('مصادر البيانات','Data sources')} color={C.cyan} defaultExpanded>
+              <CollapsibleCard title={T('مصادر البيانات','Data sources')} color={C.cyan} alwaysOpen>
                 <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {(() => {
                     // Only list sources we actually have data from. The page

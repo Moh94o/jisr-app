@@ -254,7 +254,7 @@ function body({ sourceId, personId, proxyBaseUrl }) {
     stashRaw('/api/tawasal-request/list', 'POST', { basicSearch: false }, tawasal);
     stashRaw('/api/report/v1/stats', 'POST', { userLogin: uLogin, moiNumber: moi, year }, stats);
 
-    const patch = { moi_number: moi, synced_at: new Date().toISOString() };
+    const patch = { moi_number: moi, person_id: PERSON || null, synced_at: new Date().toISOString() };
     if (details.ok && details.data) patch.detail_synced_at = new Date().toISOString();
 
     if (details.ok && details.data) {
@@ -642,6 +642,7 @@ function body({ sourceId, personId, proxyBaseUrl }) {
       // Master upsert: make sure every establishment has a row (list-only) up front.
       const listRows = users.map(u => ({
         moi_number: String(u.username || u.organizationId),
+        person_id: PERSON || null,
         name_ar: u.organizationNameAr || null,
         name_en: u.organizationNameEn || null,
         synced_at: new Date().toISOString(),

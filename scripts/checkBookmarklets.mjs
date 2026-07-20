@@ -282,7 +282,8 @@ try {
   priorRows[2].detail_snapshot = { pct: 0, status: 'NonCompliant', period: '202606', viol: true, just: false }
   const { msgs, calls } = await runMudad({ estCount: 5, priorRows })
   const last = msgs[msgs.length - 1] || ''
-  if (!/✅ تم 1 منشأة/.test(last) || !/بلا تغيير 4/.test(last)) fail('expected 1 synced + 4 unchanged: ' + last)
+  // Cumulative counter: 4 unchanged (resumed) + 1 re-synced = 5/5 total.
+  if (!/✅ تم 5\/5 منشأة/.test(last) || !/بلا تغيير 4/.test(last)) fail('expected cumulative 5/5 with 4 unchanged: ' + last)
   else ok('synced only the changed establishment: ' + last.split('\n')[0])
   const perEst = calls.filter((c) => /compliance-report\/mlsd-unified-id\/summary/.test(c.url))
   if (perEst.length !== 1) fail('expected exactly 1 summary call, got ' + perEst.length)

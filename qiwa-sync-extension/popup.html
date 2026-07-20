@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; width: 340px; font-family: 'Segoe UI', Tahoma, sans-serif;
+      background: #111; color: #e6e6e6; padding: 14px;
+    }
+    h1 { font-size: 14px; margin: 0 0 4px; color: #27a046; }
+    p.sub { font-size: 11px; color: #999; margin: 0 0 12px; line-height: 1.5; }
+    button {
+      width: 100%; height: 40px; border: 0; border-radius: 10px; cursor: pointer;
+      background: #27a046; color: #fff; font-size: 14px; font-weight: 700;
+      transition: .15s;
+    }
+    button:disabled { background: #2a2a2a; color: #777; cursor: default; }
+    button:not(:disabled):hover { background: #1f8239; }
+    #log {
+      margin-top: 12px; font-size: 11px; line-height: 1.6; color: #cfcfcf;
+      background: #0b0b0b; border: 1px solid #222; border-radius: 8px;
+      padding: 8px 10px; max-height: 220px; overflow: auto; white-space: pre-wrap;
+      direction: rtl; text-align: right; font-variant-numeric: tabular-nums;
+    }
+    #log:empty { display: none; }
+  </style>
+</head>
+<body>
+  <h1>مزامنة قوى — جسر</h1>
+  <p class="sub">افتح بوابة قوى وتأكد أنك مسجّل الدخول (نفاذ)، ثم اضغط. تمرّ الأداة على كل المنشآت تلقائيًا — لا حاجة لفتح كل منشأة.</p>
+  <button id="run">مزامنة كل المنشآت</button>
+  <div id="log" aria-live="polite"></div>
+  <script src="popup.js"></script>
+</body>
+</html>

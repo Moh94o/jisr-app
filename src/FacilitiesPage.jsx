@@ -1858,7 +1858,7 @@ function MuqeemSourceIcon({ size = 16 }) {
 // Reusable collapsible card — click header to expand/collapse. Used for cards
 // that contain a lot of fields the user usually skips (e.g. WPS compliance).
 // Matches the same chrome + chevron pattern as ActivitiesCard below.
-function CollapsibleCard({ title, color, badge, action, collapsible = true, defaultExpanded = false, children, showSbcIcon = false, showGosiIcon = false, showQiwaIcon = false, showMuqeemIcon = false }) {
+function CollapsibleCard({ title, color, badge, badgeColor, action, collapsible = true, defaultExpanded = false, children, showSbcIcon = false, showGosiIcon = false, showQiwaIcon = false, showMuqeemIcon = false }) {
   const [expanded, setExpanded] = useState(defaultExpanded)
   // collapsible=false: كرت ثابت دائم الفتح بلا سهم ولا طيّ (للكروت التي يجب أن تبقى مرئية).
   const open = collapsible ? expanded : true
@@ -1877,7 +1877,7 @@ function CollapsibleCard({ title, color, badge, action, collapsible = true, defa
         {showMuqeemIcon && <MuqeemSourceIcon />}
         <span style={cardTitle}>{title}</span>
         {badge != null && (
-          <span style={{ marginInlineStart: 'auto', fontSize: 11, color, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: color + '14' }}>{badge}</span>
+          <span style={{ marginInlineStart: 'auto', fontSize: 11, color: badgeColor || color, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: (badgeColor || color) + '14' }}>{badge}</span>
         )}
         {action != null && (
           <span onClick={e => e.stopPropagation()} style={{ marginInlineStart: autoFirst === 'action' ? 'auto' : 0, display: 'inline-flex', alignItems: 'center' }}>{action}</span>
@@ -6907,6 +6907,8 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                         <Row k={k} v={v} mono={mono} ltr={ltr} />
                       ))
                       const pct = (n) => n != null ? `${Number(n).toFixed(n % 1 ? 1 : 0)}%` : null
+                      // Colour a Nitaqat band value by its real band colour (falls back to plain text).
+                      const band = (v) => { const c = nitaqBandColor(v); return c ? <span style={{ color: c, fontWeight: 700 }}>{v}</span> : v }
                       return (
                         <>
                           {/* النطاقات والسعودة — open by default since these are
@@ -6914,10 +6916,11 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                           <CollapsibleCard
                             title={T('النطاقات والسعودة', 'Nitaqat & Saudization')}
                             color={C.gold} showQiwaIcon defaultExpanded
+                            badgeColor={nitaqBandColor(q.nitaqat_color_ar || q.color_name)}
                             badge={q.nitaqat_color_ar || q.color_name}>
                             <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                              {qRow({ k: T('النطاق', 'Nitaq band'), v: q.nitaqat_color_ar || q.color_name })}
-                              {qRow({ k: T('النطاق التالي', 'Next band'), v: q.nitaqat_next_color_ar })}
+                              {qRow({ k: T('النطاق', 'Nitaq band'), v: band(q.nitaqat_color_ar || q.color_name) })}
+                              {qRow({ k: T('النطاق التالي', 'Next band'), v: band(q.nitaqat_next_color_ar) })}
                               {qRow({ k: T('حجم المنشأة', 'Entity size'), v: q.nitaqat_entity_size_name || q.size_name })}
                               {qRow({ k: T('نشاط النطاق', 'Nitaq activity'), v: q.nitaqat_activity_name || q.nitaq_economic_activity_name })}
                               {qRow({ k: T('طريقة الاحتساب', 'Calc method'), v: q.nitaqat_calculation_method })}
@@ -7145,7 +7148,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
                                       <span style={{ fontSize: 12, fontWeight: 600, color: '#22c55e' }}>{T('شهادة التوطين', 'Saudization Certificate')}</span>
                                       <span style={{ fontSize: 10, color: '#22c55e', fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: 'rgba(34,197,94,.15)' }}>{q.sc_status_ar}</span>
-                                      {q.sc_nitaqat_color_ar && <span style={{ marginInlineStart: 'auto', fontSize: 10, color: 'var(--tx2)', fontWeight: 600 }}>{q.sc_nitaqat_color_ar}</span>}
+                                      {q.sc_nitaqat_color_ar && <span style={{ marginInlineStart: 'auto', fontSize: 10, color: nitaqBandColor(q.sc_nitaqat_color_ar) || 'var(--tx2)', fontWeight: 600 }}>{q.sc_nitaqat_color_ar}</span>}
                                     </div>
                                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                                       {qRow({ k: T('رقم الشهادة', 'Certificate no.'), v: q.sc_certificate_number, mono: true })}

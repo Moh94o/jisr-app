@@ -155,10 +155,34 @@
     let scp = [];
     try { scp = typeof claims.gosiscp === 'string' ? JSON.parse(claims.gosiscp) : (claims.gosiscp || []); }
     catch (_) { scp = []; }
-    const regNos = Array.from(new Set((scp || []).map(x => x && x.e).filter(Boolean)));
+    let regNos = Array.from(new Set((scp || []).map(x => x && x.e).filter(Boolean)));
     if (!regNos.length) return msg('لا توجد منشآت في التوكن.');
 
     msg('جلب بيانات ' + regNos.length + ' منشأة من التأمينات...');
+
+    // Resume: skip establishments synced within the last 2 hours, so a run
+    // interrupted by leaving the portal continues where it left off instead of
+    // restarting from 0. A full re-sync is still possible once the 2h window
+    // passes. The cumulative counter below counts these as already done, so the
+    // number reads e.g. "41/91" and climbs — visibly picking up, not restarting.
+    let skippedRecent = 0;
+    try {
+      const RESUME_WINDOW_MS = 2 * 60 * 60 * 1000;
+      const resumeAfter = new Date(Date.now() - RESUME_WINDOW_MS).toISOString();
+      const dr = await supaFetch('/rest/v1/gosi_establishments?select=registration_no&synced_at=gte.' + encodeURIComponent(resumeAfter) + '&limit=5000');
+      if (dr.ok) {
+        const da = await dr.json();
+        if (Array.isArray(da)) {
+          const doneSet = new Set(da.map((r) => String(r.registration_no)));
+          const before = regNos.length;
+          regNos = regNos.filter((r) => !doneSet.has(String(r)));
+          skippedRecent = before - regNos.length;
+        }
+      }
+    } catch (e) {}
+    const grandTotal = regNos.length + skippedRecent;
+    if (skippedRecent) msg('استئناف: مكتمل سابقاً ' + skippedRecent + '/' + grandTotal + ' — إكمال الباقي');
+    if (!regNos.length) return msg('✅ الكل مُزامَن خلال آخر ساعتين (' + skippedRecent + ')');
 
     const CONC = 4;
     let ok = 0, fail = 0;
@@ -1000,12 +1024,12 @@
           }).catch(() => {});
         }
 
-        if (i % 5 === 0) msg('جارٍ... ' + (ok + fail) + '/' + regNos.length + ' (نجاح ' + ok + ')');
+        if (i % 5 === 0) msg('جارٍ... ' + (skippedRecent + ok + fail) + '/' + grandTotal + ' (نجاح ' + ok + ')');
       }
     };
     await Promise.all(Array.from({ length: CONC }, worker));
 
-    msg('✅ تمت مزامنة ' + ok + '/' + regNos.length + ' منشأة' + (fail ? ' (فشل ' + fail + ')' : '')
+    msg('✅ تمت مزامنة ' + (skippedRecent + ok) + '/' + grandTotal + ' منشأة' + (fail ? ' (فشل ' + fail + ')' : '') + (skippedRecent ? ' · سابقاً ' + skippedRecent : '')
       + ' · مشتركون ' + contribRowsOk + (contribRowsFail ? (' (فشل حفظ ' + contribRowsFail + ')') : ''));
     setTimeout(() => { const el = document.getElementById('_jisr_gosi_ui'); if (el) el.remove(); }, 20000);
   } catch (e) {

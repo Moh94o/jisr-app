@@ -336,22 +336,54 @@ function body({ sourceId, personId }) {
       runId = Array.isArray(runArr) ? runArr[0]?.id : runArr?.id;
     } catch (e) {}
 
-    // The chooser is fetched once. Note this GET also clears the active establishment —
-    // that is Ajeer's own behaviour, and harmless here since the sweep sets the context
-    // explicitly before every establishment anyway.
-    const chooser = await getDoc('/auth/qiwa/login');
-    token = csrfFrom(chooser.doc) || token;
-    const accounts = [...chooser.doc.querySelectorAll('li.registration__account')].map((li) => ({
+    // Account list. Ajeer's chooser is now client-rendered (moved under
+    // qiwa.sa), so fetching /auth/qiwa/login returns an empty SPA shell with
+    // zero account <li>s — the old fetch-then-parse silently found nothing.
+    // Read the LIVE document when we're on the chooser page, and only fall back
+    // to a fetch if the live DOM has none (e.g. the tool was run elsewhere).
+    const readAccounts = (doc) => [...doc.querySelectorAll('li.registration__account')].map((li) => ({
       establishment_no: li.dataset.number,
       account_type: li.dataset.type,
       name: (li.querySelector('.registration__accountText') || {}).textContent?.trim() || null,
     })).filter((a) => a.establishment_no);
+    token = csrfFrom(document) || token;
+    let accounts = readAccounts(document);
+    if (!accounts.length) {
+      // Fetch also clears the active establishment — harmless, the sweep sets
+      // context explicitly before every establishment anyway.
+      const chooser = await getDoc('/auth/qiwa/login');
+      token = csrfFrom(chooser.doc) || token;
+      accounts = readAccounts(chooser.doc);
+    }
 
-    if (!accounts.length) { msg('❌ لم أجد قائمة الحسابات — افتح صفحة اختيار الحساب أولاً'); return; }
-    await upsert('ajeer_establishments', accounts.map((a) => ({ ...a, raw: a })), 'establishment_no');
+    if (!accounts.length) { msg('❌ لم أجد قائمة الحسابات — افتح صفحة اختيار الحساب (ajeer.qiwa.sa/auth/qiwa/login) وشغّل الأداة منها'); return; }
+    await upsert('ajeer_establishments', accounts.map((a) => ({ ...a, person_id: PERSON || null, raw: a })), 'establishment_no');
     msg('القائمة: ' + accounts.length + ' حساب');
 
-    const sweep = accounts.filter((a) => a.account_type === 'establishment');
+    let sweep = accounts.filter((a) => a.account_type === 'establishment');
+    // Resume: skip establishments swept within the last 2 hours, so a sweep
+    // interrupted by leaving the site continues instead of restarting. A full
+    // re-sync is still possible once the 2h window passes.
+    const RESUME_WINDOW_MS = 2 * 60 * 60 * 1000;
+    const resumeAfter = new Date(Date.now() - RESUME_WINDOW_MS).toISOString();
+    let skippedRecent = 0;
+    try {
+      const dr = await supaFetch('/rest/v1/ajeer_establishments?select=establishment_no&last_synced_at=gte.' + encodeURIComponent(resumeAfter) + '&limit=5000');
+      if (dr.ok) {
+        const da = await dr.json();
+        if (Array.isArray(da)) {
+          const doneSet = new Set(da.map((r) => String(r.establishment_no)));
+          const before = sweep.length;
+          sweep = sweep.filter((a) => !doneSet.has(String(a.establishment_no)));
+          skippedRecent = before - sweep.length;
+        }
+      }
+    } catch (e) {}
+    // Cumulative counter against the FULL list: count resumed establishments as
+    // done so a run continued after a logout reads e.g. "41/91" and climbs,
+    // making it visible that it picked up where it stopped instead of restarting.
+    const grandTotal = sweep.length + skippedRecent;
+    if (skippedRecent) msg('استئناف: مكتمل سابقاً ' + skippedRecent + '/' + grandTotal + ' — إكمال الباقي');
     let done = 0, okCount = 0, blockedCount = 0;
     for (const a of sweep) {
       try {
@@ -362,6 +394,7 @@ function body({ sourceId, personId }) {
           if (res.blocked) blockedCount++; else okCount++;
           await upsert('ajeer_establishments', [{
             establishment_no: a.establishment_no, account_type: a.account_type, name: a.name,
+            person_id: PERSON || null,
             is_blocked: res.blocked, blocked_reason: res.blockedReason,
             ...(res.summary || {}),
             last_synced_at: new Date().toISOString(), updated_at: new Date().toISOString(),
@@ -370,7 +403,7 @@ function body({ sourceId, personId }) {
       } catch (e) {}
       done++;
       if (done % 5 === 0 || done === sweep.length) {
-        msg('مسح: ' + done + '/' + sweep.length + ' · تم ' + okCount + ' · محجوب ' + blockedCount);
+        msg('مسح: ' + (skippedRecent + done) + '/' + grandTotal + ' · تم ' + okCount + ' · محجوب ' + blockedCount);
       }
     }
 
@@ -380,7 +413,7 @@ function body({ sourceId, personId }) {
         body: JSON.stringify({ status: 'success', completed_at: new Date().toISOString(), records_fetched: okCount }),
       });
     }
-    msg('✅ تم ' + okCount + '/' + sweep.length + ' · محجوب ' + blockedCount);
+    msg('✅ تم ' + (skippedRecent + okCount) + '/' + grandTotal + ' · محجوب ' + blockedCount + (skippedRecent ? ' · سابقاً ' + skippedRecent : ''));
     setTimeout(() => { document.getElementById('_jisr_ajeer_ui')?.remove(); }, 30000);
   } catch (e) {
     msg('❌ ' + (e && e.message ? e.message : String(e)));

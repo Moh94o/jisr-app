@@ -240,7 +240,7 @@ function body({ sourceId, personId, proxyBaseUrl }) {
     // This drops the total wall-clock from ~3 min (4 sequential loops) to
     // roughly one loop's worth — ~45-60s.
     const items = (payload && Array.isArray(payload.items)) ? payload.items : [];
-    const perFacilityTargets = items
+    let perFacilityTargets = items
       .filter(it => it && it.crInformation && it.crInformation.encryptedCrNationalNumber)
       .map(it => ({
         enc: it.crInformation.encryptedCrNationalNumber,
@@ -253,6 +253,31 @@ function body({ sourceId, personId, proxyBaseUrl }) {
         // the captured response maps into the production sbc_facilities table.
         raw: it,
       }));
+
+    // Resume: skip facilities synced within the last 2 hours (bot_upsert_sbc_facility
+    // stamps last_synced_at on every upsert), so a run interrupted by leaving the
+    // site continues instead of restarting. A full re-sync is still possible once
+    // the 2h window passes.
+    let skippedRecent = 0;
+    try {
+      const RESUME_WINDOW_MS = 2 * 60 * 60 * 1000;
+      const resumeAfter = new Date(Date.now() - RESUME_WINDOW_MS).toISOString();
+      const dr = await supaFetch('/rest/v1/sbc_facilities?select=cr_national_number&last_synced_at=gte.' + encodeURIComponent(resumeAfter) + '&limit=5000');
+      if (dr.ok) {
+        const da = await dr.json();
+        if (Array.isArray(da)) {
+          const doneSet = new Set(da.map((r) => String(r.cr_national_number)));
+          const before = perFacilityTargets.length;
+          perFacilityTargets = perFacilityTargets.filter((t) => t.cr && !doneSet.has(String(t.cr)));
+          skippedRecent = before - perFacilityTargets.length;
+        }
+      }
+    } catch (e) {}
+    // Cumulative counter against the FULL list: resumed facilities count as done
+    // so a run continued after a logout reads e.g. "41/91" and climbs — visibly
+    // picking up where it stopped rather than restarting the count from 0.
+    const grandTotal = perFacilityTargets.length + skippedRecent;
+    if (skippedRecent) msg('استئناف: مكتمل سابقاً ' + skippedRecent + '/' + grandTotal + ' — إكمال الباقي');
 
     // mapLimit: bounded concurrency over an array. Each worker pulls the next
     // index until exhausted. We keep limit low because the gateway throttles
@@ -635,7 +660,7 @@ function body({ sourceId, personId, proxyBaseUrl }) {
       }
       const inFlightList = Array.from(inFlightCrs).slice(0, 2).join(',');
       const inFlightPart = facInFlight > 0 ? (' · جاري ' + facInFlight + (inFlightList ? (' [' + inFlightList + ']') : '')) : '';
-      msg('منشأة ' + facDone + '/' + total + inFlightPart + ' · مضى ' + fmtTime(elapsed) + ' · متبقي ~' + etaStr);
+      msg('منشأة ' + (skippedRecent + facDone) + '/' + grandTotal + inFlightPart + ' · مضى ' + fmtTime(elapsed) + ' · متبقي ~' + etaStr);
     };
     const progressTimer = setInterval(tickProgress, 2000);
     tickProgress();
@@ -744,7 +769,7 @@ function body({ sourceId, personId, proxyBaseUrl }) {
         const summary = allEps.map(ep => ep.label + ' ' + stats[ep.key].ok + '/' + stats[ep.key].fail).join(' · ');
         const anyRetried = allEps.some(ep => stats[ep.key].retried > 0);
         const pdfPart = ' · PDF ' + pdfStats.uploaded + ' (فشل ' + (pdfStats.fetchFail + pdfStats.uploadFail) + ')';
-        msg('منشأة ' + facDone + '/' + perFacilityTargets.length + ' · ' + summary + pdfPart + (anyRetried ? ' · إعادة محاولات نشطة' : ''));
+        msg('منشأة ' + (skippedRecent + facDone) + '/' + grandTotal + ' · ' + summary + pdfPart + (anyRetried ? ' · إعادة محاولات نشطة' : ''));
       }
     });
 
@@ -817,7 +842,7 @@ function body({ sourceId, personId, proxyBaseUrl }) {
 
       enDone++;
       if (enDone % 10 === 0 || enDone === perFacilityTargets.length) {
-        msg('إنجليزي ' + enDone + '/' + perFacilityTargets.length + ' · سجل ' + stats.pe.ok + '/' + stats.pe.fail + ' · PDF ' + pdfStats.uploaded);
+        msg('إنجليزي ' + (skippedRecent + enDone) + '/' + grandTotal + ' · سجل ' + stats.pe.ok + '/' + stats.pe.fail + ' · PDF ' + pdfStats.uploaded);
       }
     });
     const enElapsed = Math.round((Date.now() - enT0) / 1000);

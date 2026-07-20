@@ -449,6 +449,7 @@ function body({ sourceId, personId, proxyBaseUrl }) {
       const a = auth0(e);
       return {
         mlsd_unified_id: String(e.mlsdUnifiedId),
+        person_id: PERSON || null,
         national_unified_id: str(e.nationalUnifiedId),
         // The name lives on the authorization, not on the establishment — the
         // first run wrote 346 rows with name null looking for establishmentName.
@@ -511,7 +512,10 @@ function body({ sourceId, personId, proxyBaseUrl }) {
       msg('✅ لا تغيير — كل المنشآت (' + ests.length + ') مُزامَنة');
       return;
     }
-    msg('مسح: 0/' + todo + (skipped ? (' · بلا تغيير ' + skipped) : ''));
+    // Cumulative counter against the FULL establishment count: unchanged
+    // (already-synced) establishments count as done so the number reads e.g.
+    // "41/91" and climbs — visibly continuing, not restarting from 0.
+    msg('مسح: ' + skipped + '/' + ests.length + (skipped ? (' · بلا تغيير ' + skipped) : ''));
 
     let done = 0;
     // Flushed every 40 rows (~20 establishments) rather than 100: the first run
@@ -532,7 +536,7 @@ function body({ sourceId, personId, proxyBaseUrl }) {
         const e = queue.shift();
         try { await syncEst(e); } catch (_) {}
         done++;
-        if (done % 10 === 0 || done === todo) msg('مسح: ' + done + '/' + todo + (refreshOk ? (' · تجديد ' + refreshOk) : ''));
+        if (done % 10 === 0 || done === todo) msg('مسح: ' + (skipped + done) + '/' + ests.length + (refreshOk ? (' · تجديد ' + refreshOk) : ''));
         if (rawRows.length >= 40) await flush();
       }
     };
@@ -550,8 +554,8 @@ function body({ sourceId, personId, proxyBaseUrl }) {
     // endpoints Mudad actually serves, instead of leaving that to be guessed.
     const tally = Object.keys(statusTally).sort().map((k) => k + '×' + statusTally[k]).join(' · ');
     const head = authDead
-      ? ('⚠️ توقّف: انتهت جلسة مدد بعد ' + done + ' منشأة — سجّل الدخول واضغط الزر ثانية ليكمل من حيث وقف')
-      : ('✅ تم ' + done + ' منشأة' + (skipped ? (' · بلا تغيير ' + skipped) : ''));
+      ? ('⚠️ توقّف: انتهت جلسة مدد عند ' + (skipped + done) + '/' + ests.length + ' منشأة — سجّل الدخول واضغط الزر ثانية ليكمل من حيث وقف')
+      : ('✅ تم ' + (skipped + done) + '/' + ests.length + ' منشأة' + (skipped ? (' · بلا تغيير ' + skipped) : ''));
     msg(head + (refreshOk ? (' · جدّد التوكن ' + refreshOk) : '') + (refreshFail ? (' · فشل تجديد ' + refreshFail) : '') + (writeErr ? (' · ⚠️ ' + writeErr) : '') + (tally ? ('\\n' + tally) : ''));
     setTimeout(() => { const el = document.getElementById('_jisr_mudad_ui'); if (el) el.remove(); }, 30000);
   } catch (e) {

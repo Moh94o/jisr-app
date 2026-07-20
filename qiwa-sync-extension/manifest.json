@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "جسر — مزامنة قوى",
+  "version": "1.0.0",
+  "description": "مزامنة شاملة لكل منشآت قوى بضغطة واحدة: تبدّل السياق لكل منشأة وتجلب الموظفين والتأشيرات وملفات المنشأة معًا وتكتبها في جسر.",
+  "permissions": ["storage", "cookies", "declarativeNetRequest"],
+  "host_permissions": [
+    "https://*.qiwa.sa/*",
+    "https://gcvshzutdslmdkwqwteh.supabase.co/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "مزامنة قوى"
+  }
+}

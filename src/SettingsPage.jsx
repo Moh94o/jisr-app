@@ -274,6 +274,7 @@ const[sData,setSData]=useState([]);const[sLoading,setSLoading]=useState(true)
 const[regions,setRegions]=useState([]);const[cities,setCities]=useState([]);const[districtsList,setDistrictsList]=useState([])
 const[lLists,setLLists]=useState([]);const[lItems,setLItems]=useState([]);const[occupationsList,setOccupationsList]=useState([]);const[natList,setNatList]=useState([]);const[embList,setEmbList]=useState([])
 const[docs,setDocs]=useState([])
+const[syncAccts,setSyncAccts]=useState([])
 const[loading,setLoading]=useState(false)
 const[q,setQ]=useState('');const[pop,setPop]=useState(null)
 const[form,setForm]=useState({});const[saving,setSaving]=useState(false);const[formErr,setFormErr]=useState(null)
@@ -310,6 +311,7 @@ setSData(s.data||[]);setSLoading(false);setRegions(rg.data||[]);setCities(ct.dat
 setLLists(ll.data||[]);setLItems(li.data||[]);setDocs(dc.data||[])
 setOccupationsList(oc.data||[]);setNatList(nat.data||[]);setEmbList(emb.data||[])
 sb.from('muqeem_credentials').select('username,password,updated_at').eq('id','default').maybeSingle().then(({data})=>{const d=data||{username:'',password:'',updated_at:null};setMuqeemCreds(d);setMuqeemInputs({username:d.username||'',password:d.password||''})})
+sb.from('sync_persons').select('*').is('deleted_at',null).order('sort_order').order('name_ar').then(({data})=>setSyncAccts(data||[]))
 setLoading(false)
 },[sb])
 useEffect(()=>{loadAll()},[loadAll])
@@ -329,6 +331,7 @@ setPop(null);loadAll()}catch(e){setFormErr((isAr?'خطأ: ':'Error: ')+e.message
 const confirmDel=async()=>{if(!delTarget)return;const{table,id,cascade}=delTarget
 try{let err=null
 if(table==='documents'){const{error}=await sb.from(table).update({deleted_at:new Date().toISOString()}).eq('id',id);err=error}
+else if(table==='sync_persons'){const{error}=await sb.from(table).update({deleted_at:new Date().toISOString()}).eq('id',id);err=error}
 else if(table==='occupations'){const{error}=await sb.from(table).delete().eq('id',id);err=error
 if(!err){const{data:rest}=await sb.from('occupations').select('id').order('sort_order',{nullsFirst:false}).order('name_ar')
 if(rest){await Promise.all(rest.map((r,i)=>sb.from('occupations').update({sort_order:i+1}).eq('id',r.id)))}}}
@@ -372,6 +375,7 @@ const tabGroups=[
 {id:'occupations',l:'المهن',le:'Occupations'},
 {id:'nationalities',l:'الجنسيات والسفارات',le:'Nationalities & Embassies'},
 {id:'regions_cities',l:'المناطق والمدن والمحافظات',le:'Regions, Cities & Districts'},
+{id:'sync_accounts',l:'أصحاب الحسابات',le:'Sync Accounts'},
 {id:'formkit',l:'معرض الفورمات',le:'FormKit'},
 ]},
 ]
@@ -388,7 +392,8 @@ li:[{k:'value_ar',l:isAr?'القيمة بالعربي':'Value (Arabic)',r:1},{k:
 bnk:[{k:'value_ar',l:isAr?'اسم البنك بالعربي':'Bank Name (Arabic)',r:1},{k:'value_en',l:isAr?'بالإنجليزي':'English',d:1},{k:'code',l:isAr?'الرمز':'Code',d:1},{k:'type_id',l:isAr?'نوع البنك':'Bank Type',opts:lItems.filter(i=>{const bl=lLists.find(l=>l.category_key==='bank_type');return bl&&i.category_id===bl.id}).map(i=>({v:i.id,l:i.value_ar}))},{k:'sort_order',l:isAr?'الترتيب':'Sort',d:1}],
 di:[{k:'name_ar',l:isAr?'اسم الحي بالعربي':'District (Arabic)',r:1},{k:'name_en',l:isAr?'اسم الحي بالإنجليزي':'District (English)',d:1},{k:'code',l:isAr?'الرمز':'Code',d:1},{k:'sort_order',l:isAr?'الترتيب':'Sort',d:1}],
 doc:[{k:'title',l:isAr?'العنوان':'Title',r:1},{k:'document_type',l:isAr?'النوع':'Type'},{k:'entity_type',l:isAr?'نوع الكيان':'Entity Type'},{k:'description',l:isAr?'الوصف':'Description',w:1}],
-occ:[{k:'name_ar',l:isAr?'الاسم بالعربي':'Name (Arabic)',r:1},{k:'name_en',l:isAr?'الاسم بالإنجليزي':'Name (English)',d:1},{k:'code',l:isAr?'الرمز':'Code',d:1},{k:'sort_order',l:isAr?'الترتيب':'Sort',d:1},{k:'is_active',l:isAr?'الحالة':'Status',btn:1,opts:[{v:'true',l:isAr?'نشط':'Active'},{v:'false',l:isAr?'معطّل':'Inactive'}]}]
+occ:[{k:'name_ar',l:isAr?'الاسم بالعربي':'Name (Arabic)',r:1},{k:'name_en',l:isAr?'الاسم بالإنجليزي':'Name (English)',d:1},{k:'code',l:isAr?'الرمز':'Code',d:1},{k:'sort_order',l:isAr?'الترتيب':'Sort',d:1},{k:'is_active',l:isAr?'الحالة':'Status',btn:1,opts:[{v:'true',l:isAr?'نشط':'Active'},{v:'false',l:isAr?'معطّل':'Inactive'}]}],
+sa:[{k:'name_ar',l:isAr?'اسم صاحب الحساب':'Account owner (Arabic)',r:1},{k:'name_en',l:isAr?'الاسم بالإنجليزي':'Name (English)',d:1},{k:'color',l:isAr?'اللون':'Color',opts:[{v:'#B07D00',l:isAr?'ذهبي':'Gold'},{v:'#3b82f6',l:isAr?'أزرق':'Blue'},{v:'#22c55e',l:isAr?'أخضر':'Green'},{v:'#bb8fce',l:isAr?'بنفسجي':'Purple'},{v:'#f39c12',l:isAr?'برتقالي':'Orange'},{v:'#16a085',l:isAr?'تركوازي':'Teal'},{v:'#e87265',l:isAr?'أحمر':'Red'},{v:'#c084fc',l:isAr?'ليلكي':'Lilac'}]},{k:'note_ar',l:isAr?'ملاحظة':'Note',w:1},{k:'sort_order',l:isAr?'الترتيب':'Sort',d:1}]
 }
 const popTitles={
 r:form._id?(isAr?'تعديل منطقة':'Edit Region'):(isAr?'إضافة منطقة':'Add Region'),
@@ -400,7 +405,8 @@ li:form._id?(isAr?'تعديل عنصر':'Edit Item'):(isAr?'إضافة عنصر'
 bnk:form._id?(isAr?'تعديل بنك':'Edit Bank'):(isAr?'إضافة بنك':'Add Bank'),
 di:form._id?(isAr?'تعديل حي':'Edit District'):(isAr?'إضافة حي':'Add District'),
 doc:form._id?(isAr?'تعديل وثيقة':'Edit Document'):(isAr?'إضافة وثيقة':'Add Document'),
-occ:form._id?(isAr?'تعديل مهنة':'Edit Occupation'):(isAr?'إضافة مهنة':'Add Occupation')
+occ:form._id?(isAr?'تعديل مهنة':'Edit Occupation'):(isAr?'إضافة مهنة':'Add Occupation'),
+sa:form._id?(isAr?'تعديل صاحب حساب':'Edit Account Owner'):(isAr?'إضافة صاحب حساب':'Add Account Owner')
 }
 
 const fLItems=lItems.filter(i=>{if(listFilter&&i.category_id!==listFilter)return false;if(q)return(i.value_ar||'').includes(q)||(i.value_en||'').toLowerCase().includes(q.toLowerCase());return true})
@@ -898,6 +904,35 @@ li2.map((it,iIdx)=>{const iActive=it.is_active!==false;const toggleItem=async()=
 </>}</div>}
 </>})()}
 
+
+{/* SYNC ACCOUNTS — أصحاب الحسابات المستخدمة في المزامنة */}
+{tab==='sync_accounts'&&(()=>{
+const list=syncAccts.filter(p=>{if(!q)return true;const s=q.toLowerCase();return(p.name_ar||'').includes(q)||(p.name_en||'').toLowerCase().includes(s)})
+return<>
+<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6,gap:12,flexWrap:'wrap'}}>
+<div style={{display:'flex',flexDirection:'column',gap:4,flexShrink:0}}><div style={{display:'flex',alignItems:'center',gap:10}}><span style={{width:8,height:8,borderRadius:'50%',background:C.gold,boxShadow:'0 0 6px '+C.gold}}/><span style={{fontSize:15,fontWeight:600,color:'var(--tx2)',letterSpacing:'-.2px'}}>{isAr?'أصحاب الحسابات':'Sync Accounts'}</span></div><span style={{fontSize:11,color:'var(--tx5)',paddingInlineStart:18}}>{syncAccts.length} {isAr?'حساب':'accounts'}</span></div>
+{can(user,'settings_fields.create')&&<button onClick={()=>{const maxOrder=syncAccts.reduce((m,o)=>Math.max(m,Number(o.sort_order)||0),0);setForm({_table:'sync_persons',name_ar:'',name_en:'',color:'#B07D00',note_ar:'',sort_order:String(maxOrder+1)});setPop('sa')}} style={{...bS,flexShrink:0}}>{isAr?'صاحب حساب':'Account'} +</button>}
+</div>
+<div style={{fontSize:11.5,color:'var(--tx5)',marginBottom:14,paddingInlineStart:18,lineHeight:1.6,maxWidth:640}}>{isAr?'أسماء أصحاب الحسابات التي تُستخدم عند المزامنة — تختار الحساب قبل نسخ زر المزامنة، فتُنسب كل منشأة مُزامَنة لصاحبها. المصدر الواحد (مثل التأمينات) قد يُزامَن من أكثر من حساب.':'Account owners used during sync — pick one before copying a sync button so each synced facility is attributed to its owner.'}</div>
+<div style={cardS}>
+<table style={{width:'100%',borderCollapse:'collapse',fontFamily:F}}>
+<thead><tr style={{background:'var(--inputBg)',borderBottom:'1px solid var(--bd)'}}>
+<th style={{padding:'14px 22px',textAlign:'right',fontSize:12,fontWeight:600,color:'var(--tx3)',width:36}}>#</th>
+<th style={{padding:'14px 22px',textAlign:'right',fontSize:12,fontWeight:600,color:'var(--tx3)'}}>{isAr?'الاسم':'Name'}</th>
+<th style={{padding:'14px 22px',textAlign:'right',fontSize:12,fontWeight:600,color:'var(--tx3)'}}>{isAr?'بالإنجليزي':'English'}</th>
+<th style={{padding:'14px 22px',textAlign:'right',fontSize:12,fontWeight:600,color:'var(--tx3)'}}>{isAr?'ملاحظة':'Note'}</th>
+<th style={{padding:'14px 12px',textAlign:'center',width:80}}></th>
+</tr></thead>
+<tbody>{list.length===0?<tr><td colSpan={5} style={{textAlign:'center',padding:40,color:'var(--tx6)',fontSize:12}}>{isAr?'لا يوجد أصحاب حسابات':'No accounts'}</td></tr>:
+list.map((p,i)=><tr key={p.id} style={{borderBottom:'1px solid var(--bd)'}}>
+<td style={{padding:'14px 22px',fontSize:11,color:'var(--tx5)'}}>{i+1}</td>
+<td style={{padding:'14px 22px',fontSize:13,fontWeight:600,color:'var(--tx2)'}}><span style={{display:'inline-flex',alignItems:'center',gap:8}}><span style={{width:10,height:10,borderRadius:'50%',background:p.color||'#B07D00',flexShrink:0,boxShadow:'0 0 0 2px '+(p.color||'#B07D00')+'22'}}/>{p.name_ar||'—'}</span></td>
+<td style={{padding:'14px 22px',fontSize:12,color:'var(--tx3)',direction:'ltr',textAlign:'right'}}>{p.name_en||'—'}</td>
+<td style={{padding:'14px 22px',fontSize:12,color:'var(--tx3)'}}>{p.note_ar||'—'}</td>
+<td style={{padding:'8px',textAlign:'center'}}><div style={{display:'flex',gap:4,justifyContent:'center'}}>
+{can(user,'settings_fields.edit')&&<EditBtn onClick={()=>{setForm({_table:'sync_persons',_id:p.id,name_ar:p.name_ar||'',name_en:p.name_en||'',color:p.color||'#B07D00',note_ar:p.note_ar||'',sort_order:p.sort_order||''});setPop('sa')}}/>}
+{can(user,'settings_fields.delete')&&<DelBtn onClick={()=>askDel('sync_persons',p.id,p.name_ar)}/>}
+</div></td></tr>)}</tbody></table></div></>})()}
 
 {/* DOCUMENTS */}
 {tab==='documents'&&<>
