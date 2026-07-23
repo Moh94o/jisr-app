@@ -298,6 +298,7 @@ export const TAB_CARDS = {
   // not here, so only the basic-registry cards are listed.
   facilities: [
     C('facility_data', 'بيانات المنشأة', 'core', EDIT), C('facility_numbers', 'أرقام المنشأة', 'core', EDIT),
+    C('merged_data', 'البيانات المدمجة من المصادر'),
     C('facility_files', 'ملفات المنشأة', 'core', EDIT),
     C('workforce', 'العمالة'), C('invoices_services', 'الفواتير والخدمات'),
     C('activity_log', 'سجل الإضافات والتعديلات'), C('facility_status', 'حالة المنشأة'),
@@ -305,10 +306,15 @@ export const TAB_CARDS = {
   workers: [
     C('personal_data', 'البيانات الشخصية', 'core', EDIT), C('professional_data', 'البيانات المهنية', 'core', EDIT),
     C('passport_data', 'بيانات الجواز', 'core', EDIT),
+    // كروت المزامنة المدمجة (يكتبها النقل من مركز المزامنة) — عرض فقط:
+    C('residency_data', 'بيانات الإقامة (مقيم)'), C('work_contract_data', 'رخصة العمل والعقد (قوى)'),
+    C('wage_data', 'الأجر والاشتراك (التأمينات)'),
     C('medical_insurance_data', 'بيانات التأمين الطبي', 'core', [ca('check_insurance', 'استعلام التأمين')]),
     C('exit_visa_data', 'تأشيرات الخروج والعودة', 'core', EDIT), C('billing_contact_data', 'بيانات التواصل الفاتورية'),
+    C('muqeem_exit_return', 'تأشيرة الخروج والعودة (مقيم)'), C('muqeem_final_exit', 'الخروج النهائي (مقيم)'),
     C('actual_data', 'البيانات الفعلية', 'core', EDIT), C('facility_branch', 'المنشأة والفرع', 'core', EDIT),
-    C('invoices_services', 'الفواتير والخدمات'), C('activity_log', 'سجل الإضافات والتعديلات'),
+    C('invoices_services', 'الفواتير والخدمات'), C('invoice_parties', 'عميل ووسيط الفاتورة'),
+    C('activity_log', 'سجل الإضافات والتعديلات'),
     C('iqama_status', 'حالة الإقامة'), C('exit_visa_status', 'حالة تأشيرة الخروج'),
   ],
   temp_workers: [

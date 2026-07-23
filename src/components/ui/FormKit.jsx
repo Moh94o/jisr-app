@@ -341,7 +341,7 @@ export const Dropdown = ({ value, onChange, options, placeholder, getKey, getLab
                   onMouseEnter={e => { if (!sel) e.currentTarget.style.background = ac + '1a' }}
                   onMouseLeave={e => { if (!sel) e.currentTarget.style.background = 'transparent' }}>
                   {multi && <span style={{ width: 16, height: 16, borderRadius: 5, border: `1.5px solid ${sel ? ac : 'var(--bd)'}`, background: sel ? ac : 'transparent', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{sel && <Check size={11} color="#000" strokeWidth={3.5} />}</span>}
-                  {renderCell ? renderCell(o, sel) : (
+                  {renderCell ? renderCell(o, sel, q) : (
                     <span style={{ fontSize: 14, fontWeight: 600, color: sel ? ac : 'var(--tx)', textAlign: multi ? 'start' : 'center', flex: multi ? 1 : undefined, display: 'inline-flex', alignItems: 'center', gap: 8 }}>{getL(o)}</span>
                   )}
                   {!multi && !renderCell && getSub && getSub(o) && <span style={{ fontSize: 11, color: C.tx3, textAlign: 'center' }}>{getSub(o)}</span>}

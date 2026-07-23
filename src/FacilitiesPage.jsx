@@ -539,6 +539,33 @@ function FacEditLog({ entries, created, T }) {
 // ───────────────────────────────────────────────────────────────────────────
 // part='top' → بيانات/أرقام/ملفات (أعلى العمود). part='bottom' → عمالة/فواتير/سجل
 // (آخر العمود بعد كروت المزامنة). كل جزء يجلب بياناته الخاصة فقط فلا يتكرر الجلب.
+// منصات المصدر — شارات مصدر الحقل من facilities.field_sources (يكتبها النقل
+// المدمج promote_sync_to_canonical بترتيب الموثوقية: المركز > مقيم > قوى > تأمينات > مدد > أجير).
+const FAC_SOURCE_BRAND = {
+  sbc: { color: '#9b59b6', ar: 'المركز السعودي', en: 'SBC', logo: '/sbc-logo.jpg', short: 'م.س' },
+  muqeem: { color: '#f59e0b', ar: 'مقيم', en: 'Muqeem', logo: '/muqeem-logo.png', short: 'مقيم' },
+  qiwa: { color: '#3b82f6', ar: 'قوى', en: 'Qiwa', logo: '/qiwa-logo.jpg', short: 'قوى' },
+  gosi: { color: '#22c55e', ar: 'التأمينات', en: 'GOSI', logo: '/gosi.logo.png', short: 'تأ' },
+  mudad: { color: '#0ea5e9', ar: 'مدد', en: 'Mudad', logo: '/mudad.jpg', short: 'مدد' },
+  ajeer: { color: '#eab308', ar: 'أجير', en: 'Ajeer', logo: '/ajeer.png', short: 'أجير' },
+}
+// شعار المنصة مصدر الحقل — صورة دائرية صغيرة، مع بديل نصّي لو تعذّر تحميل الشعار.
+const FacSrcPill = ({ src, isAr, size = 16 }) => {
+  const b = FAC_SOURCE_BRAND[src]
+  const [failed, setFailed] = useState(false)
+  if (!b) return null
+  const title = isAr ? b.ar : b.en
+  if (failed || !b.logo) return (
+    <span title={title} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: size, height: size, borderRadius: '50%', background: `${b.color}22`, color: b.color, fontSize: Math.round(size * 0.42), fontWeight: 700, lineHeight: 1, flexShrink: 0, fontFamily: F }}>
+      {b.short}
+    </span>
+  )
+  return (
+    <img src={b.logo} alt={title} title={title} width={size} height={size} loading="lazy" onError={() => setFailed(true)}
+      style={{ width: size, height: size, borderRadius: '50%', objectFit: 'contain', background: '#fff', border: `1.5px solid ${b.color}`, padding: 1, flexShrink: 0 }} />
+  )
+}
+
 function FacilityRegistryCards({ facility: f, sb, T, lang, user, toast, onEdit, part = 'top' }) {
   const sc = f._basicCode
   const statusColor = sc ? BASIC_STATUS_COLOR[sc] : C.gray
@@ -692,11 +719,16 @@ function FacilityRegistryCards({ facility: f, sb, T, lang, user, toast, onEdit, 
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
     </button>
   ) : null
-  const Field = ({ k, v, mono, color, noCopy, full }) => {
+  // src: مفتاح الحقل في field_sources — يعرض شارة المنصة التي جاءت منها القيمة.
+  const Field = ({ k, v, mono, color, noCopy, full, src }) => {
     const empty = v == null || v === ''
+    const srcKey = !empty && src && typeof f?.field_sources?.[src] === 'string' ? f.field_sources[src] : null
     return (
       <div style={{ gridColumn: full ? '1 / -1' : undefined, background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
-        <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600, whiteSpace: 'nowrap' }}>{k}</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600, whiteSpace: 'nowrap' }}>{k}</span>
+          {srcKey && <FacSrcPill src={srcKey} isAr={lang === 'ar'} />}
+        </span>
         <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, direction: 'ltr' }}>
           {!empty && !noCopy && <CopyBtn value={v} />}
           <span style={{ fontSize: 13, color: empty ? 'var(--tx4)' : (color || 'var(--tx1)'), fontWeight: 600, lineHeight: 1.4, direction: mono ? 'ltr' : 'rtl', fontFamily: mono ? 'ui-monospace, monospace' : F, fontVariantNumeric: mono ? 'tabular-nums' : 'normal', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{empty ? '—' : v}</span>
@@ -750,14 +782,52 @@ function FacilityRegistryCards({ facility: f, sb, T, lang, user, toast, onEdit, 
         <CollapsibleCard title={T('أرقام المنشأة', 'Facility Numbers')} color={C.gold} collapsible={false} action={<EditBtn section="numbers" cardKey="facility_numbers" />}>
           <div style={{ padding: 14 }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              <Field k={T('الرقم الموحد', 'Unified No.')} v={f.unified_number} mono color={C.gold} />
-              <Field k={T('رقم التأمينات', 'GOSI No.')} v={f.gosi_number} mono color={C.ok} />
-              <Field k={T('رقم الموارد البشرية', 'HRSD No.')} v={f.hrsd_number} mono color={C.blue} />
+              <Field k={T('الرقم الموحد', 'Unified No.')} v={f.unified_number} mono color={C.gold} src="unified_number" />
+              <Field k={T('رقم التأمينات', 'GOSI No.')} v={f.gosi_number} mono color={C.ok} src="gosi_number" />
+              <Field k={T('رقم الموارد البشرية', 'HRSD No.')} v={f.hrsd_number} mono color={C.blue} src="hrsd_number" />
               <Field k={T('رقم الموارد البشرية الإضافي', 'HRSD No. 2')} v={f.hrsd_number_2} mono color={C.purple} />
+              <Field k={T('رقم السجل التجاري', 'CR No.')} v={f.cr_number} mono src="cr_number" />
+              <Field k={T('الرقم الضريبي', 'VAT No.')} v={f.vat_number} mono src="vat_number" />
             </div>
           </div>
         </CollapsibleCard>
       )}
+
+      {/* البيانات المدمجة من كل المصادر — يكتبها النقل المدمج بترتيب الموثوقية،
+          وكل حقل يحمل شارة المنصة التي جاء منها. الحقول الفارغة لا تُعرض إطلاقاً
+          فلا يبدو أي نقص عند غياب مصدر. */}
+      {cardVisible(user, 'facilities', 'merged_data') && (() => {
+        const days = f.cr_expiry_date ? Math.ceil((new Date(f.cr_expiry_date).getTime() - Date.now()) / 86400000) : null
+        const crxColor = days == null ? undefined : days <= 0 ? C.red : days <= 30 ? C.gold : C.ok
+        const addressParts = [f.city_ar, f.district_ar, f.street_ar].filter(Boolean)
+        const rows = [
+          f.activity_ar && { k: T('النشاط التجاري', 'Business Activity'), v: f.activity_ar, src: 'activity_ar', full: true },
+          f.cr_status && { k: T('حالة السجل التجاري', 'CR Status'), v: f.cr_status, src: 'cr_status' },
+          f.cr_issue_date && { k: T('تاريخ إصدار السجل', 'CR Issue Date'), v: fmtDMY(f.cr_issue_date), mono: true, src: 'cr_issue_date' },
+          f.cr_expiry_date && { k: T('تاريخ انتهاء السجل', 'CR Expiry Date'), v: fmtDMY(f.cr_expiry_date), mono: true, color: crxColor, src: 'cr_expiry_date' },
+          f.capital != null && { k: T('رأس المال', 'Capital'), v: num(f.capital), mono: true, color: C.gold, src: 'capital' },
+          f.nitaqat_color_ar && { k: T('النطاق', 'Nitaqat'), v: f.nitaqat_color_ar, src: 'nitaqat_color_ar' },
+          f.saudization_rate != null && { k: T('نسبة السعودة', 'Saudization'), v: `${Number(f.saudization_rate)}%`, mono: true, src: 'saudization_rate' },
+          f.mudad_compliance_pct != null && { k: T('التزام حماية الأجور', 'WPS Compliance'), v: `${Number(f.mudad_compliance_pct)}%` + (f.mudad_compliance_status ? ` · ${f.mudad_compliance_status}` : ''), src: 'mudad_compliance_pct', color: Number(f.mudad_compliance_pct) >= 80 ? C.ok : C.red },
+          f.ajeer_blocked != null && { k: T('الحجب في أجير', 'Ajeer Block'), v: f.ajeer_blocked ? T('محجوبة', 'Blocked') : T('غير محجوبة', 'Not blocked'), color: f.ajeer_blocked ? C.red : C.ok, src: 'ajeer_blocked' },
+          f.mobile && { k: T('الجوال', 'Mobile'), v: f.mobile, mono: true, src: 'mobile' },
+          f.email && { k: T('البريد الإلكتروني', 'Email'), v: f.email, mono: true, src: 'email' },
+          addressParts.length > 0 && { k: T('العنوان', 'Address'), v: addressParts.join(' — '), src: 'city_ar', full: true },
+          f.building_no && { k: T('رقم المبنى', 'Building No.'), v: f.building_no, mono: true, src: 'building_no' },
+          f.postal_code && { k: T('الرمز البريدي', 'Postal Code'), v: f.postal_code, mono: true, src: 'postal_code' },
+        ].filter(Boolean)
+        if (!rows.length) return null
+        return (
+          <CollapsibleCard title={T('البيانات المدمجة من المصادر', 'Merged Multi-Source Data')} color={C.gold} defaultExpanded
+            badge={T(`${rows.length} حقل`, `${rows.length} fields`)}>
+            <div style={{ padding: 14 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                {rows.map((r, i) => <Field key={i} k={r.k} v={r.v} mono={r.mono} color={r.color} src={r.src} full={r.full} />)}
+              </div>
+            </div>
+          </CollapsibleCard>
+        )
+      })()}
 
       </>)}
 
@@ -896,17 +966,32 @@ function FacilityRegistryCards({ facility: f, sb, T, lang, user, toast, onEdit, 
 
 // أزرار الإجراءات (شطب/إلغاء الشطب/حذف) لصفحة تفاصيل المنشأة + نوافذ التأكيد،
 // مستخرجة كي تُدرَج في ترويسة العرض الغني المنسدل.
+// تسميات السجلات التي تمنع حذف المنشأة (معاملاتها وفواتيرها) — تُعرض في تحذير النافذة.
+const FAC_DELETE_LINK_LABELS = {
+  service_requests: ['معاملات', 'service requests'],
+  invoices: ['فواتير', 'invoices'],
+  transaction_fees: ['رسوم معاملات', 'transaction fees'],
+  visa_applications: ['معاملات تأشيرات', 'visa applications'],
+  iqama_issuance_applications: ['معاملات إصدار الإقامة', 'iqama issuance applications'],
+  iqama_renewal_applications: ['معاملات تجديد الإقامة', 'iqama renewal applications'],
+  transfer_applications: ['معاملات نقل الكفالة', 'transfer applications'],
+  other_applications: ['معاملات أخرى', 'other applications'],
+  supplier_payroll_applications: ['معاملات رواتب سبلاير', 'supplier payroll applications'],
+  ajeer_applications: ['معاملات أجير', 'ajeer applications'],
+}
+
 function FacilityRegistryActions({ facility: f, T, lang, user, onStrikeToggle, onDelete, onDeleted }) {
   const [confirm, setConfirm] = useState(null)
   const [busy, setBusy] = useState(false)
   const [done, setDone] = useState(null)
   const [confErr, setConfErr] = useState(null)
+  const [links, setLinks] = useState(null)
   const isStruck = !!f.struck_off
   const AMBER = '#e67e22'
   const nameAr = f.name_ar || f.entity_full_name_ar || '—'
   const doStrike = async () => { setBusy(true); setConfErr(null); const res = await onStrikeToggle?.(!isStruck); setBusy(false); if (res === true) setDone({ title: isStruck ? T('تم إلغاء شطب المنشأة', 'Facility un-struck') : T('تم شطب المنشأة', 'Facility struck off') }); else if (typeof res === 'string') setConfErr(res) }
-  const doDelete = async () => { setBusy(true); setConfErr(null); const res = await onDelete?.(); setBusy(false); if (res === true) setDone({ title: T('تم حذف المنشأة', 'Facility deleted'), kind: 'delete' }); else if (typeof res === 'string') setConfErr(res) }
-  const closeConfirm = () => { if (busy) return; const wasDelete = done?.kind === 'delete'; setDone(null); setConfErr(null); setConfirm(null); if (wasDelete) onDeleted?.() }
+  const doDelete = async () => { setBusy(true); setConfErr(null); setLinks(null); const res = await onDelete?.(); setBusy(false); if (res === true) setDone({ title: T('تم حذف المنشأة', 'Facility deleted'), kind: 'delete' }); else if (res && typeof res === 'object' && res.linked) setLinks(res.linked); else if (typeof res === 'string') setConfErr(res) }
+  const closeConfirm = () => { if (busy) return; const wasDelete = done?.kind === 'delete'; setDone(null); setConfErr(null); setLinks(null); setConfirm(null); if (wasDelete) onDeleted?.() }
   const HeaderBtn = ({ onClick, color, label, children }) => (
     <button onClick={onClick} title={label}
       style={{ height: 42, padding: '0 18px', borderRadius: 11, background: 'transparent', border: `1px dashed ${color}80`, color, cursor: 'pointer', fontFamily: F, fontSize: 13, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0, transition: 'background .15s' }}
@@ -961,7 +1046,7 @@ function FacilityRegistryActions({ facility: f, T, lang, user, onStrikeToggle, o
           success={done ? <SuccessView title={done.title} /> : undefined}
           title={T('حذف المنشأة', 'Delete facility')}
           footer={
-            <ActionButton Icon={Trash2} color={C.red} disabled={busy} onClick={doDelete}>
+            <ActionButton Icon={Trash2} color={C.red} disabled={busy || !!links} onClick={doDelete}>
               {busy ? T('جارٍ الحذف…', 'Deleting…') : T('تأكيد الحذف', 'Confirm delete')}
             </ActionButton>
           }>
@@ -969,6 +1054,27 @@ function FacilityRegistryActions({ facility: f, T, lang, user, onStrikeToggle, o
             {T(`سيتم حذف المنشأة «${nameAr}» وإخفاؤها من قائمة المنشآت مع حذف العمالة التابعة لها. لن تظهر بعد الحذف في الواجهة.`,
                `The facility “${nameAr}” will be deleted and hidden from the list, along with its linked workers.`)}
           </div>
+
+          {links && (
+            // للمنشأة (أو عمالتها) معاملات أو فواتير قائمة — الحذف يترك سجلات معلّقة،
+            // فنمنعه ونعرض ما يمنعه بدل رسالة فشل مبهمة.
+            <div style={{ borderRadius: 10, background: C.warn + '12', border: `1px solid ${C.warn}40`, padding: '10px 12px', marginTop: 8 }}>
+              <div style={{ fontSize: 12.5, fontWeight: 700, color: C.warn, marginBottom: 6 }}>
+                {T('لا يمكن حذف هذه المنشأة — لعمالتها معاملات أو فواتير قائمة', 'Cannot delete — its workers have linked transactions or invoices')}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {Object.entries(links).map(([k, n]) => (
+                  <div key={k} style={{ fontSize: 12, color: 'var(--tx2)', display: 'flex', gap: 6 }}>
+                    <span style={{ color: C.gold, fontWeight: 700 }}>{num(n)}</span>
+                    <span>{T(FAC_DELETE_LINK_LABELS[k]?.[0] || k, FAC_DELETE_LINK_LABELS[k]?.[1] || k)}</span>
+                  </div>
+                ))}
+              </div>
+              <div style={{ fontSize: 11.5, color: 'var(--tx3)', marginTop: 8, lineHeight: 1.7 }}>
+                {T('افصل هذه السجلات عن المنشأة أو ألغِها أولاً ثم أعد المحاولة.', 'Unlink or cancel these records first, then try again.')}
+              </div>
+            </div>
+          )}
         </FKModal>
       )}
     </>
@@ -4040,19 +4146,18 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
   // deleted_at IS NULL). نُغلق صفحة التفاصيل بعدها لأن المنشأة لم تعد معروضة.
   const deleteFacility = useCallback(async (r) => {
     if (!sb || !r) return false
-    const now = new Date().toISOString()
-    const stamp = { deleted_at: now, deleted_by: user?.id || null }
-    const { error } = await sb.from('facilities').update(stamp).eq('id', r.id)
-    // النجاح يُعرض داخل نافذة التأكيد (SuccessView)؛ التنقّل وإعادة التحميل يتمّان عند إغلاق النافذة
-    // (لئلا تختفي المنشأة من rows فتُغلَق صفحة التفاصيل قبل ظهور رسالة النجاح).
+    // الحذف يمرّ عبر RPC يفحص المعاملات/الفواتير أولاً: العمالة نفسها لا تمنع الحذف
+    // (تُحذف حذفاً ناعماً مع المنشأة)، لكن إن كان لأيٍّ منها معاملة أو فاتورة قائمة
+    // يرجع { error: 'linked', links } فنعرض تحذيراً بدل الحذف.
+    // النجاح يُعرض داخل نافذة التأكيد (SuccessView)؛ التنقّل وإعادة التحميل يتمّان عند إغلاق النافذة.
+    const { data, error } = await sb.rpc('delete_facility_with_workers', { p_facility_id: r.id })
     if (error) return T('فشل الحذف: ' + (error.message || ''), 'Delete failed: ' + (error.message || ''))
-    // حذف ناعم متتابع للعمالة التابعة للمنشأة (الدائمة والمؤقتة) — تختفي مع المنشأة.
-    await Promise.all([
-      sb.from('workers').update(stamp).eq('current_facility_id', r.id).is('deleted_at', null),
-      sb.from('temproryworkers').update(stamp).eq('current_facility_id', r.id).is('deleted_at', null),
-    ])
-    return true
-  }, [sb, user, T])
+    if (data?.ok) return true
+    if (data?.error === 'linked') return { linked: data.links || {} }
+    if (data?.error === 'forbidden') return T('لا تملك صلاحية حذف المنشآت.', 'You are not allowed to delete facilities.')
+    if (data?.error === 'not_found') return T('المنشأة غير موجودة.', 'Facility not found.')
+    return T('تعذّر حذف المنشأة.', 'Could not delete the facility.')
+  }, [sb, T])
 
   // Push the sync-layer facilities + their non-Saudi GOSI contributors into the
   // canonical `facilities` and `workers` tables (the ones the sidebar pages
@@ -6202,9 +6307,10 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
           expiringPermits: _hrsdRaw?.totalAboutToExpireWorkPermits ?? detail.hrsd_total_expiring_permits,
           saudiPercentage: _hrsdRaw?.entity_Saudi_Percentage ?? detail.hrsd_saudi_percentage,
         }
-        // Always show both sections now (per user request to always fetch). Loading/error states handle UX.
-        const hasGosi = true
-        const hasHrsd = true
+        // منشأة سجل-فقط (بلا أي مفتاح تأمينات/موارد) لا تعرض قشرة فارغة —
+        // البطاقة تظهر فقط عند وجود رقم تسجيل أو بيانات فعلية خلفها.
+        const hasGosi = !!(gosi.regNo || gosi.total != null || gosiEstablishment)
+        const hasHrsd = !!(hrsd.officeId || hrsd.totalLaborers != null || _hrsdRaw)
         const prov = provByCr[detail.cr_number] || []
         // SBC data is only present when we have the actual SBC raw payload —
         // facilities created from a GOSI-only sync have detail rows (name,
@@ -6360,6 +6466,14 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
 
               {/* المشرفون (GOSI) — placed directly under the Managers card. Self-hides when empty. */}
               <GosiAdminsCard admins={gosiAdmins} T={T} lang={lang} />
+
+              {/* كروت التأمينات الغنية — كانت مبنية وبياناتها مجلوبة دون أن تُركّب.
+                  كل كرت يظهر فقط عند توفر بياناته (لا قشور فارغة). */}
+              {gosiEstablishment?.raw_main && <GosiEstablishmentCard data={gosiEstablishment} T={T} lang={lang} />}
+              <GosiAccountCard data={gosiEstablishment} bills={gosiBills} contributors={gosiContributors} T={T} lang={lang} />
+              {gosiOwners?.length > 0 && <GosiOwnersCard owners={gosiOwners} T={T} lang={lang} />}
+              {gosiContributors?.length > 0 && <GosiContributorsCard contributors={gosiContributors} est={gosiEstablishment} T={T} lang={lang} />}
+              {gosiCertificates?.length > 0 && <GosiCertificatesCard certificates={gosiCertificates} T={T} />}
 
               {/* Classification card — merged with the "Full CR Data" fields
                    so all non-duplicate CR attributes live in one place. The

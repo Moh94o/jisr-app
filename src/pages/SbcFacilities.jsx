@@ -4764,11 +4764,31 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
     } finally { setLoading(false) }
   }, [sb])
 
-  // Push the sync-layer facilities + their non-Saudi GOSI contributors into the
-  // canonical `facilities` and `workers` tables (the ones the sidebar pages
-  // read). Idempotent — uses sbc_facility_id and gosi_engagement_id as upsert
-  // keys so re-clicking just refreshes existing rows.
+  // النقل المدمج متعدد المصادر: دالة قاعدة البيانات promote_sync_to_canonical
+  // تدمج كل منشأة وكل عامل من المنصات الست بترتيب الموثوقية
+  // (المركز السعودي > مقيم > قوى > التأمينات > مدد > أجير) وتحدّث السجلات
+  // القانونية في مكانها — الهوية ثابتة فلا تتأثر الفواتير والخدمات المرتبطة.
   const promoteToCanonical = useCallback(async () => {
+    if (!sb || !rows.length || promoting) return
+    setPromoting(true)
+    try {
+      toast?.(T('جاري النقل المدمج من كل المصادر...', 'Merging from all sources...'))
+      const { data, error } = await sb.rpc('promote_sync_to_canonical')
+      if (error) throw error
+      const f = data?.facilities || {}
+      const w = data?.workers || {}
+      toast?.(T(
+        `✅ المنشآت: ${f.updated ?? 0} محدثة + ${f.inserted ?? 0} جديدة · العمال: ${w.updated ?? 0} محدث + ${w.inserted ?? 0} جديد · ${w.with_photo ?? 0} بصورة`,
+        `✅ Facilities: ${f.updated ?? 0} updated + ${f.inserted ?? 0} new · Workers: ${w.updated ?? 0} updated + ${w.inserted ?? 0} new · ${w.with_photo ?? 0} with photo`,
+      ))
+    } catch (e) {
+      toast?.(T('خطأ في النقل: ', 'Promote error: ') + (e.message || String(e)), 'error')
+    } finally {
+      setPromoting(false)
+    }
+  }, [sb, rows, toast, promoting])
+
+  const _promoteToCanonicalLegacy = useCallback(async () => {
     if (!sb || !rows.length || promoting) return
     setPromoting(true)
     try {
@@ -8897,6 +8917,12 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                   </>
                 )
               })()}
+
+              {/* مطابقة المصادر — الحقول المنطقية عبر المنصات مع كشف الفروقات */}
+              <SourceCompareCard detail={detail} gosiEst={gosiEstablishment} qiwa={qiwaCompany} muqeem={muqeemCompany} ajeerEst={ajeerEst} hrsdLaborers={detail?.hrsd_total_laborers} T={T} lang={lang} />
+
+              {/* العمالة الموحدة — دمج كل عامل من قوى+مقيم+تأمينات+أجير */}
+              <UnifiedWorkersCard sb={sb} companyId={qiwaCompany?.company_id} muqeemResidents={muqeemResidents} gosiContributors={gosiContributors} ajeerNotices={ajeerNotices} T={T} lang={lang} />
 
               {/* أجير — التصاريح والعقود والمدفوعات والمؤشرات */}
               <AjeerCards est={ajeerEst} notices={ajeerNotices} contracts={ajeerContracts} payments={ajeerPayments} indicators={ajeerIndicators} T={T} lang={lang} />
