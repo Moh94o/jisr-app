@@ -374,11 +374,23 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
     const wpResetEnabled = cfg.iqamaWpResetEnabled === true
     const wpResetAfterDays = parseFloat(cfg.iqamaWpResetAfterDays) || 365
     const wpLongExpired = wpResetEnabled && wpExpired && daysSinceWpExp > wpResetAfterDays
-    // قاعدة قوى لخيارات مدة التجديد: عند تأخّر رخصة العمل تُلغى المدد الأقصر من فترة التأخّر المستحقة —
-    // تجاوز 3 أشهر يُلغي «3»، وتجاوز 6 يُلغي «6»، وتجاوز 9 يُلغي «9» (يبقى «12» دائماً). القياس بالأشهر الميلادية
-    // من انتهاء الرخصة. في حالة الإصدار الجديد (منتهية من مدة طويلة) تُتاح كل المدد لأنها إصدار مستأنف من اليوم.
-    const wpPeriodExceeds = n => { if (!wpExpired || !wpExp || isNaN(wpExp)) return false; const t = new Date(wpExp); t.setMonth(t.getMonth() + n); return today > t }
-    const disabledPeriods = (wpExpired && !wpLongExpired) ? [3, 6, 9].filter(wpPeriodExceeds) : []
+    // قاعدة قوى لخيارات مدة التجديد: تُلغى المدة التي لا تُخرج تاريخ النهاية إلى ما بعد اليوم —
+    // تجاوز 3 أشهر يُلغي «3»، وتجاوز 6 يُلغي «6»، وتجاوز 9 يُلغي «9» (يبقى «12» دائماً). لكن القياس
+    // ليس من الانتهاء الخام بل من «حدّ الدورة الحالية»: رخصة العمل تُجدَّد بدورات سنة هجرية (≈354 يوم)،
+    // فيُرحَّل تاريخ الانتهاء للأمام بسنوات هجرية كاملة حتى أحدث حدٍّ ≤ اليوم ثم يُقاس التأخّر منه.
+    // مثال: انتهاء 2025-04-04 متأخر ~15 شهراً خاماً، لكن حدّ الدورة الحالي ≈2026-03-24 (متأخر ~4 أشهر)
+    // فيُلغى «3» فقط ويبقى 6/9/12 — مطابقاً لقوى. الإصدار الجديد (منتهٍ من مدة طويلة) تُتاح فيه كل المدد.
+    const HIJRI_YEAR_DAYS = 354   // دورة تجديد رخصة العمل ≈ سنة هجرية
+    const wpCycleBase = (() => {
+      if (!wpExpired || !wpExp || isNaN(wpExp)) return wpExp
+      let b = new Date(wpExp)
+      for (;;) { const nx = new Date(b); nx.setDate(nx.getDate() + HIJRI_YEAR_DAYS); if (nx <= today) b = nx; else break }
+      return b
+    })()
+    const wpPeriodExceeds = n => { if (!wpExpired || !wpCycleBase || isNaN(wpCycleBase)) return false; const t = new Date(wpCycleBase); t.setMonth(t.getMonth() + n); return today > t }
+    // البوابة تُطبَّق دائماً عند انتهاء الرخصة — حتى المنتهية من مدة طويلة (reset)، لأن الترحيل الهجري
+    // يُعيد الأساس إلى حدّ الدورة الحالية فيُعطي الحدّ الأدنى الصحيح مطابقاً لقوى (فلا تُتاح «3» خطأً).
+    const disabledPeriods = wpExpired ? [3, 6, 9].filter(wpPeriodExceeds) : []
     // شهور رخصة العمل = مدة التجديد المختارة دائماً — التأخّر لا يضيف شهوراً على الفوترة؛
     // قاعدة قوى تعالجه بتعطيل المدد الأقصر من فترة التأخّر (disabledPeriods أدناه)، فالمدة المتاحة المختارة تغطيه أصلاً.
     const wpBilledMonths = ceil3(renewalMonths)

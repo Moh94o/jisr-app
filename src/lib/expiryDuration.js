@@ -65,14 +65,22 @@ export function overdueQuarters(expiry, asOf, cfg) {
 
 // يحسب التاريخ الجديد: (تاريخ الانتهاء + تعويض التأخير) + عدد أيام المدة.
 // opts.asOf = تاريخ التجديد (اليوم) — لازم لاحتساب التأخير؛ بدونه = إقامة سارية (تعويض صفر).
+// تعويض التأخير للإقامات/الرخص المنتهية: الأساس يُرحَّل بسنوات هجرية كاملة حتى حدّ الدورة الحالية
+// (أحدث حدٍّ ≤ تاريخ التجديد) — مطابقة قوى: التجديد يقع ضمن دورة سنة هجرية، ولا يُعوَّض التأخّر
+// بأرباع (كان يُضيف 15 شهراً بدل 12 فيدفع التاريخ ~3 أشهر للأمام). مثال محقّق (يوليو 2026): انتهاء
+// 2025-04-04 + 6 أشهر ⇒ ~2026-09-18 (سنة واحدة مُرحّلة ثم أيام المدة)، لا 2026-12-15. هذا يوحّد
+// الأساس مع بوابة مدد رخصة العمل (disabledPeriods) التي تُرحّل بالسنوات الهجرية أيضاً.
 // يُرجع Date أو null.
 export function computeRenewalExpiry(expiry, months, cfg, opts = {}) {
   const base = parseYMD(expiry)
   if (!base) return null
   const days = getExpiryDaysMap(cfg)[months]
   if (!days) return null
-  const M = opts.asOf ? overdueQuarters(expiry, opts.asOf, cfg) : 0
-  const start = M > 0 ? addHijriMonths(base, M * 3) : base
+  let start = new Date(base.getTime())
+  const asOf = opts.asOf ? parseYMD(opts.asOf) : null
+  if (asOf && cfg?.overdueEnabled !== false && asOf > start) {
+    for (;;) { const nx = addHijriMonths(start, 12); if (nx <= asOf) start = nx; else break }
+  }
   const out = new Date(start.getTime())
   out.setDate(out.getDate() + days)
   return out
