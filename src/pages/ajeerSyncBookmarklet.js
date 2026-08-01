@@ -18,12 +18,13 @@
 const SUPABASE_URL = 'https://gcvshzutdslmdkwqwteh.supabase.co'
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdjdnNoenV0ZHNsbWRrd3F3dGVoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4OTkwNjgsImV4cCI6MjA5MDQ3NTA2OH0.5R0I5VvB7lp3wpSrtay3DMcXKsT9l1uK0Ukd1F4_ImM'
 
-function body({ sourceId, personId, force = false }) {
+function body({ sourceId, personId, force = false, resetAt = '' }) {
   return `
 (async () => {
   const U = '${SUPABASE_URL}', K = '${SUPABASE_ANON}';
   const SOURCE = '${sourceId}', PERSON = '${personId}';
   const FORCE = ${force ? 'true' : 'false'};
+  const RESET_AT = ${JSON.stringify(resetAt || '')};
   const GATE_TEXT = 'تحديث قائمة المسؤولين';
   const GATE_PATH = '/profile/representatives';
 
@@ -366,10 +367,10 @@ function body({ sourceId, personId, force = false }) {
     // interrupted by leaving the site continues instead of restarting. A full
     // re-sync is still possible once the 2h window passes.
     const RESUME_WINDOW_MS = 2 * 60 * 60 * 1000;
-    const resumeAfter = new Date(Date.now() - RESUME_WINDOW_MS).toISOString();
+    // إعادة ضبط: الأساس RESET_AT بدل نافذة الساعتين — يعيد ما قبله ويستأنف ما بعده.
+    const resumeAfter = (FORCE && RESET_AT) ? RESET_AT : new Date(Date.now() - RESUME_WINDOW_MS).toISOString();
     let skippedRecent = 0;
-    // إعادة ضبط: تجاوز فحص "المُزامَن حديثاً" وإعادة مزامنة الجميع.
-    if (!FORCE) try {
+    try {
       const dr = await supaFetch('/rest/v1/ajeer_establishments?select=establishment_no&last_synced_at=gte.' + encodeURIComponent(resumeAfter) + '&limit=5000');
       if (dr.ok) {
         const da = await dr.json();
@@ -432,6 +433,6 @@ function minify(src) {
     .trim()
 }
 
-export function buildAjeerBookmarklet({ sourceId, personId, force = false }) {
-  return 'javascript:' + encodeURIComponent(minify(body({ sourceId, personId, force })))
+export function buildAjeerBookmarklet({ sourceId, personId, force = false, resetAt = '' }) {
+  return 'javascript:' + encodeURIComponent(minify(body({ sourceId, personId, force, resetAt })))
 }

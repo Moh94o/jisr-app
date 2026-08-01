@@ -31,12 +31,13 @@
 const SUPABASE_URL = 'https://gcvshzutdslmdkwqwteh.supabase.co'
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdjdnNoenV0ZHNsbWRrd3F3dGVoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4OTkwNjgsImV4cCI6MjA5MDQ3NTA2OH0.5R0I5VvB7lp3wpSrtay3DMcXKsT9l1uK0Ukd1F4_ImM'
 
-function body({ sourceId, personId, proxyBaseUrl, force = false }) {
+function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' }) {
   return `
 (async () => {
   const U = '${SUPABASE_URL}', K = '${SUPABASE_ANON}';
   const SOURCE = '${sourceId}', PERSON = '${personId}';
   const FORCE = ${force ? 'true' : 'false'};
+  const RESET_AT = ${JSON.stringify(resetAt || '')};
   const API = 'https://muqeem.sa';
   const BRIDGE_URL = '${proxyBaseUrl}/muqeem-bridge.html';
 
@@ -653,11 +654,13 @@ function body({ sourceId, personId, proxyBaseUrl, force = false }) {
       });
 
       // Resume: skip establishments already deep-synced today.
-      // إعادة ضبط: تجاوز التخطّي وإعادة مزامنة الجميع.
+      // إعادة ضبط: الأساس RESET_AT بدل "منذ منتصف الليل" — يعيد ما قبل التفعيل
+      // ويستأنف ما بعده (لا يبدأ من الصفر عند الانقطاع).
       const todayStart = new Date().toISOString().slice(0, 10) + 'T00:00:00Z';
+      const cutoff = (FORCE && RESET_AT) ? RESET_AT : todayStart;
       const doneSet = new Set();
-      if (!FORCE) try {
-        const doneRes = await supaFetch('/rest/v1/muqeem_companies?select=moi_number&detail_synced_at=gte.' + encodeURIComponent(todayStart), { method: 'GET' });
+      try {
+        const doneRes = await supaFetch('/rest/v1/muqeem_companies?select=moi_number&detail_synced_at=gte.' + encodeURIComponent(cutoff), { method: 'GET' });
         const doneArr = await doneRes.json();
         if (Array.isArray(doneArr)) doneArr.forEach(r => doneSet.add(String(r.moi_number)));
       } catch (_) {}
@@ -819,6 +822,6 @@ function minify(src) {
     .trim()
 }
 
-export function buildMuqeemBookmarklet({ sourceId, personId, proxyBaseUrl, force = false }) {
-  return 'javascript:' + encodeURIComponent(minify(body({ sourceId, personId, proxyBaseUrl, force })))
+export function buildMuqeemBookmarklet({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' }) {
+  return 'javascript:' + encodeURIComponent(minify(body({ sourceId, personId, proxyBaseUrl, force, resetAt })))
 }

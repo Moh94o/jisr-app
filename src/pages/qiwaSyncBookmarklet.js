@@ -8,12 +8,13 @@
 const SUPABASE_URL = 'https://gcvshzutdslmdkwqwteh.supabase.co'
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdjdnNoenV0ZHNsbWRrd3F3dGVoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4OTkwNjgsImV4cCI6MjA5MDQ3NTA2OH0.5R0I5VvB7lp3wpSrtay3DMcXKsT9l1uK0Ukd1F4_ImM'
 
-function body({ sourceId, personId, force = false }) {
+function body({ sourceId, personId, force = false, resetAt = '' }) {
   return `
 (async () => {
   const U = '${SUPABASE_URL}', K = '${SUPABASE_ANON}';
   const SOURCE = '${sourceId}', PERSON = '${personId}';
   const FORCE = ${force ? 'true' : 'false'};
+  const RESET_AT = ${JSON.stringify(resetAt || '')};
   const API_CORE = 'https://api.qiwa.sa';
   const API_INDICATORS = 'https://indicators-api.qiwa.sa';
   const API_DASHBOARD = 'https://dashboard-api.qiwa.sa';
@@ -1393,11 +1394,12 @@ function body({ sourceId, personId, force = false }) {
     // so a sweep interrupted by leaving the site continues where it left off
     // instead of restarting. A full re-sync is still possible once 2h passes.
     const RESUME_WINDOW_MS = 2 * 60 * 60 * 1000;
-    const resumeAfter = new Date(Date.now() - RESUME_WINDOW_MS).toISOString();
+    // إعادة ضبط: الأساس هو RESET_AT (لحظة تفعيل الزر) بدل نافذة الساعتين، فتُعاد
+    // مزامنة كل ما زُومِن قبل التفعيل مع بقاء الاستئناف لِما يُنجَز بعده — لو
+    // انقطع النت أو خرّجك الموقع، إعادة الضغط تُكمل من نقطة الوقوف لا من الصفر.
+    const resumeAfter = (FORCE && RESET_AT) ? RESET_AT : new Date(Date.now() - RESUME_WINDOW_MS).toISOString();
     let skippedRecent = 0;
-    // إعادة ضبط: عند التفعيل نتجاوز فحص "المُزامَن حديثاً" فيُعاد مزامنة كل
-    // المنشآت حتى لو تمّت خلال آخر ساعتين.
-    if (!FORCE) try {
+    try {
       const dr = await supaFetch('/rest/v1/qiwa_companies?select=company_id&detail_synced_at=gte.' + encodeURIComponent(resumeAfter) + '&limit=5000');
       if (dr.ok) {
         const da = await dr.json();
@@ -1483,8 +1485,8 @@ function minify(src) {
     .trim()
 }
 
-export function buildQiwaBookmarklet({ sourceId, personId, force = false }) {
-  return 'javascript:' + encodeURIComponent(minify(body({ sourceId, personId, force })))
+export function buildQiwaBookmarklet({ sourceId, personId, force = false, resetAt = '' }) {
+  return 'javascript:' + encodeURIComponent(minify(body({ sourceId, personId, force, resetAt })))
 }
 
 // Lightweight "Nitaqat band colour only" sweep. The full sync above hits ~50

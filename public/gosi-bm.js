@@ -166,10 +166,11 @@
     // passes. The cumulative counter below counts these as already done, so the
     // number reads e.g. "41/91" and climbs — visibly picking up, not restarting.
     let skippedRecent = 0;
-    // إعادة ضبط: window._jr_force يتجاوز فحص "المُزامَن حديثاً" ويعيد مزامنة الجميع.
-    if (!window._jr_force) try {
+    // إعادة ضبط: الأساس window._jr_reset_at بدل نافذة الساعتين — يعيد ما قبل
+    // التفعيل ويستأنف ما بعده (لا يبدأ من الصفر عند الانقطاع).
+    try {
       const RESUME_WINDOW_MS = 2 * 60 * 60 * 1000;
-      const resumeAfter = new Date(Date.now() - RESUME_WINDOW_MS).toISOString();
+      const resumeAfter = (window._jr_force && window._jr_reset_at) ? window._jr_reset_at : new Date(Date.now() - RESUME_WINDOW_MS).toISOString();
       const dr = await supaFetch('/rest/v1/gosi_establishments?select=registration_no&synced_at=gte.' + encodeURIComponent(resumeAfter) + '&limit=5000');
       if (dr.ok) {
         const da = await dr.json();

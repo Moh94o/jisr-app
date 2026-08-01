@@ -7,6 +7,7 @@ self.__runQiwaSweep = async () => {
   const U = 'https://gcvshzutdslmdkwqwteh.supabase.co', K = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdjdnNoenV0ZHNsbWRrd3F3dGVoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4OTkwNjgsImV4cCI6MjA5MDQ3NTA2OH0.5R0I5VvB7lp3wpSrtay3DMcXKsT9l1uK0Ukd1F4_ImM';
   const SOURCE = 'qiwa', PERSON = (self.__QIWA_PERSON_ID || null);
   const FORCE = false;
+  const RESET_AT = "";
   const API_CORE = 'https://api.qiwa.sa';
   const API_INDICATORS = 'https://indicators-api.qiwa.sa';
   const API_DASHBOARD = 'https://dashboard-api.qiwa.sa';
@@ -1376,11 +1377,12 @@ self.__runQiwaSweep = async () => {
     // so a sweep interrupted by leaving the site continues where it left off
     // instead of restarting. A full re-sync is still possible once 2h passes.
     const RESUME_WINDOW_MS = 2 * 60 * 60 * 1000;
-    const resumeAfter = new Date(Date.now() - RESUME_WINDOW_MS).toISOString();
+    // إعادة ضبط: الأساس هو RESET_AT (لحظة تفعيل الزر) بدل نافذة الساعتين، فتُعاد
+    // مزامنة كل ما زُومِن قبل التفعيل مع بقاء الاستئناف لِما يُنجَز بعده — لو
+    // انقطع النت أو خرّجك الموقع، إعادة الضغط تُكمل من نقطة الوقوف لا من الصفر.
+    const resumeAfter = (FORCE && RESET_AT) ? RESET_AT : new Date(Date.now() - RESUME_WINDOW_MS).toISOString();
     let skippedRecent = 0;
-    // إعادة ضبط: عند التفعيل نتجاوز فحص "المُزامَن حديثاً" فيُعاد مزامنة كل
-    // المنشآت حتى لو تمّت خلال آخر ساعتين.
-    if (!FORCE) try {
+    try {
       const dr = await supaFetch('/rest/v1/qiwa_companies?select=company_id&detail_synced_at=gte.' + encodeURIComponent(resumeAfter) + '&limit=5000');
       if (dr.ok) {
         const da = await dr.json();
