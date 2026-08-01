@@ -35,10 +35,11 @@
 
 const SUPABASE_URL = 'https://gcvshzutdslmdkwqwteh.supabase.co'
 
-function body({ sourceId, personId, proxyBaseUrl }) {
+function body({ sourceId, personId, proxyBaseUrl, force = false }) {
   return `
 (async () => {
   const SOURCE = '${sourceId}', PERSON = '${personId}';
+  const FORCE = ${force ? 'true' : 'false'};
   const API = 'https://api.mudad.sa/';
   const BRIDGE_URL = '${proxyBaseUrl}/sync-bridge.html?p=' + encodeURIComponent('مدد');
   const SYSTEM_TYPE = 'MUDAD_COMPLIANCE_APP';
@@ -498,7 +499,8 @@ function body({ sourceId, personId, proxyBaseUrl }) {
       return d.pct === s.pct && d.status === s.status && d.period === s.period && d.viol === s.viol && d.just === s.just;
     };
 
-    const queue = ests.filter((e) => !unchanged(e));
+    // إعادة ضبط: تجاوز فحص "غير المتغيّر" وإعادة مزامنة كل المنشآت.
+    const queue = FORCE ? ests.slice() : ests.filter((e) => !unchanged(e));
     const todo = queue.length;
     const skipped = ests.length - todo;
     if (!todo) {
@@ -574,6 +576,6 @@ function minify(src) {
     .trim()
 }
 
-export function buildMudadBookmarklet({ sourceId, personId, proxyBaseUrl }) {
-  return 'javascript:' + encodeURIComponent(minify(body({ sourceId, personId, proxyBaseUrl })))
+export function buildMudadBookmarklet({ sourceId, personId, proxyBaseUrl, force = false }) {
+  return 'javascript:' + encodeURIComponent(minify(body({ sourceId, personId, proxyBaseUrl, force })))
 }

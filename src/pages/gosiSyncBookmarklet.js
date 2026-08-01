@@ -23,16 +23,16 @@
 
 import gosiBmSource from '../../public/gosi-bm.js?raw'
 
-function loaderBody({ personId }) {
+function loaderBody({ personId, force = false }) {
   const p = JSON.stringify(personId || '')
-  // `window._jr_person_id` must be set BEFORE gosi-bm.js's IIFE runs,
-  // because the IIFE reads it on its first line.
-  return `window._jr_person_id=${p};${gosiBmSource}`
+  // `window._jr_person_id` / `window._jr_force` must be set BEFORE gosi-bm.js's
+  // IIFE runs, because the IIFE reads them.
+  return `window._jr_person_id=${p};window._jr_force=${force ? 'true' : 'false'};${gosiBmSource}`
 }
 
-export function buildGosiBookmarklet({ personId, origin: _ignoredOrigin }) {
+export function buildGosiBookmarklet({ personId, force = false, origin: _ignoredOrigin }) {
   // `origin` is kept in the signature for backwards-compat with the
   // call-site in SbcFacilities.jsx, but is no longer used — the script
   // is fully inlined so the originating Jisr URL doesn't matter.
-  return 'javascript:' + encodeURIComponent(loaderBody({ personId }))
+  return 'javascript:' + encodeURIComponent(loaderBody({ personId, force }))
 }

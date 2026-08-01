@@ -8,11 +8,12 @@
 const SUPABASE_URL = 'https://gcvshzutdslmdkwqwteh.supabase.co'
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdjdnNoenV0ZHNsbWRrd3F3dGVoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4OTkwNjgsImV4cCI6MjA5MDQ3NTA2OH0.5R0I5VvB7lp3wpSrtay3DMcXKsT9l1uK0Ukd1F4_ImM'
 
-function body({ sourceId, personId }) {
+function body({ sourceId, personId, force = false }) {
   return `
 (async () => {
   const U = '${SUPABASE_URL}', K = '${SUPABASE_ANON}';
   const SOURCE = '${sourceId}', PERSON = '${personId}';
+  const FORCE = ${force ? 'true' : 'false'};
   const API_CORE = 'https://api.qiwa.sa';
   const API_INDICATORS = 'https://indicators-api.qiwa.sa';
   const API_DASHBOARD = 'https://dashboard-api.qiwa.sa';
@@ -1394,7 +1395,9 @@ function body({ sourceId, personId }) {
     const RESUME_WINDOW_MS = 2 * 60 * 60 * 1000;
     const resumeAfter = new Date(Date.now() - RESUME_WINDOW_MS).toISOString();
     let skippedRecent = 0;
-    try {
+    // إعادة ضبط: عند التفعيل نتجاوز فحص "المُزامَن حديثاً" فيُعاد مزامنة كل
+    // المنشآت حتى لو تمّت خلال آخر ساعتين.
+    if (!FORCE) try {
       const dr = await supaFetch('/rest/v1/qiwa_companies?select=company_id&detail_synced_at=gte.' + encodeURIComponent(resumeAfter) + '&limit=5000');
       if (dr.ok) {
         const da = await dr.json();
@@ -1480,8 +1483,119 @@ function minify(src) {
     .trim()
 }
 
-export function buildQiwaBookmarklet({ sourceId, personId }) {
-  return 'javascript:' + encodeURIComponent(minify(body({ sourceId, personId })))
+export function buildQiwaBookmarklet({ sourceId, personId, force = false }) {
+  return 'javascript:' + encodeURIComponent(minify(body({ sourceId, personId, force })))
+}
+
+// Lightweight "Nitaqat band colour only" sweep. The full sync above hits ~50
+// endpoints per company (minutes for a big account); this variant switches
+// context per company but fetches ONLY the two colour endpoints, so it's an
+// order of magnitude faster. It deliberately does NOT write detail_synced_at —
+// that column drives the full sync's 2-hour resume skip, and stamping it here
+// would make a later full sync skip these companies with only the colour filled.
+// It still sets person_id + synced_at, so trg_stamp_source keeps qiwa
+// provenance ("من حساب من") current on every colour refresh.
+function nitaqBody({ personId }) {
+  return `
+(async () => {
+  const U = '${SUPABASE_URL}', K = '${SUPABASE_ANON}';
+  const PERSON = '${personId}';
+  const API_CORE = 'https://api.qiwa.sa';
+  const API_INDICATORS = 'https://indicators-api.qiwa.sa';
+  const msg = (m) => {
+    let d = document.getElementById('_jisr_qiwa_ui');
+    if (!d) {
+      d = document.createElement('div'); d.id = '_jisr_qiwa_ui';
+      d.style.cssText = 'position:fixed;top:16px;left:16px;background:#111;color:#3b82f6;padding:12px 18px;border-radius:10px;z-index:2147483647;font:700 13px/1.5 sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.5);max-width:380px;direction:rtl;text-align:right;border:1px solid rgba(59,130,246,.4)';
+      document.body.appendChild(d);
+    }
+    d.textContent = 'جسر النطاق: ' + m;
+    return d;
+  };
+  const supaFetch = (path, opts = {}) => fetch(U + path, { ...opts, headers: { apikey: K, Authorization: 'Bearer ' + K, 'Content-Type': 'application/json', ...(opts.headers || {}) } });
+  const qiwaGet = async (url) => {
+    try {
+      const r = await fetch(url, { credentials: 'include', headers: { 'Accept': 'application/json, text/plain, */*' } });
+      if (!r.ok) return { ok: false, status: r.status };
+      const text = await r.text();
+      let data; try { data = JSON.parse(text) } catch { data = null }
+      return { ok: true, data };
+    } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
+  };
+  const switchCtx = async (companyId) => {
+    if (!companyId) return false;
+    try { const r = await fetch(API_CORE + '/context/company/' + companyId, { method: 'PATCH', credentials: 'include', headers: { 'Accept': 'application/json' } }); return r.ok; }
+    catch (e) { return false; }
+  };
+  try {
+    if (!location.hostname.endsWith('qiwa.sa')) return msg('افتح بوابة قوى أولاً (qiwa.sa)');
+    msg('جلب قائمة المنشآت...');
+    let companies = [];
+    for (let page = 1; page <= 50; page++) {
+      const ws = await qiwaGet(API_CORE + '/context/workspaces-v2/new?page_size=1000&page_index=' + page + '&sort_by=1');
+      if (!ws.ok || !ws.data || !Array.isArray(ws.data.workspaces)) break;
+      companies.push(...ws.data.workspaces);
+      const total = Number(ws.data.total || 0);
+      msg('منشآت ' + companies.length + (total ? '/' + total : ''));
+      if (ws.data.workspaces.length === 0 || (total && companies.length >= total)) break;
+    }
+    let sweepList = companies.map(w => ({ company_id: w.company_id }));
+    if (!sweepList.length) {
+      const lr = await supaFetch('/rest/v1/qiwa_companies?select=company_id&limit=5000');
+      if (lr.ok) { try { sweepList = await lr.json(); } catch { sweepList = []; } }
+    }
+    if (!Array.isArray(sweepList)) sweepList = [];
+    let originalCompanyId = null;
+    try { const cc = await qiwaGet(API_CORE + '/context/company'); if (cc.ok && cc.data && cc.data.data) originalCompanyId = cc.data.data.id; } catch (e) {}
+    const total = sweepList.length;
+    if (!total) return msg('⚠️ لا توجد منشآت (افتح auth.qiwa.sa أو زامن القائمة أولاً)');
+    msg('مزامنة لون النطاق (' + total + ')...');
+    let done = 0, okCount = 0, blocked = 0;
+    for (const c of sweepList) {
+      try {
+        const ok = await switchCtx(c.company_id);
+        if (!ok) { blocked++; }
+        else {
+          const [ctx, cr] = await Promise.all([
+            qiwaGet(API_CORE + '/context/company'),
+            qiwaGet(API_INDICATORS + '/api/v1/criteria/primary'),
+          ]);
+          const patch = { company_id: Number(c.company_id), person_id: PERSON || null, synced_at: new Date().toISOString() };
+          if (ctx.ok && ctx.data && ctx.data.data) {
+            const a = ctx.data.data.attributes || {};
+            patch.color_id = a['color-id'] ?? null;
+            patch.color_name = a['color-name'] || null;
+            patch.color_code = a['color-code'] || null;
+          }
+          if (cr.ok && cr.data && cr.data.nitaqat) {
+            const n = cr.data.nitaqat;
+            patch.nitaqat_color_ar = n.color?.ar || null;
+            patch.nitaqat_next_color_ar = n.next_color?.ar || null;
+            patch.nitaqat_nationalization_rate = n.nationalization_rate ?? null;
+            if (cr.data.scores) patch.score_nitaqat = cr.data.scores.nitaqat ?? null;
+          }
+          await supaFetch('/rest/v1/qiwa_companies?on_conflict=company_id', {
+            method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+            body: JSON.stringify([patch]),
+          });
+          okCount++;
+        }
+      } catch (e) {}
+      done++;
+      if (done % 5 === 0 || done === total) msg('لون النطاق: ' + done + '/' + total + ' · تم ' + okCount + ' · متخطّى ' + blocked);
+    }
+    if (originalCompanyId) await switchCtx(originalCompanyId);
+    msg('✅ اكتمل لون النطاق · تم ' + okCount + '/' + total + (blocked ? ' · متخطّى ' + blocked : ''));
+    setTimeout(() => { document.getElementById('_jisr_qiwa_ui')?.remove(); }, 20000);
+  } catch (e) {
+    msg('❌ ' + (e && e.message ? e.message : String(e)));
+  }
+})();
+`
+}
+
+export function buildQiwaNitaqBookmarklet({ personId = '' } = {}) {
+  return 'javascript:' + encodeURIComponent(minify(nitaqBody({ personId })))
 }
 
 // Raw (un-minified) sweep source — single source of truth reused by the

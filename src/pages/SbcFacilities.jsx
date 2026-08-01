@@ -2,12 +2,12 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import BackButton from '../components/BackButton'
 import { buildBookmarklet, buildPdfBookmarklet } from './sbcSyncBookmarklet.js'
 import { buildGosiBookmarklet } from './gosiSyncBookmarklet.js'
-import { buildQiwaBookmarklet } from './qiwaSyncBookmarklet.js'
+import { buildQiwaBookmarklet, buildQiwaNitaqBookmarklet } from './qiwaSyncBookmarklet.js'
 import { buildMuqeemBookmarklet } from './muqeemSyncBookmarklet.js'
 import { buildAjeerBookmarklet } from './ajeerSyncBookmarklet.js'
 import { buildMudadBookmarklet } from './mudadSyncBookmarklet.js'
 import { Sel } from './KafalaCalculator.jsx'
-import { Ban, ShieldOff } from 'lucide-react'
+import { Ban, ShieldOff, RefreshCw } from 'lucide-react'
 import { Modal as FKModal, ActionButton, SuccessView, TextField, ScrollBox, EmptyState } from '../components/ui/FormKit.jsx'
 
 const F = "'Cairo','Tajawal',sans-serif"
@@ -3309,7 +3309,7 @@ function SoonBookmark({ label, accent, title, icon }) {
   )
 }
 
-function SbcSyncBookmarklet({ syncPersonId, T }) {
+function SbcSyncBookmarklet({ syncPersonId, T, force = false }) {
   // Bake current site origin into the bookmarklet so it can POST to our
   // Netlify proxy from across the e2.business.sa origin. PDF upload is
   // fire-and-forget inside the data bookmarklet itself — token-expiry
@@ -3320,7 +3320,7 @@ function SbcSyncBookmarklet({ syncPersonId, T }) {
   // which is the only channel that reaches facilities this account
   // established but doesn't own. See sbcSyncBookmarklet.js for why the split
   // is forced by CORS rather than chosen.
-  const dataHref = buildBookmarklet({ sourceId: 'sbc', personId: syncPersonId || '', proxyBaseUrl })
+  const dataHref = buildBookmarklet({ sourceId: 'sbc', personId: syncPersonId || '', proxyBaseUrl, force })
   return (
     <DragBookmark
       href={dataHref}
@@ -3340,8 +3340,8 @@ function SbcSyncBookmarklet({ syncPersonId, T }) {
 // ameen.gosi.gov.sa it captures the bearer token, decodes the JWT to find
 // every establishment regNo the account has access to, then pulls
 // /v1/establishment/{regNo} for each into public.gosi_establishments.
-function GosiSyncBookmarklet({ syncPersonId, T }) {
-  const dataHref = buildGosiBookmarklet({ personId: syncPersonId || '', origin: window.location.origin })
+function GosiSyncBookmarklet({ syncPersonId, T, force = false }) {
+  const dataHref = buildGosiBookmarklet({ personId: syncPersonId || '', force, origin: window.location.origin })
   return (
     <DragBookmark
       href={dataHref}
@@ -3361,8 +3361,8 @@ function GosiSyncBookmarklet({ syncPersonId, T }) {
 // *.qiwa.sa origin, captures workspaces + active company detail + criteria
 // + indicators + cases + employee-cases + absher into public.qiwa_companies
 // (plus related sub-tables populated by qiwaSyncBookmarklet.js).
-function QiwaSyncBookmarklet({ syncPersonId, T }) {
-  const dataHref = buildQiwaBookmarklet({ sourceId: 'qiwa', personId: syncPersonId || '' })
+function QiwaSyncBookmarklet({ syncPersonId, T, force = false }) {
+  const dataHref = buildQiwaBookmarklet({ sourceId: 'qiwa', personId: syncPersonId || '', force })
   return (
     <DragBookmark
       href={dataHref}
@@ -3378,13 +3378,34 @@ function QiwaSyncBookmarklet({ syncPersonId, T }) {
   )
 }
 
+// Qiwa Nitaqat-colour-only bookmarklet — a fast sibling of the full Qiwa sync.
+// Instead of pulling every endpoint per company, it switches context per company
+// and fetches ONLY the two colour endpoints (context/company + criteria/primary),
+// so refreshing every establishment's النطاق band takes a fraction of the time.
+function QiwaNitaqBookmarklet({ syncPersonId, T }) {
+  const dataHref = buildQiwaNitaqBookmarklet({ personId: syncPersonId || '' })
+  return (
+    <DragBookmark
+      href={dataHref}
+      accent="#3b82f6"
+      title={T('اسحب الزر إلى شريط الإشارات، ثم افتح بوابة قوى واضغط — يجلب لون النطاق فقط لكل منشأة (أسرع بكثير من المزامنة الكاملة)', 'Drag to bookmarks bar, open Qiwa and click — fetches only the Nitaqat band colour per establishment (far faster than the full sync)')}
+      label={T('لون النطاق', 'Nitaq colour')}
+      icon={(
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="13.5" cy="6.5" r="1.5"/><circle cx="17.5" cy="10.5" r="1.5"/><circle cx="8.5" cy="7.5" r="1.5"/><circle cx="6.5" cy="12.5" r="1.5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996C19.774 15.375 22 13.669 22 10.996 22 6.036 17.5 2 12 2z"/>
+        </svg>
+      )}
+    />
+  )
+}
+
 // Ajeer sync bookmarklet — runs on ajeer.qiwa.sa. Ajeer is a server-rendered Laravel
 // app (no JSON API), so this parses the HTML screens. Sweeps every establishment by
 // switching the session context, recording the ones Ajeer gates behind
 // "تحديث قائمة المسؤولين" instead of writing them empty. Fills ajeer_establishments /
 // _notices / _contracts / _payments, with every page kept whole in ajeer_raw.
-function AjeerSyncBookmarklet({ syncPersonId, T }) {
-  const dataHref = buildAjeerBookmarklet({ sourceId: 'ajeer', personId: syncPersonId || '' })
+function AjeerSyncBookmarklet({ syncPersonId, T, force = false }) {
+  const dataHref = buildAjeerBookmarklet({ sourceId: 'ajeer', personId: syncPersonId || '', force })
   return (
     <DragBookmark
       href={dataHref}
@@ -3408,9 +3429,9 @@ function AjeerSyncBookmarklet({ syncPersonId, T }) {
 //   • On any normal org page it syncs the active org only (legacy).
 // Fills muqeem_companies / _residents / _subscriptions / _points_transactions /
 // _payment_history.
-function MuqeemSyncBookmarklet({ syncPersonId, T }) {
+function MuqeemSyncBookmarklet({ syncPersonId, T, force = false }) {
   const proxyBaseUrl = typeof window !== 'undefined' ? window.location.origin : ''
-  const dataHref = buildMuqeemBookmarklet({ sourceId: 'muqeem', personId: syncPersonId || '', proxyBaseUrl })
+  const dataHref = buildMuqeemBookmarklet({ sourceId: 'muqeem', personId: syncPersonId || '', proxyBaseUrl, force })
   return (
     <DragBookmark
       href={dataHref}
@@ -3433,9 +3454,9 @@ function MuqeemSyncBookmarklet({ syncPersonId, T }) {
 // mudad_establishments (linked to our facilities by the unified national number)
 // with every response kept whole in mudad_raw. Writes go through sync-bridge.html
 // because Mudad's CSP blocks supabase.co.
-function MudadSyncBookmarklet({ syncPersonId, T }) {
+function MudadSyncBookmarklet({ syncPersonId, T, force = false }) {
   const proxyBaseUrl = typeof window !== 'undefined' ? window.location.origin : ''
-  const dataHref = buildMudadBookmarklet({ sourceId: 'mudad', personId: syncPersonId || '', proxyBaseUrl })
+  const dataHref = buildMudadBookmarklet({ sourceId: 'mudad', personId: syncPersonId || '', proxyBaseUrl, force })
   return (
     <DragBookmark
       href={dataHref}
@@ -3485,7 +3506,7 @@ function _SrcVal({ src, v, mismatch, mono }) {
 // كرت «مطابقة المصادر» — لكل حقل منطقي (الاسم/السجل/الموحد/الحالة/العمالة…)
 // يعرض قيمة كل منصة جنباً إلى جنب: تطابق = صف هادئ بعلامة خضراء،
 // اختلاف = صف مبرز بعلامة تحذير كهرمانية.
-function SourceCompareCard({ detail, gosiEst, qiwa, muqeem, ajeerEst, hrsdLaborers, T, lang }) {
+export function SourceCompareCard({ detail, gosiEst, qiwa, muqeem, ajeerEst, hrsdLaborers, T, lang }) {
   const rows = useMemo(() => {
     const d = detail || {}
     const g = gosiEst || {}
@@ -3613,7 +3634,7 @@ const _mudadPeriod = (v, lang) => {
 
 const _mudadPctColor = (p) => (p == null ? C.gray : Number(p) >= 100 ? C.ok : Number(p) > 0 ? C.warn : C.red)
 
-function MudadCards({ est, months, T, lang }) {
+export function MudadCards({ est, months, T, lang }) {
   if (!est && !months.length) return null
   const rowBase = {
     display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '9px 12px', borderRadius: 8,
@@ -3736,7 +3757,7 @@ const _ajeerStatusColor = (code) => {
   return C.warn
 }
 
-function AjeerCards({ est, notices, contracts, payments, indicators, T, lang }) {
+export function AjeerCards({ est, notices, contracts, payments, indicators, T, lang }) {
   const hasAny = est || notices.length || contracts.length || payments.length || indicators.length
   if (!hasAny) return null
   const rowBase = {
@@ -3913,7 +3934,7 @@ function _UnifiedWorkerRow({ w, T, lang }) {
   )
 }
 
-function UnifiedWorkersCard({ sb, companyId, muqeemResidents, gosiContributors, ajeerNotices, T, lang }) {
+export function UnifiedWorkersCard({ sb, companyId, muqeemResidents, gosiContributors, ajeerNotices, T, lang }) {
   const [qiwaEmployees, setQiwaEmployees] = useState([])
   useEffect(() => {
     if (!sb || !companyId) { setQiwaEmployees([]); return }
@@ -4146,7 +4167,7 @@ function _HistoryEntry({ h, T, lang }) {
   )
 }
 
-function SyncHistoryCard({ history, fileVersions, T, lang }) {
+export function SyncHistoryCard({ history, fileVersions, T, lang }) {
   const [srcFilter, setSrcFilter] = useState(null)
   if (!history.length && !fileVersions.length) return null
   const sources = Array.from(new Set(history.map(h => h.source_id)))
@@ -4387,6 +4408,9 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
   // standalone tab loads the full list and defaults to the first row.
   const [syncPersons, setSyncPersons] = useState([])
   const [chosenPersonId, setChosenPersonId] = useState('')
+  // إعادة ضبط: عند التفعيل تُعاد كل أزرار المزامنة ببناء يتجاوز فحص «المُزامَن
+  // حديثاً» (نافذة الساعتين / اليوم / فحص التغيّر)، فتُعاد مزامنة كل المنشآت.
+  const [resetMode, setResetMode] = useState(false)
   useEffect(() => {
     let alive = true
     ;(async () => {
@@ -5959,12 +5983,29 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
               />
             </div>
           )}
-          <SbcSyncBookmarklet syncPersonId={spid} T={T} />
-          <GosiSyncBookmarklet syncPersonId={spid} T={T} />
-          <QiwaSyncBookmarklet syncPersonId={spid} T={T} />
-          <MuqeemSyncBookmarklet syncPersonId={spid} T={T} />
-          <AjeerSyncBookmarklet syncPersonId={spid} T={T} />
-          <MudadSyncBookmarklet syncPersonId={spid} T={T} />
+          {/* إعادة ضبط: مفتاح عام يعيد بناء كل أزرار المزامنة بوضع force، فتتجاوز
+              فحص «المُزامَن حديثاً» وتعيد مزامنة كل المنشآت حتى لو تمّت خلال آخر
+              ساعتين. مفيد لإكمال حساب توقّفت مزامنته دون انتظار انقضاء النافذة.
+              بعد التفعيل يجب إعادة سحب/ضغط زر المصدر المطلوب لأن الرابط تغيّر. */}
+          <button
+            type="button"
+            onClick={() => setResetMode(v => !v)}
+            aria-pressed={resetMode}
+            title={T('إعادة ضبط: تجاوز قاعدة عدم تكرار المنشآت المُزامَنة خلال آخر ساعتين — بعد التفعيل أعد سحب/ضغط زر المصدر.', 'Reset: bypass the "skip recently-synced (last 2h)" rule — after enabling, re-drag/click the source button.')}
+            style={{ height: 42, padding: '0 14px', borderRadius: 11, cursor: 'pointer', fontFamily: F, fontSize: 13, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0,
+              background: resetMode ? '#ef4444' : 'transparent',
+              border: resetMode ? '1px solid #ef4444' : '1px dashed var(--bd)',
+              color: resetMode ? '#fff' : 'var(--tx3)' }}>
+            <RefreshCw size={15} strokeWidth={2.2} />
+            {resetMode ? T('إعادة ضبط: مُفعّل', 'Reset: ON') : T('إعادة ضبط', 'Reset')}
+          </button>
+          <SbcSyncBookmarklet syncPersonId={spid} T={T} force={resetMode} />
+          <GosiSyncBookmarklet syncPersonId={spid} T={T} force={resetMode} />
+          <QiwaSyncBookmarklet syncPersonId={spid} T={T} force={resetMode} />
+          <QiwaNitaqBookmarklet syncPersonId={spid} T={T} />
+          <MuqeemSyncBookmarklet syncPersonId={spid} T={T} force={resetMode} />
+          <AjeerSyncBookmarklet syncPersonId={spid} T={T} force={resetMode} />
+          <MudadSyncBookmarklet syncPersonId={spid} T={T} force={resetMode} />
           {/* الغرفة + الزكاة — لا يوجد سكربت/جداول بعد؛ معطّلان لحين التقاط الـ endpoints. */}
           <SoonBookmark
             accent={SOURCE_BRAND.chambers.color}

@@ -19,13 +19,14 @@ const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFz
 const CLIENT_ID_REQUESTS = '8b907aa5799863128483d1d4121b0930'
 const CLIENT_ID_COMPANIES_PROCESSING = 'a5fb5f0df5605d7aef65c02d3f36197b'
 
-function body({ sourceId, personId, proxyBaseUrl }) {
+function body({ sourceId, personId, proxyBaseUrl, force = false }) {
   return `
 (async () => {
   const U='${SUPABASE_URL}', K='${SUPABASE_ANON}';
   const API_BASE='https://api.saudibusiness.gov.sa/sbc/externalgw';
   const IP = API_BASE + '/ipapi-nl/api/app';
   const SOURCE='${sourceId}', PERSON='${personId}';
+  const FORCE = ${force ? 'true' : 'false'};
   // Netlify PDF proxy URL. Fired fire-and-forget right after each print
   // response so the downloadUrl token is still fresh — separate-pass design
   // failed because tokens expire in minutes.
@@ -259,7 +260,8 @@ function body({ sourceId, personId, proxyBaseUrl }) {
     // site continues instead of restarting. A full re-sync is still possible once
     // the 2h window passes.
     let skippedRecent = 0;
-    try {
+    // إعادة ضبط: تجاوز فحص "المُزامَن حديثاً" وإعادة مزامنة الجميع.
+    if (!FORCE) try {
       const RESUME_WINDOW_MS = 2 * 60 * 60 * 1000;
       const resumeAfter = new Date(Date.now() - RESUME_WINDOW_MS).toISOString();
       const dr = await supaFetch('/rest/v1/sbc_facilities?select=cr_national_number&last_synced_at=gte.' + encodeURIComponent(resumeAfter) + '&limit=5000');
@@ -1353,14 +1355,14 @@ function bodyRequests({ personId }) {
 //
 // CR-list runs first: it seeds sbc_facilities, and طلباتي then fills the gaps (its RPC
 // only COALESCEs into missing fields, so it can't clobber what CR-list wrote).
-function bodyDispatch({ sourceId, personId, proxyBaseUrl }) {
+function bodyDispatch({ sourceId, personId, proxyBaseUrl, force = false }) {
   return `
 (async () => {
   // Each flow is a self-invoking async IIFE, so it must be awaited — without this
   // they run concurrently and race each other's writes to the same sbc_facilities
   // rows. A failure in one must not skip the other, hence the separate try blocks.
   try {
-    await ${body({ sourceId, personId, proxyBaseUrl })}
+    await ${body({ sourceId, personId, proxyBaseUrl, force })}
   } catch (e) {}
   try {
     await ${bodyRequests({ personId })}
@@ -1377,8 +1379,8 @@ function minify(src) {
     .trim()
 }
 
-export function buildBookmarklet({ sourceId, personId, proxyBaseUrl }) {
-  return 'javascript:' + encodeURIComponent(minify(bodyDispatch({ sourceId, personId, proxyBaseUrl })))
+export function buildBookmarklet({ sourceId, personId, proxyBaseUrl, force = false }) {
+  return 'javascript:' + encodeURIComponent(minify(bodyDispatch({ sourceId, personId, proxyBaseUrl, force })))
 }
 
 export function buildPdfBookmarklet({ personId, proxyBaseUrl }) {

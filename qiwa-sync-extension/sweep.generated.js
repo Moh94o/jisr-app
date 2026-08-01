@@ -6,6 +6,7 @@
 self.__runQiwaSweep = async () => {
   const U = 'https://gcvshzutdslmdkwqwteh.supabase.co', K = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdjdnNoenV0ZHNsbWRrd3F3dGVoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4OTkwNjgsImV4cCI6MjA5MDQ3NTA2OH0.5R0I5VvB7lp3wpSrtay3DMcXKsT9l1uK0Ukd1F4_ImM';
   const SOURCE = 'qiwa', PERSON = (self.__QIWA_PERSON_ID || null);
+  const FORCE = false;
   const API_CORE = 'https://api.qiwa.sa';
   const API_INDICATORS = 'https://indicators-api.qiwa.sa';
   const API_DASHBOARD = 'https://dashboard-api.qiwa.sa';
@@ -1377,7 +1378,9 @@ self.__runQiwaSweep = async () => {
     const RESUME_WINDOW_MS = 2 * 60 * 60 * 1000;
     const resumeAfter = new Date(Date.now() - RESUME_WINDOW_MS).toISOString();
     let skippedRecent = 0;
-    try {
+    // إعادة ضبط: عند التفعيل نتجاوز فحص "المُزامَن حديثاً" فيُعاد مزامنة كل
+    // المنشآت حتى لو تمّت خلال آخر ساعتين.
+    if (!FORCE) try {
       const dr = await supaFetch('/rest/v1/qiwa_companies?select=company_id&detail_synced_at=gte.' + encodeURIComponent(resumeAfter) + '&limit=5000');
       if (dr.ok) {
         const da = await dr.json();
@@ -1405,8 +1408,12 @@ self.__runQiwaSweep = async () => {
     let originalCompanyId = null;
     try { const cc = await qiwaGet(API_CORE + '/context/company'); if (cc.ok && cc.data && cc.data.data) originalCompanyId = cc.data.data.id; } catch (e) {}
     let sweepLabel = '';
+    // Cumulative counter: count already-synced (resumed) companies as done and
+    // measure against the FULL list, so a run resumed after a logout reads e.g.
+    // "41/91" and climbs — visibly continuing, not restarting from 0.
+    const grandTotal = sweepList.length + skippedRecent;
     if (sweepList.length > 0) {
-      msg('مزامنة شاملة لكل المنشآت (' + sweepList.length + ')' + (skippedRecent ? ' · متخطّى حديثاً ' + skippedRecent : '') + '...');
+      msg('مزامنة شاملة لكل المنشآت (' + grandTotal + ')' + (skippedRecent ? ' · مكتمل سابقاً ' + skippedRecent : '') + '...');
       let done = 0, okCount = 0, blocked = 0;
       // Serial by necessity: the active company is global session state, so two
       // concurrent switches would race and store one company's data under another.
@@ -1421,12 +1428,12 @@ self.__runQiwaSweep = async () => {
         } catch (e) {}
         done++;
         if (done % 5 === 0 || done === sweepList.length) {
-          msg('مزامنة شاملة: ' + done + '/' + sweepList.length + ' · تم ' + okCount + ' · متخطّى ' + blocked);
+          msg('مزامنة شاملة: ' + (skippedRecent + done) + '/' + grandTotal + ' · تم ' + okCount + ' · متخطّى ' + blocked);
         }
       }
       // Leave the session on the company the user originally had active.
       if (originalCompanyId) await switchCtx(originalCompanyId);
-      sweepLabel = ' · شامل ' + okCount + '/' + sweepList.length + (blocked ? ' · متخطّى ' + blocked : '') + (skippedRecent ? ' · حديثاً ' + skippedRecent : '');
+      sweepLabel = ' · شامل ' + (skippedRecent + okCount) + '/' + grandTotal + (blocked ? ' · متخطّى ' + blocked : '') + (skippedRecent ? ' · سابقاً ' + skippedRecent : '');
     } else if (skippedRecent > 0) {
       // Everything in the list was already synced within the last 2 hours.
       sweepLabel = ' · ✅ الكل مُزامَن خلال آخر ساعتين (' + skippedRecent + ')';
