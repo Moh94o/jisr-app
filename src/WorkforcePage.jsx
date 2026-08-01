@@ -1480,7 +1480,7 @@ export default function WorkforcePage({ sb, toast, lang, user, onTabChange }) {
         </div>
       </td>
     ) },
-    iqama: { w: '15%', h: T('رقم الإقامة','Iqama'), cell: (w) => (
+    iqama: { w: '15%', h: T('الهوية','Iqama'), cell: (w) => (
       <td>
         {w.iqama_number ? (
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, direction: 'ltr' }}>

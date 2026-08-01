@@ -3,7 +3,7 @@ import BackButton from './components/BackButton'
 import { buildBookmarklet, buildPdfBookmarklet } from './pages/sbcSyncBookmarklet.js'
 import { buildGosiBookmarklet } from './pages/gosiSyncBookmarklet.js'
 import { buildQiwaBookmarklet } from './pages/qiwaSyncBookmarklet.js'
-import { FAC_DETAIL_TYPE_SCALE, fmtDMY } from './pages/SbcFacilities.jsx'
+import { FAC_DETAIL_TYPE_SCALE, fmtDMY, SourceCompareCard, UnifiedWorkersCard, MudadCards, AjeerCards, SyncHistoryCard } from './pages/SbcFacilities.jsx'
 import { can as canPerm, canCardBtn, cardVisible, isGM, userOffices } from './lib/permissions.js'
 import { branchLabel } from './lib/utils.js'
 import { navSetHere } from './lib/navStack.js'
@@ -395,7 +395,7 @@ function mapFacility(f) {
     entity_full_name_ar: f.name_ar || null,
     entity_full_name_en: f.name_en || null,
     cr_national_number: f.unified_number || null,
-    cr_number: f.cr_number || f.unified_number || null,
+    cr_number: f.cr_number || null,
     entity_type_ar, entity_type_en, company_form_ar, company_form_en,
     gosi_registration_number: f.gosi_number || null,
     hrsd_labor_office_id: office, hrsd_sequence_number: seq,
@@ -726,7 +726,7 @@ function FacilityRegistryCards({ facility: f, sb, T, lang, user, toast, onEdit, 
     return (
       <div style={{ gridColumn: full ? '1 / -1' : undefined, background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
         <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600, whiteSpace: 'nowrap' }}>{k}</span>
+          <span style={{ fontSize: 9.5, color: 'var(--tx3)', fontWeight: 600, whiteSpace: 'nowrap' }}>{k}</span>
           {srcKey && <FacSrcPill src={srcKey} isAr={lang === 'ar'} />}
         </span>
         <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, direction: 'ltr' }}>
@@ -787,7 +787,7 @@ function FacilityRegistryCards({ facility: f, sb, T, lang, user, toast, onEdit, 
               <Field k={T('رقم الموارد البشرية', 'HRSD No.')} v={f.hrsd_number} mono color={C.blue} src="hrsd_number" />
               <Field k={T('رقم الموارد البشرية الإضافي', 'HRSD No. 2')} v={f.hrsd_number_2} mono color={C.purple} />
               <Field k={T('رقم السجل التجاري', 'CR No.')} v={f.cr_number} mono src="cr_number" />
-              <Field k={T('الرقم الضريبي', 'VAT No.')} v={f.vat_number} mono src="vat_number" />
+              <Field k={T('الرقم المميز', 'VAT No.')} v={f.vat_number} mono src="vat_number" />
             </div>
           </div>
         </CollapsibleCard>
@@ -2938,13 +2938,15 @@ function _GosiPersonRow({ name, badge, badgeColor, tags, meta }) {
         </div>
         {expanded && hasDetails && (
           <div style={{
-            display: 'flex', flexWrap: 'wrap', alignItems: 'baseline',
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))',
+            alignItems: 'baseline',
             columnGap: 24, rowGap: 10,
             marginTop: 10, paddingTop: 10,
             borderTop: '1px dashed var(--bd)',
           }}>
             {items.map((m, i) => (
-              <div key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 10, fontSize: 11 }}>
+              <div key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 10, fontSize: 11, minWidth: 0 }}>
                 <span style={{ color: 'var(--tx4)', fontWeight: 600 }}>{m.k}</span>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                   {m.copy && <CopyBtn value={m.copyText != null ? m.copyText : m.v} />}
@@ -3260,9 +3262,11 @@ function GosiContributorsCard({ contributors, est, T, lang, title }) {
   // on ameen.gosi.gov.sa.
   const statusOf = (c) => String(c.status_type || '').toUpperCase()
   const hasLive = (c) => c.has_live_engagement_in_establishment === true
-  const activeCount    = contributors.filter(c => statusOf(c) === 'ACTIVE' && hasLive(c)).length
-  const inactiveCount  = contributors.filter(c => statusOf(c) === 'INACTIVE').length
-  const suspendedCount = contributors.filter(c => statusOf(c) === 'SUSPENDED' || (statusOf(c) === 'ACTIVE' && !hasLive(c))).length
+  // Inactive contributors are hidden from this card per user request — the
+  // list, the badge count and the status strip all operate on this filtered set.
+  const visibleContribs = contributors.filter(c => statusOf(c) !== 'INACTIVE')
+  const activeCount    = visibleContribs.filter(c => statusOf(c) === 'ACTIVE' && hasLive(c)).length
+  const suspendedCount = visibleContribs.filter(c => statusOf(c) === 'SUSPENDED' || (statusOf(c) === 'ACTIVE' && !hasLive(c))).length
   // Effective status of a single contributor — drives the per-row status pill
   // so it agrees with the strip totals above.
   const effectiveStatus = (c) => {
@@ -3280,23 +3284,22 @@ function GosiContributorsCard({ contributors, est, T, lang, title }) {
     </div>
   )
   return (
-    <CollapsibleCard title={title || T('الموظفون / المشتركون', 'Contributors')} color={C.cyan} showGosiIcon badge={num(contributors.length)}>
+    <CollapsibleCard title={title || T('الموظفون / المشتركون', 'Contributors')} color={C.cyan} showGosiIcon badge={num(visibleContribs.length)}>
       <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 10 }}>
         {/* Status strip — active / inactive / suspended. Computed from the
             contributors array so it stays accurate after we sync INACTIVE and
             SUSPENDED separately. */}
         <div style={{
-          display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6,
+          display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6,
           padding: 8, borderRadius: 10,
           background: 'rgba(22,160,133,.06)',
           border: '1px solid rgba(22,160,133,.22)',
         }}>
           <Stat n={activeCount} label={T('نشطون', 'Active')} color={C.ok} />
-          <Stat n={inactiveCount} label={T('غير نشطون', 'Inactive')} color={inactiveCount > 0 ? C.red : undefined} />
           <Stat n={suspendedCount} label={T('معلقون', 'Suspended')} color={suspendedCount > 0 ? C.warn : undefined} />
         </div>
 
-        {contributors.map((c) => {
+        {visibleContribs.map((c) => {
           const name = isAr
             ? [c.first_name_ar, c.second_name_ar, c.third_name_ar, c.family_name_ar].filter(Boolean).join(' ')
             : c.full_name_en
@@ -3715,10 +3718,39 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
   // صفحة تفاصيل المنشأة (full page) — نخزّن المعرّف فقط لتُعاد القراءة من الصفوف
   // المحدّثة بعد أي تعديل/إعادة تحميل.
   const [viewId, setViewId] = useState(null)
+  // صف مركز المزامنة (sbc_facilities) الكامل المرتبط بالمنشأة المفتوحة — يُجلب عند
+  // فتح التفاصيل ويُدمَج في detail كي تُضيء كروت قوى/مقيم/السجل التجاري تماماً كصفحة
+  // مركز المزامنة (انظر التأثير أدناه). __forId يربطه بالمنشأة الحالية لتفادي التسرّب.
+  const [sbcFull, setSbcFull] = useState(null)
   // الصف المفتوح — يُقرأ من الصفوف المحدّثة (لتنعكس التعديلات/الشطب تلقائياً).
-  // detail هو نفسه viewFacility (اسمان لنفس الشيء) كي يعمل العرض الغني كما هو.
+  // detail = صف facilities مدموجاً بصف sbc_facilities: قيم facilities تفوز للحقول
+  // الأساسية (الاسم/النوع/الفرع/الحالة)، وصف المزامنة يملأ ما ينقص فقط — رقم السجل
+  // التجاري (لقوى)، الرقم الموحّد للتأمينات (لمقيم)، وraw_cr_data (الملاك/المدراء/
+  // النشاط/الاتصال). بذلك تعمل كل مؤثّرات الجلب المفهرسة على هذه الحقول.
   const viewFacility = viewId ? rows.find(r => r.id === viewId) : null
-  const detail = viewFacility
+  const detail = useMemo(() => {
+    if (!viewFacility) return null
+    const s = (sbcFull && sbcFull.__forId === viewId) ? sbcFull : null
+    const v = viewFacility
+    // حقول حالة السجل التجاري المشتقّة (يستخدمها كرت «حالة السجل التجاري» الجانبي
+    // وCrCountdown) — من صف facilities أولاً ثم صف المزامنة.
+    const derived = {
+      _status: (lang === 'en' ? (v.cr_status_en || s?.cr_status_en) : (v.cr_status_ar || s?.cr_status_ar)) || v.cr_status || s?.cr_status || null,
+      _issueDate: v.cr_issue_date_gregorian || s?.cr_issue_date_gregorian || v.cr_issue_date || null,
+      _confirmDate: v.cr_confirm_date_gregorian || s?.cr_confirm_date_gregorian || v.confirmation_date || null,
+    }
+    if (!s) return { ...v, ...derived }
+    return {
+      ...s,
+      ...v,
+      ...derived,
+      cr_number: v.cr_number || s.cr_number || null,
+      gosi_unified_national_number: v.gosi_unified_national_number || s.gosi_unified_national_number || null,
+      raw_cr_data: v.raw_cr_data || s.raw_cr_data || null,
+      partners: (Array.isArray(v.partners) && v.partners.length) ? v.partners
+        : (Array.isArray(s.partners) ? s.partners : v.partners),
+    }
+  }, [viewFacility, sbcFull, viewId, lang])
   // نوع المنشأة (مؤسسة فردية / ش.ذ.م.م / …) — من قائمة lookup organization_type
   const [orgTypes, setOrgTypes] = useState([])
   // المكتب التابع — الفروع (branches)؛ يُعرض بالكود + المدينة ويُخزَّن branch_id
@@ -3776,6 +3808,21 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
   // bookmarklet's section (h) and stored in gosi_establishment_certificates,
   // with the PDFs themselves in the public 'gosi-certificates' storage bucket.
   const [gosiCertificates, setGosiCertificates] = useState([])
+  // أجير — التصاريح والعقود والمدفوعات والمؤشرات (ajeer_* tables). تُربط برقم
+  // ملف المنشأة «مكتب-تسلسل». مطابقة لصفحة مركز المزامنة.
+  const [ajeerEst, setAjeerEst] = useState(null)
+  const [ajeerNotices, setAjeerNotices] = useState([])
+  const [ajeerContracts, setAjeerContracts] = useState([])
+  const [ajeerPayments, setAjeerPayments] = useState([])
+  const [ajeerIndicators, setAjeerIndicators] = useState([])
+  // مدد — منشأة مدد + التزام الأجور الشهري (mudad_* tables). الربط بالرقم الوطني الموحّد.
+  const [mudadEst, setMudadEst] = useState(null)
+  const [mudadMonths, setMudadMonths] = useState([])
+  // سجل التغييرات بين المزامنات (sync_row_history) + إصدارات الملفات المؤرشفة (sync_file_versions).
+  const [rowHistory, setRowHistory] = useState([])
+  const [fileVersions, setFileVersions] = useState([])
+  // مصادر البيانات — صفوف provenance (منصّة + حساب + آخر مزامنة) للمنشأة المفتوحة.
+  const [detailProv, setDetailProv] = useState([])
 
   // Build GOSI + HRSD patch from Netlify response payloads.
   const buildFetchPatch = useCallback((g, h) => {
@@ -4548,14 +4595,45 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
   // sbc_facilities and qiwa_companies). Run separately from the GOSI lookup
   // since Qiwa data lives in a single row, not the 6-table fan-out.
   useEffect(() => {
-    if (!sb || !detail?.cr_number) { setQiwaCompany(null); return }
+    const cn = detail?.cr_national_number
+    const cr = detail?.cr_number
+    if (!sb || (!cn && !cr)) { setQiwaCompany(null); return }
     let cancelled = false
     ;(async () => {
-      const { data } = await sb.from('qiwa_companies').select('*').eq('cr_number', String(detail.cr_number)).maybeSingle()
+      // مطابقة قوى بالرقم الوطني للسجل أولاً (= الرقم الموحّد، المتوفّر دائماً)،
+      // ثم رقم السجل التجاري كخيار احتياطي — تماماً كصفحة مركز المزامنة.
+      let data = null
+      if (cn) ({ data } = await sb.from('qiwa_companies').select('*').eq('cr_national_number', String(cn)).maybeSingle())
+      if (!data && cr) ({ data } = await sb.from('qiwa_companies').select('*').eq('cr_number', String(cr)).maybeSingle())
       if (!cancelled) setQiwaCompany(data || null)
     })()
     return () => { cancelled = true }
-  }, [sb, detail?.cr_number])
+  }, [sb, detail?.cr_national_number, detail?.cr_number])
+
+  // صف مركز المزامنة الكامل — يُجلب عند فتح التفاصيل عبر sbc_facility_id (ثم
+  // الرقم الوطني للسجل كخيار احتياطي). يحمل رقم السجل التجاري والرقم الموحّد
+  // للتأمينات وraw_cr_data التي لا يحملها صف facilities، فتُضيء بدمجها كروت قوى/
+  // مقيم/الملاك/الاتصال/الأنشطة/السجل التجاري كما في صفحة مركز المزامنة.
+  useEffect(() => {
+    const fid = viewFacility?.id
+    const sbcId = viewFacility?.sbc_facility_id
+    const crnn = viewFacility?.cr_national_number
+    if (!sb || !fid || (!sbcId && !crnn)) { setSbcFull(null); return }
+    let cancelled = false
+    ;(async () => {
+      let row = null
+      if (sbcId) {
+        const { data } = await sb.from('sbc_facilities').select('*').eq('id', sbcId).maybeSingle()
+        row = data || null
+      }
+      if (!row && crnn) {
+        const { data } = await sb.from('sbc_facilities').select('*').eq('cr_national_number', String(crnn)).limit(1).maybeSingle()
+        row = data || null
+      }
+      if (!cancelled) setSbcFull(row ? { ...row, __forId: fid } : null)
+    })()
+    return () => { cancelled = true }
+  }, [sb, viewFacility?.id, viewFacility?.sbc_facility_id, viewFacility?.cr_national_number])
 
   // Muqeem lookup — moi_number on muqeem_companies = the SBC facility's
   // gosi_unified_national_number. Loads org row + residents + subscriptions
@@ -4606,6 +4684,125 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
     })()
     return () => { cancelled = true }
   }, [sb, detail?.gosi_registration_number])
+
+  // أجير — رقم المنشأة في أجير = رقم ملف المنشأة «مكتب-تسلسل». نجرّب كل الصيغ
+  // المتاحة من SBC/قوى/GOSI لأن أياً منها قد يكون المصدر الوحيد المزامَن.
+  const ajeerKeys = useMemo(() => {
+    const ks = new Set()
+    if (detail?.hrsd_labor_office_id != null && detail?.hrsd_sequence_number != null) ks.add(`${detail.hrsd_labor_office_id}-${detail.hrsd_sequence_number}`)
+    if (qiwaCompany?.company_labor_office_id != null && qiwaCompany?.company_sequence_number != null) ks.add(`${qiwaCompany.company_labor_office_id}-${qiwaCompany.company_sequence_number}`)
+    if (gosiEstablishment?.mol_office_id != null && gosiEstablishment?.mol_establishment_id != null) ks.add(`${gosiEstablishment.mol_office_id}-${gosiEstablishment.mol_establishment_id}`)
+    return Array.from(ks)
+  }, [detail?.hrsd_labor_office_id, detail?.hrsd_sequence_number, qiwaCompany, gosiEstablishment])
+
+  useEffect(() => {
+    if (!sb || !detail || ajeerKeys.length === 0) {
+      setAjeerEst(null); setAjeerNotices([]); setAjeerContracts([]); setAjeerPayments([]); setAjeerIndicators([])
+      return
+    }
+    let cancelled = false
+    ;(async () => {
+      const [est, ntc, ctr, pay, ind] = await Promise.all([
+        sb.from('ajeer_establishments').select('*').in('establishment_no', ajeerKeys).limit(1),
+        sb.from('ajeer_notices').select('*').in('establishment_no', ajeerKeys).order('end_date', { ascending: false, nullsFirst: false }),
+        sb.from('ajeer_contracts').select('*').in('establishment_no', ajeerKeys).order('end_date', { ascending: false, nullsFirst: false }),
+        sb.from('ajeer_payments').select('*').in('establishment_no', ajeerKeys).order('due_date', { ascending: false, nullsFirst: false }),
+        sb.from('ajeer_indicators').select('*').in('establishment_no', ajeerKeys).order('week_no', { ascending: false }),
+      ])
+      if (cancelled) return
+      setAjeerEst((est.data || [])[0] || null)
+      setAjeerNotices(ntc.data || [])
+      setAjeerContracts(ctr.data || [])
+      setAjeerPayments(pay.data || [])
+      setAjeerIndicators(ind.data || [])
+    })()
+    return () => { cancelled = true }
+  }, [sb, detail, ajeerKeys])
+
+  // مدد — الربط بالرقم الوطني الموحد (national_unified_id). النسبة تُقرأ من أحدث فترة أجور.
+  const mudadKeys = useMemo(() => {
+    const ks = new Set()
+    for (const v of [detail?.unified_number, detail?.gosi_unified_national_number, detail?.cr_national_number]) {
+      if (v != null && String(v).trim()) ks.add(String(v).trim())
+    }
+    return Array.from(ks)
+  }, [detail?.unified_number, detail?.gosi_unified_national_number, detail?.cr_national_number])
+
+  useEffect(() => {
+    if (!sb || !detail || mudadKeys.length === 0) { setMudadEst(null); setMudadMonths([]); return }
+    let cancelled = false
+    ;(async () => {
+      const est = await sb.from('mudad_establishments').select('*')
+        .in('national_unified_id', mudadKeys)
+        .order('wage_period', { ascending: false, nullsFirst: false })
+      if (cancelled) return
+      const mrows = est.data || []
+      setMudadEst(mrows[0] || null)
+      if (!mrows.length) { setMudadMonths([]); return }
+      const months = await sb.from('mudad_compliance_months').select('*')
+        .in('mlsd_unified_id', mrows.map(r => r.mlsd_unified_id))
+        .order('wage_period_id', { ascending: false })
+      if (cancelled) return
+      setMudadMonths(months.data || [])
+    })()
+    return () => { cancelled = true }
+  }, [sb, detail, mudadKeys])
+
+  // سجل التغييرات + إصدارات الملفات — يُجمَع عبر كل مفاتيح المنشأة لدى المصادر.
+  useEffect(() => {
+    if (!sb || !detail) { setRowHistory([]); setFileVersions([]); return }
+    const keys = new Set()
+    if (detail.cr_number) keys.add(String(detail.cr_number))
+    if (detail.cr_national_number) keys.add(String(detail.cr_national_number))
+    if (detail.gosi_registration_number) keys.add(String(detail.gosi_registration_number))
+    if (detail.gosi_unified_national_number) keys.add(String(detail.gosi_unified_national_number))
+    if (qiwaCompany?.company_id != null) keys.add(String(qiwaCompany.company_id))
+    ajeerKeys.forEach(k => keys.add(k))
+    const list = Array.from(keys)
+    if (!list.length) { setRowHistory([]); setFileVersions([]); return }
+    let cancelled = false
+    ;(async () => {
+      const [hist, files] = await Promise.all([
+        sb.from('sync_row_history')
+          .select('id, table_name, source_id, entity_key, record_key, record_label, op, changed_fields, diff, old_data, captured_at')
+          .in('entity_key', list)
+          .order('captured_at', { ascending: false })
+          .limit(400),
+        sb.from('sync_file_versions').select('*').in('entity_key', list).order('archived_at', { ascending: false }).limit(200),
+      ])
+      if (cancelled) return
+      setRowHistory(hist.data || [])
+      setFileVersions(files.data || [])
+    })()
+    return () => { cancelled = true }
+  }, [sb, detail, qiwaCompany?.company_id, ajeerKeys])
+
+  // مصادر البيانات — provenance من العرض v_facility_provenance (المنصّة + الحساب
+  // + آخر مزامنة). يُطابَق برقم السجل التجاري/الرقم الوطني/رقم التأمينات — تماماً
+  // كصفحة مركز المزامنة (facility_sources فارغ على الإنتاج، والعرض هو المصدر الحق).
+  useEffect(() => {
+    const crno = detail?.cr_number
+    const crnn = detail?.cr_national_number
+    const gosi = detail?.gosi_registration_number
+    if (!sb || (!crno && !crnn && !gosi)) { setDetailProv([]); return }
+    let cancelled = false
+    ;(async () => {
+      const crVals = Array.from(new Set([crno, crnn].filter(Boolean).map(String)))
+      const [byCr, byGosi] = await Promise.all([
+        crVals.length ? sb.from('v_facility_provenance').select('source_id, person_name_ar, person_name_en, last_synced_at, cr_number, gosi_number').in('cr_number', crVals) : Promise.resolve({ data: [] }),
+        gosi ? sb.from('v_facility_provenance').select('source_id, person_name_ar, person_name_en, last_synced_at, cr_number, gosi_number').eq('gosi_number', String(gosi)) : Promise.resolve({ data: [] }),
+      ])
+      if (cancelled) return
+      const seen = new Set(); const merged = []
+      for (const p of [...(byCr.data || []), ...(byGosi.data || [])]) {
+        const k = `${p.source_id}|${p.person_name_ar || p.person_name_en || ''}`
+        if (seen.has(k)) continue
+        seen.add(k); merged.push(p)
+      }
+      setDetailProv(merged)
+    })()
+    return () => { cancelled = true }
+  }, [sb, detail?.cr_number, detail?.cr_national_number, detail?.gosi_registration_number])
 
   // Load extended detail data from sbc_sync_debug whenever a facility detail
   // opens. Pulls the latest response body per (endpoint, cr) so we can show
@@ -6311,7 +6508,9 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
         // البطاقة تظهر فقط عند وجود رقم تسجيل أو بيانات فعلية خلفها.
         const hasGosi = !!(gosi.regNo || gosi.total != null || gosiEstablishment)
         const hasHrsd = !!(hrsd.officeId || hrsd.totalLaborers != null || _hrsdRaw)
-        const prov = provByCr[detail.cr_number] || []
+        // provenance المنشأة المفتوحة — من العرض v_facility_provenance (detailProv)
+        // وإلا الخريطة المحمّلة مسبقاً. يغذّي كرت «مصادر البيانات» باسم الحساب وآخر مزامنة.
+        const prov = (detailProv && detailProv.length) ? detailProv : (provByCr[detail.cr_number] || [])
         // SBC data is only present when we have the actual SBC raw payload —
         // facilities created from a GOSI-only sync have detail rows (name,
         // CR no., etc. populated from CR registration) but no SBC payload.
@@ -6372,88 +6571,23 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                 sb={sb} T={T} lang={lang} user={user} toast={toast}
                 onEdit={(section) => openEdit(detail, section)} />
 
-              {/* Identifiers card — CR/national numbers + all government authority registrations
-                  consolidated into a single panel so the user sees every "official number" in one place.
-                  Compact inline layout (label left + value right) to stay within original card height.
-                  Gated on hasSbcData: this card is sourced from SBC's CR registration
-                  payload; without SBC sync, the row data would be a misleading mix
-                  of empty/partial values from other syncs. */}
-              {hasSbcData && (() => {
-                // MoL/labor file number "office-sequence" (e.g. 18-4044360). Prefer the
-                // synced columns; fall back to the live HRSD/GOSI-file responses so the
-                // chip still appears for facilities mapped from staging (where the
-                // hrsd_* columns aren't populated yet).
-                const _gf = (extDetail || {})['gosi/establishments-file-info-by-registration-number']?.response_body
-                const _hr = (extDetail || {})['hrsd/get-establishment-statistics']?.response_body
-                const molFileNo =
-                  (detail.hrsd_labor_office_id != null && detail.hrsd_sequence_number != null)
-                    ? `${detail.hrsd_labor_office_id}-${detail.hrsd_sequence_number}`
-                    : (_hr?.unifiedNumber?.laborOfficeIdField != null && _hr?.unifiedNumber?.sequenceNumberField != null)
-                      ? `${_hr.unifiedNumber.laborOfficeIdField}-${_hr.unifiedNumber.sequenceNumberField}`
-                      : (_gf?.molofficeID != null && _gf?.molEstID != null)
-                        ? `${_gf.molofficeID}-${_gf.molEstID}`
-                        : (detail.hrsd_labor_office_id != null ? String(detail.hrsd_labor_office_id) : null)
-                const authorities = [
-                  { ar: 'الزكاة والضريبة', en: 'ZATCA',                    fullAr: 'هيئة الزكاة والضريبة والجمارك',              color: '#0f766e', n: detail.zakat_tax_number },
-                  { ar: 'التأمينات الاجتماعية', en: 'GOSI',                  fullAr: 'المؤسسة العامة للتأمينات الاجتماعية',          color: '#22c55e', n: detail.gosi_registration_number },
-                  { ar: 'العنوان الوطني',  en: 'SPL',                      fullAr: 'اشتراك العنوان الوطني للسجل التجاري',         color: '#06b6d4', n: detail.spl_national_address_id },
-                  { ar: 'الغرف التجارية',  en: 'Chamber of Commerce',      fullAr: 'اتحاد الغرف التجارية السعودية',               color: '#0ea5e9', n: detail.coc_chamber_number },
-                  { ar: 'المقاولين',       en: 'Contractors Authority',    fullAr: 'الهيئة السعودية للمقاولين',                   color: '#f59e0b', n: detail.sca_contractor_number },
-                  { ar: 'الموارد البشرية', en: 'HRSD / Qiwa',              fullAr: 'وزارة الموارد البشرية والتنمية الاجتماعية',    color: '#16a085', n: molFileNo },
-                  { ar: 'وزارة العدل',     en: 'MOJ Contract',             fullAr: 'وزارة العدل · رقم العقد',                     color: '#8b5cf6', n: detail.moj_contract_number },
-                  { ar: 'وزارة التجارة',   en: 'MC Contract Auth.',        fullAr: 'وزارة التجارة · رقم توثيق العقد',              color: '#B07D00', n: detail.mc_contract_number },
-                ].filter(row => row.n)
-
-                const rowBase = {
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                  padding: '10px 12px', borderRadius: 8, gap: 10, minWidth: 0,
-                  background: 'var(--inputBg)', border: '1px solid var(--bd)',
-                }
-                const rowGold = { ...rowBase, background: 'rgba(176,125,0,.06)', border: '1px solid rgba(176,125,0,.22)' }
-                const lbl = { color: 'var(--tx3)', fontWeight: 600, fontSize: 11, whiteSpace: 'nowrap' }
-
-                return (
-                  <CollapsibleCard title={T('المنشأة','Facility')} color={C.gold} showSbcIcon defaultExpanded>
-                    <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                      {detail.entity_full_name_ar && (
-                        <div style={{ ...rowBase, gridColumn: '1 / -1' }}>
-                          <span style={lbl}>{T('اسم المنشأة بالعربي', 'Facility name (AR)')}</span>
-                          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx)', textAlign: 'end', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={detail.entity_full_name_ar}>{detail.entity_full_name_ar}</span>
-                        </div>
-                      )}
-                      {detail.entity_full_name_en && (
-                        <div style={{ ...rowBase, gridColumn: '1 / -1' }}>
-                          <span style={lbl}>{T('اسم المنشأة بالإنجليزي', 'Facility name (EN)')}</span>
-                          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx)', direction: 'ltr', textAlign: 'end', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={detail.entity_full_name_en}>{detail.entity_full_name_en}</span>
-                        </div>
-                      )}
-                      {/* Name language — moved here from the Classification card
-                          per user request. Belongs with the name fields above. */}
-                      {detail.entity_name_lang_ar && (
-                        <div style={{ ...rowBase, gridColumn: '1 / -1' }}>
-                          <span style={lbl}>{T('لغة اسم المنشأة', 'Name Language')}</span>
-                          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx)', textAlign: 'end', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={detail.entity_name_lang_ar}>{detail.entity_name_lang_ar}</span>
-                        </div>
-                      )}
-                      <div style={rowGold}>
-                        <span style={{ ...lbl, color: C.gold }}>{T('الرقم الموحد', 'Unified No.')}</span>
-                        <CopyableNumber value={detail.cr_national_number} onToast={toast} copyLabel={T('نُسخ', 'Copied')} />
-                      </div>
-                      {authorities.map((row, i) => (
-                        <div key={i} style={rowGold} title={T(row.fullAr, row.en)}>
-                          <span style={{ ...lbl, color: C.gold, overflow: 'hidden', textOverflow: 'ellipsis' }}>{T(row.ar, row.en)}</span>
-                          <CopyableNumber value={row.n} onToast={toast} copyLabel={T('نُسخ', 'Copied')} />
-                        </div>
-                      ))}
-                      {/* السجل التجاري آخر حقل بناءً على طلب المستخدم */}
-                      <div style={rowGold}>
-                        <span style={{ ...lbl, color: C.gold }}>{T('السجل التجاري', 'CR Number')}</span>
-                        <CopyableNumber value={detail.cr_number} onToast={toast} copyLabel={T('نُسخ', 'Copied')} />
-                      </div>
-                    </div>
-                  </CollapsibleCard>
-                )
-              })()}
+              {/* الملاك والشركاء (من السجل التجاري) — الأشخاص أولاً ثم المنشآت */}
+              {Array.isArray(detail.partners) && detail.partners.length > 0 && (
+                <CollapsibleCard title={T('الملاك والشركاء', 'Partners')} color={C.blue} badge={num(detail.partners.length)} defaultExpanded showSbcIcon>
+                  <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {[...detail.partners]
+                      .sort((a, b) => {
+                        const ca = (!a.personInfo || !!extractPartyDisplay(a).isCompany) ? 1 : 0
+                        const cb = (!b.personInfo || !!extractPartyDisplay(b).isCompany) ? 1 : 0
+                        return ca - cb
+                      })
+                      .map((p, i) => {
+                        const types = Array.isArray(p.partnershipTypeList) ? p.partnershipTypeList.map(t => t.partnershipTypeDescriptionAr).filter(Boolean).join(' · ') : null
+                        return <PersonRow key={i} p={p} roleAr={types} />
+                      })}
+                  </div>
+                </CollapsibleCard>
+              )}
 
               {/* Managers */}
               {managers.length > 0 && (
@@ -6464,98 +6598,27 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                 </CollapsibleCard>
               )}
 
-              {/* المشرفون (GOSI) — placed directly under the Managers card. Self-hides when empty. */}
-              <GosiAdminsCard admins={gosiAdmins} T={T} lang={lang} />
+              {/* كروت التأمينات الكاملة (نفس صفحة مركز المزامنة) — المنشأة/الحساب/
+                  المشتركون سعودي وغير سعودي/الملاك/المشرفون/الشهادات. تظهر عند توفر
+                  صف التأمينات الأساسي (raw_main). */}
+              {gosiEstablishment && gosiEstablishment.raw_main ? (
+                <>
+                  <GosiEstablishmentCard data={gosiEstablishment} T={T} lang={lang} />
+                  <GosiAccountCard data={gosiEstablishment} bills={gosiBills} contributors={gosiContributors} T={T} lang={lang} />
+                  <GosiContributorsCard contributors={gosiContributors.filter(gosiIsSaudi)} title={T('المشتركون السعوديون', 'Saudi contributors')} est={gosiEstablishment} T={T} lang={lang} />
+                  <GosiContributorsCard contributors={gosiContributors.filter(c => !gosiIsSaudi(c))} title={T('المشتركون غير السعوديين', 'Non-Saudi contributors')} est={gosiEstablishment} T={T} lang={lang} />
+                  <GosiOwnersCard owners={gosiOwners} T={T} lang={lang} />
+                  <GosiAdminsCard admins={gosiAdmins} T={T} lang={lang} />
+                  <GosiCertificatesCard certificates={gosiCertificates} T={T} />
+                </>
+              ) : (
+                <>
+                  {/* احتياطي عند غياب raw_main: المشرفون + قائمة المشتركين المدمجة */}
+                  <GosiAdminsCard admins={gosiAdmins} T={T} lang={lang} />
+                  {gosiContributors?.length > 0 && <GosiContributorsCard contributors={gosiContributors} est={gosiEstablishment} T={T} lang={lang} />}
+                </>
+              )}
 
-              {/* كروت التأمينات الغنية — كانت مبنية وبياناتها مجلوبة دون أن تُركّب.
-                  كل كرت يظهر فقط عند توفر بياناته (لا قشور فارغة). */}
-              {gosiEstablishment?.raw_main && <GosiEstablishmentCard data={gosiEstablishment} T={T} lang={lang} />}
-              <GosiAccountCard data={gosiEstablishment} bills={gosiBills} contributors={gosiContributors} T={T} lang={lang} />
-              {gosiOwners?.length > 0 && <GosiOwnersCard owners={gosiOwners} T={T} lang={lang} />}
-              {gosiContributors?.length > 0 && <GosiContributorsCard contributors={gosiContributors} est={gosiEstablishment} T={T} lang={lang} />}
-              {gosiCertificates?.length > 0 && <GosiCertificatesCard certificates={gosiCertificates} T={T} />}
-
-              {/* Classification card — merged with the "Full CR Data" fields
-                   so all non-duplicate CR attributes live in one place. The
-                   pair Gregorian/Hijri date row appears at the bottom.
-                   Gated on hasSbcData: every field here comes from the SBC
-                   CR payload. */}
-              {hasSbcData && (() => {
-                const yesNo = (b) => b ? T('نعم', 'Yes') : T('لا', 'No')
-                // API returns Hijri dates as DD-MM-YYYY; user prefers YYYY-MM-DD
-                // (same order as Gregorian ISO dates shown elsewhere on the page).
-                const reverseHijri = (s) => {
-                  if (!s || typeof s !== 'string') return s
-                  const parts = s.split('-')
-                  return parts.length === 3 ? parts.reverse().join('-') : s
-                }
-                return (
-                  <CollapsibleCard title={T('السجل التجاري','Commercial Register')} color={C.gold} showSbcIcon defaultExpanded>
-                    <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                      {/* Each Field is now conditional — null/empty/undefined
-                          values are hidden entirely per user request. Boolean
-                          fields render only when the underlying flag is non-null
-                          (so explicit "لا" still shows; missing data doesn't). */}
-                      {detail._entity && <Field k={T('النوع', 'Entity')} v={detail._entity} />}
-                      {detail._form && <Field k={T('الشكل', 'Form')} v={detail._form} />}
-                      {companyCharAr && <Field k={T('صفات الشركة', 'Company character')} v={companyCharAr} />}
-                      {detail._city && <Field k={T('المدينة', 'City')} v={detail._city} />}
-                      {detail.capital != null && <Field k={T('رأس المال', 'Capital')} v={Number(detail.capital).toLocaleString('en-US')} />}
-                      {detail.company_duration != null && detail.company_duration !== 0 && detail.company_duration !== '' && <Field k={T('مدة الشركة', 'Company Duration')} v={detail.company_duration} />}
-                      {/* Yes/no flags grouped into one full-width split row —
-                          three compact cells separated by vertical dividers. */}
-                      {(() => {
-                        const flags = [
-                          detail.is_license_based != null ? { k: T('قائم على ترخيص', 'License-based'), v: detail.is_license_based } : null,
-                          detail.has_ecommerce != null ? { k: T('تجارة إلكترونية', 'E-commerce'), v: detail.has_ecommerce } : null,
-                          detail.in_liquidation_process != null ? { k: T('تحت التصفية', 'In Liquidation'), v: detail.in_liquidation_process } : null,
-                        ].filter(Boolean)
-                        if (flags.length === 0) return null
-                        const lblS = { color: 'var(--tx3)', fontWeight: 600, fontSize: 11 }
-                        const valS = { fontWeight: 600, color: 'var(--tx)', direction: 'ltr', fontSize: 11.5, textAlign: 'end', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
-                        return (
-                          <div style={{ gridColumn: '1 / -1', position: 'relative', padding: '9px 12px', background: 'var(--inputBg)', borderRadius: 8, border: '1px solid var(--bd)', display: 'flex', alignItems: 'stretch', gap: 0 }}>
-                            {flags.map((f, i) => (
-                              <React.Fragment key={f.k}>
-                                {i > 0 && <div style={{ width: 1, background: 'rgba(255,255,255,.05)' }} />}
-                                <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, paddingInlineStart: i === 0 ? 0 : 14, paddingInlineEnd: i === flags.length - 1 ? 0 : 14 }}>
-                                  <span style={lblS}>{f.k}</span>
-                                  <span style={valS}>{yesNo(f.v)}</span>
-                                </div>
-                              </React.Fragment>
-                            ))}
-                          </div>
-                        )
-                      })()}
-                      {detail.company_contract_from_date && <Field k={T('تاريخ عقد التأسيس', 'Contract Date')} v={fmtDMY(detail.company_contract_from_date)} />}
-                      {detail.last_cr_suspension_date && <Field k={T('تاريخ آخر تعليق', 'Last Suspension')} v={fmtDMY(detail.last_cr_suspension_date)} />}
-                      {detail.last_cr_reactivation_date && <Field k={T('تاريخ آخر تفعيل', 'Last Reactivation')} v={fmtDMY(detail.last_cr_reactivation_date)} />}
-                      {detail.delete_date && <Field k={T('تاريخ الشطب', 'Strike-off')} v={fmtDMY(detail.delete_date)} />}
-                      {/* Combined issue/confirm dates — one full-width row split
-                          into two columns by a vertical divider. Each column
-                          shows the gregorian date prominently on top and the
-                          matching hijri date dimmed underneath. */}
-                      <div style={{ gridColumn: '1 / -1', position: 'relative', padding: '9px 12px', background: 'var(--inputBg)', borderRadius: 8, border: '1px solid var(--bd)', display: 'flex', alignItems: 'stretch', gap: 0 }}>
-                        <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, paddingInlineEnd: 14 }}>
-                          <span style={{ color: 'var(--tx3)', fontWeight: 600, fontSize: 11 }}>{T('تاريخ الإصدار', 'Issue date')}</span>
-                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2, minWidth: 0 }}>
-                            <span style={{ fontWeight: 600, color: 'var(--tx)', direction: 'ltr', fontSize: 11.5, textAlign: 'end', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{fmtDMY(detail._issueDate)}</span>
-                            <span style={{ fontWeight: 600, color: 'var(--tx4)', direction: 'ltr', fontSize: 10, textAlign: 'end', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{reverseHijri(detail.cr_issue_date_hijri) || '—'}</span>
-                          </div>
-                        </div>
-                        <div style={{ width: 1, background: 'rgba(255,255,255,.05)' }} />
-                        <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, paddingInlineStart: 14 }}>
-                          <span style={{ color: 'var(--tx3)', fontWeight: 600, fontSize: 11 }}>{T('تاريخ التأكيد', 'Confirm date')}</span>
-                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2, minWidth: 0 }}>
-                            <span style={{ fontWeight: 600, color: 'var(--tx)', direction: 'ltr', fontSize: 11.5, textAlign: 'end', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{fmtDMY(detail._confirmDate)}</span>
-                            <span style={{ fontWeight: 600, color: 'var(--tx4)', direction: 'ltr', fontSize: 10, textAlign: 'end', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{reverseHijri(detail.cr_confirm_date_hijri) || '—'}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </CollapsibleCard>
-                )
-              })()}
 
               {/* Contact info — collapsible card, sits right under the
                   Commercial Register. Uses CollapsibleCard so it matches the
@@ -6908,6 +6971,8 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                 const printAr = ext['mcV2/get-print-cr-by-national-number']?.response_body || null
                 const printEn = ext['mcV2/get-print-cr-by-national-number(en)']?.response_body || null
                 const printContract = ext['mcV2/get-print-cr-contract-by-national-number']?.response_body || null
+                const qawaemStatusRaw = ext['Qawaem/GetCRSubmissionInfo']?.response_body
+                const qawaemStatus = Array.isArray(qawaemStatusRaw) ? qawaemStatusRaw : []
 
                 const STORAGE_BASE = `https://gcvshzutdslmdkwqwteh.supabase.co/storage/v1/object/public/documents/sbc-cr-certificates/${detail.cr_national_number}`
 
@@ -6954,6 +7019,78 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
 
                     {/* Qiwa cards moved — they now render after the GOSI sub-cards
                         block below to keep the visual order SBC → GOSI → Qiwa. */}
+
+                    {/* التزام حماية الأجور (WPS) — من gosi/establishment-compliance */}
+                    {gosiComp && (
+                      <CollapsibleCard title={T('التزام حماية الأجور (WPS)', 'WPS Compliance')} color="#0ea5e9" showSbcIcon>
+                        <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                          <Row k={T('نسبة الالتزام بحماية الأجور', 'WPS Compliance %')} v={gosiComp.wpsCompliancePercentage != null ? `${gosiComp.wpsCompliancePercentage}%` : null} ltr />
+                          <Row k={T('حالة الالتزام', 'WPS Status')} v={gosiComp.wpsComplianceStatus} />
+                          <Row k={T('عمال تم صرف أجورهم', 'Paid Workers')} v={numS(gosiComp.numberOfPaidLaborers)} ltr />
+                          <Row k={T('عمال لم تُصرف أجورهم', 'Unpaid Workers')} v={numS(gosiComp.numberOfUnPaidLaborers)} ltr />
+                          <Row k={T('نسبة العقود الموثقة', 'Contract Auth %')} v={gosiComp.caCompliancePercentage != null ? `${gosiComp.caCompliancePercentage}%` : null} ltr />
+                          <Row k={T('عقود موثقة', 'Authenticated')} v={numS(gosiComp.numberOfAUthenicated)} ltr />
+                          <Row k={T('عقود غير موثقة', 'Unauthenticated')} v={numS(gosiComp.numberOfUNAUthenicated)} ltr />
+                          <Row k={T('فترة الالتزام', 'Period')} v={gosiComp.compliancePeriod} />
+                        </div>
+                      </CollapsibleCard>
+                    )}
+
+                    {/* مخالفات وزارة التجارة */}
+                    <CollapsibleCard title={T('مخالفات وزارة التجارة', 'MoC Violations')} color="#ef4444" showSbcIcon>
+                      <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                        <Row k={T('عدم إيداع القوائم', 'Financial Filing')} v={violations?.totalViolationCount != null ? num(violations.totalViolationCount) : null} ltr />
+                        <Row k={T('مخالفات اللجان', 'Committee')} v={caseViolations?.totalViolationCount != null ? num(caseViolations.totalViolationCount) : null} ltr />
+                        <Row k={T('الامتثال', 'Emtethal')} v={emtethal?.totalViolationCount != null ? num(emtethal.totalViolationCount) : (emtethal?.error ? T('غير متاح', 'N/A') : null)} ltr />
+                      </div>
+                    </CollapsibleCard>
+
+                    {/* القوائم المالية المُودَعة (Qawaem) */}
+                    {qawaem?.qawaemList && qawaem.qawaemList.length > 0 && (
+                      <CollapsibleCard title={T('القوائم المالية المُودَعة', 'Filed Statements')} color="#a78bfa" badge={num(qawaem.total)} showSbcIcon>
+                        <div style={{ padding: '14px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                          {[...qawaem.qawaemList].sort((a, b) => (a.year || 0) - (b.year || 0)).map(y => (
+                            <Row key={y.year} k={`${T('سنة', 'Year')} ${y.year}`} v={y.count} ltr />
+                          ))}
+                        </div>
+                      </CollapsibleCard>
+                    )}
+
+                    {/* حالة القوائم المالية — لكل سنة مالية */}
+                    {qawaemStatus.length > 0 && (
+                      <CollapsibleCard title={T('حالة القوائم المالية', 'Financial Statements Status')} color="#a78bfa" badge={num(qawaemStatus.length)} showSbcIcon>
+                        <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          {[...qawaemStatus].sort((a, b) => (Number(a.year) || 0) - (Number(b.year) || 0)).map((y, i) => {
+                            const onTime = y.isOnTime === true
+                            const statusColor = onTime ? '#22c55e' : '#eab308'
+                            const dateOnly = (s) => (s ? String(s).split(' ')[0] : null)
+                            return (
+                              <div key={y.filingCode || y.year || i} style={{ ...rowBase, padding: 12, display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'stretch' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                                  <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx)' }}>
+                                    {T('السنة المالية', 'Financial year')} {y.year}
+                                  </div>
+                                  {y.filingStatusDesc && (
+                                    <span style={{ fontSize: 10, fontWeight: 600, padding: '3px 8px', borderRadius: 6, background: statusColor + '26', color: statusColor, whiteSpace: 'nowrap' }}>
+                                      {y.filingStatusDesc}
+                                    </span>
+                                  )}
+                                </div>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                                  <Row k={T('نوع التقويم', 'Calendar')} v={y.isHijriDate ? T('هجري', 'Hijri') : T('ميلادي', 'Gregorian')} />
+                                  <Row k={T('الفترة النظامية للإيداع', 'Statutory period')} v={(y.startDate && y.filingDate) ? `${y.startDate} → ${y.filingDate}` : '—'} ltr />
+                                  <Row k={T('تاريخ الإيداع', 'Filed on')} v={dateOnly(y.firstPendingDate) || '—'} ltr />
+                                  <Row k={T('مكتب المراجعة', 'Audit firm')} v={y.firmName || '—'} />
+                                  <Row k={T('أُودعت خلال المدة النظامية', 'Filed on time')} v={onTime ? T('نعم', 'Yes') : T('لا', 'No')} />
+                                  <Row k={T('غير مدققة', 'Unaudited')} v={y.isUnAudit ? T('نعم', 'Yes') : T('لا', 'No')} />
+                                  {y.isResubmission && <Row k={T('إعادة إيداع', 'Resubmission')} v={T('نعم', 'Yes')} />}
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </CollapsibleCard>
+                    )}
 
                     {/* رخص البلدية (Momrah) */}
                     {momrahList.length > 0 && (
@@ -7396,7 +7533,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                               {qRow({ k: T('الرقم الموحد (Unified)', 'Unified number'), v: q.company_unified_number_id, mono: true })}
                               {qRow({ k: T('رقم الكيان', 'Entity number'), v: q.entity_number, mono: true })}
                               {qRow({ k: T('رقم 700', '700 number'), v: q.seven_hundred_number, mono: true })}
-                              {qRow({ k: T('الرقم الضريبي', 'VAT number'), v: q.vat_number, mono: true })}
+                              {qRow({ k: T('الرقم المميز', 'VAT number'), v: q.vat_number, mono: true })}
                               {qRow({ k: T('حساب NIC', 'NIC account'), v: q.nic_account_number, mono: true })}
                               {qRow({ k: T('البريد الإلكتروني', 'Email'), v: q.establishment_email, ltr: true })}
                               {qRow({ k: T('اللون (id)', 'Color id'), v: fmtNum(q.color_id), ltr: true })}
@@ -7574,7 +7711,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                               {mRow({ k: T('تاريخ انتهاء السجل', 'CR expiry date'), v: fmtDate(m.cr_expiry_date), ltr: true })}
                               {mRow({ k: T('حالة السجل', 'CR status'), v: m.cr_status })}
                               {mRow({ k: T('نوع النشاط', 'Business type'), v: m.business_type })}
-                              {mRow({ k: T('الرقم الضريبي', 'VAT number'), v: m.vat_number, mono: true })}
+                              {mRow({ k: T('الرقم المميز', 'VAT number'), v: m.vat_number, mono: true })}
                             </div>
                           </CollapsibleCard>
 
@@ -7720,6 +7857,21 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                   </>
                 )
               })()}
+
+              {/* مطابقة المصادر — مقارنة نفس الحقل المنطقي عبر المنصات وإبراز الفروقات */}
+              <SourceCompareCard detail={detail} gosiEst={gosiEstablishment} qiwa={qiwaCompany} muqeem={muqeemCompany} ajeerEst={ajeerEst} hrsdLaborers={detail?.hrsd_total_laborers} T={T} lang={lang} />
+
+              {/* العمالة الموحدة — دمج كل عامل من قوى+مقيم+تأمينات+أجير */}
+              <UnifiedWorkersCard sb={sb} companyId={qiwaCompany?.company_id} muqeemResidents={muqeemResidents} gosiContributors={gosiContributors} ajeerNotices={ajeerNotices} T={T} lang={lang} />
+
+              {/* أجير — التصاريح والعقود والمدفوعات والمؤشرات */}
+              <AjeerCards est={ajeerEst} notices={ajeerNotices} contracts={ajeerContracts} payments={ajeerPayments} indicators={ajeerIndicators} T={T} lang={lang} />
+
+              {/* مدد — الالتزام وملفات حماية الأجور */}
+              <MudadCards est={mudadEst} months={mudadMonths} T={T} lang={lang} />
+
+              {/* سجل التغييرات بين المزامنات + إصدارات الملفات المؤرشفة */}
+              <SyncHistoryCard history={rowHistory} fileVersions={fileVersions} T={T} lang={lang} />
 
               {/* كروت العمالة والفواتير وسجل التعديلات — آخر العمود بعد كروت المزامنة. */}
               <FacilityRegistryCards
