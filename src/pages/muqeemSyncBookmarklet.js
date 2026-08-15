@@ -2,9 +2,9 @@
 //
 //   • Orchestrator mode  — run on the "الدخول الموحد" picker page
 //       (muqeem.sa/#/single-sign-on/absher/login). Pulls the FULL list of
-//       establishments the Absher identity can reach via /api/sso/absher/get-users
+//       establishments the Absher identity can reach via /api/sso/get-users
 //       (no manual paging through the ~100-page picker), mints a per-org session
-//       token via /api/sso/absher/get-application-jwt, and runs the full deep
+//       token via /api/sso/get-application-jwt, and runs the full deep
 //       sync for EACH establishment in one automated, resumable pass.
 //
 //   • Single mode        — run on any normal muqeem page. Syncs the currently
@@ -20,10 +20,17 @@
 //     setToken, so the browser session is never switched — each org is synced
 //     purely via its own bearer token, in memory, with no navigation.
 //
+// Two-phase orchestrator (the Absher tmpJwt window is only ~60-90s):
+//   PHASE 1 mints every org's id_token FAST (concurrent, cheap, not count-limited)
+//     within that short window; PHASE 2 then deep-syncs each org with its own
+//     id_token (no tmpJwt needed) and refreshes it via /api/refresh-token before it
+//     ages past 15 min. One Absher login can thus cover the whole account instead
+//     of the ~3 orgs that fit when minting and deep-syncing were interleaved.
+//
 // Resumability: every org's detail_synced_at is stamped in muqeem_companies. On
-// (re-)start the orchestrator skips any org already deep-synced today, so when a
-// tmpJwt window expires mid-run the user just re-opens the picker and re-runs;
-// it continues from where it stopped until all establishments are done.
+// (re-)start the orchestrator skips any org already deep-synced today, so if the
+// tmpJwt window closes before all orgs were minted the user just re-opens the
+// picker and re-runs; it continues from where it stopped until all are done.
 //
 // CORS: muqeem.sa is same-origin for every /api call. Supabase writes are blocked
 // by muqeem's CSP, so they are piped through the muqeem-bridge.html popup.
@@ -615,14 +622,11 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
 
     if (onPicker || canOrchestrate) {
       // ═══ ORCHESTRATOR — sync every establishment ═══
-      const now = Math.floor(Date.now() / 1000);
       if (!canOrchestrate) {
         return msg('❌ ما لقيت جلسة أبشر المؤقتة (tmpJwt). افتح «الدخول الموحد» من أبشر ثم شغّل الأداة على تلك الصفحة.');
       }
-      const tmpExp = tmpPayload.exp || 0;
-      if (tmpExp && tmpExp - now < 30) {
-        return msg('❌ انتهت صلاحية جلسة أبشر المؤقتة. ارجع لأبشر واضغط «الانتقال الى مقيم» من جديد ثم شغّل الأداة.');
-      }
+      // No time-window guessing: we mint until Absher actually rejects the temp JWT
+      // (401/400 below) — that rejection is the true, accurate "expired" signal.
 
       // XSRF-TOKEN rotates on every response — recompute per SSO call.
       const ssoHeaders = () => {
@@ -635,7 +639,7 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
       let users;
       try {
         // get-users requires tmpJwt in the BODY (validated NotBlank), not just the header.
-        const ur = await origFetch(API + '/api/sso/absher/get-users', { method: 'POST', credentials: 'include', headers: ssoHeaders(), body: JSON.stringify({ tmpJwt }) });
+        const ur = await origFetch(API + '/api/sso/get-users', { method: 'POST', credentials: 'include', headers: ssoHeaders(), body: JSON.stringify({ tmpJwt }) });
         if (!ur.ok) return msg('❌ فشل جلب المنشآت (HTTP ' + ur.status + '). جرّب إعادة فتح «الدخول الموحد».');
         users = await ur.json();
       } catch (e) { return msg('❌ فشل جلب المنشآت: ' + ((e && e.message) || e)); }
@@ -680,38 +684,66 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
       const pending = users.filter(u => !doneSet.has(String(u.username || u.organizationId)));
       let done = doneSet.size, ok = 0, failed = 0, stoppedForExpiry = false;
 
-      for (let i = 0; i < pending.length; i++) {
-        const u = pending[i];
-        const moi = String(u.username || u.organizationId);
-        const orgName = u.organizationNameAr || moi;
+      // ── PHASE 1 — MINT FIRST. The Absher tmpJwt window is very short (~60-90s),
+      //    but minting an org's session token (get-application-jwt) is cheap and is
+      //    NOT count-limited. So grab tokens for as many orgs as possible FAST with
+      //    a few concurrent workers, deferring the slow per-org deep sync to phase 2.
+      //    This is what lets a single Absher login cover the whole account instead
+      //    of the ~3 orgs that fit when minting and deep-syncing are interleaved.
+      const minted = [];                    /* { u, moi, userLogin, idToken, ts } */
+      const MINT_CONC = 4;
+      let mi = 0, tmpDead = false;
+      const mintWorker = async () => {
+        while (mi < pending.length && !tmpDead) {
+          const u = pending[mi++];
+          const moi = String(u.username || u.organizationId);
+          try {
+            const jr = await origFetch(API + '/api/sso/get-application-jwt', {
+              method: 'POST', credentials: 'include', headers: ssoHeaders(),
+              body: JSON.stringify({ userId: u.userId, tmpJwt }),
+            });
+            // 401/400 = Absher rejected the temp JWT ⇒ it's genuinely expired. Stop
+            // minting (no time-window guessing). Whatever we minted so far, we sync.
+            if (jr.status === 401 || jr.status === 400) { tmpDead = true; return; }
+            if (jr.ok) {
+              const jd = await jr.json();
+              if (jd && jd.id_token) minted.push({ u, moi, userLogin: String(u.userIdentificationNumber || u.username || moi), idToken: jd.id_token, ts: Date.now() });
+            }
+          } catch (_) { /* network hiccup — skip; org stays pending for next run */ }
+          msg('سكّ رموز المنشآت: ' + minted.length + '/' + pending.length + ' ...');
+        }
+      };
+      await Promise.all(Array.from({ length: MINT_CONC }, mintWorker));
+      if (minted.length < pending.length) stoppedForExpiry = true;   /* temp JWT died before all minted */
 
-        // tmpJwt expiry guard — mint tokens only while the temp JWT is valid.
-        if (tmpExp && Math.floor(Date.now() / 1000) > tmpExp - 20) { stoppedForExpiry = true; break; }
-
-        msg('(' + (done + 1) + '/' + total + ') ' + orgName + ' — تسجيل الدخول...');
-        // Mint this org's session token.
-        let idToken = null;
+      // ── PHASE 2 — DEEP SYNC each minted org. Uses the org's own id_token (Bearer),
+      //    so it no longer needs tmpJwt and can run as long as it takes. The id_token
+      //    lives 15 min; refresh it via /api/refresh-token (per-bearer, returns a
+      //    fresh 15-min token, no Absher round-trip) once it ages past 13 min.
+      const REFRESH_AFTER_MS = 13 * 60 * 1000;
+      const refreshTok = async (m) => {
         try {
-          const jr = await origFetch(API + '/api/sso/absher/get-application-jwt', {
-            method: 'POST', credentials: 'include', headers: ssoHeaders(),
-            body: JSON.stringify({ userId: u.userId, tmpJwt }),
+          const rr = await origFetch(API + '/api/refresh-token', {
+            method: 'GET', credentials: 'include',
+            headers: { 'Accept': 'application/json', 'Authorization': 'Bearer ' + m.idToken, 'X-Xsrf-Token': getXsrf() },
           });
-          if (jr.status === 401 || jr.status === 400) { stoppedForExpiry = true; break; }
-          if (jr.ok) { const jd = await jr.json(); idToken = jd && jd.id_token; }
-        } catch (e) { /* fall through as failure */ }
-        if (!idToken) { failed++; continue; }
+          if (rr.ok) { const rd = await rr.json(); const nt = rd && (rd.id_token || rd.token); if (nt) { m.idToken = nt; m.ts = Date.now(); } }
+        } catch (_) { /* keep old token; if it 401s the org just stays for the next run */ }
+      };
+      for (let i = 0; i < minted.length; i++) {
+        const m = minted[i];
+        const orgName = m.u.organizationNameAr || m.moi;
+        if (Date.now() - m.ts > REFRESH_AFTER_MS) { msg('(' + (done + 1) + '/' + total + ') ' + orgName + ' — تجديد الرمز...'); await refreshTok(m); }
 
-        // Per-org data headers. X-Xsrf-Token is injected fresh per request inside
-        // syncOrg (the cookie rotates), so it isn't baked in here.
+        // X-Xsrf-Token is injected fresh per request inside syncOrg (cookie rotates).
         const orgHeaders = {
           'Accept': 'application/json, text/plain, */*',
           'Accept-Language': 'ar-ly',
-          'Authorization': 'Bearer ' + idToken,
+          'Authorization': 'Bearer ' + m.idToken,
         };
-
         msg('(' + (done + 1) + '/' + total + ') ' + orgName + ' — مزامنة...');
         try {
-          const res = await syncOrg(moi, orgHeaders, API, String(u.userIdentificationNumber || u.username || moi));
+          const res = await syncOrg(m.moi, orgHeaders, API, m.userLogin);
           ok++; done++;
           msg('(' + done + '/' + total + ') ✅ ' + orgName + ' — ' + (res.residentsCount || 0) + ' مقيم');
         } catch (e) {

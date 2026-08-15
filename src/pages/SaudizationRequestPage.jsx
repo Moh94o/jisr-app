@@ -282,7 +282,7 @@ export default function SaudizationRequestPage({ sb, toast, user, lang, branchId
                   const sel = office === b.id
                   return (
                     <div key={b.id} onClick={() => setOffice(b.id)} style={cardStyle(sel)}>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: sel ? C.teal : 'var(--tx)' }}>{b.name_ar || b.branch_code}</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: sel ? C.teal : 'var(--tx)' }}>{b.name_ar || b.branch_code}</div>
                       <div style={{ fontSize: 11, color: 'var(--tx4)', direction: 'ltr', marginTop: 3 }}>{b.branch_code}</div>
                     </div>
                   )

@@ -552,7 +552,7 @@ export default function Jub1ReceiptsPage({ sb, user, toast, lang = 'ar', emptyIc
               ].map((x, i) => (
                 <div key={i} style={{ borderRadius: 12, padding: '10px 12px', background: 'rgba(255,255,255,.024)', border: '1px solid rgba(255,255,255,.04)', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 6 }}>
                   <span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{x.l}</span>
-                  <span style={{ fontSize: 20, fontWeight: 700, color: x.v ? x.c : 'var(--tx4)', fontVariantNumeric: 'tabular-nums', direction: 'ltr', textAlign: 'right', lineHeight: 1 }}>{x.v.toLocaleString('en-US')}</span>
+                  <span style={{ fontSize: 20, fontWeight: 600, color: x.v ? x.c : 'var(--tx4)', fontVariantNumeric: 'tabular-nums', direction: 'ltr', textAlign: 'right', lineHeight: 1 }}>{x.v.toLocaleString('en-US')}</span>
                 </div>
               ))}
             </div>
@@ -579,7 +579,7 @@ export default function Jub1ReceiptsPage({ sb, user, toast, lang = 'ar', emptyIc
                   </g>
                 </svg>
                 <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                  <span style={{ fontSize: 22, fontWeight: 700, color: 'var(--tx)', lineHeight: 1, direction: 'ltr' }}>{readyPct}%</span>
+                  <span style={{ fontSize: 22, fontWeight: 600, color: 'var(--tx)', lineHeight: 1, direction: 'ltr' }}>{readyPct}%</span>
                   <span style={{ fontSize: 9.5, fontWeight: 600, marginTop: 4, letterSpacing: '.2px', color: 'var(--tx2)' }}>{T('جاهز', 'ready')}</span>
                 </div>
               </div>
@@ -589,7 +589,7 @@ export default function Jub1ReceiptsPage({ sb, user, toast, lang = 'ar', emptyIc
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, fontWeight: 600, color: 'var(--tx2)' }}>
                       <span style={{ width: 8, height: 8, borderRadius: 3, background: s.c }} /> {s.l}
                     </span>
-                    <span style={{ fontSize: 12.5, fontWeight: 700, color: s.c, fontVariantNumeric: 'tabular-nums', direction: 'ltr' }}>{s.v.toLocaleString('en-US')}</span>
+                    <span style={{ fontSize: 12.5, fontWeight: 600, color: s.c, fontVariantNumeric: 'tabular-nums', direction: 'ltr' }}>{s.v.toLocaleString('en-US')}</span>
                   </div>
                 ))}
               </div>
@@ -764,14 +764,14 @@ export default function Jub1ReceiptsPage({ sb, user, toast, lang = 'ar', emptyIc
                 const st = STATUS[e.review_status] || STATUS.draft
                 return (
                   <tr key={e.id} onClick={() => openFromList(e.id)}>
-                    <td style={{ fontWeight: 700, color: '#B07D00', direction: 'ltr' }}>{e.primary_receipt_no || '—'}</td>
+                    <td style={{ fontWeight: 600, color: '#B07D00', direction: 'ltr' }}>{e.primary_receipt_no || '—'}</td>
                     <td style={{ color: 'var(--tx3)', direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{dt(e.receipt_date)}</td>
                     <td>
                       <div style={{ fontWeight: 600, color: 'var(--tx)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.client_name || <em style={{ color: 'var(--tx4)', fontWeight: 500 }}>{T('بدون اسم', 'No name')}</em>}</div>
                       {e.client_phone && <div style={{ fontSize: 11, color: 'var(--tx4)', direction: 'ltr' }}>{e.client_phone}</div>}
                     </td>
                     <td style={{ color: 'var(--tx3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{services.find(s => s.id === e.service_item_id)?.value_ar || '—'}</td>
-                    <td style={{ fontWeight: 700, color: 'var(--tx)', direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{total ? fmt(total) : '—'}</td>
+                    <td style={{ fontWeight: 600, color: 'var(--tx)', direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{total ? fmt(total) : '—'}</td>
                     <td style={{ color: 'var(--ok)', direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{fmt(paid)}</td>
                     <td style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums', color: total - paid > 0.5 ? 'var(--warn)' : 'var(--tx3)' }}>{total ? fmt(Math.max(0, total - paid)) : '—'}</td>
                     <td>
@@ -782,9 +782,9 @@ export default function Jub1ReceiptsPage({ sb, user, toast, lang = 'ar', emptyIc
                           ? T(`${g.size} سندات مرتبطة — الإجمالي ${fmt(g.total)} · مجموع المقبوض ${fmt(g.received)}`, `${g.size} linked receipts — total ${fmt(g.total)} · received ${fmt(g.received)}`)
                           : T('سند غير مرتبط — يطابق متبقي السند', 'Unlinked — same as receipt remaining')
                         return (
-                          <span title={title} style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums', fontWeight: g.size > 1 ? 700 : 400, color: g.remaining > 0.5 ? 'var(--warn)' : 'var(--ok)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                          <span title={title} style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums', fontWeight: g.size > 1 ? 600 : 400, color: g.remaining > 0.5 ? 'var(--warn)' : 'var(--ok)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                             {fmt(g.remaining)}
-                            {g.size > 1 && <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--tx4)', background: 'var(--bd2)', padding: '1px 5px', borderRadius: 5 }}>×{g.size}</span>}
+                            {g.size > 1 && <span style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--tx4)', background: 'var(--bd2)', padding: '1px 5px', borderRadius: 5 }}>×{g.size}</span>}
                           </span>
                         )
                       })()}
@@ -794,7 +794,7 @@ export default function Jub1ReceiptsPage({ sb, user, toast, lang = 'ar', emptyIc
                       {(() => {
                         const m = excelMatches.get(e.id)
                         const pill = (c, txt, title) => (
-                          <span title={title} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 7, background: c + '14', color: c, fontSize: 10.5, fontWeight: 700, whiteSpace: 'nowrap' }}>{txt}</span>
+                          <span title={title} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 7, background: c + '14', color: c, fontSize: 10.5, fontWeight: 600, whiteSpace: 'nowrap' }}>{txt}</span>
                         )
                         if (!excelRef.length) return <span style={{ color: 'var(--tx5)' }}>…</span>
                         if (!m) return <span title={T('لا يوجد صف بالإكسل يذكر أرقام سندات هذا السند', 'No Excel row mentions this receipt')} style={{ color: 'var(--tx5)', fontSize: 11 }}>—</span>
@@ -804,7 +804,7 @@ export default function Jub1ReceiptsPage({ sb, user, toast, lang = 'ar', emptyIc
                       })()}
                     </td>
                     <td>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, borderInlineStart: '3px solid ' + st.c, background: st.c + '10', padding: '5px 10px', color: st.c, fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap' }}><st.Ico size={13} />{st.l}</span>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, borderInlineStart: '3px solid ' + st.c, background: st.c + '10', padding: '5px 10px', color: st.c, fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' }}><st.Ico size={13} />{st.l}</span>
                     </td>
                   </tr>
                 )
@@ -918,7 +918,7 @@ function ServiceBox({ label, value, options, onChange, placeholder = '—' }) {
                   background: on ? 'rgba(176,125,0,.14)' : 'transparent', transition: '.12s' }}
                 onMouseEnter={ev => { if (!on) ev.currentTarget.style.background = 'rgba(176,125,0,.08)' }}
                 onMouseLeave={ev => { if (!on) ev.currentTarget.style.background = 'transparent' }}>
-                <span style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: on ? 700 : 600, color: on ? '#B07D00' : 'var(--tx)' }}>{o.value_ar}</span>
+                <span style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 600, color: on ? '#B07D00' : 'var(--tx)' }}>{o.value_ar}</span>
                 {on && <Check size={14} color="#B07D00" strokeWidth={3} style={{ flexShrink: 0 }} />}
               </div>
             )
@@ -1225,7 +1225,7 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, excelMatch, 
   const tcCanRead = canCardBtn(user, TAB, 'transfer_calc', 'read')
   const cardTitle = (label, hint) => (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, gap: 10 }}>
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 13.5, fontWeight: 700, color: 'var(--tx)' }}>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 13.5, fontWeight: 600, color: 'var(--tx)' }}>
         <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#B07D00', boxShadow: '0 0 8px rgba(176,125,0,.6)' }} />{label}
       </span>
       {hint && <span style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 600 }}>{hint}</span>}
@@ -1264,7 +1264,7 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, excelMatch, 
     const shown = key === 'total_amount' ? fmt(num(ex)) : String(ex)
     return (
       <div title={T('قيمة «اكسل المكتب» — للاسترشاد فقط، المصدر هو السند الورقي', 'Office-Excel value — reference only; the paper receipt is the source')}
-        style={{ marginTop: 4, fontSize: 10.5, fontWeight: 700, color: mineEmpty ? 'var(--tx3)' : '#e67e22', direction: 'ltr', textAlign: 'right' }}>
+        style={{ marginTop: 4, fontSize: 10.5, fontWeight: 600, color: mineEmpty ? 'var(--tx3)' : '#e67e22', direction: 'ltr', textAlign: 'right' }}>
         {T('الإكسل: ', 'Excel: ')}{shown}
       </div>
     )
@@ -1272,13 +1272,13 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, excelMatch, 
   const roField = (k, v, strong) => (
     <div style={box}>
       <div style={lblS}>{k}</div>
-      <div style={{ fontSize: 14.5, fontWeight: 700, color: strong ? '#B07D00' : 'var(--tx)', direction: 'ltr', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{v}</div>
+      <div style={{ fontSize: 14.5, fontWeight: 600, color: strong ? '#B07D00' : 'var(--tx)', direction: 'ltr', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{v}</div>
     </div>
   )
   const grid2 = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 8 }
   const rowInp = { height: 36, padding: '0 10px', borderRadius: 9, border: '1px solid var(--bd)', background: 'var(--inputBg)', color: 'var(--tx)', fontFamily: 'Cairo, Tajawal, sans-serif', fontSize: 12.5, fontWeight: 600, outline: 'none', boxSizing: 'border-box' }
   const delBtn = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, borderRadius: 8, border: '1px solid rgba(192,57,43,.25)', background: 'rgba(192,57,43,.06)', color: '#c0392b', cursor: 'pointer', flexShrink: 0 }
-  const addBtn = { display: 'inline-flex', alignItems: 'center', gap: 6, height: 32, padding: '0 14px', borderRadius: 9, border: '1px dashed rgba(176,125,0,.45)', background: 'transparent', color: '#B07D00', cursor: 'pointer', fontFamily: 'Cairo, Tajawal, sans-serif', fontSize: 12, fontWeight: 700, alignSelf: 'flex-start' }
+  const addBtn = { display: 'inline-flex', alignItems: 'center', gap: 6, height: 32, padding: '0 14px', borderRadius: 9, border: '1px dashed rgba(176,125,0,.45)', background: 'transparent', color: '#B07D00', cursor: 'pointer', fontFamily: 'Cairo, Tajawal, sans-serif', fontSize: 12, fontWeight: 600, alignSelf: 'flex-start' }
 
   // بطاقة سند مطابق/مرتبط — صورة + بيانات مختصرة + زر ربط/فك (دالة عرض لا مكوّن كي لا يُعاد الإنشاء)
   const linkReceiptCard = (r) => {
@@ -1294,8 +1294,8 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, excelMatch, 
         </div>
         <div style={{ padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 5 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-            <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--tx)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.client_name || T('بدون اسم', 'No name')}</span>
-            <span style={{ fontSize: 10, fontWeight: 700, color: rst.c, background: rst.c + '1a', padding: '2px 7px', borderRadius: 6, flexShrink: 0 }}>{T(rst.l, rst.e)}</span>
+            <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.client_name || T('بدون اسم', 'No name')}</span>
+            <span style={{ fontSize: 10, fontWeight: 600, color: rst.c, background: rst.c + '1a', padding: '2px 7px', borderRadius: 6, flexShrink: 0 }}>{T(rst.l, rst.e)}</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 11, color: 'var(--tx3)', fontWeight: 600, fontVariantNumeric: 'tabular-nums', flexWrap: 'wrap' }}>
             <span style={{ direction: 'ltr' }}>#{r.primary_receipt_no || '—'}</span><span>·</span>
@@ -1303,7 +1303,7 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, excelMatch, 
             <span style={{ direction: 'ltr' }}>{dt(r.receipt_date)}</span>
           </div>
           <button onClick={() => toggleLink(r.id, !on)} disabled={busy || !canLink}
-            style={{ marginTop: 3, height: 32, borderRadius: 8, cursor: (busy || !canLink) ? 'default' : 'pointer', fontFamily: 'Cairo, Tajawal, sans-serif', fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, opacity: (busy || !canLink) ? .6 : 1,
+            style={{ marginTop: 3, height: 32, borderRadius: 8, cursor: (busy || !canLink) ? 'default' : 'pointer', fontFamily: 'Cairo, Tajawal, sans-serif', fontSize: 12, fontWeight: 600, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, opacity: (busy || !canLink) ? .6 : 1,
               border: on ? '1px solid rgba(192,57,43,.35)' : '1px solid rgba(31,122,69,.45)',
               background: on ? 'rgba(192,57,43,.06)' : 'rgba(31,122,69,.1)',
               color: on ? '#c0392b' : 'var(--ok,#1f7a45)' }}>
@@ -1323,7 +1323,7 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, excelMatch, 
             title={dir === 'prev' ? T('السند السابق', 'Previous receipt') : T('السند التالي', 'Next receipt')}
             onMouseEnter={ev => { if (enabled) ev.currentTarget.style.background = 'rgba(176,125,0,.10)' }}
             onMouseLeave={ev => { ev.currentTarget.style.background = 'transparent' }}
-            style={{ cursor: enabled ? 'pointer' : 'not-allowed', opacity: enabled ? 1 : .4, fontFamily: 'Cairo, Tajawal, sans-serif', display: 'inline-flex', alignItems: 'center', gap: 7, height: 38, padding: '0 15px', borderRadius: 10, background: 'transparent', border: '1px solid rgba(176,125,0,.5)', color: '#B07D00', fontSize: 12, fontWeight: 700, boxShadow: 'var(--shadow-sm)', transition: '.15s' }}>
+            style={{ cursor: enabled ? 'pointer' : 'not-allowed', opacity: enabled ? 1 : .4, fontFamily: 'Cairo, Tajawal, sans-serif', display: 'inline-flex', alignItems: 'center', gap: 7, height: 38, padding: '0 15px', borderRadius: 10, background: 'transparent', border: '1px solid rgba(176,125,0,.5)', color: '#B07D00', fontSize: 12, fontWeight: 600, boxShadow: 'var(--shadow-sm)', transition: '.15s' }}>
             {dir === 'prev' && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>}
             <span>{label}</span>
             {dir === 'next' && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5" /><path d="m12 19-7-7 7-7" /></svg>}
@@ -1347,9 +1347,9 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, excelMatch, 
           <div>
             <div style={{ fontSize: 22, fontWeight: 600, color: '#B07D00', letterSpacing: '-.2px' }}>{T('تفاصيل سند القبض', 'Receipt details')}</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--tx)', direction: 'ltr' }}>{e.primary_receipt_no ? `#${e.primary_receipt_no}` : T('بدون رقم', 'No number')}</span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx)', direction: 'ltr' }}>{e.primary_receipt_no ? `#${e.primary_receipt_no}` : T('بدون رقم', 'No number')}</span>
               <span style={{ fontSize: 12, color: 'var(--tx3)', direction: 'ltr' }}>{dt(e.receipt_date)}</span>
-              <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 10.5, fontWeight: 700, color: st.c, background: st.c + '18' }}>{st.l}</span>
+              <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 10.5, fontWeight: 600, color: st.c, background: st.c + '18' }}>{st.l}</span>
               <span style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600 }}>JUB1</span>
             </div>
           </div>
@@ -1371,7 +1371,7 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, excelMatch, 
       {(flags.length > 0 || e.review_note) && (
         <div style={{ marginBottom: 14, padding: '10px 14px', borderRadius: 12, background: 'rgba(192,57,43,.06)', border: '1px solid rgba(192,57,43,.2)', display: 'flex', flexDirection: 'column', gap: 4 }}>
           {flags.length > 0 && (
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#c0392b', fontSize: 12, fontWeight: 700 }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#c0392b', fontSize: 12, fontWeight: 600 }}>
               <AlertTriangle size={14} /> {flags.join('، ')}
             </span>
           )}
@@ -1384,7 +1384,7 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, excelMatch, 
         {(isTransferSvc || f.is_transfer_calc) && (
         <div style={{ ...card, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, ...(f.is_transfer_calc ? { border: '1px solid rgba(124,58,237,.45)', background: 'rgba(124,58,237,.05)' } : {}) }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 13.5, fontWeight: 700, color: f.is_transfer_calc ? '#7c3aed' : 'var(--tx)' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 13.5, fontWeight: 600, color: f.is_transfer_calc ? '#7c3aed' : 'var(--tx)' }}>
               <FileText size={15} /> {T('هذا السجل حسبة تنازل (وليس سند قبض)', 'This record is a transfer calculation (not a receipt)')}
             </span>
             <span style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 600, lineHeight: 1.6 }}>
@@ -1448,7 +1448,7 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, excelMatch, 
               <X size={20} strokeWidth={2.6} />
             </span>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <span style={{ fontSize: 14.5, fontWeight: 800, color: '#6b7280' }}>{T('سند ملغي', 'Cancelled receipt')}</span>
+              <span style={{ fontSize: 14.5, fontWeight: 600, color: '#6b7280' }}>{T('سند ملغي', 'Cancelled receipt')}</span>
               <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--tx3)' }}>{T('هذا السند ملغى ولا يُحتسب في الإجماليات', 'This receipt is cancelled and excluded from totals')}</span>
             </div>
           </div>
@@ -1478,7 +1478,7 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, excelMatch, 
             <div style={{ ...cardStyle('client'), border: '1px solid rgba(176,125,0,.3)', background: 'rgba(176,125,0,.04)' }}>
               {cardTitle(T('مرجع اكسل المكتب', 'Office-Excel reference'), T('للاسترشاد فقط — المصدر هو السند الورقي', 'Reference only — the paper receipt is the source'))}
               {excelMatch.weak && (
-                <div style={{ marginBottom: 10, padding: '8px 12px', borderRadius: 10, background: 'rgba(138,143,152,.1)', border: '1px solid rgba(138,143,152,.35)', fontSize: 11.5, fontWeight: 700, color: '#8a8f98', display: 'flex', alignItems: 'center', gap: 7 }}>
+                <div style={{ marginBottom: 10, padding: '8px 12px', borderRadius: 10, background: 'rgba(138,143,152,.1)', border: '1px solid rgba(138,143,152,.35)', fontSize: 11.5, fontWeight: 600, color: '#8a8f98', display: 'flex', alignItems: 'center', gap: 7 }}>
                   <AlertTriangle size={14} />
                   {T('مطابقة بالرقم فقط — لا اتفاق في الاسم أو الإقامة؛ قد يكون هذا صفاً لسند آخر يحمل الرقم نفسه', 'Number-only match — no name/ID agreement; this may be a different receipt sharing the number')}
                 </div>
@@ -1520,7 +1520,7 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, excelMatch, 
           {/* السند ملغي — مفتاح يدوي يضبط حالة السند (ملغي ⇄ مسودة) */}
           <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '10px 12px', borderRadius: 12, background: e.review_status === 'cancelled' ? 'rgba(192,57,43,.06)' : 'var(--inputBg)', border: `1px solid ${e.review_status === 'cancelled' ? 'rgba(192,57,43,.3)' : 'var(--bd)'}`, transition: '.15s' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <span style={{ fontSize: 12.5, fontWeight: 700, color: e.review_status === 'cancelled' ? '#c0392b' : 'var(--tx2)' }}>{T('السند ملغي', 'Receipt cancelled')}</span>
+              <span style={{ fontSize: 12.5, fontWeight: 600, color: e.review_status === 'cancelled' ? '#c0392b' : 'var(--tx2)' }}>{T('السند ملغي', 'Receipt cancelled')}</span>
               <span style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 600 }}>{T('فعّله إذا كان مكتوباً على السند «ملغي» أو عليه X بالأحمر', 'Turn on if marked cancelled / red X')}</span>
             </div>
             {(() => {
@@ -1566,7 +1566,7 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, excelMatch, 
                 <button type="button" disabled={!planEditable} title={p.paid ? T('مدفوع — اضغط للإلغاء', 'Paid — click to clear') : T('لم يصل بعد — اضغط للتأكيد', 'Not received — click to confirm')}
                   onClick={() => { if (planEditable) set('plan', f.plan.map(x => x._k === p._k ? { ...x, paid: !x.paid } : x)) }}
                   style={{ display: 'inline-flex', alignItems: 'center', gap: 5, height: 36, padding: '0 12px', borderRadius: 9, cursor: 'pointer', flexShrink: 0,
-                    fontFamily: 'Cairo, Tajawal, sans-serif', fontSize: 12, fontWeight: 700, transition: '.15s',
+                    fontFamily: 'Cairo, Tajawal, sans-serif', fontSize: 12, fontWeight: 600, transition: '.15s',
                     border: p.paid ? '1px solid rgba(31,122,69,.5)' : '1px dashed var(--bd)',
                     background: p.paid ? 'rgba(31,122,69,.12)' : 'var(--inputBg)',
                     color: p.paid ? 'var(--ok, #1f7a45)' : 'var(--tx4)' }}>
@@ -1597,7 +1597,7 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, excelMatch, 
                     <span title={found ? T('يوجد سند مسجّل بهذا الرقم', 'A receipt exists with this number') : T('لا يوجد سند مسجّل بهذا الرقم بعد', 'No receipt registered with this number yet')}
                       style={{ width: 7, height: 7, borderRadius: '50%', background: found ? 'var(--ok,#1f7a45)' : '#c0392b', flexShrink: 0 }} />
                     <button onClick={() => onOpenByNo(n)} title={T('فتح السند المرتبط', 'Open linked receipt')}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: found ? 'var(--ok,#1f7a45)' : '#c0392b', fontWeight: 700, fontSize: 12.5, fontFamily: 'Cairo, Tajawal, sans-serif', direction: 'ltr', padding: 0 }}>{n}</button>
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: found ? 'var(--ok,#1f7a45)' : '#c0392b', fontWeight: 600, fontSize: 12.5, fontFamily: 'Cairo, Tajawal, sans-serif', direction: 'ltr', padding: 0 }}>{n}</button>
                     {numsEditable && <button onClick={() => set('prevNos', f.prevNos.filter((_, j) => j !== i))} title={T('إزالة', 'Remove')}
                       style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--tx4)', display: 'inline-flex', padding: 0 }}><X size={12} /></button>}
                   </span>
@@ -1623,8 +1623,8 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, excelMatch, 
               {resolution.map(({ no, matches }) => (
                 <div key={no}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                    <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--tx2)', direction: 'ltr' }}>#{no}</span>
-                    <span style={{ fontSize: 10.5, fontWeight: 700, padding: '2px 8px', borderRadius: 6,
+                    <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx2)', direction: 'ltr' }}>#{no}</span>
+                    <span style={{ fontSize: 10.5, fontWeight: 600, padding: '2px 8px', borderRadius: 6,
                       ...(matches.length ? { color: 'var(--ok,#1f7a45)', background: 'rgba(31,122,69,.1)' } : { color: '#c0392b', background: 'rgba(192,57,43,.08)' }) }}>
                       {matches.length ? `${matches.length} ${T('سند مطابق', 'matching')}` : T('سند غير موجود', 'Receipt missing')}
                     </span>
@@ -1641,7 +1641,7 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, excelMatch, 
               {/* مرتبطة فعلياً لكن رقمها غير مسجّل أعلاه */}
               {extraLinked.length > 0 && (
                 <div>
-                  <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--tx2)', marginBottom: 6 }}>{T('مرتبطة بهذا السند (رقمها غير مسجّل أعلاه)', 'Linked to this receipt (number not listed above)')}</div>
+                  <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx2)', marginBottom: 6 }}>{T('مرتبطة بهذا السند (رقمها غير مسجّل أعلاه)', 'Linked to this receipt (number not listed above)')}</div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(230px,1fr))', gap: 8 }}>{extraLinked.map(linkReceiptCard)}</div>
                 </div>
               )}
@@ -1689,7 +1689,7 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, excelMatch, 
                 : T('سند غير مرتبط — يطابق متبقي السند', 'Unlinked — same as receipt remaining')}
                 style={{ ...box, background: 'rgba(176,125,0,.09)', border: '1px solid rgba(176,125,0,.35)' }}>
                 <div style={{ ...lblS, color: '#B07D00' }}>{T('متبقي الفاتورة', 'Invoice remaining')}{linkedRows.length ? ` ×${linkedRows.length + 1}` : ''}</div>
-                <div style={{ fontSize: 14.5, fontWeight: 700, color: '#B07D00', direction: 'ltr', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                <div style={{ fontSize: 14.5, fontWeight: 600, color: '#B07D00', direction: 'ltr', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                   {liveTotal ? fmt(Math.max(0, liveTotal - groupPaid)) : '—'}
                 </div>
               </div>
@@ -1715,9 +1715,9 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, excelMatch, 
               <div style={{ marginBottom: 14 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
                   <FileText size={13} style={{ color: '#7c3aed' }} />
-                  <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--tx2)' }}>{T('حسبة تنازل مسجّلة لنفس العامل', 'Transfer calc registered for this worker')}</span>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: '#7c3aed', direction: 'ltr' }}>{idKey}</span>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tx4)' }}>({calcMatches.length})</span>
+                  <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx2)' }}>{T('حسبة تنازل مسجّلة لنفس العامل', 'Transfer calc registered for this worker')}</span>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: '#7c3aed', direction: 'ltr' }}>{idKey}</span>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx4)' }}>({calcMatches.length})</span>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(170px,1fr))', gap: 8 }}>
                   {calcMatches.map(c => {
@@ -1729,8 +1729,8 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, excelMatch, 
                           {img ? <img src={img} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <FileText size={26} color="var(--tx5)" />}
                         </div>
                         <div style={{ padding: '8px 10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-                          <span style={{ fontSize: 11.5, fontWeight: 700, color: '#7c3aed', direction: 'ltr' }}>#{c.primary_receipt_no || '—'}</span>
-                          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--tx3)', direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{c.total_amount ? fmt(c.total_amount) : ''}</span>
+                          <span style={{ fontSize: 11.5, fontWeight: 600, color: '#7c3aed', direction: 'ltr' }}>#{c.primary_receipt_no || '—'}</span>
+                          <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx3)', direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{c.total_amount ? fmt(c.total_amount) : ''}</span>
                         </div>
                       </div>
                     )
@@ -1802,7 +1802,7 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, excelMatch, 
           <button onClick={() => setDelModal(true)}
             onMouseEnter={ev => { ev.currentTarget.style.background = 'rgba(192,57,43,.12)' }}
             onMouseLeave={ev => { ev.currentTarget.style.background = 'rgba(192,57,43,.06)' }}
-            style={{ width: '100%', boxSizing: 'border-box', cursor: 'pointer', fontFamily: 'Cairo, Tajawal, sans-serif', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 9, height: 48, padding: '0 18px', borderRadius: 14, background: 'rgba(192,57,43,.06)', border: '1px solid rgba(192,57,43,.35)', color: '#c0392b', fontSize: 13.5, fontWeight: 700, letterSpacing: '.2px', transition: '.15s' }}>
+            style={{ width: '100%', boxSizing: 'border-box', cursor: 'pointer', fontFamily: 'Cairo, Tajawal, sans-serif', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 9, height: 48, padding: '0 18px', borderRadius: 14, background: 'rgba(192,57,43,.06)', border: '1px solid rgba(192,57,43,.35)', color: '#c0392b', fontSize: 13.5, fontWeight: 600, letterSpacing: '.2px', transition: '.15s' }}>
             <Trash2 size={16} /><span>{T('حذف السند', 'Delete receipt')}</span>
           </button>
         )}
@@ -1812,9 +1812,9 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, excelMatch, 
       {dirty && canEditReceipt && (
         <div style={{ position: 'sticky', bottom: 14, zIndex: 30, display: 'flex', justifyContent: 'center', marginTop: 18 }}>
           <div style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '10px 16px', borderRadius: 14, background: 'var(--modal-bg)', border: '1px solid rgba(176,125,0,.4)', boxShadow: '0 12px 34px rgba(0,0,0,.28)' }}>
-            <span style={{ fontSize: 12, color: 'var(--tx3)', fontWeight: 700 }}>{T('تعديلات غير محفوظة', 'Unsaved changes')}</span>
+            <span style={{ fontSize: 12, color: 'var(--tx3)', fontWeight: 600 }}>{T('تعديلات غير محفوظة', 'Unsaved changes')}</span>
             <button onClick={() => { setF(initDetailForm(e)); setPrevInput('') }}
-              style={{ height: 36, padding: '0 14px', borderRadius: 9, border: '1px solid var(--bd)', background: 'var(--inputBg)', color: 'var(--tx3)', cursor: 'pointer', fontFamily: 'Cairo, Tajawal, sans-serif', fontSize: 12.5, fontWeight: 700 }}>
+              style={{ height: 36, padding: '0 14px', borderRadius: 9, border: '1px solid var(--bd)', background: 'var(--inputBg)', color: 'var(--tx3)', cursor: 'pointer', fontFamily: 'Cairo, Tajawal, sans-serif', fontSize: 12.5, fontWeight: 600 }}>
               {T('تجاهل', 'Discard')}
             </button>
             <button onClick={doSave} disabled={saving} style={{ ...btnGold, opacity: saving ? .6 : 1 }}>
@@ -1836,7 +1836,7 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, excelMatch, 
           <ModalSection Icon={CheckCircle2} label={T('اختر الحالة', 'Choose status')}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, fontSize: 12, color: 'var(--tx3)', fontWeight: 600 }}>
               {T('الحالة الحالية', 'Current')}:
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: st.c, fontWeight: 700 }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: st.c, fontWeight: 600 }}>
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: st.c }} /> {T(st.l, st.e)}
               </span>
             </div>
@@ -1858,7 +1858,7 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, excelMatch, 
                         <Ico size={19} strokeWidth={2.2} />
                       </span>
                       <span style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0, flex: 1 }}>
-                        <span style={{ fontSize: 14, fontWeight: 700, color: S.c }}>{T(S.l, S.e)}</span>
+                        <span style={{ fontSize: 14, fontWeight: 600, color: S.c }}>{T(S.l, S.e)}</span>
                         <span style={{ fontSize: 11.5, fontWeight: 500, color: 'var(--tx3)', lineHeight: 1.5 }}>{STATUS_DESC[to]}</span>
                       </span>
                       {sel && <Check size={18} strokeWidth={2.6} color={S.c} style={{ flexShrink: 0 }} />}
@@ -1880,11 +1880,11 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, excelMatch, 
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 16 }}>
               <button onClick={() => setDelModal(false)} disabled={delBusy}
-                style={{ height: 40, padding: '0 16px', borderRadius: 10, border: '1px solid var(--bd)', background: 'var(--inputBg)', color: 'var(--tx3)', cursor: 'pointer', fontFamily: 'Cairo, Tajawal, sans-serif', fontSize: 13, fontWeight: 700 }}>
+                style={{ height: 40, padding: '0 16px', borderRadius: 10, border: '1px solid var(--bd)', background: 'var(--inputBg)', color: 'var(--tx3)', cursor: 'pointer', fontFamily: 'Cairo, Tajawal, sans-serif', fontSize: 13, fontWeight: 600 }}>
                 {T('إلغاء', 'Cancel')}
               </button>
               <button onClick={doDelete} disabled={delBusy}
-                style={{ height: 40, padding: '0 18px', borderRadius: 10, border: 'none', background: '#c0392b', color: '#fff', cursor: delBusy ? 'wait' : 'pointer', fontFamily: 'Cairo, Tajawal, sans-serif', fontSize: 13, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 8, opacity: delBusy ? .7 : 1 }}>
+                style={{ height: 40, padding: '0 18px', borderRadius: 10, border: 'none', background: '#c0392b', color: '#fff', cursor: delBusy ? 'wait' : 'pointer', fontFamily: 'Cairo, Tajawal, sans-serif', fontSize: 13, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 8, opacity: delBusy ? .7 : 1 }}>
                 <Trash2 size={15} /> {delBusy ? T('جارٍ الحذف…', 'Deleting…') : T('حذف السند', 'Delete')}
               </button>
             </div>
@@ -2299,7 +2299,7 @@ function EntryModal({ sb, user, lang, tt, branch, services, methods, agents, ent
               <button type="button" title={p.paid ? T('مدفوع — اضغط للإلغاء', 'Paid — click to clear') : T('لم يصل بعد — اضغط للتأكيد', 'Not received — click to confirm')}
                 onClick={() => setPlan(p._k, 'paid', !p.paid)}
                 style={{ display: 'inline-flex', alignItems: 'center', gap: 5, height: 36, padding: '0 12px', borderRadius: 9, cursor: 'pointer', flexShrink: 0,
-                  fontFamily: 'Cairo, Tajawal, sans-serif', fontSize: 12, fontWeight: 700, transition: '.15s',
+                  fontFamily: 'Cairo, Tajawal, sans-serif', fontSize: 12, fontWeight: 600, transition: '.15s',
                   border: p.paid ? '1px solid rgba(31,122,69,.5)' : '1px dashed var(--bd)',
                   background: p.paid ? 'rgba(31,122,69,.12)' : 'var(--inputBg)',
                   color: p.paid ? 'var(--ok, #1f7a45)' : 'var(--tx4)' }}>
@@ -2360,7 +2360,7 @@ function EntryModal({ sb, user, lang, tt, branch, services, methods, agents, ent
       <span style={{ color: 'var(--tx3)' }}>{T('المدفوع', 'Paid')}: <b style={{ color: 'var(--ok)', direction: 'ltr' }}>{fmt(paid)}</b></span>
       <span style={{ color: 'var(--tx3)' }}>{T('المتبقي', 'Remaining')}: <b style={{ color: remaining > 0.5 ? 'var(--warn)' : 'var(--tx2)', direction: 'ltr' }}>{fmt(remaining)}</b></span>
       {liveFlags.length > 0 && (
-        <span style={{ color: '#c0392b', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+        <span style={{ color: '#c0392b', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
           <AlertTriangle size={13} /> {liveFlags.join('، ')}
         </span>
       )}
@@ -2383,7 +2383,7 @@ function EntryModal({ sb, user, lang, tt, branch, services, methods, agents, ent
 function StatCard({ label, value, c }) {
   return (
     <div style={{ padding: '10px 12px', borderRadius: 12, border: '1px solid var(--bd)', background: 'var(--card-grad2)', boxShadow: 'var(--shadow-sm)' }}>
-      <div style={{ fontSize: 20, fontWeight: 800, color: c, fontFamily: 'Cairo', direction: 'ltr' }}>{value}</div>
+      <div style={{ fontSize: 20, fontWeight: 600, color: c, fontFamily: 'Cairo', direction: 'ltr' }}>{value}</div>
       <div style={{ fontSize: 11, color: 'var(--tx3)', marginTop: 2 }}>{label}</div>
     </div>
   )
@@ -2406,7 +2406,7 @@ function ComboField({ label, value, onChange, options, lang }) {
   const id = useRef('dl_' + rid()).current
   return (
     <div>
-      <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--tx3)', marginBottom: 6, fontFamily: 'Cairo' }}>{label}</div>
+      <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--tx3)', marginBottom: 6, fontFamily: 'Cairo' }}>{label}</div>
       <input list={id} value={value || ''} onChange={e => onChange(e.target.value)}
         style={{ width: '100%', height: 42, padding: '0 12px', borderRadius: 9, border: '1px solid transparent', background: 'var(--inputBg)', color: 'var(--tx)', fontFamily: 'Cairo', fontSize: 14, textAlign: 'center' }} />
       <datalist id={id}>{(options || []).map((o, i) => <option key={i} value={o} />)}</datalist>
@@ -2415,8 +2415,8 @@ function ComboField({ label, value, onChange, options, lang }) {
 }
 
 // ── أنماط ─────────────────────────────────────────────────────────────────
-const btnGold = { display: 'inline-flex', alignItems: 'center', gap: 6, height: 38, padding: '0 16px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,var(--accent-strong,#B07D00),var(--accent))', color: '#fff', fontFamily: 'Cairo', fontSize: 13, fontWeight: 700, cursor: 'pointer', boxShadow: 'var(--shadow-sm)' }
+const btnGold = { display: 'inline-flex', alignItems: 'center', gap: 6, height: 38, padding: '0 16px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,var(--accent-strong,#B07D00),var(--accent))', color: '#fff', fontFamily: 'Cairo', fontSize: 13, fontWeight: 600, cursor: 'pointer', boxShadow: 'var(--shadow-sm)' }
 const btnGhost = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 38, height: 38, borderRadius: 10, border: '1px solid var(--bd)', background: 'var(--inputBg)', color: 'var(--tx2)', cursor: 'pointer' }
 const cellInput = { height: 34, padding: '0 10px', borderRadius: 8, border: '1px solid var(--inputBd)', background: 'var(--card-bg,var(--sf))', color: 'var(--tx)', fontFamily: 'Cairo', fontSize: 12.5 }
 const rowDel = { width: 30, height: 30, flexShrink: 0, borderRadius: 8, border: 'none', background: 'rgba(192,57,43,.12)', color: '#c0392b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }
-const addRowBtn = { alignSelf: 'flex-start', display: 'inline-flex', alignItems: 'center', gap: 6, height: 32, padding: '0 12px', borderRadius: 9, border: '1px dashed var(--accent-bd)', background: 'var(--accent-soft)', color: 'var(--accent)', fontFamily: 'Cairo', fontSize: 12, fontWeight: 700, cursor: 'pointer' }
+const addRowBtn = { alignSelf: 'flex-start', display: 'inline-flex', alignItems: 'center', gap: 6, height: 32, padding: '0 12px', borderRadius: 9, border: '1px dashed var(--accent-bd)', background: 'var(--accent-soft)', color: 'var(--accent)', fontFamily: 'Cairo', fontSize: 12, fontWeight: 600, cursor: 'pointer' }

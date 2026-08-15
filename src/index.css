@@ -2,6 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ═══ سقف وزن الخط = 600 (FW_MAX في FormKit) ═══════════════════════════
+   لا يُستعمل في المشروع أي وزن أثقل من semibold. هذه القاعدة تغطّي ما لا
+   يُكتب في الأنماط: <b>/<strong> (افتراضهما 700 في المتصفح) وأدوات
+   Tailwind (font-bold/extrabold/black). أي وزن أثقل يُقصّ إلى 600. */
+b, strong,
+.font-bold, .font-extrabold, .font-black,
+[style*="font-weight: 700"], [style*="font-weight: 800"], [style*="font-weight: 900"],
+[style*="font-weight:700"], [style*="font-weight:800"], [style*="font-weight:900"] {
+  font-weight: 600;
+}
+
 /* Shared skeleton shimmer — defined globally so every loading skeleton animates
    regardless of how the Skeleton.jsx primitives are imported (PageSkeleton also
    self-injects these, this is the safety net for pages that import the bare

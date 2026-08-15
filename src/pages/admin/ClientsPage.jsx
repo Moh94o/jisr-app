@@ -784,7 +784,7 @@ function InvoiceRow({ invoice, openInvoice, T, isAr, fv = () => true }) {
   return (
     <div style={{ position: 'relative', overflow: 'hidden', padding: '12px 12px', borderRadius: 10, background: 'var(--inputBg)', border: `1px solid ${cancelled ? 'rgba(232,114,101,.30)' : 'var(--bd)'}`, opacity: cancelled ? .72 : 1 }}>
       {cancelled && (
-        <span style={{ position: 'absolute', top: '50%', insetInlineEnd: 14, transform: 'translateY(-50%) rotate(-14deg)', pointerEvents: 'none', border: `2px solid ${C.red}`, color: C.red, borderRadius: 7, padding: '3px 12px', fontSize: 15, fontWeight: 800, letterSpacing: 1, opacity: .85, fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+        <span style={{ position: 'absolute', top: '50%', insetInlineEnd: 14, transform: 'translateY(-50%) rotate(-14deg)', pointerEvents: 'none', border: `2px solid ${C.red}`, color: C.red, borderRadius: 7, padding: '3px 12px', fontSize: 15, fontWeight: 600, letterSpacing: 1, opacity: .85, fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
           {T('ملغية', 'CANCELLED')}
         </span>
       )}

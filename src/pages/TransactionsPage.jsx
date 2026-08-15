@@ -3399,7 +3399,7 @@ function TransactionDetailPage({ sb, sr, onBack, isAr, T, toast, user, tabId, iq
                             }}>
                               {stoppedHere ? <Ban size={atNow ? 19 : 17} strokeWidth={2.4} /> : done ? <CheckCircle2 size={atNow ? 21 : 18} strokeWidth={2.6} /> : cur ? <Clock size={atNow ? 19 : 16} strokeWidth={2.4} /> : (i + 1)}
                             </span>
-                            <span style={{ fontSize: atNow ? 11 : 10, color: sc || 'var(--tx4)', fontWeight: atNow ? 600 : 600, textAlign: 'center', lineHeight: 1.3 }}>{s.label}</span>
+                            <span style={{ fontSize: atNow ? 11 : 10, color: sc || 'var(--tx4)', fontWeight: 600, textAlign: 'center', lineHeight: 1.3 }}>{s.label}</span>
                           </div>
                           {i < STAGES.length - 1 && <span style={{ flex: 1, height: 3, borderRadius: 3, background: curIdx > i ? C.ok : 'var(--bd)', marginTop: atNow ? 19 : 16 }} />}
                         </React.Fragment>

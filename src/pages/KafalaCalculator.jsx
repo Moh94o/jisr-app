@@ -1424,7 +1424,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
                     <button type="button" onClick={retryMuqeem} disabled={busy || !iqValid} title={T('إعادة الاتصال بمقيم','Reconnect to Muqeem')}
                       onMouseEnter={e => { if (busy || !iqValid) return; e.currentTarget.style.background = C.gold; e.currentTarget.style.color = '#000'; e.currentTarget.style.borderColor = C.gold }}
                       onMouseLeave={e => { if (busy || !iqValid) return; e.currentTarget.style.background = 'rgba(176,125,0,.14)'; e.currentTarget.style.color = C.gold; e.currentTarget.style.borderColor = 'rgba(176,125,0,.4)' }}
-                      style={{ pointerEvents: 'auto', display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 8, border: '1px solid rgba(176,125,0,.4)', background: 'rgba(176,125,0,.14)', color: C.gold, fontFamily: F, fontSize: 11, fontWeight: 700, cursor: (busy || !iqValid) ? 'default' : 'pointer', opacity: (busy || !iqValid) ? 0.55 : 1, transition: '.15s', whiteSpace: 'nowrap' }}>
+                      style={{ pointerEvents: 'auto', display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 8, border: '1px solid rgba(176,125,0,.4)', background: 'rgba(176,125,0,.14)', color: C.gold, fontFamily: F, fontSize: 11, fontWeight: 600, cursor: (busy || !iqValid) ? 'default' : 'pointer', opacity: (busy || !iqValid) ? 0.55 : 1, transition: '.15s', whiteSpace: 'nowrap' }}>
                       {busy ? spinner : <RefreshCw size={11} strokeWidth={2.6} />} {T('إعادة الاتصال','Reconnect')}
                     </button>
                   )}

@@ -28,6 +28,7 @@ const PG_LABELS = {
   workers: { ar: 'العمالة الدائمة', en: 'Permanent Workforce' },
   temp_workers: { ar: 'العمالة المؤقتة', en: 'Temporary Workforce' },
   work_visas: { ar: 'تأشيرات العمل', en: 'Work Visas' },
+  visa_grid: { ar: 'جدول إصدار التأشيرات', en: 'Visa Issuance Grid' },
   invoices: { ar: 'الفواتير', en: 'Invoices' },
   deposits: { ar: 'الإيداعات', en: 'Deposits' },
   payments: { ar: 'سدادات الخدمات', en: 'Service Payments' },

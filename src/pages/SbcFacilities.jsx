@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import BackButton from '../components/BackButton'
 import { buildBookmarklet, buildPdfBookmarklet } from './sbcSyncBookmarklet.js'
 import { buildGosiBookmarklet } from './gosiSyncBookmarklet.js'
-import { buildQiwaBookmarklet, buildQiwaNitaqBookmarklet } from './qiwaSyncBookmarklet.js'
+import { buildQiwaBookmarklet } from './qiwaSyncBookmarklet.js'
 import { buildMuqeemBookmarklet } from './muqeemSyncBookmarklet.js'
 import { buildAjeerBookmarklet } from './ajeerSyncBookmarklet.js'
 import { buildMudadBookmarklet } from './mudadSyncBookmarklet.js'
@@ -544,7 +544,7 @@ function QiwaVisaRequestsCard({ sb, companyId, T }) {
                 <div style={{ gridColumn: '1 / -1', marginTop: 4, display: 'flex', flexDirection: 'column', gap: 4 }}>
                   {bnByReq[r.request_id].map((b, bi) => (
                     <div key={b.border_number || bi} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', padding: '5px 8px', borderRadius: 6, background: 'rgba(59,130,246,.06)', border: '1px solid var(--bd2)', fontSize: 10.5 }}>
-                      <span style={{ fontFamily: 'ui-monospace, monospace', direction: 'ltr', color: 'var(--tx)', fontWeight: 700, fontSize: 13 }}>{b.border_number}</span>
+                      <span style={{ fontFamily: 'ui-monospace, monospace', direction: 'ltr', color: 'var(--tx)', fontWeight: 600, fontSize: 13 }}>{b.border_number}</span>
                       {b.nationality_ar && <span style={{ color: 'var(--tx2)', fontWeight: 600 }}>{b.nationality_ar}</span>}
                       {b.embassy_ar && <span style={{ color: 'var(--tx5)' }}>· {b.embassy_ar}</span>}
                       {b.occupation_ar && <span style={{ color: 'var(--tx4)' }}>· {b.occupation_ar}</span>}
@@ -1271,7 +1271,7 @@ function MuqeemResidentRow({ r, T, visas: reportVisas }) {
                     <div key={v.number || i} style={{ padding: '8px 10px', borderRadius: 8, background: accent + '0d', border: '1px solid ' + accent + '33' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
                         <span style={{ width: 6, height: 6, borderRadius: '50%', background: accent, flexShrink: 0 }} />
-                        <span style={{ fontSize: 10.5, fontWeight: 700, color: accent }}>{typeLabel}</span>
+                        <span style={{ fontSize: 10.5, fontWeight: 600, color: accent }}>{typeLabel}</span>
                         {st && <span style={{ fontSize: 9, fontWeight: 600, color: stColor, background: stColor + '18', border: '1px solid ' + stColor + '33', borderRadius: 5, padding: '1px 6px' }}>{stLabel}</span>}
                         <span dir="ltr" style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--tx)', fontFamily: 'ui-monospace, monospace', marginInlineStart: 'auto' }}>{v.number}</span>
                       </div>
@@ -1716,7 +1716,7 @@ function CollapsibleCard({ title, color, badge, badgeColor, badgeBare = false, d
         {showAjeerIcon && <AjeerSourceIcon />}
         <span style={cardTitle}>{title}</span>
         {brand && (
-          <span style={{ fontSize: 9, fontWeight: 700, color: brand.color, background: brand.color + '14', border: `1px solid ${brand.color}45`, borderRadius: 5, padding: '1px 6px', lineHeight: '14px' }}>{brand.ar}</span>
+          <span style={{ fontSize: 9, fontWeight: 600, color: brand.color, background: brand.color + '14', border: `1px solid ${brand.color}45`, borderRadius: 5, padding: '1px 6px', lineHeight: '14px' }}>{brand.ar}</span>
         )}
         {badge != null && (
           badgeBare
@@ -3304,7 +3304,7 @@ function SoonBookmark({ label, accent, title, icon }) {
           colour but dimmed, so the slot still reads as "this source, later". */}
       <span aria-hidden="true" style={{ display: 'inline-flex', color: accent, opacity: .45, flexShrink: 0 }}>{icon}</span>
       <span style={{ whiteSpace: 'nowrap' }}>{label}</span>
-      <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 999, background: 'var(--bd)', color: 'var(--tx4)', whiteSpace: 'nowrap' }}>قريباً</span>
+      <span style={{ fontSize: 9, fontWeight: 600, padding: '1px 6px', borderRadius: 999, background: 'var(--bd)', color: 'var(--tx4)', whiteSpace: 'nowrap' }}>قريباً</span>
     </span>
   )
 }
@@ -3382,23 +3382,6 @@ function QiwaSyncBookmarklet({ syncPersonId, T, force = false, resetAt = '' }) {
 // Instead of pulling every endpoint per company, it switches context per company
 // and fetches ONLY the two colour endpoints (context/company + criteria/primary),
 // so refreshing every establishment's النطاق band takes a fraction of the time.
-function QiwaNitaqBookmarklet({ syncPersonId, T }) {
-  const dataHref = buildQiwaNitaqBookmarklet({ personId: syncPersonId || '' })
-  return (
-    <DragBookmark
-      href={dataHref}
-      accent="#3b82f6"
-      title={T('اسحب الزر إلى شريط الإشارات، ثم افتح بوابة قوى واضغط — يجلب لون النطاق فقط لكل منشأة (أسرع بكثير من المزامنة الكاملة)', 'Drag to bookmarks bar, open Qiwa and click — fetches only the Nitaqat band colour per establishment (far faster than the full sync)')}
-      label={T('لون النطاق', 'Nitaq colour')}
-      icon={(
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="13.5" cy="6.5" r="1.5"/><circle cx="17.5" cy="10.5" r="1.5"/><circle cx="8.5" cy="7.5" r="1.5"/><circle cx="6.5" cy="12.5" r="1.5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996C19.774 15.375 22 13.669 22 10.996 22 6.036 17.5 2 12 2z"/>
-        </svg>
-      )}
-    />
-  )
-}
-
 // Ajeer sync bookmarklet — runs on ajeer.qiwa.sa. Ajeer is a server-rendered Laravel
 // app (no JSON API), so this parses the HTML screens. Sweeps every establishment by
 // switching the session context, recording the ones Ajeer gates behind
@@ -3423,7 +3406,7 @@ function AjeerSyncBookmarklet({ syncPersonId, T, force = false, resetAt = '' }) 
 
 // Muqeem sync bookmarklet — runs on muqeem.sa. Two auto-detected modes:
 //   • On the "الدخول الموحد" picker page it pulls the full establishment list via
-//     /api/sso/absher/get-users and deep-syncs EVERY establishment in one
+//     /api/sso/get-users and deep-syncs EVERY establishment in one
 //     resumable pass (mints a per-org token via get-application-jwt — no manual
 //     paging, no session switching).
 //   • On any normal org page it syncs the active org only (legacy).
@@ -3497,7 +3480,7 @@ function _SrcVal({ src, v, mismatch, mono }) {
       border: `1px solid ${mismatch ? 'rgba(234,179,8,.45)' : 'var(--bd2)'}`,
       minWidth: 0,
     }}>
-      <span style={{ fontSize: 8.5, fontWeight: 700, color: brand.color, background: brand.color + '14', border: `1px solid ${brand.color}40`, borderRadius: 4, padding: '0 5px', lineHeight: '13px', whiteSpace: 'nowrap', flexShrink: 0 }}>{brand.ar}</span>
+      <span style={{ fontSize: 8.5, fontWeight: 600, color: brand.color, background: brand.color + '14', border: `1px solid ${brand.color}40`, borderRadius: 4, padding: '0 5px', lineHeight: '13px', whiteSpace: 'nowrap', flexShrink: 0 }}>{brand.ar}</span>
       <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', direction: mono ? 'ltr' : undefined, fontFamily: mono ? 'ui-monospace, monospace' : undefined }} title={typeof v === 'string' ? v : undefined}>{v}</span>
     </span>
   )
@@ -3591,8 +3574,8 @@ export function SourceCompareCard({ detail, gosiEst, qiwa, muqeem, ajeerEst, hrs
             border: `1px solid ${r.mismatch ? 'rgba(234,179,8,.30)' : 'var(--bd2)'}`,
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 11, fontWeight: 700, color: r.mismatch ? C.warn : 'var(--tx3)' }}>{r.label}</span>
-              <span style={{ marginInlineStart: 'auto', display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 9.5, fontWeight: 700, color: r.mismatch ? C.warn : C.ok }}>
+              <span style={{ fontSize: 11, fontWeight: 600, color: r.mismatch ? C.warn : 'var(--tx3)' }}>{r.label}</span>
+              <span style={{ marginInlineStart: 'auto', display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 9.5, fontWeight: 600, color: r.mismatch ? C.warn : C.ok }}>
                 {r.mismatch ? (
                   <>
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
@@ -3659,7 +3642,7 @@ export function MudadCards({ est, months, T, lang }) {
             {pct != null && (
               <div style={rowBase}>
                 <span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>{T('نسبة الالتزام', 'Compliance')}</span>
-                <span style={{ fontSize: 12.5, fontWeight: 700, color: _mudadPctColor(pct), direction: 'ltr' }}>{Number(pct).toLocaleString('en-US')}%</span>
+                <span style={{ fontSize: 12.5, fontWeight: 600, color: _mudadPctColor(pct), direction: 'ltr' }}>{Number(pct).toLocaleString('en-US')}%</span>
               </div>
             )}
             {period && <div style={rowBase}><span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>{T('فترة الأجور', 'Wage period')}</span><span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--tx)' }}>{period}</span></div>}
@@ -3675,7 +3658,7 @@ export function MudadCards({ est, months, T, lang }) {
             ].filter(x => x.v != null).map((x, i) => (
               <div key={i} style={rowBase}>
                 <span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>{x.k}</span>
-                <span style={{ fontSize: 11.5, fontWeight: 700, color: x.v ? C.red : C.ok }}>{x.v ? T('نعم', 'Yes') : T('لا', 'No')}</span>
+                <span style={{ fontSize: 11.5, fontWeight: 600, color: x.v ? C.red : C.ok }}>{x.v ? T('نعم', 'Yes') : T('لا', 'No')}</span>
               </div>
             ))}
             {months.length === 0 && (
@@ -3695,7 +3678,7 @@ export function MudadCards({ est, months, T, lang }) {
                 يُدفن في عمود داخل الجدول. يُقرأ من أحدث شهر. */}
             {suspended && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', borderRadius: 8, marginBottom: 10, background: 'rgba(232,114,101,.08)', border: '1px solid rgba(232,114,101,.30)' }}>
-                <span style={{ fontSize: 11.5, fontWeight: 700, color: C.red }}>{T('خدمات الوزارة موقفة', 'Ministry services suspended')}</span>
+                <span style={{ fontSize: 11.5, fontWeight: 600, color: C.red }}>{T('خدمات الوزارة موقفة', 'Ministry services suspended')}</span>
                 {suspended.mlsd_status_start_ar && <span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>{T('منذ', 'since')} {lang === 'ar' ? suspended.mlsd_status_start_ar : (suspended.mlsd_status_start_en || suspended.mlsd_status_start_ar)}</span>}
               </div>
             )}
@@ -3721,9 +3704,9 @@ export function MudadCards({ est, months, T, lang }) {
                         </td>
                         <td style={{ padding: '7px 8px', borderBottom: '1px solid var(--bd2)', textAlign: 'center', color: C.ok, fontWeight: 600 }}>{num(m.compliant_laborers)}</td>
                         <td style={{ padding: '7px 8px', borderBottom: '1px solid var(--bd2)', textAlign: 'center', color: m.violated_laborers > 0 ? C.red : 'var(--tx3)', fontWeight: 600 }}>{num(m.violated_laborers)}</td>
-                        <td style={{ padding: '7px 8px', borderBottom: '1px solid var(--bd2)', textAlign: 'center', fontWeight: 700, direction: 'ltr', color: _mudadPctColor(m.compliance_percentage) }}>{m.compliance_percentage == null ? '—' : Number(m.compliance_percentage).toLocaleString('en-US') + '%'}</td>
+                        <td style={{ padding: '7px 8px', borderBottom: '1px solid var(--bd2)', textAlign: 'center', fontWeight: 600, direction: 'ltr', color: _mudadPctColor(m.compliance_percentage) }}>{m.compliance_percentage == null ? '—' : Number(m.compliance_percentage).toLocaleString('en-US') + '%'}</td>
                         <td style={{ padding: '7px 8px', borderBottom: '1px solid var(--bd2)', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 10, fontWeight: 700, color: compliant ? C.ok : C.red }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 10, fontWeight: 600, color: compliant ? C.ok : C.red }}>
                             <span style={{ width: 6, height: 6, borderRadius: '50%', background: compliant ? C.ok : C.red }} />
                             {compliant ? T('ملتزم', 'Compliant') : T('غير ملتزم', 'Non-compliant')}
                           </span>
@@ -3767,7 +3750,7 @@ export function AjeerCards({ est, notices, contracts, payments, indicators, T, l
   const StatusPill = ({ text, code }) => {
     if (!text) return null
     const c = _ajeerStatusColor(code || text)
-    return <span style={{ fontSize: 9.5, fontWeight: 700, color: c, background: c + '14', border: `1px solid ${c}40`, borderRadius: 5, padding: '1px 7px', whiteSpace: 'nowrap' }}>{text}</span>
+    return <span style={{ fontSize: 9.5, fontWeight: 600, color: c, background: c + '14', border: `1px solid ${c}40`, borderRadius: 5, padding: '1px 7px', whiteSpace: 'nowrap' }}>{text}</span>
   }
   return (
     <>
@@ -3792,7 +3775,7 @@ export function AjeerCards({ est, notices, contracts, payments, indicators, T, l
             ].filter(x => x.v != null).map((x, i) => (
               <div key={i} style={rowBase}>
                 <span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>{x.k}</span>
-                <span style={{ marginInlineStart: 'auto', fontSize: 11.5, fontWeight: 700, color: Number(x.v) >= 80 ? C.ok : Number(x.v) >= 50 ? C.warn : C.red, direction: 'ltr' }}>{Number(x.v).toLocaleString('en-US')}%</span>
+                <span style={{ marginInlineStart: 'auto', fontSize: 11.5, fontWeight: 600, color: Number(x.v) >= 80 ? C.ok : Number(x.v) >= 50 ? C.warn : C.red, direction: 'ltr' }}>{Number(x.v).toLocaleString('en-US')}%</span>
               </div>
             ))}
           </div>
@@ -3841,7 +3824,7 @@ export function AjeerCards({ est, notices, contracts, payments, indicators, T, l
             {payments.map((p, i) => (
               <div key={i} style={{ ...rowBase, flexWrap: 'wrap' }}>
                 {p.invoice_no && <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx)', direction: 'ltr', fontFamily: 'ui-monospace, monospace' }}>#{p.invoice_no}</span>}
-                {p.amount != null && <span style={{ fontSize: 11.5, fontWeight: 700, color: C.gold, direction: 'ltr' }}>{Number(p.amount).toLocaleString('en-US')} {T('ر.س', 'SAR')}</span>}
+                {p.amount != null && <span style={{ fontSize: 11.5, fontWeight: 600, color: C.gold, direction: 'ltr' }}>{Number(p.amount).toLocaleString('en-US')} {T('ر.س', 'SAR')}</span>}
                 <span style={{ marginInlineStart: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                   {p.due_date && <span style={{ fontSize: 10, color: 'var(--tx4)', direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{fmtDMY(p.due_date)}</span>}
                   {p.awaiting_payment && <StatusPill text={T('بانتظار الدفع', 'Awaiting payment')} code="pending" />}
@@ -3862,7 +3845,7 @@ export function AjeerCards({ est, notices, contracts, payments, indicators, T, l
                 <div style={{ flex: 1, height: 6, borderRadius: 4, background: 'rgba(255,255,255,.05)', overflow: 'hidden' }}>
                   <div style={{ width: `${Math.max(0, Math.min(100, Number(w.weekly) || 0))}%`, height: '100%', borderRadius: 4, background: Number(w.weekly) >= 80 ? C.ok : Number(w.weekly) >= 50 ? C.warn : C.red }} />
                 </div>
-                <span style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--tx2)', direction: 'ltr', width: 46, textAlign: 'end', fontVariantNumeric: 'tabular-nums' }}>{w.weekly != null ? `${Number(w.weekly).toLocaleString('en-US')}%` : '—'}</span>
+                <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--tx2)', direction: 'ltr', width: 46, textAlign: 'end', fontVariantNumeric: 'tabular-nums' }}>{w.weekly != null ? `${Number(w.weekly).toLocaleString('en-US')}%` : '—'}</span>
               </div>
             ))}
             {indicators.length > 16 && <div style={{ fontSize: 10, color: 'var(--tx5)', textAlign: 'center', marginTop: 4 }}>+{num(indicators.length - 16)} {T('أسبوعاً أقدم', 'older weeks')}</div>}
@@ -3901,11 +3884,11 @@ function _UnifiedWorkerRow({ w, T, lang }) {
         <span style={{ display: 'inline-flex', gap: 3 }}>
           {w.sources.map(s => {
             const b = SOURCE_BRAND[s] || { color: '#888', ar: s }
-            return <span key={s} title={b.ar} style={{ fontSize: 8, fontWeight: 700, color: b.color, background: b.color + '14', border: `1px solid ${b.color}40`, borderRadius: 4, padding: '0 4px', lineHeight: '12px' }}>{b.ar}</span>
+            return <span key={s} title={b.ar} style={{ fontSize: 8, fontWeight: 600, color: b.color, background: b.color + '14', border: `1px solid ${b.color}40`, borderRadius: 4, padding: '0 4px', lineHeight: '12px' }}>{b.ar}</span>
           })}
         </span>
         {w.mismatches.length > 0 && (
-          <span style={{ fontSize: 9, fontWeight: 700, color: C.warn, background: C.warn + '14', border: `1px solid ${C.warn}45`, borderRadius: 5, padding: '1px 6px', whiteSpace: 'nowrap' }}>
+          <span style={{ fontSize: 9, fontWeight: 600, color: C.warn, background: C.warn + '14', border: `1px solid ${C.warn}45`, borderRadius: 5, padding: '1px 6px', whiteSpace: 'nowrap' }}>
             {T('فروقات', 'Diff')}: {w.mismatches.join('، ')}
           </span>
         )}
@@ -3922,7 +3905,7 @@ function _UnifiedWorkerRow({ w, T, lang }) {
         <div style={{ padding: '10px 12px', borderTop: '1px dashed var(--bd)', display: 'flex', flexDirection: 'column', gap: 6 }}>
           {w.fields.map((f, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 10, fontWeight: 700, color: f.mismatch ? C.warn : 'var(--tx4)', width: 92, flexShrink: 0, paddingTop: 4 }}>{f.label}</span>
+              <span style={{ fontSize: 10, fontWeight: 600, color: f.mismatch ? C.warn : 'var(--tx4)', width: 92, flexShrink: 0, paddingTop: 4 }}>{f.label}</span>
               <span style={{ display: 'flex', flexWrap: 'wrap', gap: 4, flex: 1 }}>
                 {f.vals.map((e, j) => <_SrcVal key={j} src={e.src} v={e.v} mono={f.mono} mismatch={f.mismatch} />)}
               </span>
@@ -4132,9 +4115,9 @@ function _HistoryEntry({ h, T, lang }) {
   return (
     <div style={{ borderRadius: 8, border: '1px solid var(--bd2)', background: 'rgba(255,255,255,.02)', padding: '8px 12px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 8.5, fontWeight: 700, color: brand.color, background: brand.color + '14', border: `1px solid ${brand.color}40`, borderRadius: 4, padding: '0 5px', lineHeight: '13px' }}>{brand.ar}</span>
-        <span style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--tx2)' }}>{tbl ? (isAr ? tbl.ar : tbl.en) : h.table_name}</span>
-        <span style={{ fontSize: 9, fontWeight: 700, color: opMeta.color, background: opMeta.color + '14', borderRadius: 4, padding: '0 6px', lineHeight: '14px' }}>{opMeta.label}</span>
+        <span style={{ fontSize: 8.5, fontWeight: 600, color: brand.color, background: brand.color + '14', border: `1px solid ${brand.color}40`, borderRadius: 4, padding: '0 5px', lineHeight: '13px' }}>{brand.ar}</span>
+        <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--tx2)' }}>{tbl ? (isAr ? tbl.ar : tbl.en) : h.table_name}</span>
+        <span style={{ fontSize: 9, fontWeight: 600, color: opMeta.color, background: opMeta.color + '14', borderRadius: 4, padding: '0 6px', lineHeight: '14px' }}>{opMeta.label}</span>
         {h.record_label && <span style={{ fontSize: 10, color: 'var(--tx3)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }} title={h.record_label}>{h.record_label}</span>}
         {h.record_key && h.record_key !== h.entity_key && <span style={{ fontSize: 9, color: 'var(--tx5)', direction: 'ltr', fontFamily: 'ui-monospace, monospace' }}>{h.record_key}</span>}
         <span style={{ marginInlineStart: 'auto', fontSize: 9.5, color: 'var(--tx5)', direction: 'ltr' }}>{fmtDMYTime(h.captured_at)}</span>
@@ -4143,10 +4126,10 @@ function _HistoryEntry({ h, T, lang }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginTop: 7 }}>
           {diffEntries.map(([k, d]) => (
             <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 10.5, flexWrap: 'wrap' }}>
-              <span style={{ color: 'var(--tx3)', fontWeight: 700, minWidth: 80 }}>{_histFieldLabel(k, isAr)}</span>
+              <span style={{ color: 'var(--tx3)', fontWeight: 600, minWidth: 80 }}>{_histFieldLabel(k, isAr)}</span>
               <span style={{ color: C.red, textDecoration: 'line-through', direction: 'ltr', opacity: .8 }}>{_histVal(d?.o)}</span>
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--tx4)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: isAr ? 'scaleX(-1)' : 'none' }}><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-              <span style={{ color: C.ok, fontWeight: 700, direction: 'ltr' }}>{_histVal(d?.n)}</span>
+              <span style={{ color: C.ok, fontWeight: 600, direction: 'ltr' }}>{_histVal(d?.n)}</span>
             </div>
           ))}
         </div>
@@ -4158,7 +4141,7 @@ function _HistoryEntry({ h, T, lang }) {
       )}
       {(h.old_data || h.new_data) && (
         <button type="button" onClick={() => setShowSnap(v => !v)}
-          style={{ marginTop: 6, fontSize: 9.5, fontWeight: 700, color: C.gold, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, fontFamily: F }}>
+          style={{ marginTop: 6, fontSize: 9.5, fontWeight: 600, color: C.gold, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, fontFamily: F }}>
           {showSnap ? T('إخفاء اللقطة القديمة', 'Hide old snapshot') : T('عرض اللقطة كاملة (الرجوع للماضي)', 'View full snapshot')}
         </button>
       )}
@@ -4194,7 +4177,7 @@ export function SyncHistoryCard({ history, fileVersions, T, lang }) {
         {sources.length > 1 && (
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             <button type="button" onClick={() => setSrcFilter(null)}
-              style={{ fontSize: 10, fontWeight: 700, padding: '3px 10px', borderRadius: 999, cursor: 'pointer', fontFamily: F, background: !srcFilter ? 'var(--accent-soft)' : 'var(--search-bg)', border: `1px solid ${!srcFilter ? 'var(--accent-bd)' : 'var(--bd)'}`, color: !srcFilter ? 'var(--accent)' : 'var(--tx3)' }}>
+              style={{ fontSize: 10, fontWeight: 600, padding: '3px 10px', borderRadius: 999, cursor: 'pointer', fontFamily: F, background: !srcFilter ? 'var(--accent-soft)' : 'var(--search-bg)', border: `1px solid ${!srcFilter ? 'var(--accent-bd)' : 'var(--bd)'}`, color: !srcFilter ? 'var(--accent)' : 'var(--tx3)' }}>
               {T('الكل', 'All')}
             </button>
             {sources.map(s => {
@@ -4202,7 +4185,7 @@ export function SyncHistoryCard({ history, fileVersions, T, lang }) {
               const on = srcFilter === s
               return (
                 <button key={s} type="button" onClick={() => setSrcFilter(on ? null : s)}
-                  style={{ fontSize: 10, fontWeight: 700, padding: '3px 10px', borderRadius: 999, cursor: 'pointer', fontFamily: F, background: on ? b.color + '22' : 'var(--search-bg)', border: `1px solid ${on ? b.color + '55' : 'var(--bd)'}`, color: on ? b.color : 'var(--tx3)' }}>
+                  style={{ fontSize: 10, fontWeight: 600, padding: '3px 10px', borderRadius: 999, cursor: 'pointer', fontFamily: F, background: on ? b.color + '22' : 'var(--search-bg)', border: `1px solid ${on ? b.color + '55' : 'var(--bd)'}`, color: on ? b.color : 'var(--tx3)' }}>
                   {b.ar}
                 </button>
               )
@@ -4212,7 +4195,7 @@ export function SyncHistoryCard({ history, fileVersions, T, lang }) {
         {byDay.map(g => (
           <div key={g.day} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 10.5, fontWeight: 700, color: C.gold, direction: 'ltr' }}>{g.day}</span>
+              <span style={{ fontSize: 10.5, fontWeight: 600, color: C.gold, direction: 'ltr' }}>{g.day}</span>
               <span style={{ fontSize: 9, color: 'var(--tx5)' }}>{num(g.items.length)} {T('تغيير', 'changes')}</span>
               <span style={{ flex: 1, height: 1, background: 'var(--bd2)' }} />
             </div>
@@ -4222,7 +4205,7 @@ export function SyncHistoryCard({ history, fileVersions, T, lang }) {
         {fileVersions.length > 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 10.5, fontWeight: 700, color: C.cyan }}>{T('إصدارات الملفات المؤرشفة', 'Archived file versions')}</span>
+              <span style={{ fontSize: 10.5, fontWeight: 600, color: C.cyan }}>{T('إصدارات الملفات المؤرشفة', 'Archived file versions')}</span>
               <span style={{ flex: 1, height: 1, background: 'var(--bd2)' }} />
             </div>
             {fileVersions.map(f => (
@@ -4232,7 +4215,7 @@ export function SyncHistoryCard({ history, fileVersions, T, lang }) {
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#e74c3c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
                 <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--tx2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, direction: 'ltr' }}>{f.label || f.object_path}</span>
                 {f.source_id && SOURCE_BRAND[f.source_id] && (
-                  <span style={{ fontSize: 8, fontWeight: 700, color: SOURCE_BRAND[f.source_id].color, background: SOURCE_BRAND[f.source_id].color + '14', borderRadius: 4, padding: '0 4px', lineHeight: '12px' }}>{SOURCE_BRAND[f.source_id].ar}</span>
+                  <span style={{ fontSize: 8, fontWeight: 600, color: SOURCE_BRAND[f.source_id].color, background: SOURCE_BRAND[f.source_id].color + '14', borderRadius: 4, padding: '0 4px', lineHeight: '12px' }}>{SOURCE_BRAND[f.source_id].ar}</span>
                 )}
                 <span style={{ fontSize: 9.5, color: 'var(--tx5)', direction: 'ltr' }}>{fmtDMYTime(f.archived_at)}</span>
               </a>
@@ -4317,13 +4300,13 @@ function BlockFacilityAction({ sb, facility, T, lang, onBlocked }) {
             // المنشأة مرتبطة ببيانات شغّالة — الحجب هنا يترك سجلات معلّقة على
             // منشأة مخفية، فنمنعه ونعرض ما يمنعه بدل رسالة فشل مبهمة.
             <div style={{ borderRadius: 10, background: C.warn + '12', border: `1px solid ${C.warn}40`, padding: '10px 12px', marginBottom: 10 }}>
-              <div style={{ fontSize: 12.5, fontWeight: 700, color: C.warn, marginBottom: 6 }}>
+              <div style={{ fontSize: 12.5, fontWeight: 600, color: C.warn, marginBottom: 6 }}>
                 {T('لا يمكن حجب هذه المنشأة — مرتبطة ببيانات قائمة', 'Cannot block — this facility has linked records')}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 {Object.entries(links).map(([k, n]) => (
                   <div key={k} style={{ fontSize: 12, color: 'var(--tx2)', display: 'flex', gap: 6 }}>
-                    <span style={{ color: C.gold, fontWeight: 700 }}>{num(n)}</span>
+                    <span style={{ color: C.gold, fontWeight: 600 }}>{num(n)}</span>
                     <span>{T(BLOCK_LINK_LABELS[k]?.[0] || k, BLOCK_LINK_LABELS[k]?.[1] || k)}</span>
                   </div>
                 ))}
@@ -5999,7 +5982,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
             onClick={toggleReset}
             aria-pressed={resetMode}
             title={T('إعادة ضبط: يعيد مزامنة المنشآت المُزامَنة سابقاً (تجاوز نافذة الساعتين) مع بقاء الاستئناف لِما يُنجَز بعد التفعيل — بعد التفعيل أعد سحب/ضغط زر المصدر.', 'Reset: re-sync previously-synced facilities (bypass the 2h window) while still resuming whatever completes after you enable it — after enabling, re-drag/click the source button.')}
-            style={{ height: 42, padding: '0 14px', borderRadius: 11, cursor: 'pointer', fontFamily: F, fontSize: 13, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0,
+            style={{ height: 42, padding: '0 14px', borderRadius: 11, cursor: 'pointer', fontFamily: F, fontSize: 13, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0,
               background: resetMode ? '#ef4444' : 'transparent',
               border: resetMode ? '1px solid #ef4444' : '1px dashed var(--bd)',
               color: resetMode ? '#fff' : 'var(--tx3)' }}>
@@ -6009,7 +5992,6 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
           <SbcSyncBookmarklet syncPersonId={spid} T={T} force={resetMode} resetAt={resetAt} />
           <GosiSyncBookmarklet syncPersonId={spid} T={T} force={resetMode} resetAt={resetAt} />
           <QiwaSyncBookmarklet syncPersonId={spid} T={T} force={resetMode} resetAt={resetAt} />
-          <QiwaNitaqBookmarklet syncPersonId={spid} T={T} />
           <MuqeemSyncBookmarklet syncPersonId={spid} T={T} force={resetMode} resetAt={resetAt} />
           <AjeerSyncBookmarklet syncPersonId={spid} T={T} force={resetMode} resetAt={resetAt} />
           <MudadSyncBookmarklet syncPersonId={spid} T={T} force={resetMode} resetAt={resetAt} />
@@ -7436,7 +7418,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                             /* رقم فارغ مع حالة معروفة = الجهة لم تُصدره بعد؛
                                نعرض الحالة بدل «—» حتى لا تُقرأ كعطل مزامنة. */
                             : (
-                              <span style={{ fontSize: 10.5, fontWeight: 700, color: row.st.done ? C.ok : C.warn, whiteSpace: 'nowrap' }}>{row.st.label}</span>
+                              <span style={{ fontSize: 10.5, fontWeight: 600, color: row.st.done ? C.ok : C.warn, whiteSpace: 'nowrap' }}>{row.st.label}</span>
                             )}
                         </div>
                       ))}
@@ -8180,7 +8162,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                       ))
                       const pct = (n) => n != null ? `${Number(n).toFixed(n % 1 ? 1 : 0)}%` : null
                       // Colour a Nitaqat band value by its real band colour (falls back to plain text).
-                      const band = (v) => { const c = nitaqBandColor(v); return c ? <span style={{ color: c, fontWeight: 700 }}>{v}</span> : v }
+                      const band = (v) => { const c = nitaqBandColor(v); return c ? <span style={{ color: c, fontWeight: 600 }}>{v}</span> : v }
                       return (
                         <>
                           {/* فاصل بين كروت التأمينات وكروت قوى — نفس فاصل المصادر الأخرى. */}
@@ -8610,8 +8592,8 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                             }
                             const entity = level('entity', q.entity_employees_total, q.entity_employees_saudis, q.entity_employees_non_saudis)
                             const estab = level('establishment', q.est_employees_total, q.est_employees_saudis, q.est_employees_non_saudis)
-                            const secTitle = { gridColumn: '1 / -1', fontSize: 12.5, fontWeight: 700, color: 'var(--tx)', marginTop: 6, display: 'flex', alignItems: 'center', gap: 8 }
-                            const totBadge = { fontSize: 11, fontWeight: 700, color: '#3b82f6', background: 'rgba(59,130,246,.12)', borderRadius: 6, padding: '2px 10px', direction: 'ltr' }
+                            const secTitle = { gridColumn: '1 / -1', fontSize: 12.5, fontWeight: 600, color: 'var(--tx)', marginTop: 6, display: 'flex', alignItems: 'center', gap: 8 }
+                            const totBadge = { fontSize: 11, fontWeight: 600, color: '#3b82f6', background: 'rgba(59,130,246,.12)', borderRadius: 6, padding: '2px 10px', direction: 'ltr' }
                             const grpTitle = { gridColumn: '1 / -1', fontSize: 10.5, fontWeight: 600, color: 'var(--tx4)', letterSpacing: '.2px', marginTop: 2 }
                             const Section = (label, d) => (
                               <React.Fragment>

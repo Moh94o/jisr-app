@@ -556,7 +556,7 @@ const FacSrcPill = ({ src, isAr, size = 16 }) => {
   if (!b) return null
   const title = isAr ? b.ar : b.en
   if (failed || !b.logo) return (
-    <span title={title} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: size, height: size, borderRadius: '50%', background: `${b.color}22`, color: b.color, fontSize: Math.round(size * 0.42), fontWeight: 700, lineHeight: 1, flexShrink: 0, fontFamily: F }}>
+    <span title={title} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: size, height: size, borderRadius: '50%', background: `${b.color}22`, color: b.color, fontSize: Math.round(size * 0.42), fontWeight: 600, lineHeight: 1, flexShrink: 0, fontFamily: F }}>
       {b.short}
     </span>
   )
@@ -1059,13 +1059,13 @@ function FacilityRegistryActions({ facility: f, T, lang, user, onStrikeToggle, o
             // للمنشأة (أو عمالتها) معاملات أو فواتير قائمة — الحذف يترك سجلات معلّقة،
             // فنمنعه ونعرض ما يمنعه بدل رسالة فشل مبهمة.
             <div style={{ borderRadius: 10, background: C.warn + '12', border: `1px solid ${C.warn}40`, padding: '10px 12px', marginTop: 8 }}>
-              <div style={{ fontSize: 12.5, fontWeight: 700, color: C.warn, marginBottom: 6 }}>
+              <div style={{ fontSize: 12.5, fontWeight: 600, color: C.warn, marginBottom: 6 }}>
                 {T('لا يمكن حذف هذه المنشأة — لعمالتها معاملات أو فواتير قائمة', 'Cannot delete — its workers have linked transactions or invoices')}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 {Object.entries(links).map(([k, n]) => (
                   <div key={k} style={{ fontSize: 12, color: 'var(--tx2)', display: 'flex', gap: 6 }}>
-                    <span style={{ color: C.gold, fontWeight: 700 }}>{num(n)}</span>
+                    <span style={{ color: C.gold, fontWeight: 600 }}>{num(n)}</span>
                     <span>{T(FAC_DELETE_LINK_LABELS[k]?.[0] || k, FAC_DELETE_LINK_LABELS[k]?.[1] || k)}</span>
                   </div>
                 ))}
@@ -7159,7 +7159,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                       ))
                       const pct = (n) => n != null ? `${Number(n).toFixed(n % 1 ? 1 : 0)}%` : null
                       // Colour a Nitaqat band value by its real band colour (falls back to plain text).
-                      const band = (v) => { const c = nitaqBandColor(v); return c ? <span style={{ color: c, fontWeight: 700 }}>{v}</span> : v }
+                      const band = (v) => { const c = nitaqBandColor(v); return c ? <span style={{ color: c, fontWeight: 600 }}>{v}</span> : v }
                       return (
                         <>
                           {/* النطاقات والسعودة — open by default since these are

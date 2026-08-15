@@ -55,7 +55,7 @@ export const MODULE_ACTIONS = {
     A('edit', 'تعديل العمالة المؤقتة', 'edit'), A('delete', 'حذف العمالة المؤقتة', 'delete'),
   ],
   work_visas: [
-    A('view', 'عرض تأشيرات العمل', 'view'), A('edit', 'تعديل حالة الاستخدام', 'edit'),
+    A('view', 'عرض تأشيرات العمل', 'view'), A('edit', 'تعديل بيانات التأشيرة', 'edit'),
   ],
 
   invoices: [
@@ -213,6 +213,7 @@ Object.values(SVC_TAB_MODULE).forEach(m => {
 export const TAB_MODULE = {
   home: 'home',
   facilities: 'facilities', workers: 'workers', temp_workers: 'temp_workers', work_visas: 'work_visas',
+  visa_grid: 'work_visas',
   invoices: 'invoices', deposits: 'deposits', payments: 'payments', ext_payments: 'ext_payments',
   jub1_receipts: 'jub1_receipts',
   transfer_calc: 'quotations', renewal_calc: 'renewal_calc',

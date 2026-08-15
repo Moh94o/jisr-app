@@ -107,7 +107,7 @@ const durationIcon=(label)=>function DurationIcon({size=22,color='currentColor',
   return(
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <rect x="3" y="3.5" width="18" height="17" rx="5.5"/>
-      <text x="12" y="12.2" textAnchor="middle" dominantBaseline="central" fontSize={label.length>1?9.5:12} fontWeight="800" fill={color} stroke="none" style={{fontFamily:"'Cairo','Tajawal',sans-serif"}}>{label}</text>
+      <text x="12" y="12.2" textAnchor="middle" dominantBaseline="central" fontSize={label.length>1?9.5:12} fontWeight="600" fill={color} stroke="none" style={{fontFamily:"'Cairo','Tajawal',sans-serif"}}>{label}</text>
     </svg>
   )
 }

@@ -1492,7 +1492,7 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
               <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx3)', marginInlineEnd: 8, paddingBottom: 8 }}>{T('فترة سريعة','Quick period')}</span>
               {datePresets.map(p => {
                 const a = from === p.f && to === p.t
-                return <button key={p.l} type="button" onClick={() => { setFrom(p.f); setTo(p.t); setPage(0) }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: F, fontSize: 13, fontWeight: a ? 600 : 600, color: a ? C.gold : 'var(--tx2)', padding: '4px 12px 8px', position: 'relative', transition: '.18s', borderBottom: `2px solid ${a ? C.gold : 'transparent'}`, marginBottom: -1 }}>{p.l}</button>
+                return <button key={p.l} type="button" onClick={() => { setFrom(p.f); setTo(p.t); setPage(0) }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: F, fontSize: 13, fontWeight: 600, color: a ? C.gold : 'var(--tx2)', padding: '4px 12px 8px', position: 'relative', transition: '.18s', borderBottom: `2px solid ${a ? C.gold : 'transparent'}`, marginBottom: -1 }}>{p.l}</button>
               })}
               {(from || to) && (
                 <button type="button" onClick={() => { setFrom(''); setTo(''); setPage(0) }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: F, fontSize: 12.5, fontWeight: 600, color: C.red, padding: '4px 10px 8px', marginInlineStart: 'auto' }}>{T('مسح التاريخ','Clear dates')}</button>
@@ -1595,7 +1595,7 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
                 {dayPmtCount > 0 && <span style={{ color: C.blue, fontVariantNumeric: 'tabular-nums' }}>{num(dayPmtCount)} {dayPmtCount === 1 ? T('دفعة','pmt') : T('مدفوعات','pmts')}</span>}
                 <span style={{ color: C.ok, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>+ {num(dayPaid)}</span>
                 {dayVoid > 0 && <span style={{ color: C.red, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }} title={T('الملغى والمسترد','Cancelled & refunded')}>− {num(dayVoid)}</span>}
-                <span title={T('الصافي اليومي','Daily net')} style={{ color: dayNet >= 0 ? C.ok : C.red, fontVariantNumeric: 'tabular-nums', fontWeight: 700 }}>= <span style={{ direction: 'ltr', unicodeBidi: 'isolate' }}>{dayNet < 0 ? '− ' : ''}{num(Math.abs(dayNet))}</span></span>
+                <span title={T('الصافي اليومي','Daily net')} style={{ color: dayNet >= 0 ? C.ok : C.red, fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>= <span style={{ direction: 'ltr', unicodeBidi: 'isolate' }}>{dayNet < 0 ? '− ' : ''}{num(Math.abs(dayNet))}</span></span>
               </div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -2861,7 +2861,7 @@ const CancelReasonForm = ({ T, reason, setReason }) => (
 const IIRow = ({ accent, label, value, color, big }) => (
   <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: big ? '13px 14px' : '11px 14px', borderRadius: 10, background: big ? accent + '14' : FKC.inputBg, border: '1px solid ' + (big ? accent + '55' : 'rgba(255,255,255,.05)') }}>
     <span style={{ width: 4, alignSelf: 'stretch', borderRadius: 999, background: accent, flexShrink: 0 }} />
-    <span style={{ flex: 1, fontSize: big ? 13 : 12, color: big ? FKC.tx : FKC.tx3, fontWeight: big ? 600 : 600 }}>{label}</span>
+    <span style={{ flex: 1, fontSize: big ? 13 : 12, color: big ? FKC.tx : FKC.tx3, fontWeight: 600 }}>{label}</span>
     <span style={{ fontSize: big ? 20 : 15, fontWeight: 600, color, direction: 'ltr', fontVariantNumeric: 'tabular-nums', letterSpacing: '-.3px' }}>{value}</span>
   </div>
 )
@@ -5241,7 +5241,7 @@ const TransactionRows = ({ inv, isAr, T, svc, payT, data, user }) => {
                 <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{c.label}</span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6, direction: c.mono ? 'ltr' : 'rtl', ...(c.mono ? { justifyContent: 'flex-end' } : {}) }}>
                   {c.mono && <CopyBtn text={c.value} />}
-                  <span style={{ fontSize: 13, color: c.color || (c.gold ? C.gold : 'var(--tx2)'), fontWeight: (c.gold || c.color) ? 600 : 600, direction: c.mono ? 'ltr' : 'rtl', whiteSpace: 'pre-wrap', wordBreak: 'break-word', ...(c.mono ? { fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' } : {}) }}>{c.value}</span>
+                  <span style={{ fontSize: 13, color: c.color || (c.gold ? C.gold : 'var(--tx2)'), fontWeight: 600, direction: c.mono ? 'ltr' : 'rtl', whiteSpace: 'pre-wrap', wordBreak: 'break-word', ...(c.mono ? { fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' } : {}) }}>{c.value}</span>
                 </span>
               </div>
             ))}
@@ -5273,7 +5273,7 @@ const TransactionRows = ({ inv, isAr, T, svc, payT, data, user }) => {
               <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{c.label}</span>
               <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, direction: 'ltr' }}>
                 {c.mono && <CopyBtn text={c.value} />}
-                <span style={{ fontSize: 13, color: c.color || (c.gold ? C.gold : 'var(--tx2)'), fontWeight: c.gold || c.color ? 600 : 600, wordBreak: 'break-word', direction: c.mono ? 'ltr' : 'rtl', ...(c.mono ? { fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' } : {}) }}>{c.value}</span>
+                <span style={{ fontSize: 13, color: c.color || (c.gold ? C.gold : 'var(--tx2)'), fontWeight: 600, wordBreak: 'break-word', direction: c.mono ? 'ltr' : 'rtl', ...(c.mono ? { fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' } : {}) }}>{c.value}</span>
               </span>
             </div>
           ))}
@@ -5531,7 +5531,7 @@ const PaymentRow = ({ p, isAr, T, overflow = 0, onEdit, editLog, user }) => {
         {p.receipt_no && visReceipt && (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', background: 'rgba(176,125,0,.1)', border: '1px solid rgba(176,125,0,.28)', borderRadius: 8, padding: '3px 8px' }}>
             <span style={{ fontSize: 8.5, color: C.gold, fontWeight: 600, opacity: 0.8 }}>{T('سند القبض','Receipt no')}</span>
-            <span style={{ direction: 'ltr', fontSize: 13, fontWeight: 700, color: C.gold, fontVariantNumeric: 'tabular-nums' }}>{p.receipt_no}</span>
+            <span style={{ direction: 'ltr', fontSize: 13, fontWeight: 600, color: C.gold, fontVariantNumeric: 'tabular-nums' }}>{p.receipt_no}</span>
           </div>
         )}
         {visDate && (
@@ -5630,7 +5630,7 @@ const SlipStamps = ({ raw, T }) => {
   return (
     <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
       {nums.map((sl, i) => (
-        <span key={i} title={T('سند القبض الورقي','Paper receipt')} style={{ display: 'inline-block', border: '1.5px solid rgba(176,125,0,.5)', borderRadius: 7, padding: '3px 12px', color: C.gold, fontWeight: 700, transform: 'rotate(-3deg)', textAlign: 'center', lineHeight: 1.15 }}>
+        <span key={i} title={T('سند القبض الورقي','Paper receipt')} style={{ display: 'inline-block', border: '1.5px solid rgba(176,125,0,.5)', borderRadius: 7, padding: '3px 12px', color: C.gold, fontWeight: 600, transform: 'rotate(-3deg)', textAlign: 'center', lineHeight: 1.15 }}>
           <span style={{ display: 'block', fontSize: 8.5, fontWeight: 600, opacity: .85 }}>{T('سند قبض','Receipt')}</span>
           <span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums', fontSize: 13 }}>{sl}</span>
         </span>
@@ -8127,7 +8127,7 @@ function DiscountModal({ sb, toast, T, isAr, inv, total = 0, paid = 0, remaining
   const chip = (label, value, color) => (
     <div style={{ flex: 1, minWidth: 0, padding: '10px 12px', borderRadius: 10, background: 'var(--inputBg)', border: '1px solid var(--bd)', display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center' }}>
       <span style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 600 }}>{label}</span>
-      <span style={{ fontSize: 15, color: color || 'var(--tx)', fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(value)}</span>
+      <span style={{ fontSize: 15, color: color || 'var(--tx)', fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(value)}</span>
     </div>
   )
   const content = (
@@ -9316,7 +9316,7 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
         const cell = (label, value, color) => (
           <div style={{ flex: 1, minWidth: 0, padding: '10px 12px', borderRadius: 10, background: 'var(--inputBg)', border: '1px solid var(--bd)', display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center' }}>
             <span style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 600 }}>{label}</span>
-            <span style={{ fontSize: 15, color: color || 'var(--tx)', fontWeight: 700, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(value)}</span>
+            <span style={{ fontSize: 15, color: color || 'var(--tx)', fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(value)}</span>
           </div>
         )
         return (

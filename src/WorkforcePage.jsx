@@ -5,6 +5,7 @@ import { navSetHere } from './lib/navStack.js'
 import { UserPlus, Building2, Search, X, Hash, FileText, ShieldCheck, Users, MapPin, Check, Plus, Pencil, Trash2, Phone, ChevronLeft, ChevronRight, HeartPulse, RefreshCw, AlertCircle, LogOut } from 'lucide-react'
 import { Modal as FKModal, ModalSection, ActionButton, SuccessView, GRID, TextField, IdField, DateField, Select, Dropdown as FKDropdown, FileField, PhoneField, PhoneListField, EmptyState } from './components/ui/FormKit.jsx'
 import InvoiceReceiptCard from './components/ui/InvoiceReceiptCard.jsx'
+import { buildMuqeemRenewBookmarklet } from './pages/muqeemRenewBookmarklet.js'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = {
@@ -37,7 +38,7 @@ const SrcPill = ({ src, isAr, size = 16 }) => {
   if (!b) return null
   const title = isAr ? b.ar : b.en
   if (failed || !b.logo) return (
-    <span title={title} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: size, height: size, borderRadius: '50%', background: `${b.color}22`, color: b.color, fontSize: Math.round(size * 0.42), fontWeight: 700, lineHeight: 1, flexShrink: 0, fontFamily: F }}>
+    <span title={title} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: size, height: size, borderRadius: '50%', background: `${b.color}22`, color: b.color, fontSize: Math.round(size * 0.42), fontWeight: 600, lineHeight: 1, flexShrink: 0, fontFamily: F }}>
       {b.short}
     </span>
   )
@@ -2433,6 +2434,273 @@ function WorkerEditLog({ entries, created, fileUrls = {}, T }) {
   )
 }
 
+/* ═══════════════════════ كرت التجديد (بوكماركت مقيم) ═══════════════════════ */
+// حاجز أخطاء — يمنع أي استثناء داخل كرت التجديد (مثلاً رد مقيم بشكل غير متوقع)
+// من تبييض صفحة تفاصيل العامل بالكامل؛ يعرض بديلاً هادئاً بدل الانهيار.
+class CardBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { err: null } }
+  static getDerivedStateFromError(err) { return { err } }
+  componentDidCatch() {}
+  render() { return this.state.err ? (this.props.fallback ?? null) : this.props.children }
+}
+
+
+// يولّد بوكماركت مقيم لتجديد إقامة العامل: المستخدم يختار المدة (3/6/9/12 شهر)،
+// يسحب الزر إلى شريط الإشارات، يفتح مقيم ويضغطه → يرسل POST renew/validate
+// بجلسة المستخدم نفسها، يحفظ رد مقيم في muqeem_renewal_checks عبر جسر مقيم،
+// ويظهر الرد هنا مباشرة عبر Realtime. راجع src/pages/muqeemRenewBookmarklet.js.
+function RenewalCard({ w, f, sb, T, isAr, toast }) {
+  const DURATIONS = [3, 6, 9, 12]
+  const [duration, setDuration] = useState(12)
+  const [latest, setLatest] = useState(undefined)   // undefined=جارٍ التحميل، null=لا يوجد فحص بعد
+  const [showRaw, setShowRaw] = useState(false)
+  const [copied, setCopied] = useState(false)
+
+  const iqama = String(w?.iqama_number || '').trim()
+  const validIqama = /^[12]\d{9}$/.test(iqama)
+  const proxyBaseUrl = typeof window !== 'undefined' ? window.location.origin : ''
+  // كفيل العامل = الرقم الموحد للمنشأة (= رقم مقيم moiNumber). يُبَك في البوكماركت
+  // ليسكّ توكن هذه المنشأة تلقائياً عبر الدخول الموحد بدل تبديل يدوي في مقيم.
+  const targetMoi = f?.unified_number || null
+  const href = validIqama
+    ? buildMuqeemRenewBookmarklet({ iqama, duration, workerId: w.id, personId: w.person_id || null, targetMoi, proxyBaseUrl })
+    : '#'
+  const dragRef = useRef(null)
+  useEffect(() => { if (dragRef.current) dragRef.current.setAttribute('href', href) }, [href])
+
+  const loadLatest = useCallback(async () => {
+    if (!sb || !w?.id) return
+    const { data } = await sb.from('muqeem_renewal_checks')
+      .select('*').eq('worker_id', w.id).order('created_at', { ascending: false }).limit(1).maybeSingle()
+    setLatest(data || null)
+  }, [sb, w?.id])
+  useEffect(() => { loadLatest() }, [loadLatest])
+
+  // Realtime — يظهر رد مقيم فور وصوله من البوكماركت (يعمل في تبويب مقيم الآخر).
+  useEffect(() => {
+    if (!sb || !w?.id) return
+    const ch = sb.channel('jisr-renew-' + w.id)
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'muqeem_renewal_checks', filter: 'worker_id=eq.' + w.id },
+        (payload) => { setLatest(payload.new); toast?.(T('وصل رد مقيم', 'Muqeem reply received')) })
+      .subscribe()
+    return () => { sb.removeChannel(ch) }
+  }, [sb, w?.id, toast, T])
+
+  const copyHref = async () => {
+    if (!validIqama) return
+    try { await navigator.clipboard.writeText(href); setCopied(true); setTimeout(() => setCopied(false), 2000) }
+    catch { toast?.(T('تعذّر النسخ', 'Copy failed')) }
+  }
+
+  // استخراج رقم رسوم لو وُجد في رد مقيم (شكل الرد قد يختلف).
+  const feeOf = (r) => {
+    if (!r || typeof r !== 'object') return null
+    for (const k of ['totalAmount', 'total', 'amount', 'fees', 'renewalFees', 'fee']) {
+      if (r[k] != null && !Number.isNaN(Number(r[k]))) return Number(r[k])
+    }
+    return null
+  }
+  // رسالة الخطأ قد تأتي من مقيم/elm ككائن ({arabic,english}) أو مصفوفة — نُعيدها
+  // دائماً نصاً، فعرض كائن كعنصر React يبيّض الصفحة.
+  const asText = (x) => {
+    if (x == null) return null
+    if (typeof x === 'string') return x
+    if (typeof x !== 'object') return String(x)
+    if (x.arabic || x.english) return x.arabic || x.english
+    if (x.ar || x.en) return x.ar || x.en
+    if (Array.isArray(x)) return x.map(asText).filter(Boolean).join(' • ')
+    try { return JSON.stringify(x) } catch { return String(x) }
+  }
+  const errOf = (r) => {
+    if (!r || typeof r !== 'object') return null
+    return asText(r.errorMessage ?? r.message ?? r.error ?? r.errors ?? null)
+  }
+  const fmtWhen = (iso) => {
+    if (!iso) return '—'
+    const d = new Date(iso); if (Number.isNaN(d.getTime())) return '—'
+    const p = (n) => String(n).padStart(2, '0')
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
+  }
+
+  const resp = latest?.response
+  const fee = feeOf(resp)
+  const err = errOf(resp)
+  // 403 من مقيم على التجديد. السبب الأول (مؤكَّد بالبيانات): اشتراك المنشأة في مقيم
+  // منتهٍ. السبب الثاني: المنشأة النشطة ليست كفيل العامل / لا صلاحية تجديد.
+  const forbidden = latest && latest.http_status === 403
+  const subExpired = forbidden && latest?.request?._subExpired === true
+  const subExpiry = latest?.request?._subExpiry || null
+  const sessionMoi = latest?.request?._sessionMoi || null
+  const wrongSponsor = forbidden && !subExpired
+  const scalarRows = (resp && typeof resp === 'object' && !Array.isArray(resp))
+    ? Object.entries(resp).filter(([, v]) => v != null && typeof v !== 'object')
+    : []
+
+  const chip = (val) => {
+    const active = duration === val
+    return (
+      <button key={val} type="button" onClick={() => setDuration(val)}
+        style={{
+          minWidth: 62, height: 40, borderRadius: 10, cursor: 'pointer', fontFamily: F, fontSize: 13, fontWeight: 600,
+          background: active ? 'rgba(176,125,0,.14)' : 'var(--inputBg)',
+          border: `1.5px solid ${active ? C.gold : 'var(--bd)'}`,
+          color: active ? C.gold : 'var(--tx2)', transition: 'all .15s',
+        }}>
+        {T(`${val} شهر`, `${val}m`)}
+      </button>
+    )
+  }
+
+  return (
+    <div style={cardChrome}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '13px 18px', borderBottom: '1px solid var(--bd)' }}>
+        <img src="/muqeem-logo.png" alt="" width="18" height="18" style={{ borderRadius: '50%', objectFit: 'contain', background: '#fff', border: '1.5px solid #f59e0b', padding: 1, flexShrink: 0 }} />
+        <span style={{ fontSize: 16, fontWeight: 600, letterSpacing: '.2px', color: C.gold }}>{T('التجديد', 'Renewal')}</span>
+        <span style={{ marginInlineStart: 'auto', fontSize: 11, fontWeight: 600, color: 'var(--tx4)' }}>{T('عبر مقيم', 'via Muqeem')}</span>
+      </div>
+      <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {!validIqama ? (
+          <div style={{ fontSize: 12.5, color: 'var(--tx4)', fontWeight: 600, textAlign: 'center', padding: '8px 0' }}>
+            {T('لا يوجد رقم إقامة صالح للعامل لتجديده', 'Worker has no valid iqama number to renew')}
+          </div>
+        ) : (
+          <>
+            {/* رقم الإقامة + اختيار المدة */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx3)' }}>{T('رقم الإقامة', 'Iqama No.')}</span>
+              <span style={{ fontSize: 13.5, fontWeight: 600, color: C.gold, direction: 'ltr', fontFamily: 'ui-monospace, monospace' }}>{iqama}</span>
+            </div>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx3)', marginBottom: 8 }}>{T('مدة التجديد', 'Renewal duration')}</div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>{DURATIONS.map(chip)}</div>
+            </div>
+
+            {/* الزر القابل للسحب + نسخ الرابط */}
+            <div style={{ background: 'var(--inputBg)', border: '1px dashed var(--bd)', borderRadius: 12, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--tx4)', lineHeight: 1.7 }}>
+                {T('اسحب الزر إلى شريط الإشارات (أو انسخ الرابط وأنشئ إشارة يدويًا)، ثم افتح مقيم واضغطه لتجديد إقامة هذا العامل بالمدة المختارة.',
+                   'Drag the button to your bookmarks bar (or copy the link and create a bookmark), then open Muqeem and click it to renew this worker for the chosen duration.')}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <a ref={dragRef} href={href} title={T('اسحبني إلى شريط الإشارات', 'Drag me to the bookmarks bar')}
+                  draggable="true" onClick={e => e.preventDefault()}
+                  style={{
+                    height: 40, paddingInline: 16, borderRadius: 10, direction: 'ltr',
+                    background: 'linear-gradient(135deg, #f59e0b, #d97706)', color: '#fff',
+                    textDecoration: 'none', fontFamily: F, fontSize: 13, fontWeight: 600, cursor: 'grab',
+                    display: 'inline-flex', alignItems: 'center', gap: 9, userSelect: 'none',
+                    boxShadow: '0 2px 10px rgba(245,158,11,.35)',
+                  }}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+                  <span>{T(`تجديد ${duration} شهر`, `Renew ${duration}m`)}</span>
+                </a>
+                <button type="button" onClick={copyHref}
+                  style={{ height: 40, paddingInline: 14, borderRadius: 10, background: 'var(--card-grad2)', border: '1px solid var(--bd)', color: 'var(--tx2)', cursor: 'pointer', fontFamily: F, fontSize: 12.5, fontWeight: 600 }}>
+                  {copied ? T('✓ نُسخ', '✓ Copied') : T('نسخ الرابط', 'Copy link')}
+                </button>
+              </div>
+            </div>
+
+            {/* آخر رد من مقيم */}
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx2)' }}>{T('آخر رد من مقيم', 'Latest Muqeem reply')}</span>
+                <button type="button" onClick={loadLatest} title={T('تحديث', 'Refresh')}
+                  style={{ marginInlineStart: 'auto', height: 28, width: 28, borderRadius: 8, background: 'var(--inputBg)', border: '1px solid var(--bd)', color: 'var(--tx3)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <RefreshCw size={13} />
+                </button>
+              </div>
+              {latest === undefined ? (
+                <div style={{ fontSize: 12, color: 'var(--tx4)', textAlign: 'center', padding: '10px 0' }}>{T('جارٍ التحميل…', 'Loading…')}</div>
+              ) : latest === null ? (
+                <div style={{ fontSize: 12, color: 'var(--tx4)', textAlign: 'center', padding: '10px 0' }}>{T('لم يُجرَ أي فحص تجديد بعد', 'No renewal check yet')}</div>
+              ) : (
+                <div style={{ border: `1px solid ${latest.ok ? 'rgba(46,204,113,.4)' : 'rgba(232,114,101,.4)'}`, borderRadius: 12, overflow: 'hidden' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '10px 12px', background: latest.ok ? 'rgba(46,204,113,.08)' : 'rgba(232,114,101,.08)' }}>
+                    <span style={{ fontSize: 12.5, fontWeight: 600, color: latest.ok ? C.ok : C.red }}>
+                      {latest.ok ? T('✓ نجح الفحص', '✓ Check succeeded') : T('⚠ رفض/خطأ', '⚠ Rejected/Error')}
+                    </span>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx4)' }}>HTTP {latest.http_status ?? '—'}</span>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx3)' }}>{T(`المدة ${latest.renew_duration} شهر`, `${latest.renew_duration}m`)}</span>
+                    <span style={{ marginInlineStart: 'auto', fontSize: 10.5, fontWeight: 600, color: 'var(--tx4)', direction: 'ltr', fontFamily: 'ui-monospace, monospace' }}>{fmtWhen(latest.created_at)}</span>
+                  </div>
+                  <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {subExpired && (
+                      <div style={{ fontSize: 12, fontWeight: 600, color: C.red, background: 'rgba(232,114,101,.06)', border: '1px solid rgba(232,114,101,.25)', borderRadius: 8, padding: '9px 11px', lineHeight: 1.7 }}>
+                        {T('اشتراك المنشأة في مقيم منتهٍ — التجديد لا يعمل باشتراك منتهٍ. جدّد اشتراك المنشأة في مقيم (تجديد الاشتراك) ثم أعد الضغط على الزر.',
+                           'The establishment’s Muqeem subscription has expired — renewal cannot run without an active subscription. Renew the establishment’s Muqeem subscription first, then click the button again.')}
+                        <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 8, fontSize: 11 }}>
+                          {subExpiry && (
+                            <span style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 7, padding: '4px 8px', color: 'var(--tx2)' }}>
+                              {T('انتهى الاشتراك في', 'Subscription expired')}: <span style={{ direction: 'ltr', fontFamily: 'ui-monospace, monospace', fontWeight: 600 }}>{subExpiry}</span>
+                            </span>
+                          )}
+                          {(f?.name_ar || f?.name_en) && (
+                            <span style={{ background: 'rgba(176,125,0,.08)', border: `1px solid ${C.gold}55`, borderRadius: 7, padding: '4px 8px', color: C.gold, fontWeight: 600 }}>
+                              {T('المنشأة', 'Establishment')}: {f.name_ar || f.name_en}{sessionMoi ? ` — ${sessionMoi}` : ''}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    {wrongSponsor && (
+                      <div style={{ fontSize: 12, fontWeight: 600, color: C.red, background: 'rgba(232,114,101,.06)', border: '1px solid rgba(232,114,101,.25)', borderRadius: 8, padding: '9px 11px', lineHeight: 1.7 }}>
+                        {T('المنشأة النشطة في مقيم ليست كفيل هذا العامل (أو لا تملك صلاحية تجديده). افتح مقيم بمنشأة كفيل العامل ثم أعد الضغط على الزر.',
+                           'The establishment active in Muqeem is not this worker’s sponsor (or lacks renewal permission). Open Muqeem under the worker’s sponsor establishment, then click the button again.')}
+                        <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 8, fontSize: 11 }}>
+                          {sessionMoi && (
+                            <span style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 7, padding: '4px 8px', color: 'var(--tx2)' }}>
+                              {T('المنشأة النشطة وقت المحاولة', 'Active establishment')}: <span style={{ direction: 'ltr', fontFamily: 'ui-monospace, monospace', fontWeight: 600 }}>{sessionMoi}</span>
+                            </span>
+                          )}
+                          {(f?.name_ar || f?.name_en) && (
+                            <span style={{ background: 'rgba(176,125,0,.08)', border: `1px solid ${C.gold}55`, borderRadius: 7, padding: '4px 8px', color: C.gold, fontWeight: 600 }}>
+                              {T('كفيل العامل', 'Worker’s sponsor')}: {f.name_ar || f.name_en}{f?.unified_number ? ` — ${f.unified_number}` : ''}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    {fee != null && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx3)' }}>{T('رسوم التجديد', 'Renewal fees')}</span>
+                        <span style={{ marginInlineStart: 'auto', fontSize: 15, fontWeight: 600, color: C.gold, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{fee.toLocaleString('en-US')} {T('ريال', 'SAR')}</span>
+                      </div>
+                    )}
+                    {err && !wrongSponsor && (
+                      <div style={{ fontSize: 12, fontWeight: 600, color: C.red, background: 'rgba(232,114,101,.06)', border: '1px solid rgba(232,114,101,.25)', borderRadius: 8, padding: '8px 10px', lineHeight: 1.6, wordBreak: 'break-word' }}>{err}</div>
+                    )}
+                    {scalarRows.length > 0 && (
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                        {scalarRows.map(([k, v]) => (
+                          <div key={k} style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 8, padding: '7px 9px', display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
+                            <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{k}</span>
+                            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx1)', direction: 'ltr', textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={String(v)}>{String(v)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <button type="button" onClick={() => setShowRaw(s => !s)}
+                      style={{ alignSelf: 'flex-start', background: 'none', border: 'none', color: 'var(--tx3)', cursor: 'pointer', fontFamily: F, fontSize: 11.5, fontWeight: 600, padding: 0, textDecoration: 'underline' }}>
+                      {showRaw ? T('إخفاء الرد الكامل', 'Hide full reply') : T('عرض الرد الكامل', 'Show full reply')}
+                    </button>
+                    {showRaw && (
+                      <pre style={{ margin: 0, maxHeight: 220, overflow: 'auto', background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 8, padding: 10, fontSize: 11, direction: 'ltr', color: 'var(--tx2)', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                        {typeof resp === 'string' ? resp : JSON.stringify(resp, null, 2)}
+                      </pre>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
 /* ═══════════════════════ Worker Detail (mirrors Facility detail) ═══════════════════════ */
 function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEdit, onSaved, onDelete, onTransfer, canEdit, canDelete, user, attKey }) {
   const t = themeForStatus(w.worker_status)
@@ -2884,7 +3152,7 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
             <WorkerAvatar w={w} size={72} radius={16} />
             <div style={{ minWidth: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                <div style={{ fontSize: 21, fontWeight: 700, color: C.gold, letterSpacing: '-.2px' }}>{w.name_ar || w.name_en || T('تفاصيل العامل الدائم','Permanent Worker Details')}</div>
+                <div style={{ fontSize: 21, fontWeight: 600, color: C.gold, letterSpacing: '-.2px' }}>{w.name_ar || w.name_en || T('تفاصيل العامل الدائم','Permanent Worker Details')}</div>
                 {w.field_sources?.photo_path === 'muqeem' && w.photo_path && <SrcPill src="muqeem" isAr={isAr} />}
               </div>
               {w.name_ar && w.name_en && (
@@ -3334,6 +3602,18 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
           {cardVisible(user, 'workers', 'activity_log') && (
           <WorkerEditLog entries={[...(Array.isArray(w.edit_log) ? w.edit_log : []), ...logExtra]} created={w.created_at ? { at: w.created_at, by_name: creatorName, label: wName } : null} fileUrls={attUrls} T={T} />
           )}
+
+          {/* التجديد — بوكماركت مقيم لتجديد إقامة العامل (آخر كرت). محاط بحاجز
+              أخطاء حتى لا يبيّض رد غير متوقع من مقيم صفحة العامل. */}
+          {cardVisible(user, 'workers', 'residency_data') && (
+          <CardBoundary fallback={
+            <div style={{ ...cardChrome, padding: 16, fontSize: 12.5, fontWeight: 600, color: 'var(--tx4)', textAlign: 'center' }}>
+              {T('تعذّر عرض كرت التجديد', 'Could not render the renewal card')}
+            </div>
+          }>
+            <RenewalCard w={w} f={f} sb={sb} T={T} isAr={isAr} toast={toast} />
+          </CardBoundary>
+          )}
         </div>
 
         {/* هيرو الحالة — حالة الإقامة (تصميم «حالة كبيرة») + تاق تأشيرة الخروج أسفله */}
@@ -3399,7 +3679,7 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
                     <SrcHead src="muqeem" />
                   </div>
                   {dateStr && (
-                    <span style={{ alignSelf: 'center', fontSize: 12.5, fontWeight: 700, color: 'var(--tx1)', direction: 'ltr', fontVariantNumeric: 'tabular-nums', fontFamily: 'ui-monospace, monospace', letterSpacing: '.3px' }}>{dateStr}</span>
+                    <span style={{ alignSelf: 'center', fontSize: 12.5, fontWeight: 600, color: 'var(--tx1)', direction: 'ltr', fontVariantNumeric: 'tabular-nums', fontFamily: 'ui-monospace, monospace', letterSpacing: '.3px' }}>{dateStr}</span>
                   )}
                 </div>
                 {cdTxt && (

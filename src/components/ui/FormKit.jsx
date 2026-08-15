@@ -486,7 +486,7 @@ export const CurrencyField = ({ label, req, error, hint, value, onChange, placeh
         <input value={display} inputMode="decimal" disabled={disabled}
           onChange={e => { let v = e.target.value.replace(/,/g, '').replace(RE_DECIMAL, ''); const p = v.split('.'); if (p.length > 2) v = p[0] + '.' + p.slice(1).join(''); onChange(v) }}
           placeholder={placeholder}
-          style={{ width: widthCh + 'ch', maxWidth: '70%', height: '100%', padding: 0, border: 'none', background: 'transparent', fontFamily: F, fontSize: big ? 26 : 14, fontWeight: big ? 600 : 600, color: C.tx, outline: 'none', textAlign: 'center', letterSpacing: big ? '.5px' : undefined, ...(disabled ? { cursor: 'not-allowed' } : {}) }} />
+          style={{ width: widthCh + 'ch', maxWidth: '70%', height: '100%', padding: 0, border: 'none', background: 'transparent', fontFamily: F, fontSize: big ? 26 : 14, fontWeight: 600, color: C.tx, outline: 'none', textAlign: 'center', letterSpacing: big ? '.5px' : undefined, ...(disabled ? { cursor: 'not-allowed' } : {}) }} />
       </div>
     </Field>
   )

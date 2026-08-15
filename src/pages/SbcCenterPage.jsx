@@ -627,7 +627,7 @@ function SbcDetailPage({ sb, user, toast, lang, row, type, statuses, onBack, onC
                 return (
                   <button key={s.id} onClick={() => changeStatus(s.id)} disabled={busy} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 9, cursor: 'pointer', textAlign: 'start', background: on ? tint(th.c, 0.12) : 'var(--bd2)', border: `1px solid ${on ? tint(th.c, 0.4) : 'var(--bd)'}`, fontFamily: F }}>
                     <span style={{ width: 9, height: 9, borderRadius: '50%', background: th.c, flexShrink: 0 }} />
-                    <span style={{ flex: 1, fontSize: 13, fontWeight: on ? 600 : 600, color: on ? th.c : 'var(--tx3)' }}>{th.ar}</span>
+                    <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: on ? th.c : 'var(--tx3)' }}>{th.ar}</span>
                     {on && <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={th.c} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>}
                   </button>
                 )

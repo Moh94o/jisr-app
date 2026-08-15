@@ -89,8 +89,8 @@ export default function ExpiryDurationCard({ pricing, canEdit, onSave }) {
                 <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx3)' }}>{DUR_LABEL[m]}</span>
                 {edit
                   ? <input type="text" inputMode="numeric" value={draft[m] ?? ''} onChange={e => setDraftVal(m, e.target.value)}
-                      style={{ width: '100%', height: 38, borderRadius: 9, border: `1px solid ${C.gold}66`, background: 'var(--inputBg)', color: C.gold, fontFamily: F, fontSize: 18, fontWeight: 700, textAlign: 'center', direction: 'ltr', outline: 'none', boxSizing: 'border-box' }} />
-                  : <span style={{ fontSize: 22, fontWeight: 700, color: C.gold, direction: 'ltr', letterSpacing: '-.5px', lineHeight: 1 }}>{daysMap[m]}</span>}
+                      style={{ width: '100%', height: 38, borderRadius: 9, border: `1px solid ${C.gold}66`, background: 'var(--inputBg)', color: C.gold, fontFamily: F, fontSize: 18, fontWeight: 600, textAlign: 'center', direction: 'ltr', outline: 'none', boxSizing: 'border-box' }} />
+                  : <span style={{ fontSize: 22, fontWeight: 600, color: C.gold, direction: 'ltr', letterSpacing: '-.5px', lineHeight: 1 }}>{daysMap[m]}</span>}
                 <span style={{ fontSize: 9, fontWeight: 600, color: 'var(--tx5)' }}>يوم</span>
               </div>
             ))}
@@ -116,8 +116,8 @@ export default function ExpiryDurationCard({ pricing, canEdit, onSave }) {
               <span style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 600 }}>طول فترة التعويض</span>
               {edit
                 ? <input type="text" inputMode="numeric" value={draft.overdueQuarterDays ?? ''} onChange={e => setDraft(d => ({ ...d, overdueQuarterDays: e.target.value.replace(/[^0-9]/g, '') === '' ? '' : Number(e.target.value.replace(/[^0-9]/g, '')) }))}
-                    style={{ width: 80, height: 34, borderRadius: 9, border: `1px solid ${C.gold}66`, background: 'var(--inputBg)', color: C.gold, fontFamily: F, fontSize: 14, fontWeight: 700, textAlign: 'center', direction: 'ltr', outline: 'none' }} />
-                : <span style={{ fontSize: 14, fontWeight: 700, color: C.gold, direction: 'ltr' }}>{quarterDays}</span>}
+                    style={{ width: 80, height: 34, borderRadius: 9, border: `1px solid ${C.gold}66`, background: 'var(--inputBg)', color: C.gold, fontFamily: F, fontSize: 14, fontWeight: 600, textAlign: 'center', direction: 'ltr', outline: 'none' }} />
+                : <span style={{ fontSize: 14, fontWeight: 600, color: C.gold, direction: 'ltr' }}>{quarterDays}</span>}
               <span style={{ fontSize: 10.5, color: 'var(--tx5)', fontWeight: 600 }}>يوم (÷ أيام التأخير = عدد الأرباع)</span>
             </div>
           )}
@@ -142,7 +142,7 @@ export default function ExpiryDurationCard({ pricing, canEdit, onSave }) {
                 return (
                   <div key={m} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, padding: '13px 8px', borderRadius: 12, background: 'rgba(176,125,0,.06)', border: `1px solid ${C.gold}40`, textAlign: 'center', minWidth: 0 }}>
                     <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx3)' }}>{DUR_LABEL[m]}</span>
-                    <span style={{ fontSize: 15, fontWeight: 700, color: C.gold, direction: 'ltr', letterSpacing: '-.3px', whiteSpace: 'nowrap' }}>{d ? fmtDate(d) : '—'}</span>
+                    <span style={{ fontSize: 15, fontWeight: 600, color: C.gold, direction: 'ltr', letterSpacing: '-.3px', whiteSpace: 'nowrap' }}>{d ? fmtDate(d) : '—'}</span>
                     {d && <span style={{ fontSize: 9, fontWeight: 600, color: 'var(--tx5)' }}>{AR_DAYS[d.getDay()]}</span>}
                   </div>
                 )

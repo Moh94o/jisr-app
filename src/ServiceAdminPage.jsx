@@ -174,7 +174,7 @@ const durationIcon=(label)=>function DurationIcon({size=22,color='currentColor',
   return(
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <rect x="3" y="3.5" width="18" height="17" rx="5.5"/>
-      <text x="12" y="12.2" textAnchor="middle" dominantBaseline="central" fontSize={label.length>1?9.5:12} fontWeight="800" fill={color} stroke="none" style={{fontFamily:"'Cairo','Tajawal',sans-serif"}}>{label}</text>
+      <text x="12" y="12.2" textAnchor="middle" dominantBaseline="central" fontSize={label.length>1?9.5:12} fontWeight="600" fill={color} stroke="none" style={{fontFamily:"'Cairo','Tajawal',sans-serif"}}>{label}</text>
     </svg>
   )
 }
@@ -1573,7 +1573,7 @@ return<div className="svc-admin-pricing" style={{display:'flex',flexDirection:'c
           :<div style={{flex:1,minWidth:0,height:h,display:'flex',alignItems:'center',justifyContent:align==='center'?'center':align==='start'?'flex-start':'flex-end',fontSize:fs,fontWeight:600,color:C.gold,fontVariantNumeric:'tabular-nums',direction:'ltr',letterSpacing:'-.5px'}}>{fmtThousands(tv??totalField.d)}</div>
         const minOnChange=(k)=>e=>{let v=e.target.value.replace(/[^0-9.]/g,'');const i=v.indexOf('.');if(i!==-1)v=v.slice(0,i+1)+v.slice(i+1).replace(/\./g,'');setPriceState(p=>({...p,[k]:v}))}
         const minInput=(f,fs,wide)=><input type="text" inputMode="decimal" value={fmtThousands(priceState[f.k]??'')} onChange={minOnChange(f.k)} placeholder={String(f.d)} style={{...(wide?{flex:1,minWidth:0}:{width:140}),height:40,padding:'0 14px',border:'1px solid rgba(176,125,0,.35)',borderRadius:11,fontFamily:F,fontSize:15,fontWeight:600,color:C.gold,outline:'none',background:'rgba(0,0,0,.30)',textAlign:'center',boxSizing:'border-box',direction:'ltr',fontVariantNumeric:'tabular-nums',letterSpacing:'-.5px'}}/>
-        const minNum=(f,fs,color)=><span style={{fontSize:fs,fontWeight:fs>=16?600:600,color:color||'var(--tx)',fontVariantNumeric:'tabular-nums',direction:'ltr'}}>{fmtThousands(priceState[f.k]??f.d)}</span>
+        const minNum=(f,fs,color)=><span style={{fontSize:fs,fontWeight: 600,color:color||'var(--tx)',fontVariantNumeric:'tabular-nums',direction:'ltr'}}>{fmtThousands(priceState[f.k]??f.d)}</span>
         const renderMinimums=()=>(
           <div style={{display:'flex',flexDirection:'column',gap:8}}>
             {gridFields.map(f=>(
@@ -1968,7 +1968,7 @@ const renderIqamaInlineEditor=(s,opts={})=>{
       </div>
       {/* توثيق قاعدة قوى: خيارات مدة تجديد رخصة العمل + التجديد المبكر (مفروضة تلقائياً في الحاسبة). */}
       <div style={{display:'flex',flexDirection:'column',gap:8,padding:'12px 14px',borderRadius:10,background:'rgba(176,125,0,.05)',border:`1px solid ${C.gold}33`}}>
-        <span style={{display:'inline-flex',alignItems:'center',gap:7,fontSize:12,fontWeight:700,color:C.gold}}><BadgeCheck size={14}/> قاعدة قوى لخيارات مدة التجديد</span>
+        <span style={{display:'inline-flex',alignItems:'center',gap:7,fontSize:12,fontWeight: 600,color:C.gold}}><BadgeCheck size={14}/> قاعدة قوى لخيارات مدة التجديد</span>
         <span style={{fontSize:11,color:'var(--tx3)',fontWeight:600,lineHeight:1.9}}>
           يُقاس التأخّر على المدة المنقضية من آخر رخصة عمل مستحقة غير مدفوعة — لا على تاريخ الانتهاء وحده:
           <br/>• الرخصة <b>سارية</b> ← تُتاح كل المدد (٣ / ٦ / ٩ / ١٢).

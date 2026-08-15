@@ -28,7 +28,7 @@ const SlipStamps = ({ raw, T }) => {
   return (
     <span title={T('سند القبض الورقي','Paper receipt')} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
       {nums.map((sl, i) => (
-        <span key={i} style={{ display: 'inline-block', border: '1.5px solid rgba(176,125,0,.5)', borderRadius: 7, padding: '2px 10px', color: C.gold, fontWeight: 700, transform: 'rotate(-3deg)', textAlign: 'center', lineHeight: 1.1 }}>
+        <span key={i} style={{ display: 'inline-block', border: '1.5px solid rgba(176,125,0,.5)', borderRadius: 7, padding: '2px 10px', color: C.gold, fontWeight: 600, transform: 'rotate(-3deg)', textAlign: 'center', lineHeight: 1.1 }}>
           <span style={{ display: 'block', fontSize: 8, fontWeight: 600, opacity: .85 }}>{T('سند قبض','Receipt')}</span>
           <span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>{sl}</span>
         </span>

@@ -1762,7 +1762,7 @@ export function Drop({ value, onChange, options, placeholder }) {
                 const sel = o.v === value
                 return (
                   <div key={o.v} onClick={() => pick(o.v)}
-                    style={{ padding: '10px 14px', cursor: 'pointer', fontSize: 13, fontWeight: sel ? 600 : 600, color: sel ? C.gold : 'var(--tx)', background: sel ? 'rgba(176,125,0,.1)' : 'transparent', borderBottom: '1px solid var(--bd)', textAlign: 'center' }}
+                    style={{ padding: '10px 14px', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: sel ? C.gold : 'var(--tx)', background: sel ? 'rgba(176,125,0,.1)' : 'transparent', borderBottom: '1px solid var(--bd)', textAlign: 'center' }}
                     onMouseEnter={e => { if (!sel) e.currentTarget.style.background = 'rgba(176,125,0,.08)' }}
                     onMouseLeave={e => { if (!sel) e.currentTarget.style.background = 'transparent' }}>
                     {o.l}
@@ -1841,7 +1841,7 @@ export function MultiDrop({ value, onChange, options, placeholder }) {
                 const on = sel.has(o.v)
                 return (
                   <div key={o.v} onClick={() => toggle(o.v)}
-                    style={{ padding: '10px 14px', cursor: 'pointer', fontSize: 13, fontWeight: on ? 600 : 600, color: on ? C.gold : 'var(--tx)', background: on ? 'rgba(176,125,0,.1)' : 'transparent', borderBottom: '1px solid var(--bd)', display: 'flex', alignItems: 'center', gap: 10 }}
+                    style={{ padding: '10px 14px', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: on ? C.gold : 'var(--tx)', background: on ? 'rgba(176,125,0,.1)' : 'transparent', borderBottom: '1px solid var(--bd)', display: 'flex', alignItems: 'center', gap: 10 }}
                     onMouseEnter={e => { if (!on) e.currentTarget.style.background = 'rgba(176,125,0,.08)' }}
                     onMouseLeave={e => { if (!on) e.currentTarget.style.background = 'transparent' }}>
                     <span style={{ width: 17, height: 17, borderRadius: 5, flexShrink: 0, border: on ? '1px solid ' + C.gold : '1.5px solid var(--bd)', background: on ? C.gold : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

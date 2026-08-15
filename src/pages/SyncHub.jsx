@@ -919,7 +919,7 @@ function RolePersonTabs({ sb, toast, allowedRoles, T, tabs, setTabs, active, set
             <div key={p.person_id} onClick={() => setActive(p.person_id)}
               style={{ padding: '10px 16px 9px', cursor: 'pointer',
                 color: isActive ? c : 'var(--tx3)',
-                fontSize: 13, fontWeight: isActive ? 600 : 600,
+                fontSize: 13, fontWeight: 600,
                 borderBottom: isActive ? `2px solid ${c}` : '2px solid transparent',
                 marginBottom: -1, transition: '.15s', fontFamily: F,
                 display: 'inline-flex', alignItems: 'center', gap: 7 }}>

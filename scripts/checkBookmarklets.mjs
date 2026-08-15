@@ -18,6 +18,7 @@
 
 import { transform } from 'esbuild'
 import { buildMudadBookmarklet } from '../src/pages/mudadSyncBookmarklet.js'
+import { buildMuqeemRenewBookmarklet } from '../src/pages/muqeemRenewBookmarklet.js'
 
 let failed = 0
 const fail = (m) => { console.log('  FAIL: ' + m); failed++ }
@@ -302,6 +303,211 @@ try {
   else ok('refreshed token ' + store.get('__refreshed') + '× on 401')
   if (!/✅|⚠️/.test(last)) fail('did not conclude cleanly: ' + last)
   else ok('concluded: ' + last.split('\n')[0].slice(0, 80))
+} catch (e) { fail('threw: ' + (e && e.stack ? e.stack.split('\n').slice(0, 3).join(' | ') : e)) }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Muqeem renewal bookmarklet (per-worker renew/validate). Runs the button in a
+// stubbed muqeem tab: a fake SPA request leaks the Bearer token, the button must
+// then POST /api/alien/iqama/renew/validate with the exact body and pipe the
+// reply into muqeem_renewal_checks through the bridge.
+// ─────────────────────────────────────────────────────────────────────────────
+// A realistically-shaped org session JWT (moiNumber + future exp) — the button
+// now validates token shape, so the fake SPA request must leak a real JWT.
+const b64url = (o) => Buffer.from(JSON.stringify(o)).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_')
+const FAKE_JWT = 'eyJhbGciOiJIUzUxMiJ9.' + b64url({ sub: '7041873717', moiNumber: '7041873717', operatorId: '1089150369', exp: Math.floor(Date.now() / 1000) + 600 }) + '.sig'
+
+async function runRenew({ duration = 6, validateStatus = 200, validateBody = { totalAmount: 645, canRenew: true }, targetMoi = '7041873717', tmpJwt = null, ssoUsers = null, ssoIdToken = null, subOverview = { expired: false } } = {}) {
+  const href = buildMuqeemRenewBookmarklet({ iqama: '2442464695', duration, workerId: 'wk-1', personId: 'pr-1', targetMoi, proxyBaseUrl: 'https://jisr.test' })
+  const code = decodeURIComponent(href.replace(/^javascript:/, ''))
+  await transform(code, { loader: 'js' })
+
+  const calls = []
+  const writes = []
+  const msgs = []
+  const listeners = []
+
+  const jsonRes = (status, obj) => ({
+    ok: status >= 200 && status < 300, status,
+    json: async () => obj, text: async () => (typeof obj === 'string' ? obj : JSON.stringify(obj)),
+  })
+  const fetchStub = async (url, opts = {}) => {
+    const u = String(url)
+    calls.push({ url: u, opts })
+    if (/\/api\/sso\/absher\/get-users$/.test(u)) return jsonRes(200, ssoUsers || [])
+    if (/\/api\/sso\/absher\/get-application-jwt$/.test(u)) return jsonRes(200, { id_token: ssoIdToken })
+    if (/\/api\/subscriptions\/business\/overview$/.test(u)) return jsonRes(200, subOverview)
+    if (/\/api\/alien\/iqama\/renew\/validate$/.test(u)) return jsonRes(validateStatus, validateBody)
+    // Any other authenticated SPA call (used only to leak the token).
+    return jsonRes(200, { ok: true })
+  }
+
+  const deliver = (data) => { for (const fn of listeners) setTimeout(() => fn({ data }), 0) }
+  const bridgeWin = {
+    closed: false,
+    postMessage(d) {
+      if (d && d.hello) return deliver({ ready: true })
+      if (d && d.id && d.path) {
+        writes.push({ path: d.path, method: d.method, body: d.body })
+        return deliver({ id: d.id, status: 201, body: '' })
+      }
+    },
+  }
+
+  const uiEl = { id: '', style: { cssText: '' }, __t: '', remove() {} }
+  Object.defineProperty(uiEl, 'textContent', { get() { return this.__t }, set(v) { this.__t = String(v); msgs.push(String(v)) } })
+
+  const win = {
+    fetch: fetchStub,
+    open: () => bridgeWin,
+    addEventListener: (t, fn) => { if (t === 'message') listeners.push(fn) },
+    location: { hostname: 'muqeem.sa', origin: 'https://muqeem.sa', href: 'https://muqeem.sa/' },
+  }
+  const mkStore = (m) => ({ get length() { return m.size }, key: (i) => Array.from(m.keys())[i], getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: (k) => m.delete(k) })
+  const lsMap = new Map(); if (tmpJwt) lsMap.set('tmpJwt', tmpJwt)
+  const sandbox = {
+    window: win,
+    fetch: fetchStub,
+    document: {
+      cookie: 'XSRF-TOKEN=xsrf-abc-123',
+      getElementById: (id) => (id === '_jisr_renew_ui' ? (uiEl.__added ? uiEl : null) : null),
+      createElement: () => { uiEl.__added = true; return uiEl },
+      body: { appendChild: () => {} },
+    },
+    localStorage: mkStore(lsMap),
+    sessionStorage: mkStore(new Map()),
+    location: win.location,
+    setTimeout, clearTimeout, URL, JSON, Math, Date, Promise, Array, Object, String, Number, RegExp, isNaN, parseFloat, decodeURIComponent, atob, console,
+  }
+
+  const fn = new Function(...Object.keys(sandbox), 'return (async()=>{' + code + '})()')
+  fn(...Object.values(sandbox))
+  // Leak a Bearer token the way muqeem's SPA would — the button installed a
+  // fetch interceptor and is now polling for it.
+  setTimeout(() => { try { win.fetch('https://muqeem.sa/api/residents', { headers: { Authorization: 'Bearer ' + FAKE_JWT, 'X-Domain': '1503520', 'X-Xsrf-Token': 'live-xsrf-77' } }) } catch (_) {} }, 60)
+
+  const deadline = Date.now() + 15000
+  while (Date.now() < deadline) {
+    if (/✅|❌|⚠️/.test(msgs[msgs.length - 1] || '')) break
+    await new Promise((r) => setTimeout(r, 25))
+  }
+  return { msgs, calls, writes }
+}
+
+console.log('muqeem-renew — happy path (validate returns fees)')
+try {
+  const { msgs, calls, writes } = await runRenew({ duration: 6 })
+  const last = msgs[msgs.length - 1] || ''
+  if (msgs.some((m) => /is not defined/.test(m))) fail('runtime error: ' + msgs.find((m) => /is not defined/.test(m)))
+  else ok('no runtime errors')
+  if (!/✅/.test(last)) fail('did not conclude success: ' + JSON.stringify(msgs.slice(-2)))
+  else ok('reached success: ' + last.split('\n')[0])
+
+  const validate = calls.find((c) => /\/api\/alien\/iqama\/renew\/validate$/.test(c.url))
+  if (!validate) fail('never POSTed renew/validate')
+  else {
+    const b = JSON.parse(validate.opts.body || '{}')
+    if (b.iqamaNumber !== '2442464695') fail('wrong iqamaNumber: ' + b.iqamaNumber)
+    else if (b.renewDuration !== '6') fail('wrong renewDuration (expected string "6"): ' + JSON.stringify(b.renewDuration))
+    else if (b.isBulk !== false) fail('isBulk not false: ' + JSON.stringify(b.isBulk))
+    else if (b.sendExpiryNotification !== false) fail('sendExpiryNotification not false: ' + JSON.stringify(b.sendExpiryNotification))
+    else if (validate.opts.headers?.Authorization !== 'Bearer ' + FAKE_JWT) fail('Bearer not attached: ' + validate.opts.headers?.Authorization)
+    else if (!validate.opts.headers?.['X-Xsrf-Token']) fail('X-Xsrf-Token missing')
+    else if (validate.opts.headers?.['X-Domain'] !== '1503520') fail('X-Domain not attached from live capture: ' + validate.opts.headers?.['X-Domain'])
+    else ok('renew/validate body + auth + X-Domain headers correct')
+  }
+
+  const write = writes.find((w) => /muqeem_renewal_checks/.test(w.path))
+  if (!write) fail('never wrote muqeem_renewal_checks')
+  else {
+    const rows = JSON.parse(write.body)
+    const row = Array.isArray(rows) ? rows[0] : rows
+    if (row.worker_id !== 'wk-1') fail('worker_id not baked: ' + row.worker_id)
+    else if (row.renew_duration !== 6) fail('renew_duration wrong: ' + row.renew_duration)
+    else if (row.ok !== true) fail('ok not true on 200: ' + row.ok)
+    else if (row.response?.totalAmount !== 645) fail('response not captured: ' + JSON.stringify(row.response))
+    else ok('renewal check row written with response')
+  }
+} catch (e) { fail('threw: ' + (e && e.stack ? e.stack.split('\n').slice(0, 3).join(' | ') : e)) }
+
+console.log('muqeem-renew — rejection path (validate 400)')
+try {
+  const { msgs, writes } = await runRenew({ duration: 12, validateStatus: 400, validateBody: { errorMessage: 'الإقامة غير قابلة للتجديد' } })
+  const last = msgs[msgs.length - 1] || ''
+  if (msgs.some((m) => /is not defined/.test(m))) fail('runtime error: ' + msgs.find((m) => /is not defined/.test(m)))
+  else if (!/⚠️/.test(last)) fail('did not surface rejection: ' + last)
+  else ok('surfaced rejection: ' + last.split('\n')[0])
+  const write = writes.find((w) => /muqeem_renewal_checks/.test(w.path))
+  if (!write) fail('rejection not persisted')
+  else {
+    const row = JSON.parse(write.body)[0]
+    if (row.ok !== false) fail('ok should be false on 400: ' + row.ok)
+    else if (row.http_status !== 400) fail('http_status wrong: ' + row.http_status)
+    else ok('rejection persisted (ok=false, http_status=400)')
+  }
+} catch (e) { fail('threw: ' + (e && e.stack ? e.stack.split('\n').slice(0, 3).join(' | ') : e)) }
+
+console.log('muqeem-renew — 403 with EXPIRED subscription (the real cause)')
+try {
+  const { msgs, writes, calls } = await runRenew({
+    duration: 3,
+    validateStatus: 403, validateBody: { type: 'https://www.elm.sa/problem/problem-with-message', title: 'Forbidden', status: 403, message: 'error.http.403' },
+    subOverview: { expired: true, latestSubscription: { expiryDate: '2026-01-25', packageNameAr: 'باقة عمليات' } },
+  })
+  const last = msgs[msgs.length - 1] || ''
+  if (msgs.some((m) => /is not defined/.test(m))) fail('runtime error: ' + msgs.find((m) => /is not defined/.test(m)))
+  else if (!calls.some((c) => /subscriptions\/business\/overview$/.test(c.url))) fail('did not probe the subscription on 403')
+  else if (!/اشتراك.*منته/.test(last)) fail('did not attribute the 403 to an expired subscription: ' + last)
+  else ok('403 correctly diagnosed as expired subscription: ' + last.split('\n')[0])
+  const row = JSON.parse(writes.find((w) => /muqeem_renewal_checks/.test(w.path)).body)[0]
+  if (row.request?._subExpired !== true) fail('_subExpired not stamped: ' + JSON.stringify(row.request))
+  else if (row.request?._subExpiry !== '2026-01-25') fail('_subExpiry not stamped: ' + row.request?._subExpiry)
+  else ok('stamped _subExpired + _subExpiry for the card')
+} catch (e) { fail('threw: ' + (e && e.stack ? e.stack.split('\n').slice(0, 3).join(' | ') : e)) }
+
+console.log('muqeem-renew — 403 with ACTIVE subscription (falls back to sponsor/authority hint)')
+try {
+  const { msgs } = await runRenew({
+    duration: 3,
+    validateStatus: 403, validateBody: { title: 'Forbidden', status: 403, message: 'error.http.403' },
+    subOverview: { expired: false, latestSubscription: { expiryDate: '2026-11-14' } },
+  })
+  const last = msgs[msgs.length - 1] || ''
+  if (!/رُفض|كفيل العامل|صلاحية التجديد/.test(last)) fail('no useful 403 guidance when sub is active: ' + last)
+  else ok('403 with active sub gives sponsor/authority hint: ' + last.split('\n')[0])
+} catch (e) { fail('threw: ' + (e && e.stack ? e.stack.split('\n').slice(0, 3).join(' | ') : e)) }
+
+console.log('muqeem-renew — auto-switch establishment via Absher SSO')
+try {
+  // Page session is establishment A; the worker's sponsor is B. With a valid
+  // tmpJwt the button must mint B's token via SSO and renew with THAT token.
+  const TMP = 'eyJhbGciOiJIUzUxMiJ9.' + b64url({ AUTH: 'ELM_ABSHER_SSO', absherReferenceNumber: 'x', exp: Math.floor(Date.now() / 1000) + 600 }) + '.sig'
+  const ORG_B = 'eyJhbGciOiJIUzUxMiJ9.' + b64url({ sub: '7042064787', moiNumber: '7042064787', exp: Math.floor(Date.now() / 1000) + 600 }) + '.sig'
+  const { msgs, calls } = await runRenew({ duration: 3, targetMoi: '7042064787', tmpJwt: TMP, ssoUsers: [{ username: '7041873717', userId: 'uA' }, { username: '7042064787', userId: 'uB' }], ssoIdToken: ORG_B })
+  const last = msgs[msgs.length - 1] || ''
+  if (msgs.some((m) => /is not defined/.test(m))) fail('runtime error: ' + msgs.find((m) => /is not defined/.test(m)))
+  else ok('no runtime errors')
+  const gu = calls.find((c) => /get-users$/.test(c.url))
+  const gj = calls.find((c) => /get-application-jwt$/.test(c.url))
+  if (!gu) fail('never called get-users')
+  else if (!gj) fail('never called get-application-jwt')
+  else if (JSON.parse(gj.opts.body).userId !== 'uB') fail('minted the wrong establishment userId: ' + JSON.parse(gj.opts.body).userId)
+  else ok('minted the target establishment token (userId uB)')
+  const validate = calls.find((c) => /renew\/validate$/.test(c.url))
+  if (!validate) fail('never POSTed renew/validate after SSO mint')
+  else if (validate.opts.headers?.Authorization !== 'Bearer ' + ORG_B) fail('renew did NOT use the SSO-minted token: ' + validate.opts.headers?.Authorization)
+  else ok('renew used the SSO-minted target token — no manual switch needed')
+} catch (e) { fail('threw: ' + (e && e.stack ? e.stack.split('\n').slice(0, 3).join(' | ') : e)) }
+
+console.log('muqeem-renew — mismatch guard (no tmpJwt, wrong active establishment)')
+try {
+  // Active page session is 7041873717 but the worker's sponsor is 7042064787 and
+  // there is no tmpJwt to switch — the button must BLOCK before sending (no 403).
+  const { msgs, calls } = await runRenew({ duration: 3, targetMoi: '7042064787', tmpJwt: null })
+  const last = msgs[msgs.length - 1] || ''
+  if (!/ليست كفيل هذا العامل/.test(last)) fail('did not block with a clear message: ' + last)
+  else ok('blocked with guidance: ' + last.split('\n')[0])
+  if (calls.some((c) => /renew\/validate$/.test(c.url))) fail('sent a doomed renew/validate despite establishment mismatch')
+  else ok('did NOT send the doomed request')
 } catch (e) { fail('threw: ' + (e && e.stack ? e.stack.split('\n').slice(0, 3).join(' | ') : e)) }
 
 console.log(failed ? '\n' + failed + ' check(s) FAILED' : '\nall checks passed')

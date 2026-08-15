@@ -282,7 +282,7 @@ export const FacilityPicker = ({ value, onChange, options, placeholder = 'اخت
                     display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}
                   onMouseEnter={e => { if (!sel) e.currentTarget.style.background = 'rgba(176,125,0,.1)' }}
                   onMouseLeave={e => { if (!sel) e.currentTarget.style.background = 'transparent' }}>
-                  <span style={{ fontSize: 13, fontWeight: sel ? 600 :600,
+                  <span style={{ fontSize: 13, fontWeight: 600,
                     color: sel ? C.gold : 'rgba(255,255,255,.92)' }}>{o.name_ar}</span>
                   {o.cr_number && (
                     <span style={{ fontSize: 10, color: 'rgba(255,255,255,.5)', direction: 'ltr',

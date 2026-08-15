@@ -120,6 +120,9 @@ export const PAGE_VIEW_PERM = {
   workers: 'workers.view',
   temp_workers: 'workers.view',
   work_visas: 'workers.view',
+  // جدول التأشيرات: نفس بوابة تأشيرات العمل — العرض بصلاحية العمالة،
+  // والتحرير داخل الصفحة محكوم بـwork_visas.edit.
+  visa_grid: 'workers.view',
   invoices: 'invoices.view',
   payments: 'payments.view',
   deposits: 'deposits.view',
@@ -135,6 +138,7 @@ export const PAGE_VIEW_PERM = {
   settings_fields: 'settings_fields.view',
   sync_hub: 'sync_hub.access',
   sync_log: 'sync_hub.access',
+  ops_excels: 'sync_hub.access',
 }
 
 // Does the user have view/access permission for a sidebar page id? GM ⇒ always.

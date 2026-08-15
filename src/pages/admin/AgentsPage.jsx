@@ -606,7 +606,7 @@ function AgentDetailPage({ sb, user, agent, agentStats, toast, onBack, T, isAr, 
               <div style={{ padding: '12px 18px', borderBottom: '1px solid rgba(255,255,255,.06)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10, alignItems: 'end' }}>
                 <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{ fontSize: 12, color: 'var(--tx3)', fontWeight: 600 }}>{T('عدد الفواتير', 'Invoices')}</span>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 700, color: GOLD, direction: 'ltr', fontVariantNumeric: 'tabular-nums', padding: '2px 10px', borderRadius: 999, background: 'rgba(176,125,0,.12)', border: '1px solid rgba(176,125,0,.28)' }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 600, color: GOLD, direction: 'ltr', fontVariantNumeric: 'tabular-nums', padding: '2px 10px', borderRadius: 999, background: 'rgba(176,125,0,.12)', border: '1px solid rgba(176,125,0,.28)' }}>
                     {fltActive ? `${filteredInvoiceRows.length} / ${invoiceRows.length}` : invoiceRows.length}
                   </span>
                 </div>
@@ -716,7 +716,7 @@ function InvoiceRow({ invoice, openInvoice, T, isAr }) {
     </span>
   ) : null
   const cancelChip = cancelled ? (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, color: C.red, fontWeight: 700, padding: '2px 8px', borderRadius: 5, background: 'rgba(192,57,43,.12)', border: `1px solid rgba(192,57,43,.35)` }}>
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, color: C.red, fontWeight: 600, padding: '2px 8px', borderRadius: 5, background: 'rgba(192,57,43,.12)', border: `1px solid rgba(192,57,43,.35)` }}>
       <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
       {T('ملغاة', 'Cancelled')}
     </span>
