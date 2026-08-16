@@ -117,6 +117,26 @@ export const MODULE_ACTIONS = {
     A('manage_operator', 'إدارة المشغّل', 'special'),
   ],
 
+  /* «جداول العمل» — صلاحياتٌ على مستويين: هذه القائمة تمنح الخاصيّة **عموماً**،
+     وبطاقاتُ التبويب (TAB_CARDS.ops_excels) تُستثني جدولاً بعينه أو خاصيّةً على
+     جدولٍ بعينه. فيصحّ «يعدّل كل الجداول إلا الاسترجاعات» و«يصدّر السعودة فقط». */
+  ops_excels: [
+    A('view', 'عرض جداول العمل', 'view'),
+    A('edit', 'تعديل الخلايا', 'edit'),
+    A('create', 'إضافة صف', 'create'),
+    A('delete', 'حذف صف', 'delete'),
+    A('columns', 'إدارة الأعمدة (إضافة/إخفاء/تنسيق/صيغ)', 'special'),
+    A('layout', 'الفرز والتصفية والتثبيت وعرض الأعمدة', 'special'),
+    A('lock', 'قفل الأعمدة وحمايتها بكلمة سر', 'special'),
+    A('export', 'تصدير الجدول', 'special'),
+    A('refresh', 'تحديث من المزامنة', 'sync'),
+    A('snapshot', 'لقطات الأسبوع (الأرشيف)', 'special'),
+    A('chat', 'محادثة الجدول', 'special'),
+    A('rename', 'تسمية الجداول والأعمدة', 'special'),
+    A('new_sheet', 'إنشاء جدول جديد', 'create'),
+    A('delete_sheet', 'حذف جدول', 'delete'),
+  ],
+
   // Per-service transaction modules share a common action shape.
   // (generated below by buildSvc)
   saudization: [
@@ -217,7 +237,7 @@ export const TAB_MODULE = {
   invoices: 'invoices', deposits: 'deposits', payments: 'payments', ext_payments: 'ext_payments',
   jub1_receipts: 'jub1_receipts',
   transfer_calc: 'quotations', renewal_calc: 'renewal_calc',
-  sync_hub: 'sync_hub', sync_log: 'sync_hub',
+  sync_hub: 'sync_hub', sync_log: 'sync_hub', ops_excels: 'ops_excels',
   saudization: 'saudization',
   admin_clients: 'admin_clients', admin_agents: 'admin_agents',
   admin_offices: 'admin_offices', admin_bank_accounts: 'admin_bank_accounts',
@@ -241,6 +261,7 @@ export const MODULE_META = {
   quotations: { label_ar: 'تسعيرات التنازل', icon: 'calc', sort: 50 },
   renewal_calc: { label_ar: 'تسعيرات التجديد', icon: 'refresh', sort: 51 },
   sync_hub: { label_ar: 'مركز المزامنة', icon: 'facility', sort: 110 },
+  ops_excels: { label_ar: 'جداول العمل', icon: 'calendar', sort: 115 },
   svc_work_visa_permanent: { label_ar: 'تأشيرة بإقامة 12 شهر', icon: 'transaction', sort: 60 },
   svc_work_visa_9m: { label_ar: 'تأشيرة بإقامة 9 أشهر', icon: 'transaction', sort: 60.3 },
   svc_work_visa_6m: { label_ar: 'تأشيرة بإقامة 6 أشهر', icon: 'transaction', sort: 60.5 },
@@ -283,6 +304,51 @@ const ca = (action, label_ar, kind = 'special') => ({ action, label_ar, kind })
 const C = (key, label_ar, group = 'core', actions = []) => ({ key, label_ar, group, actions })
 
 // Reusable action sets.
+/* ── «جداول العمل»: كل خاصيّة تُستثنى على مستوى الجدول الواحد ───────────────
+   نفس أسماء أفعال `MODULE_ACTIONS.ops_excels`، فيصير المعنى: «هذه الخاصيّة
+   ممنوحة عموماً، لكن ليست على هذا الجدول». */
+const OPS_SHEET_ACTS = [
+  ca('edit', 'تعديل الخلايا', 'edit'),
+  ca('create', 'إضافة صف', 'create'),
+  ca('delete', 'حذف صف', 'delete'),
+  ca('columns', 'إدارة الأعمدة'),
+  ca('layout', 'الفرز والتصفية والعرض'),
+  ca('lock', 'قفل الأعمدة'),
+  ca('export', 'تصدير'),
+  ca('refresh', 'تحديث من المزامنة', 'sync'),
+  ca('snapshot', 'لقطات الأسبوع'),
+  ca('chat', 'المحادثة'),
+  ca('rename', 'التسمية'),
+]
+/* قائمة الجداول = مفاتيح `VIEWS` في OpsExcelsPage بترتيبها ومجموعاتها.
+   ⚠️ عند إضافة جدول هناك أضف سطره هنا وإلا لم يظهر في تبويب الصلاحيات. */
+const OPS_SHEETS = [
+  ['persons', 'الأشخاص', 'مركز المزامنة'],
+  ['companies', 'الشركات', 'مركز المزامنة'],
+  ['companies_detailed', 'المنشآت تفصيلي', 'مركز المزامنة'],
+  ['subscriptions', 'الاشتراكات', 'مركز المزامنة'],
+  ['nitaqat', 'نطاقات والاستقطاب', 'مركز المزامنة'],
+  ['qawaem', 'القوائم المالية', 'مركز المزامنة'],
+  ['mudad', 'مدد', 'مركز المزامنة'],
+  ['ajeer', 'اجير', 'مركز المزامنة'],
+  ['baladi_licenses', 'الرخص البلدية', 'مركز المزامنة'],
+  ['permanent_workers', 'العمالة الدائمة — البيانات الأساسية', 'العمالة'],
+  ['permanent_workers_dates', 'العمالة الدائمة — التواريخ والتأشيرات', 'العمالة'],
+  ['permanent_workers_actual', 'العمالة الدائمة — البيانات الفعلية', 'العمالة'],
+  ['permanent_workers_invoices', 'العمالة الدائمة — الفواتير', 'العمالة'],
+  ['recoveries', 'الاسترجاعات', 'العمالة'],
+  ['final_exit', 'خروج نهائي', 'العمالة'],
+  ['saudization', 'السعودة — مزامنة', 'السعودة'],
+  ['saudization_entry', 'السعودة — إدخال', 'السعودة'],
+  ['work_visas', 'تأشيرات العمل', 'الخدمات'],
+  ['transfers', 'نقل الكفالة', 'الخدمات'],
+  ['ajeer_requests', 'رفع طلبات أجير', 'الخدمات'],
+  ['ajeer_secondment', 'الإعارة (أجير)', 'الخدمات'],
+  ['invoices', 'الفواتير', 'المالية'],
+  ['deposits', 'متابعة الإيداعات', 'المالية'],
+  ['sadad', 'دفتر السدادات', 'المالية'],
+  ['sadad_requests', 'طلبات السداد', 'المالية'],
+]
 const EDIT = [ca('edit', 'تعديل', 'edit')]
 const EDIT_CLIENT = [ca('edit', 'تعديل بيانات العميل', 'edit')]
 // Transaction comments/actions card — varies per service.
@@ -368,6 +434,11 @@ export const TAB_CARDS = {
     C('actions_print', 'الإجراءات والطباعة', 'core', [ca('approve', 'تصديق الحسبة'), ca('cancel', 'إلغاء الحسبة')]),
   ],
   sync_hub: [C('facilities_overview', 'المنشآت'), C('sync_activities_log', 'أنشطة المزامنة')],
+  /* «جداول العمل»: كل **جدول** بطاقةٌ مستقلّة — إخفاؤها يمنع الجدول كلّه من
+     القائمة — وكل خاصيّة داخله زرٌّ يُستثنى وحده. مفاتيح البطاقات هي `view_key`
+     نفسها في `OpsExcelsPage.VIEWS`، فأي جدول جديد يُضاف هناك يُضاف سطره هنا.
+     الجداول المخصّصة (`custom_*`) لا تُدرَج — تُنشأ وقت التشغيل. */
+  ops_excels: OPS_SHEETS.map(([k, ar, grp]) => C(k, ar, grp, OPS_SHEET_ACTS)),
   sync_log: [C('sync_activities_feed', 'أنشطة المزامنة')],
   admin_clients: [
     C('client_info', 'بيانات العميل', 'core', EDIT), C('invoices_log', 'سجل الفواتير'),

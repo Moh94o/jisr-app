@@ -138,7 +138,10 @@ export const PAGE_VIEW_PERM = {
   settings_fields: 'settings_fields.view',
   sync_hub: 'sync_hub.access',
   sync_log: 'sync_hub.access',
-  ops_excels: 'sync_hub.access',
+  // «جداول العمل» غير مذكورة عمداً: التبويب مفتوح لكل مستخدم بقرار الإدارة،
+  // والتحكّم داخله على مستوى **كل جدول وكل خاصيّة** (card:/cardact: ops_excels)
+  // + حجب الشيتات المالية للمدير العام. ولو رُبطت هنا بصلاحية لظهرت شاشة
+  // «لا تملك صلاحية الوصول» فوق الجدول لكل من لا يملكها.
 }
 
 // Does the user have view/access permission for a sidebar page id? GM ⇒ always.
@@ -155,6 +158,10 @@ export const PAGE_VIEW_PERM = {
 export const canViewPage = (user, pageId) => {
   if (isGM(user)) return true
   if (pageId === 'home') return true
+  /* «جداول العمل» مفتوحة لكل مستخدم — التحكّم داخلها لا على بابها. لا تعتمد على
+     السقوط إلى TAB_MODULE: مفتاحها موجود فيه (لأن له وحدة صلاحيات كاملة) فكان
+     `sectionViewable` يمنعه ما لم يُمنَح `ops_excels.view`. */
+  if (pageId === 'ops_excels') return true
   const code = PAGE_VIEW_PERM[pageId]
   if (code) return can(user, code)
   if (Object.prototype.hasOwnProperty.call(TAB_MODULE, pageId)) return sectionViewable(user, pageId)

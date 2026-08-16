@@ -138,12 +138,24 @@ try{const h=window.location.hash||'';if(h.includes('error=')||h.includes('error_
 try{const sp=new URLSearchParams(window.location.search);const tokenHash=sp.get('token_hash');const otpType=sp.get('type');if(tokenHash&&otpType){const al=localStorage.getItem('jisr_lang')||'ar';client.auth.verifyOtp({token_hash:tokenHash,type:otpType}).then(({error})=>{if(error){const m=translateErr(error,al);setToast({msg:(al==='ar'?'خطأ: ':'Error: ')+m,type:'error'});setTimeout(()=>setToast(null),5000)}else{client.auth.signOut().catch(()=>{});setToast({msg:al==='ar'?'تم تأكيد البريد — حسابك قيد المراجعة من المدير العام':'Email confirmed — your account is pending GM approval',type:'success'});setTimeout(()=>setToast(null),5000)}history.replaceState(null,'',window.location.pathname)})}}catch{}
 // Check if user is coming back from password reset link
 client.auth.onAuthStateChange((event)=>{if(event==='PASSWORD_RECOVERY'){setView('reset')}});
+// Bound every session-restore query. Unbounded, a saturated backend (a sync
+// run hogging the PostgREST pool) left the app stuck on the splash forever:
+// the 5s fallback below is cleared as soon as getSession resolves, so a hang
+// in the profile/permission fetches that follow had nothing to catch it.
+// On timeout these reject, the surrounding catch runs, and the user lands on
+// the login page instead of an eternal spinner.
+const rt=(p,ms=10000)=>Promise.race([p,new Promise((_,rej)=>setTimeout(()=>rej(new Error('restore timed out')),ms))]);
 // Run settings check and session check in PARALLEL for faster startup
 let resolved=false;
 const timeout=setTimeout(()=>{if(!resolved){setGmDone(true);setView('login')}},5000);
 const settingsP=client.from('system_settings').select('setting_key,setting_value').eq('setting_key','gm_setup_complete').single();
 const sessionP=client.auth.getSession();
-Promise.all([settingsP,sessionP]).then(async([settingsRes,sessionRes])=>{resolved=true;clearTimeout(timeout);const done=settingsRes.data?.setting_value==='true';setGmDone(done);const session=sessionRes.data?.session;if(!session){setView('login');return}try{const{data:u}=await client.from('users').select('*,person:persons!users_person_id_fkey(*),role:roles!users_role_id_fkey(id,name_ar,name_en,color)').eq('auth_user_id',session.user.id).single();if(u){if(!u.is_active){await client.auth.signOut();setView('login')}else{if(u.preferred_lang)setLangPersist(u.preferred_lang);try{const{data:permRows}=await client.from('v_user_effective_permissions').select('module,action,is_granted,branch_scope,branch_id').eq('user_id',u.id).eq('is_granted',true);u.perms=permRows||[];try{const{data:bp}=await client.from('v_user_branch_permissions').select('module,action,branch_id').eq('user_id',u.id);u.branchPerms=bp||[]}catch{u.branchPerms=[]}try{const{data:_ur}=await client.from('user_roles').select('role_id').eq('user_id',u.id);const _rids=Array.from(new Set([...(_ur||[]).map(r=>r.role_id),...(u.role_id?[u.role_id]:[])]));if(_rids.length){const{data:_rv}=await client.from('roles').select('name_ar,ui_visibility').in('id',_rids);u.ui_visibility=mergeRoleVis((_rv||[]).map(r=>r.ui_visibility));u.roleNames=(_rv||[]).map(r=>r.name_ar).filter(Boolean)}}catch{}}catch{u.perms=[];u.branchPerms=[]}setUser(u);setView('app')}}else setView('login')}catch(e){setView('login')}}).catch(()=>{resolved=true;clearTimeout(timeout);setView('login')})},[]);const handleLogin=async(email,pass)=>{const withTimeout=(promise,ms=10000)=>Promise.race([promise,new Promise((_,rej)=>setTimeout(()=>rej(new Error(lang==='ar'?'انتهت مهلة الاتصال — حاول مرة أخرى':'Connection timed out — try again')),ms))]);const{data,error}=await withTimeout(sb.auth.signInWithPassword({email:(email||'').trim().toLowerCase(),password:pass}));if(error)throw error;const{data:u,error:e2}=await withTimeout(sb.from('users').select('*,person:persons!users_person_id_fkey(*),role:roles!users_role_id_fkey(id,name_ar,name_en,color)').eq('auth_user_id',data.user.id).single());if(e2||!u)throw new Error('User not found');if(!u.is_active){await sb.auth.signOut();throw new Error(lang==='ar'?'حسابك قيد المراجعة — يرجى انتظار موافقة المسؤول':'Your account is under review — please wait for admin approval')}sb.from('users').update({last_login_at:new Date().toISOString()}).eq('id',u.id).then(()=>{});try{const{data:permRows}=await sb.from('v_user_effective_permissions').select('module,action,is_granted,branch_scope,branch_id').eq('user_id',u.id).eq('is_granted',true);u.perms=permRows||[];try{const{data:bp}=await sb.from('v_user_branch_permissions').select('module,action,branch_id').eq('user_id',u.id);u.branchPerms=bp||[]}catch{u.branchPerms=[]}try{const{data:_ur}=await sb.from('user_roles').select('role_id').eq('user_id',u.id);const _rids=Array.from(new Set([...(_ur||[]).map(r=>r.role_id),...(u.role_id?[u.role_id]:[])]));if(_rids.length){const{data:_rv}=await sb.from('roles').select('name_ar,ui_visibility').in('id',_rids);u.ui_visibility=mergeRoleVis((_rv||[]).map(r=>r.ui_visibility));u.roleNames=(_rv||[]).map(r=>r.name_ar).filter(Boolean)}}catch{}}catch{u.perms=[];u.branchPerms=[]}setUser(u);if(u.preferred_lang)setLangPersist(u.preferred_lang);const wlang=u.preferred_lang||lang;const _war=wlang==='ar';const _nm=(((_war?u.person?.name_ar:u.person?.name_en)||u.person?.name_ar||'').trim().split(/\s+/).slice(0,2).join(' '))||(_war?'بك':'back');setWelcome({name:_nm,lang:wlang});try{localStorage.setItem('jisr_last_activity',String(Date.now()))}catch{}setView('app')};const handleSetup=async(form)=>{
+Promise.all([settingsP,sessionP]).then(async([settingsRes,sessionRes])=>{resolved=true;clearTimeout(timeout);const done=settingsRes.data?.setting_value==='true';setGmDone(done);const session=sessionRes.data?.session;if(!session){setView('login');return}try{const{data:u}=await client.from('users').select('*,person:persons!users_person_id_fkey(*),role:roles!users_role_id_fkey(id,name_ar,name_en,color)').eq('auth_user_id',session.user.id).single();if(u){if(!u.is_active){await client.auth.signOut();setView('login')}else{if(u.preferred_lang)setLangPersist(u.preferred_lang);const{data:permRows}=await rt(client.from('v_user_effective_permissions').select('module,action,is_granted,branch_scope,branch_id').eq('user_id',u.id).eq('is_granted',true));u.perms=permRows||[];try{const{data:bp}=await rt(client.from('v_user_branch_permissions').select('module,action,branch_id').eq('user_id',u.id));u.branchPerms=bp||[]}catch{u.branchPerms=[]}try{const{data:_ur}=await rt(client.from('user_roles').select('role_id').eq('user_id',u.id));const _rids=Array.from(new Set([...(_ur||[]).map(r=>r.role_id),...(u.role_id?[u.role_id]:[])]));if(_rids.length){const{data:_rv}=await rt(client.from('roles').select('name_ar,ui_visibility').in('id',_rids));u.ui_visibility=mergeRoleVis((_rv||[]).map(r=>r.ui_visibility));u.roleNames=(_rv||[]).map(r=>r.name_ar).filter(Boolean)}}catch{}setUser(u);setView('app')}}else setView('login')}catch(e){setView('login')}}).catch(()=>{resolved=true;clearTimeout(timeout);setView('login')})},[]);const handleLogin=async(email,pass)=>{const withTimeout=(promise,ms=10000)=>Promise.race([promise,new Promise((_,rej)=>setTimeout(()=>rej(new Error(lang==='ar'?'انتهت مهلة الاتصال — حاول مرة أخرى':'Connection timed out — try again')),ms))]);const{data,error}=await withTimeout(sb.auth.signInWithPassword({email:(email||'').trim().toLowerCase(),password:pass}));if(error)throw error;const{data:u,error:e2}=await withTimeout(sb.from('users').select('*,person:persons!users_person_id_fkey(*),role:roles!users_role_id_fkey(id,name_ar,name_en,color)').eq('auth_user_id',data.user.id).single());if(e2||!u)throw new Error('User not found');if(!u.is_active){await sb.auth.signOut();throw new Error(lang==='ar'?'حسابك قيد المراجعة — يرجى انتظار موافقة المسؤول':'Your account is under review — please wait for admin approval')}sb.from('users').update({last_login_at:new Date().toISOString()}).eq('id',u.id).then(()=>{});// Every query below is bounded by withTimeout. Without it a saturated backend
+// (a sync run hogging the PostgREST pool) left the login button spinning with
+// no error at all. And a failure here must NOT fall through to an empty perms
+// array — that would drop the user into an app with everything hidden, which
+// reads as "the system lost my data". Surface it and let them retry instead.
+try{const{data:permRows,error:ePerm}=await withTimeout(sb.from('v_user_effective_permissions').select('module,action,is_granted,branch_scope,branch_id').eq('user_id',u.id).eq('is_granted',true));if(ePerm)throw ePerm;u.perms=permRows||[];try{const{data:bp}=await withTimeout(sb.from('v_user_branch_permissions').select('module,action,branch_id').eq('user_id',u.id));u.branchPerms=bp||[]}catch{u.branchPerms=[]}try{const{data:_ur}=await withTimeout(sb.from('user_roles').select('role_id').eq('user_id',u.id));const _rids=Array.from(new Set([...(_ur||[]).map(r=>r.role_id),...(u.role_id?[u.role_id]:[])]));if(_rids.length){const{data:_rv}=await withTimeout(sb.from('roles').select('name_ar,ui_visibility').in('id',_rids));u.ui_visibility=mergeRoleVis((_rv||[]).map(r=>r.ui_visibility));u.roleNames=(_rv||[]).map(r=>r.name_ar).filter(Boolean)}}catch{}}catch(ePermFatal){throw new Error(lang==='ar'?'تم التحقق من الحساب لكن تعذّر تحميل الصلاحيات — تحقق من الاتصال وحاول مرة أخرى':'Signed in but permissions could not be loaded — check your connection and try again')}setUser(u);if(u.preferred_lang)setLangPersist(u.preferred_lang);const wlang=u.preferred_lang||lang;const _war=wlang==='ar';const _nm=(((_war?u.person?.name_ar:u.person?.name_en)||u.person?.name_ar||'').trim().split(/\s+/).slice(0,2).join(' '))||(_war?'بك':'back');setWelcome({name:_nm,lang:wlang});try{localStorage.setItem('jisr_last_activity',String(Date.now()))}catch{}setView('app')};const handleSetup=async(form)=>{
 const{data:auth,error:e1}=await sb.auth.signUp({email:form.em,password:form.pw});
 if(e1)throw e1;
 if(!auth.user)throw new Error(lang==='ar'?'فشل إنشاء حساب المصادقة':'Failed to create auth user');
@@ -655,7 +667,9 @@ const saveVisibility=(cfg)=>{setVisibility(cfg);localStorage.setItem('jisr_visib
 // ROLE-FIRST: a non-GM sees a tab when their role grants its view permission
 // (canViewPage), UNLESS it's explicitly hidden for them (ui_visibility[id]===false)
 // or the global config hides it. The GM bypasses personal overrides.
-const isVisible=(id)=>{const locked=['admin_visibility'].includes(id);if(locked)return true;if(!isItemVisible(id))return false;if(visibility[id]===false)return false;if(!isGM&&user?.ui_visibility?.[id]===false)return false;if(!isGM&&!canViewPage(user,id))return false;return true;};
+// 'ops_excels' مفتوح لكل مستخدم بقرار الإدارة — الشيتات المالية وحدها محجوبة،
+// وحجبها داخل الصفحة نفسها (GM_ONLY_VIEWS) لا بصلاحية التبويب.
+const isVisible=(id)=>{const locked=['admin_visibility','ops_excels'].includes(id);if(locked)return true;if(!isItemVisible(id))return false;if(visibility[id]===false)return false;if(!isGM&&user?.ui_visibility?.[id]===false)return false;if(!isGM&&!canViewPage(user,id))return false;return true;};
 // Admin-only nav items: Sync Hub is hidden from non-GM users regardless of visibility toggles.
 const isGM=user?.role?.name_ar==='المدير العام'||user?.role?.name_en==='General Manager';
 // المدير العام: زر «التالي» في كل نوافذ الويزارد (FKModal) لا يُقفل عليه أبداً —
@@ -702,12 +716,14 @@ const T=(ar,en)=>lang==='ar'?ar:en;const TL=(ar)=>lang==='ar'?ar:(TR[ar]||ar);co
 {id:'transactions_hub',l:T('الخدمات','Services'),i:'transaction'},
 {id:'tasks_hub',l:T('المهام','Tasks'),i:'tasks'},
 {id:'persons_hub',l:T('الأشخاص','Persons'),i:'client'},
+{id:'ops_excels',l:T('جداول العمل','Work Sheets'),i:'calendar'},
 {id:'sync_center',l:T('مركز المزامنة','Sync Hub'),i:'transaction'},
 {id:'admin_hub',l:T('الإدارة','Admin'),i:'settings'}
 ];
 const hubTabs={
   workforce:[{id:'facilities',l:T('المنشآت','Facilities'),i:'facility'},{id:'workers',l:T('العمالة الدائمة','Permanent Workforce'),i:'labor'},{id:'temp_workers',l:T('العمالة المؤقتة','Temporary Workforce'),i:'labor'},{id:'visa_grid',l:T('جدول إصدار التأشيرات','Visa Issuance Grid'),i:'calendar'}],
-  sync_center:[{id:'sync_hub',l:T('مركز المزامنة','Sync Hub'),i:'refresh'},{id:'ops_excels',l:T('اكسلات العمليات','Operations Excels'),i:'calendar'}],
+  // «اكسلات العمليات» خرجت من هنا إلى تبويب رئيسي مستقلّ — لم تعد تابعة للمزامنة
+  sync_center:[{id:'sync_hub',l:T('مركز المزامنة','Sync Hub'),i:'refresh'}],
   finance_hub:[{id:'invoices',l:T('الفواتير','Invoices'),i:'invoice'},{id:'deposits',l:T('الإيداعات','Deposits'),i:'deposit'},{id:'payments',l:T('سدادات الخدمات','Service Payments'),i:'receipt'},{id:'ext_payments',l:T('سدادات خارجية','External Payments'),i:'receipt'},{id:'jub1_receipts',l:T('سندات JUB1','JUB1 Receipts'),i:'receipt'}],
   pricing_hub:[{id:'transfer_calc',l:T('حسبة نقل الكفالات','Transfer Calc'),i:'calc'},{id:'renewal_calc',l:T('حسبة تجديد الإقامات','Renewal Calc'),i:'refresh'}],
   persons_hub:[{id:'admin_clients',l:T('العملاء','Clients'),i:'clients'},{id:'admin_agents',l:T('الوسطاء','Agents'),i:'broker'}],
@@ -1163,9 +1179,12 @@ return<div data-avatar onClick={openProfile} title={(lang==='en'?(user?.person?.
 
 {/* ═══ HUB CONTENT (sidebar handles navigation) ═══ */}
 {(()=>{
-const allHubPages=Object.values(hubTabs).flat().map(t=>t.id).concat(['worker_leaves','transfer_calc','renewal_calc'])
+// صفحات تُرسَم هنا وليست تبويباً داخل هَب — تُذكر صراحةً وإلا رجعت الكتلة null
+// وظهرت الصفحة **فارغة** (وقعت في هذا حين نُقلت «اكسلات العمليات» لتبويب مستقلّ).
+const allHubPages=Object.values(hubTabs).flat().map(t=>t.id).concat(['worker_leaves','transfer_calc','renewal_calc','ops_excels'])
 if(!allHubPages.includes(pg))return null
-if(!canViewPage(user,pg))return null
+// «اكسلات العمليات» مفتوحة لكل مستخدم بقرار الإدارة — الحجب داخلها على الشيتات المالية
+if(pg!=='ops_excels'&&!canViewPage(user,pg))return null
 return<div><div>
 {/* العمالة */}
 {pg==='facilities'&&<FacilitiesPage sb={sb} toast={tt} user={user} lang={lang} onTabChange={setSTabInfo}/>}
@@ -1177,7 +1196,8 @@ return<div><div>
 {pg==='renewal_calc'&&<RenewalCalcPage sb={sb} toast={tt} user={user} lang={lang} emptyIcon={navEmptyIcon('renewal_calc')} onNewCalc={()=>setShowRenewalCalc(true)}/>}
 {/* مركز المزامنة — صفحة المنشآت مباشرة (بلا لوحة المزامنة/الأنشطة) */}
 {pg==='sync_hub'&&canSeeSyncHub&&<SbcFacilities sb={sb} toast={tt} user={user} lang={lang}/>}
-{pg==='ops_excels'&&canSeeSyncHub&&<OpsExcelsPage sb={sb} toast={tt} user={user} lang={lang} onTabChange={setSTabInfo}/>}
+{/* مفتوح لكل مستخدم — الحجب داخل الصفحة على الشيتات المالية وحدها */}
+{pg==='ops_excels'&&<OpsExcelsPage sb={sb} toast={tt} user={user} lang={lang} onTabChange={setSTabInfo}/>}
 {/* العمليات */}
 {pg==='invoices'&&<InvoicePageFull sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch} emptyIcon={navEmptyIcon('invoices')} onNewInvoice={()=>setShowServiceRequest(true)} onOpenService={onOpenService}/>}
 {pg==='payments'&&<PaymentsPage sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch} emptyIcon={navEmptyIcon('payments')}/>}

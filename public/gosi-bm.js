@@ -15,7 +15,7 @@
 // build is running ("جسر · تأمينات [v17]"). Bump VERSION below whenever
 // you ship a change so users can confirm they re-dragged the bookmarklet.
 ;(async () => {
-  const VERSION = 'v18';
+  const VERSION = 'v19';
   const U = 'https://gcvshzutdslmdkwqwteh.supabase.co';
   const K = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdjdnNoenV0ZHNsbWRrd3F3dGVoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4OTkwNjgsImV4cCI6MjA5MDQ3NTA2OH0.5R0I5VvB7lp3wpSrtay3DMcXKsT9l1uK0Ukd1F4_ImM';
   const API = 'https://api.gosi.gov.sa';
@@ -38,6 +38,34 @@
     ...(opts || {}),
     headers: { apikey: K, Authorization: 'Bearer ' + K, 'Content-Type': 'application/json', ...((opts && opts.headers) || {}) },
   });
+
+  // gosi_sync_debug rows are buffered and flushed as batched inserts — ONE POST
+  // per DBG_BATCH rows instead of one POST per GOSI API call. The unbatched
+  // version fired ~22 debug POSTs per establishment (~7.7k per full run, on top
+  // of the real data writes), which saturated PostgREST's connection pool for
+  // the whole project: /auth/v1/token started returning 522/504 and the app's
+  // login button hung. Batching keeps the same diagnostics at ~1/40th the
+  // request count. Rows are never allowed to fail the sync — always fire-and-
+  // forget, exactly like the per-call version was.
+  const DBG_BATCH = 40;
+  const dbgQueue = [];
+  let dbgFlushing = false;
+  const flushDebug = async (force) => {
+    if (dbgFlushing) return;
+    if (!force && dbgQueue.length < DBG_BATCH) return;
+    dbgFlushing = true;
+    try {
+      while (dbgQueue.length) {
+        const batch = dbgQueue.splice(0, DBG_BATCH);
+        await supaFetch('/rest/v1/gosi_sync_debug', {
+          method: 'POST',
+          headers: { Prefer: 'return=minimal' },
+          body: JSON.stringify(batch),
+        }).catch(() => {});
+      }
+    } finally { dbgFlushing = false; }
+  };
+  const logDebug = (row) => { dbgQueue.push(row); flushDebug(false); };
 
   let captured = null;
   const recordHeaders = (h) => {
@@ -214,19 +242,15 @@
         rawText = await res.text().catch(() => '');
         try { payload = rawText ? JSON.parse(rawText) : null; } catch (_) { payload = { _parseError: true, raw: rawText.slice(0, 2000) }; }
       } catch (e) { netErr = (e && e.message) ? e.message : String(e); }
-      supaFetch('/rest/v1/gosi_sync_debug', {
-        method: 'POST',
-        headers: { Prefer: 'return=minimal' },
-        body: JSON.stringify({
-          sync_person_id: PERSON || null,
-          endpoint,
-          request_method: 'GET',
-          request_body: Object.assign({ registrationNo: extraReq && extraReq._reg }, extraReq || {}),
-          response_status: res ? res.status : 0,
-          response_body: payload,
-          notes: netErr ? ('network: ' + netErr) : ('elapsed_ms=' + (Date.now() - t0)),
-        }),
-      }).catch(() => {});
+      logDebug({
+        sync_person_id: PERSON || null,
+        endpoint,
+        request_method: 'GET',
+        request_body: Object.assign({ registrationNo: extraReq && extraReq._reg }, extraReq || {}),
+        response_status: res ? res.status : 0,
+        response_body: payload,
+        notes: netErr ? ('network: ' + netErr) : ('elapsed_ms=' + (Date.now() - t0)),
+      });
       return { res, payload, netErr };
     };
     const okPayload = (r) => r && r.res && r.res.ok && r.payload && !r.payload._parseError;
@@ -705,19 +729,15 @@
               // Surface the failure into gosi_sync_debug instead of swallowing
               // it, so a broken save is diagnosable from the data alone.
               const errTxt = saveRes ? await saveRes.text().catch(() => '') : 'network error';
-              supaFetch('/rest/v1/gosi_sync_debug', {
-                method: 'POST',
-                headers: { Prefer: 'return=minimal' },
-                body: JSON.stringify({
-                  sync_person_id: PERSON || null,
-                  endpoint: 'save/gosi_establishment_contributors',
-                  request_method: 'POST',
-                  request_body: { _reg: reg, rowCount: batch.length },
-                  response_status: saveRes ? saveRes.status : 0,
-                  response_body: { error: errTxt.slice(0, 2000) },
-                  notes: 'contributor save failed · cr=' + reg,
-                }),
-              }).catch(() => {});
+              logDebug({
+                sync_person_id: PERSON || null,
+                endpoint: 'save/gosi_establishment_contributors',
+                request_method: 'POST',
+                request_body: { _reg: reg, rowCount: batch.length },
+                response_status: saveRes ? saveRes.status : 0,
+                response_body: { error: errTxt.slice(0, 2000) },
+                notes: 'contributor save failed · cr=' + reg,
+              });
             }
           }
         }
@@ -955,19 +975,15 @@
           // but never persist the multi-MB base64 fileData — strip it before
           // saving so the debug table doesn't bloat.
           const debugPayload = payload && payload.fileData ? { ...payload, fileData: '[stripped ' + payload.fileData.length + ' chars]' } : payload;
-          supaFetch('/rest/v1/gosi_sync_debug', {
-            method: 'POST',
-            headers: { Prefer: 'return=minimal' },
-            body: JSON.stringify({
-              sync_person_id: PERSON || null,
-              endpoint: 'v1/establishment/download-certificate/' + def.type,
-              request_method: 'POST',
-              request_body: { _reg: reg, ...def.body },
-              response_status: res ? res.status : 0,
-              response_body: debugPayload,
-              notes: netErr ? ('network: ' + netErr) : ('elapsed_ms=' + (Date.now() - t0)),
-            }),
-          }).catch(() => {});
+          logDebug({
+            sync_person_id: PERSON || null,
+            endpoint: 'v1/establishment/download-certificate/' + def.type,
+            request_method: 'POST',
+            request_body: { _reg: reg, ...def.body },
+            response_status: res ? res.status : 0,
+            response_body: debugPayload,
+            notes: netErr ? ('network: ' + netErr) : ('elapsed_ms=' + (Date.now() - t0)),
+          });
 
           if (!res || !res.ok || !payload || !payload.fileData) continue;
 
@@ -1030,6 +1046,8 @@
       }
     };
     await Promise.all(Array.from({ length: CONC }, worker));
+    // Drain whatever is left in the debug buffer (the last partial batch).
+    await flushDebug(true);
 
     msg('✅ تمت مزامنة ' + (skippedRecent + ok) + '/' + grandTotal + ' منشأة' + (fail ? ' (فشل ' + fail + ')' : '') + (skippedRecent ? ' · سابقاً ' + skippedRecent : '')
       + ' · مشتركون ' + contribRowsOk + (contribRowsFail ? (' (فشل حفظ ' + contribRowsFail + ')') : ''));
