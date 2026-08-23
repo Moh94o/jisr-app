@@ -4791,9 +4791,13 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
       if (error) throw error
       const f = data?.facilities || {}
       const w = data?.workers || {}
+      // المنشأة التي حُذفت من صفحة المنشآت وما زالت تصل من المزامنة تعود بنفس سجلها
+      // وروابطها — نُظهر عددها حتى لا تفاجئ من حذفها، وطريقُ إبقائها خارج النظام
+      // نهائياً هو «حذف وحجب» من هذه الصفحة.
+      const rst = f.restored ? T(` · ${f.restored} أُعيد إظهارها`, ` · ${f.restored} restored`) : ''
       toast?.(T(
-        `✅ المنشآت: ${f.updated ?? 0} محدثة + ${f.inserted ?? 0} جديدة · العمال: ${w.updated ?? 0} محدث + ${w.inserted ?? 0} جديد · ${w.with_photo ?? 0} بصورة`,
-        `✅ Facilities: ${f.updated ?? 0} updated + ${f.inserted ?? 0} new · Workers: ${w.updated ?? 0} updated + ${w.inserted ?? 0} new · ${w.with_photo ?? 0} with photo`,
+        `✅ المنشآت: ${f.updated ?? 0} محدثة + ${f.inserted ?? 0} جديدة${rst} · العمال: ${w.updated ?? 0} محدث + ${w.inserted ?? 0} جديد · ${w.with_photo ?? 0} بصورة`,
+        `✅ Facilities: ${f.updated ?? 0} updated + ${f.inserted ?? 0} new${rst} · Workers: ${w.updated ?? 0} updated + ${w.inserted ?? 0} new · ${w.with_photo ?? 0} with photo`,
       ))
     } catch (e) {
       toast?.(T('خطأ في النقل: ', 'Promote error: ') + (e.message || String(e)), 'error')
