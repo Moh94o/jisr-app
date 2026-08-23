@@ -7,7 +7,7 @@ import { noDash, clientEditChanges, branchLabel } from './lib/utils.js'
 import { navSetHere } from './lib/navStack.js'
 import { OFFICE_LOGO_SVG } from './lib/officeBrand.js'
 import { Modal, SuccessView, EmptyState, ModalSection, InfoRow, InfoGrid, GRID, FULL, CurrencyField, Segmented, TextField, TextArea, IdField, PhoneField, DateField, Select as FKSelect, Dropdown as FKDropdown, FileField, Checkbox, C as FKC, useFKLang } from './components/ui/FormKit.jsx'
-import { Plus, RotateCcw, Ban, Printer, Info, Wallet, FileText, Landmark, Building2, User, Search, CheckCircle2, Circle, CreditCard, Briefcase, Calendar, CalendarRange, BadgeCheck, Hash, Phone, Globe, Link2, MessageSquare, Paperclip, Percent, HeartPulse, RefreshCw, AlertCircle, Check, X } from 'lucide-react'
+import { Plus, RotateCcw, RotateCw, Ban, Printer, Info, Wallet, FileText, Landmark, Building2, User, Search, CheckCircle2, Circle, CreditCard, Briefcase, Calendar, CalendarRange, BadgeCheck, Hash, Phone, Globe, Link2, MessageSquare, Paperclip, Percent, HeartPulse, RefreshCw, AlertCircle, Check, X, ExternalLink, ChevronLeft, ChevronRight, Receipt } from 'lucide-react'
 import { Stepper as FKStepper } from './components/ui/FormKit.jsx'
 import { Shimmer } from './components/ui/Skeleton.jsx'
 import { TXN_SERVICES } from './pages/txnServices.js'
@@ -1942,6 +1942,36 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user, onO
         for (const a of (atts || [])) (receiptsByPay[a.entity_id] = receiptsByPay[a.entity_id] || []).push(a)
       }
       const paysWithReceipts = (pays.data || []).map(p => ({ ...p, receipts: receiptsByPay[p.id] || [] }))
+      // صور سندات القبض الورقية (فواتير مكتب JUB1 المحوَّلة): كل سند صار صفَّ دفعة تحمل صورته
+      // (entity_type=payment)، والسندات صفرية المبلغ التي لا دفعة لها تُرفق على الفاتورة نفسها
+      // (entity_type=invoice). نجمع المصدرين في مصفوفة واحدة مرتّبة بالتاريخ لبطاقة «سندات القبض».
+      const receiptImgs = await (async () => {
+        const IMG_NOTE = 'صورة سند القبض'
+        const [payAtt, invAtt] = await Promise.all([
+          payIds.length
+            ? sb.from('attachments').select('id,entity_id,file_name,file_url,notes,rotation')
+                .eq('entity_type', 'payment').like('notes', IMG_NOTE + '%')
+                .in('entity_id', payIds).is('deleted_at', null)
+            : Promise.resolve({ data: [] }),
+          sb.from('attachments').select('id,file_name,file_url,notes,rotation')
+            .eq('entity_type', 'invoice').eq('entity_id', inv.id)
+            .like('notes', IMG_NOTE + '%').is('deleted_at', null),
+        ])
+        const payById = Object.fromEntries((pays.data || []).map(p => [p.id, p]))
+        // رقم السند يُقرأ من صف الدفعة؛ ولمرفقات الفاتورة يُستخرج من الملاحظة «صورة سند القبض 1234 (ملغي)».
+        const noteNo = n => (String(n || '').replace(IMG_NOTE, '').replace('(ملغي)', '').trim() || null)
+        const rows = [
+          ...(payAtt.data || []).map(a => {
+            const p = payById[a.entity_id]
+            return { id: a.id, url: a.file_url, name: a.file_name, rotation: a.rotation || 0,
+              sanad: p?.receipt_no || noteNo(a.notes), date: p?.payment_date || null,
+              amount: p == null ? null : Number(p.amount || 0), cancelled: p ? p.is_valid === false : false }
+          }),
+          ...(invAtt.data || []).map(a => ({ id: a.id, url: a.file_url, name: a.file_name, rotation: a.rotation || 0,
+            sanad: noteNo(a.notes), date: null, amount: null, cancelled: String(a.notes || '').includes('(ملغي)') })),
+        ]
+        return rows.sort((x, y) => (x.date || '').localeCompare(y.date || '') || String(x.sanad || '').localeCompare(String(y.sanad || '')))
+      })()
       // صور جوازات العمال المرفقة بتأشيرات هذه الفاتورة (entity_type=visa_application, notes=passport) —
       // تُرفع عند سداد دفعة «إصدار الإقامة» وتُعرض في قسم «إصدار الإقامة» ببطاقة المعاملة.
       const passportByVisa = {}
@@ -1991,17 +2021,20 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user, onO
       // نقل الكفالة: مرفق «ملف مقيم» المُدخل في نافذة بيانات التجديد (entity_type=service_request, notes=muqeem_file).
       let muqeemFile = null
       // مرفقات مراحل نقل الكفالة (tr_ins_file/tr_wp_file/muqeem_file) وتجديد الإقامة (ren_ins_file/ren_muqeem_file) — الأحدث لكلٍّ.
-      let insFileAtt = null, wpFileAtt = null
+      // `tr_move_file` = مرفق مرحلة النقل، يُرفع من شيت «نقل الكفالة» في جداول
+      // العمل (لا نافذة له هنا) — ويُعرض على مرحلة النقل كبقيّة مرفقات المراحل.
+      let insFileAtt = null, wpFileAtt = null, moveFileAtt = null
       const isRenewalSvc = baseSvcCode(code) === 'iqama_renewal'
       if ((isTransfer || isRenewalSvc) && srId) {
         const { data: trAtts } = await sb.from('attachments')
           .select('file_name,file_url,notes,created_at')
-          .eq('entity_type', 'service_request').in('notes', ['muqeem_file', 'tr_ins_file', 'tr_wp_file', 'ren_ins_file', 'ren_wp_file', 'ren_muqeem_file'])
+          .eq('entity_type', 'service_request').in('notes', ['muqeem_file', 'tr_ins_file', 'tr_wp_file', 'tr_move_file', 'ren_ins_file', 'ren_wp_file', 'ren_muqeem_file'])
           .eq('entity_id', srId).is('deleted_at', null).order('created_at', { ascending: false })
         for (const a of (trAtts || [])) {
           if (a.notes === 'muqeem_file' || a.notes === 'ren_muqeem_file') { if (!muqeemFile) muqeemFile = a }
           else if (a.notes === 'tr_ins_file' || a.notes === 'ren_ins_file') { if (!insFileAtt) insFileAtt = a }
           else if (a.notes === 'tr_wp_file' || a.notes === 'ren_wp_file') { if (!wpFileAtt) wpFileAtt = a }
+          else if (a.notes === 'tr_move_file') { if (!moveFileAtt) moveFileAtt = a }
         }
       }
       // المستندات: مرفق ملف المستند المُدخل عند الإنجاز (entity_type=service_request, notes=document_file).
@@ -2032,7 +2065,7 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user, onO
         const { data: natRow } = await natQ
         if (natRow?.flag_url) tc.nationality_flag = natRow.flag_url
       }
-      if (alive) setData({ loading: false, insts: insts.data || [], pays: paysWithReceipts, det: det.data || [], code, quote: quote?.data?.quote_no || null, absherDiscount: Number(quote?.data?.absher_discount || 0), tc, officeAccounts, passports: passportByVisa, occMap, iqamaVisaIds, iqamaByVisa, muqeemByVisa, visaFileByVisa, visaInsFileByVisa, visaWpFileByVisa, muqeemFile, insFileAtt, wpFileAtt, documentFile, doneFilesMap })
+      if (alive) setData({ loading: false, insts: insts.data || [], pays: paysWithReceipts, det: det.data || [], code, quote: quote?.data?.quote_no || null, absherDiscount: Number(quote?.data?.absher_discount || 0), tc, officeAccounts, passports: passportByVisa, occMap, iqamaVisaIds, iqamaByVisa, muqeemByVisa, visaFileByVisa, visaInsFileByVisa, visaWpFileByVisa, muqeemFile, insFileAtt, wpFileAtt, moveFileAtt, documentFile, doneFilesMap, receiptImgs })
     })()
     return () => { alive = false }
     // refreshTick forces a re-fetch after a payment/refund/cancel so installments+payments stay in sync.
@@ -4618,6 +4651,119 @@ const cardChrome = { background: 'var(--card-grad2)', border: '1px solid var(--b
 const cardHeader = { padding: '14px 22px', borderBottom: '1px solid var(--bd)', display: 'flex', alignItems: 'center', gap: 10 }
 const cardTitle  = { fontSize: 16, fontWeight: 600, color: C.gold, letterSpacing: '.2px' }
 const cardSub    = { fontSize: 11, color: 'var(--tx4)', fontWeight: 600 }
+
+/* ─── بطاقة «سندات القبض» ───
+   تعرض صور كل سندات القبض الورقية التابعة للفاتورة (فواتير مكتب JUB1 المحوَّلة): مصغّرة لكل سند
+   برقمه وتاريخه ومبلغه، والنقر يفتح عارضاً كبيراً فيه تدوير وتنقّل بين السندات. */
+const ReceiptVouchersCard = ({ imgs, isAr, T }) => {
+  const [open, setOpen] = useState(-1)          // فهرس السند المفتوح في العارض (-1 = مغلق)
+  const [rot, setRot] = useState({})            // زاوية تدوير مؤقتة لكل صورة (لا تُحفظ)
+  const spin = id => setRot(p => ({ ...p, [id]: ((p[id] || 0) + 90) % 360 }))
+  const go = d => setOpen(i => (i + d + imgs.length) % imgs.length)
+
+  // تنقّل بالأسهم وإغلاق بـEsc أثناء فتح العارض
+  useEffect(() => {
+    if (open < 0) return
+    const onKey = e => {
+      if (e.key === 'Escape') setOpen(-1)
+      else if (e.key === 'ArrowRight') go(isAr ? -1 : 1)
+      else if (e.key === 'ArrowLeft') go(isAr ? 1 : -1)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open, imgs.length, isAr])
+
+  const cur = open >= 0 ? imgs[open] : null
+  const curRot = cur ? (rot[cur.id] ?? cur.rotation ?? 0) : 0
+  const sideways = curRot % 180 !== 0
+  const dateOf = r => (r.date ? String(r.date).slice(0, 10) : null)
+
+  return (
+    <div style={cardChrome}>
+      <div style={cardHeader}>
+        <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
+        <span style={cardTitle}>{T('سندات القبض', 'Receipt Vouchers')}</span>
+        <span style={{ ...cardSub, padding: '2px 9px', borderRadius: 7, background: 'rgba(176,125,0,.08)', border: '1px solid var(--accent-bd)', color: 'var(--accent)' }}>
+          {imgs.length}
+        </span>
+      </div>
+      <div style={{ padding: '16px 22px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 14 }}>
+        {imgs.map((r, i) => (
+          <button key={r.id} onClick={() => setOpen(i)} title={T('عرض السند', 'View voucher')}
+            style={{ padding: 0, border: '1px solid var(--bd)', borderRadius: 13, background: 'var(--inputBg)', cursor: 'zoom-in', overflow: 'hidden', display: 'flex', flexDirection: 'column', textAlign: 'start', fontFamily: F, ...(r.cancelled ? { borderColor: 'rgba(107,114,128,.55)' } : {}) }}>
+            <div style={{ position: 'relative', width: '100%', aspectRatio: '1 / 1', background: 'rgba(0,0,0,.05)', overflow: 'hidden' }}>
+              <img src={r.url} alt={r.name || ''} loading="lazy"
+                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', transform: `rotate(${r.rotation || 0}deg)`, opacity: r.cancelled ? .5 : 1 }} />
+              {r.cancelled && (
+                <span style={{ position: 'absolute', top: 8, insetInlineStart: 8, padding: '2px 8px', borderRadius: 6, background: 'rgba(107,114,128,.9)', color: '#fff', fontSize: 10, fontWeight: 600 }}>
+                  {T('ملغي', 'Cancelled')}
+                </span>
+              )}
+            </div>
+            <div style={{ padding: '9px 11px', display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 600, color: 'var(--tx2)' }}>
+                <Receipt size={13} color={C.gold} />
+                <span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{r.sanad || '—'}</span>
+              </span>
+              <span style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
+                <span style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{dateOf(r) || '—'}</span>
+                {r.amount != null && (
+                  <span style={{ fontSize: 11.5, fontWeight: 600, color: r.cancelled ? 'var(--tx4)' : C.gold, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(r.amount)}</span>
+                )}
+              </span>
+            </div>
+          </button>
+        ))}
+      </div>
+
+      {cur && createPortal(
+        <div onClick={() => setOpen(-1)}
+          style={{ position: 'fixed', inset: 0, zIndex: 4000, background: 'rgba(0,0,0,.82)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ position: 'relative', width: 'min(1000px, 96vw)', height: 'min(88vh, 900px)', borderRadius: 18, border: '1px solid var(--bd)', background: 'var(--modal-bg)', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: 'var(--shadow-lg)' }}>
+            <div style={{ padding: '13px 18px', borderBottom: '1px solid var(--bd)', display: 'flex', alignItems: 'center', gap: 12 }}>
+              <Receipt size={16} color={C.gold} />
+              <span style={{ fontSize: 14.5, fontWeight: 600, color: 'var(--tx)' }}>
+                {T('سند', 'Voucher')} <span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{cur.sanad || '—'}</span>
+              </span>
+              {dateOf(cur) && <span style={{ ...cardSub, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{dateOf(cur)}</span>}
+              {cur.amount != null && (
+                <span style={{ fontSize: 13, fontWeight: 600, color: C.gold, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(cur.amount)}</span>
+              )}
+              {cur.cancelled && (
+                <span style={{ padding: '2px 9px', borderRadius: 7, background: 'rgba(107,114,128,.18)', color: '#6b7280', fontSize: 11, fontWeight: 600 }}>{T('ملغي', 'Cancelled')}</span>
+              )}
+              <span style={{ ...cardSub, marginInlineStart: 'auto' }}>{open + 1} / {imgs.length}</span>
+              <button onClick={() => spin(cur.id)} title={T('اقلب الصورة 90°', 'Rotate 90°')}
+                style={{ width: 34, height: 34, borderRadius: 9, border: '1px solid var(--accent-bd)', background: 'rgba(176,125,0,.06)', color: 'var(--accent)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                <RotateCw size={16} />
+              </button>
+              <a href={cur.url} target="_blank" rel="noreferrer" title={T('فتح بالحجم الكامل', 'Open full size')}
+                style={{ width: 34, height: 34, borderRadius: 9, border: '1px solid var(--bd)', background: 'var(--inputBg)', color: 'var(--tx3)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                <ExternalLink size={15} />
+              </a>
+              <button onClick={() => setOpen(-1)} title={T('إغلاق', 'Close')}
+                style={{ width: 34, height: 34, borderRadius: 9, border: '1px solid var(--bd)', background: 'var(--inputBg)', color: 'var(--tx3)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                <X size={16} />
+              </button>
+            </div>
+            <div style={{ flex: 1, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', background: 'rgba(0,0,0,.05)' }}>
+              <img src={cur.url} alt={cur.name || ''}
+                style={{ transform: `rotate(${curRot}deg)`, transition: 'transform .25s ease',
+                  ...(sideways ? { maxWidth: 'min(84vh, 860px)', maxHeight: 'none' } : { maxWidth: '100%', maxHeight: '100%' }),
+                  objectFit: 'contain', display: 'block' }} />
+              {imgs.length > 1 && [['start', -1, ChevronLeft], ['end', 1, ChevronRight]].map(([side, dir, Ico]) => (
+                <button key={side} onClick={() => go(isAr ? -dir : dir)}
+                  style={{ position: 'absolute', [side === 'start' ? 'insetInlineStart' : 'insetInlineEnd']: 12, width: 42, height: 42, borderRadius: '50%', border: '1px solid var(--bd)', background: 'var(--modal-bg)', color: 'var(--tx3)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-md)' }}>
+                  <Ico size={20} />
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>, document.body)}
+    </div>
+  )
+}
 
 const ActionToolbar = ({ T, onRecordPayment, onRefund, onCancelInv, onPrint }) => {
   const btn = (color, bgLight, bdLight) => ({
@@ -9225,6 +9371,10 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
         <InstallmentsWithPayments data={data} breakdown={inv.pricing_breakdown} total={total} paid={paid} remaining={remaining} isAr={isAr} T={T} onEditPayment={canCardBtn(user, 'invoices', 'installments_payments', 'edit') ? onEditPayment : undefined} paymentLog={inv.payment_log} user={user} />
       </div>
       )}
+      {/* سندات القبض الورقية — تظهر فقط للفواتير التي لها صور سندات مرفقة (مكتب JUB1 المحوَّل) */}
+      {cardVisible(user, 'invoices', 'receipt_vouchers') && !!(data?.receiptImgs || []).length && (
+        <ReceiptVouchersCard imgs={data.receiptImgs} isAr={isAr} T={T} />
+      )}
       {cardVisible(user, 'invoices', 'notes') && (() => {
         const notePublic = (inv.note_public || '').trim()
         const noteLog = Array.isArray(inv.note_log) ? inv.note_log : []
@@ -9883,7 +10033,7 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
                         )
                       }
                       return (<>
-                        {stageBar('transfer', T('النقل', 'Transfer'), sd.transfer, inv.created_at, null, [])}
+                        {stageBar('transfer', T('النقل', 'Transfer'), sd.transfer, inv.created_at, data?.moveFileAtt, [])}
                         {stageBar('insurance', T('التأمين', 'Insurance'), ins, sd.transfer?.at || inv.created_at, data?.insFileAtt, ins ? [
                           [T('اسم الشركة', 'Company'), ins.company || '—', false],
                           [T('رقم بوليصة التأمين', 'Policy No'), ins.policy_no || '—', true],
