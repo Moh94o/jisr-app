@@ -494,7 +494,7 @@ function FacEditLog({ entries, created, T }) {
           // الإضافة تأخذ لوناً أخضر وأيقونة «+» لتمييزها عن التعديلات الذهبية.
           const accent = isCreate ? C.ok : C.gold
           return (
-            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 9, padding: '9px 11px', borderRadius: 10, background: 'var(--inputBg)', border: '1px solid var(--bd)' }}>
+            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 9, padding: '9px 11px', borderRadius: 10, background: 'var(--log-bg)', border: '1px dashed var(--log-bd)' }}>
               <span style={{ flexShrink: 0, width: 22, height: 22, borderRadius: 7, background: accent + '1a', border: '1px solid ' + accent + '47', color: accent, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 1 }}>
                 {isCreate
                   ? <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -503,7 +503,7 @@ function FacEditLog({ entries, created, T }) {
               <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 7, justifyContent: 'space-between' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap', minWidth: 0 }}>
-                    <span style={{ fontSize: 11.5, color: 'var(--tx2)', fontWeight: 600 }}>{isCreate ? T('تمت الإضافة', 'Added') : T('تم التعديل', 'Edited')}</span>
+                    <span style={{ fontSize: 11.5, color: 'var(--tx3)', fontWeight: 600 }}>{isCreate ? T('تمت الإضافة', 'Added') : T('تم التعديل', 'Edited')}</span>
                     {c.by_name && <span style={{ fontSize: 11, color: accent, fontWeight: 600 }}>{T('بواسطة', 'by')} {c.by_name}</span>}
                   </div>
                   <span style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 600, direction: 'ltr', flexShrink: 0 }}>{fmtDateTime(c.at)}</span>

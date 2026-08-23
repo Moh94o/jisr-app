@@ -11,6 +11,7 @@ import { noDash } from './utils.js'
 import { PRINT_PALETTE } from './printTheme.js'
 import { TXN_SERVICES } from '../pages/txnServices.js'
 import { DONE_INPUTS, SELF_PARTY_DONE_SVCS } from './doneInputs.js'
+import { pricingPrintModel, visaLineQty } from './invoicePricingModel.js'
 
 const C = {
   gold: '#B07D00', goldSoft: '#e8c77a',
@@ -121,6 +122,9 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
     subtotalInitial: { ar: 'الإجمالي الابتدائي', en: 'Subtotal', hi: 'उप-योग', ur: 'ذیلی کل', bn: 'উপমোট' },
     absherDiscount: { ar: 'خصم أبشر', en: 'Absher Discount', hi: 'अबशर छूट', ur: 'ابشر رعایت', bn: 'আবশের ছাড়' },
     officeDiscount: { ar: 'خصم المكتب', en: 'Office Discount', hi: 'कार्यालय छूट', ur: 'دفتر رعایت', bn: 'অফিস ছাড়' },
+    extraDiscount: { ar: 'خصم إضافي', en: 'Extra Discount', hi: 'अतिरिक्त छूट', ur: 'اضافی رعایت', bn: 'অতিরিক্ত ছাড়' },
+    managerDiscount: { ar: 'خصم المدير', en: 'Manager Discount', hi: 'प्रबंधक छूट', ur: 'منیجر رعایت', bn: 'ম্যানেজার ছাড়' },
+    discount: { ar: 'خصم', en: 'Discount', hi: 'छूट', ur: 'رعایت', bn: 'ছাড়' },
     finalTotal: { ar: 'الإجمالي النهائي', en: 'Final Total', hi: 'अंतिम कुल', ur: 'حتمی کل', bn: 'চূড়ান্ত মোট' },
     refund: { ar: 'استرجاع', en: 'Refund', hi: 'वापसी', ur: 'واپسی', bn: 'ফেরত' },
     singlePayment: { ar: 'دفعة واحدة', en: 'Single Payment', hi: 'एकमुश्त भुगतान', ur: 'یکمشت ادائیگی', bn: 'একক পেমেন্ট' },
@@ -326,20 +330,11 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
   const permKeys = ['mVisaIssue', 'mWakalah', 'mIqamaIssue']
   const totalA = Number(inv.total_amount || 0), paidA = Number(inv.paid_amount || 0), remA = Number(inv.remaining_amount || 0)
   const notePublic = (inv.note_public || '').trim()
-  // فواتير نقل الكفالة: نبني البنود من حسبة التنازل مباشرة (لا حساب في الفاتورة) — كل قيمة من الحسبة كما هي.
-  const tcB = (code === 'transfer' && data?.tc) ? data.tc : null
-  const breakdown = tcB
-    ? [
-        ['رسوم نقل الكفالة', tcB.transfer_fee],
-        ['تجديد الإقامة', tcB.iqama_renewal_fee],
-        ['غرامة تأخير التجديد', tcB.late_fine_amount],
-        ['رخصة العمل', tcB.work_permit_fee],
-        ['رسم تغيير المهنة', tcB.prof_change_fee],
-        ['التأمين الطبي', tcB.medical_fee],
-        ...(Array.isArray(tcB.extras) ? tcB.extras.map(e => [e?.name || '', e?.amount]) : []),
-        ['رسوم المكتب', tcB.office_fee],
-      ].filter(([, amt]) => Number(amt) > 0).map(([label, amount]) => ({ label, amount: Number(amount) }))
-    : (Array.isArray(inv.pricing_breakdown) ? inv.pricing_breakdown : [])
+  // بنود التسعيرة المطبوعة — من نفس نموذج كرت التسعير والمحرّر (lib/invoicePricingModel.js):
+  // فواتير الحسبة تُبنى من الحسبة مباشرةً، وغيرها من pricing_breakdown، والخصومات تُعرض
+  // مفصّلةً بأسمائها ومتوازنةً مع الإجمالي. مصدر واحد ⇒ الشاشة والطباعة لا تختلفان.
+  const priceModel = pricingPrintModel({ inv, tc: data?.tc || null, svcCode: code })
+  const breakdown = priceModel.fees
   const officeAccts = data?.officeAccounts || []
 
   // ============================================================
@@ -887,16 +882,14 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
     if (s.includes('تصديق المطبوعات') || s.includes('تصديق مطبوعات')) return lab('chamberPrinted')
     return s
   }
-  // بنود الرسوم فقط — نستبعد أسطر الخصم (مثل «الخصم»/تغطية المكتب في تجديد الإقامة، المخزَّنة بعلم discount:true)
-  // كي لا تُحتسب كرسم موجب وتُضخّم الإجمالي الابتدائي، فتظهر مرتين (مرة في المجموع ومرة في الخصم المتبقّي).
-  // نكتشف سطر الخصم بالعلم discount أو بعنوانه «الخصم» — لأن الفواتير المخزَّنة سابقًا لم تحفظ العلم.
-  const feeLines = breakdown.filter(l => !(l?.discount || String(l?.label || '').trim() === 'الخصم'))
-  // الخصومات (مثل طباعة حسبة نقل الكفالة): مجموع بنود الرسوم − الإجمالي النهائي = الخصم الكلي،
-  // نفصله إلى «خصم أبشر» (من الحسبة المرتبطة) و«خصم المكتب» (الباقي)، ونعرض الإجمالي الابتدائي والنهائي.
-  const lineSum = feeLines.reduce((s, l) => s + (Number(l.amount) || 0), 0)
-  const disc = Math.max(0, lineSum - totalA)
-  const absherDisc = Math.min(Math.max(0, Number(data?.tc?.absher_discount || 0)), disc)
-  const officeDisc = Math.max(0, disc - absherDisc)
+  // تسمية سطر الخصم بلغة الطباعة — الأسماء القانونية من نموذج التسعير، وأي اسم حرّ يكتبه
+  // الموظف («إلغاء رسم التأمين» مثلاً) يُطبع كما أُدخل فيفهم العميل سبب النقص.
+  const DISC_LAB = { 'خصم أبشر': 'absherDiscount', 'خصم المكتب': 'officeDiscount', 'خصم إضافي': 'extraDiscount', 'خصم المدير': 'managerDiscount', 'خصم': 'discount' }
+  const fmtDiscLabel = l => DISC_LAB[l] ? lab(DISC_LAB[l]) : l
+  const feeLines = priceModel.fees
+  const lineSum = priceModel.subtotal
+  const discLines = priceModel.discounts
+  const disc = discLines.reduce((s, l) => s + l.amount, 0)
   // خلية المبلغ: العملة على اليسار في العربية/الأردو (ريال 2,000)، وعلى اليمين في الإنجليزية وغيرها (2,000 SAR).
   const curLeft = printLang === 'ar' || printLang === 'ur'
   const amtCell = (v, neg) => {
@@ -904,8 +897,8 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
     const curPart = `<span class="riyal" style="margin:0">${curTxt}</span>`
     return `<span style="display:inline-flex;align-items:baseline;gap:4px;direction:ltr">${curLeft ? curPart + numPart : numPart + curPart}</span>`
   }
-  const priceTotalRows = disc > 0
-    ? `<tr class="sub-row"><td>${lab('subtotalInitial')}</td><td class="l">${amtCell(lineSum)}</td></tr>${absherDisc > 0 ? `<tr class="disc-row"><td>${lab('absherDiscount')}</td><td class="l">${amtCell(absherDisc)}</td></tr>` : ''}${officeDisc > 0 ? `<tr class="disc-row"><td>${lab((code === 'profession_change' || code === 'exit_reentry_visa') ? 'absherDiscount' : 'officeDiscount')}</td><td class="l">${amtCell(officeDisc)}</td></tr>` : ''}<tr class="total-row"><td>${lab('finalTotal')}</td><td class="l">${amtCell(totalA)}</td></tr>`
+  const priceTotalRows = disc > 0.005
+    ? `<tr class="sub-row"><td>${lab('subtotalInitial')}</td><td class="l">${amtCell(lineSum)}</td></tr>${discLines.map(l => `<tr class="disc-row"><td>${esc(fmtDiscLabel(l.label))}</td><td class="l">${amtCell(l.amount, true)}</td></tr>`).join('')}<tr class="total-row"><td>${lab('finalTotal')}</td><td class="l">${amtCell(totalA)}</td></tr>`
     : `<tr class="total-row"><td>${lab('total')}</td><td class="l">${amtCell(totalA)}</td></tr>`
   // عدد الأشهر بجانب بنود تجديد الإقامة (الأشهر المُحتسبة، تشمل المتأخرة) ورسوم كرت العمل (أشهر التجديد) — نفس طباعة الحسبة.
   const monthsTc = ((code === 'transfer' || code === 'iqama_renewal') && data?.tc) ? data.tc : null
@@ -936,7 +929,10 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
     if (/كرت العمل|رخصة العمل|رخصة عمل|تصريح العمل/.test(s) && renMo > 0) return ` (${renMo} ${moW(renMo)})`
     return ''
   }
-  const priceTbl = feeLines.length ? `<table class="price-table"><thead><tr><th>${lab('item')}</th><th class="l">${lab('value')}</th></tr></thead><tbody>${feeLines.map(l => `<tr><td>${esc(fmtPriceLabel(l.label || '') + monthSuffix(l.label))}</td><td class="l">${amtCell(l.amount)}</td></tr>`).join('')}${priceTotalRows}</tbody></table>` : ''
+  // عدد التأشيرات بجانب اسم البند — السطر يحمل قيمة كل التأشيرات مجتمعةً، فبدون العدد
+  // يبدو المبلغ سعرَ تأشيرة واحدة. شارة «N×» بجانب الاسم تكفي، بلا أعمدة إضافية.
+  const qtyBadge = l => { const n = visaLineQty(l.label, code, inv.service_quantity); return n > 0 ? `<span class="qty">${n}×</span>` : '' }
+  const priceTbl = feeLines.length ? `<table class="price-table"><thead><tr><th>${lab('item')}</th><th class="l">${lab('value')}</th></tr></thead><tbody>${feeLines.map(l => `<tr><td>${esc(fmtPriceLabel(l.label || '') + monthSuffix(l.label))}${qtyBadge(l)}</td><td class="l">${amtCell(l.amount)}</td></tr>`).join('')}${priceTotalRows}</tbody></table>` : ''
   const pctPaid = pctOf(paidA, totalA)
   // الإجمالي الابتدائي والخصومات تظهر في جدول البنود — فلا نكرّرها هنا، نكتفي بالإجمالي النهائي.
   const discRows = `<div class="sum-row"><span class="k">${lab(disc > 0 ? 'finalTotal' : 'total')}</span><span class="v">${num2(nm(totalA))} ${cur}</span></div>`
@@ -1203,6 +1199,9 @@ td .amt{font-weight:600}
 .price-table .total-row td .num{color:var(--charcoal)}
 .price-table .sub-row td{background:var(--gold-faint);color:var(--gold-deep);font-weight:600;font-size:12.5px}
 .price-table .sub-row td .num{color:var(--gold-deep)}
+/* شارة عدد التأشيرات. الهامش على الجهتين عمداً: العنصر direction:ltr داخل فقرة عربية،
+   فـmargin-inline-start يُحسب على اتجاه العنصر نفسه فيقع في الجهة البعيدة عن الاسم. */
+.price-table .qty{color:var(--gold-ink);font-weight:600;direction:ltr;display:inline-block;margin:0 7px;font-size:11px}
 .price-table .disc-row td{color:var(--ok);font-weight:600}
 .price-table .disc-row td .num{color:var(--ok)}
 .summary-card{border:1.4px solid var(--gold-deep);background:var(--panel-2);color:var(--ink);padding:3mm 5mm}

@@ -29,8 +29,12 @@ export function computeRenewalDerived(row = {}, cfg = null) {
   const manual = num(row.manual_discount)
   const renMo = Number(row.renewal_months || 0)
 
-  // الخصم = (تجديد الإقامة + رخصة العمل + التأمين) − الزائد عن الحدود الحكومية
-  const office_cover = Math.max(0, iqamaFee + wpFee + medFee - govExcess)
+  // نموذج 'flat' (الجديد): لا تغطية ولا زائد — كل رسم يدخل الإجمالي بقيمته الكاملة،
+  // ورسوم المكتب متغيّرٌ يمتصّ التأمين (حصة المدة − التأمين). فـoffice_cover = 0
+  // ورسوم المكتب الصافية = المُدخلة ناقص خصم المكتب فقط.
+  // نموذج 'cover' (القديم): يبقى كما هو للحسبات الصادرة به فلا تتبدّل أرقامها التاريخية.
+  const flat = row.pricing_model === 'flat'
+  const office_cover = flat ? 0 : Math.max(0, iqamaFee + wpFee + medFee - govExcess)
   const office_fee_net = Math.max(0, officeFee - office_cover - manual)
   const government_fees = iqamaFee + wpFee + medFee + fine + profChange
 

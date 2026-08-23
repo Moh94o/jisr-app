@@ -6,7 +6,7 @@ import { ALL_SERVICES, SVC_CODE_MAP } from './ServiceRequestPage.jsx'
 import { noDash, clientEditChanges, branchLabel } from './lib/utils.js'
 import { navSetHere } from './lib/navStack.js'
 import { OFFICE_LOGO_SVG } from './lib/officeBrand.js'
-import { Modal, SuccessView, EmptyState, ModalSection, InfoRow, InfoGrid, GRID, FULL, CurrencyField, Segmented, TextField, TextArea, IdField, PhoneField, DateField, Select as FKSelect, Dropdown as FKDropdown, FileField, Checkbox, C as FKC, useFKLang } from './components/ui/FormKit.jsx'
+import { Modal, SuccessView, EmptyState, ModalSection, InfoRow, InfoGrid, GRID, FULL, CurrencyField, Segmented, TextField, TextArea, IdField, PhoneField, DateField, Select as FKSelect, Dropdown as FKDropdown, FileField, Checkbox, ScrollBox, C as FKC, useFKLang } from './components/ui/FormKit.jsx'
 import { Plus, RotateCcw, RotateCw, Ban, Printer, Info, Wallet, FileText, Landmark, Building2, User, Search, CheckCircle2, Circle, CreditCard, Briefcase, Calendar, CalendarRange, BadgeCheck, Hash, Phone, Globe, Link2, MessageSquare, Paperclip, Percent, HeartPulse, RefreshCw, AlertCircle, Check, X, ExternalLink, ChevronLeft, ChevronRight, Receipt } from 'lucide-react'
 import { Stepper as FKStepper } from './components/ui/FormKit.jsx'
 import { Shimmer } from './components/ui/Skeleton.jsx'
@@ -15,9 +15,8 @@ import { buildInvoiceDoc } from './lib/invoicePrint.js'
 import { buildInvoiceWaMessage, buildDaySummaryWaMessage, fetchInvoicePrintData } from './lib/invoiceWa.js'
 import { DONE_INPUTS, SALARY_RETURN_INPUTS, SELF_PARTY_DONE_SVCS, DONE_FILE_NOTES, doneInputsFor } from './lib/doneInputs.js'
 import { swrGet, swrSet, useLiveRefresh, emitDataChanged } from './lib/liveData.js'
-import { syncInvoicePricing } from './lib/invoicePricingSync.js'
-import { computeRenewalDerived } from './lib/renewalDerived.js'
-import { getIqamaRenewalPricingConfig } from './lib/kafalaPricing.js'
+import InvoicePricingEditor from './components/InvoicePricingEditor.jsx'
+import { reasonLabel as pricingReasonLabel, visaLineQty } from './lib/invoicePricingModel.js'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = {
@@ -108,6 +107,57 @@ const ZERO_INVOICE_SVCS = new Set(['supplier_payroll', 'documents', 'external_tr
 const isZeroSvc = (code) => ZERO_INVOICE_SVCS.has(baseSvcCode(code))
 // خدمات تمرّ على بوّابة «موافقة المحاسب» قبل الإنجاز (النقل الخارجي · خروج وعودة · خروج نهائي) — من سجل الخدمات.
 const needsAcctApproval = (code) => !!TXN_SERVICES[baseSvcCode(code)]?.needs_accountant_approval
+
+// ═══ حقول الخدمة القابلة للتعديل — تُشتقّ من نفس التعريف الذي يرسم كرت «الخدمة» ═══
+// كل حقل في TXN_SERVICES[code].detail مصدره 'd:' (مخزَّن في other_applications.details) يصير
+// حقلاً في نافذة «تعديل تفاصيل الخدمة»، بنوعٍ يتبع أعلامه: opts ⇒ قائمة · date ⇒ تاريخ ·
+// money ⇒ مبلغ · months ⇒ مدة بالأشهر · wide ⇒ نص طويل · غير ذلك ⇒ نص. هكذا تختلف حقول
+// النافذة باختلاف الخدمة تلقائياً، وتبقى مطابقةً لما يعرضه الكرت بلا قائمة موازية.
+const SVC_DETAIL_SKIP = new Set(['chamber_subtype', 'chamber_text', 'chamber_file'])  // للغرفة قسمها الخاص
+// خدمات قيمها مجمّدة من الحسبة/التأشيرة — لا تُعدَّل حقولها من هنا.
+const SVC_FIELDS_FROZEN = new Set(['transfer', 'iqama_renewal', 'iqama_issuance', 'work_visa'])
+// خدمات تخزّن حقولها أعمدةً في جدولها المخصّص لا في details.
+const SVC_COLUMN_TBL = { supplier_payroll: 'supplier_payroll_applications', iqama_renewal: 'iqama_renewal_applications' }
+const SVC_COLUMN_FIELDS = {
+  supplier_payroll: [
+    { key: 'worker_phone', l_ar: 'رقم جوال العامل', l_en: 'Worker Mobile' },
+    { key: 'unpaid_salaries_count', l_ar: 'أشهر الرواتب غير المدفوعة', l_en: 'Unpaid salary months', months: true },
+    { key: 'total_amount', l_ar: 'إجمالي الرواتب', l_en: 'Total Salaries', money: true },
+  ],
+  // تجديد الإقامة: الحقول المعروضة في كرت الخدمة والمخزَّنة على صفّ الطلب. أمّا الإعفاء والمهنة
+  // فمن حسبة التجديد المرتبطة (مجمّدة) — تُعدَّل من الحسبة نفسها لا من هنا.
+  iqama_renewal: [
+    { key: 'duration_months', l_ar: 'مدة التجديد', l_en: 'Renewal Duration', months: true },
+    { key: 'current_expire_date', l_ar: 'الانتهاء الحالي', l_en: 'Current Expiry', date: true },
+    { key: 'new_expire_date', l_ar: 'الانتهاء الجديد', l_en: 'New Expiry', date: true },
+  ],
+}
+// أي من هذه الجداول يحمل عمود «الوصف» (description) — تجديد الإقامة لا يحمله.
+const SVC_COLUMN_DESC = { supplier_payroll: true }
+// خدمات مبنيّة على حسبة معتمدة — تعديل حقول الفاتورة هنا لا يمسّ الحسبة ولا التسعير.
+const SVC_QUOTE_DRIVEN = new Set(['iqama_renewal'])
+const svcEditFields = (code) => {
+  const base = baseSvcCode(code)
+  if (SVC_COLUMN_FIELDS[base]) return SVC_COLUMN_FIELDS[base].map(f => ({ ...f, col: true }))
+  if (SVC_FIELDS_FROZEN.has(base)) return []
+  return (TXN_SERVICES[base]?.detail || [])
+    .filter(f => typeof f.src === 'string' && f.src.startsWith('d:') && !SVC_DETAIL_SKIP.has(f.src.slice(2)))
+    .map(f => ({ ...f, key: f.src.slice(2) }))
+}
+// تسميات حقول الخدمة + خياراتها — يستعملها سجلّ التعديل في الكرت ليعرض اسم الحقل وقيمته بالعربي.
+const svcFieldLabels = (code) => Object.fromEntries(svcEditFields(code).map(f => [f.key, [f.l_ar, f.l_en || f.l_ar]]))
+const svcFieldOpts = (code) => Object.fromEntries(svcEditFields(code).filter(f => f.opts).map(f => [f.key, f.opts]))
+// تغيير نوع الخدمة متاح فقط بين الخدمات التي تتشارك جدول التفاصيل نفسه (other_applications):
+// الخدمات ذات الجداول المخصّصة (تأشيرات · نقل · تجديد · أجير · إصدار إقامة · رواتب سبلاير)
+// وخدمة السعودة (تخزين خاص) مستثناة — تحويلها يفصل صفّ التفاصيل عن الخدمة.
+const SVC_TYPE_SWITCH_EXCLUDE = new Set(['ajeer', 'iqama_renewal', 'saudization'])
+// القائمة المعروضة = خدمات الفاتورة نفسها فقط (نفس خدمات نموذج إنشاء الطلب)، لا كل أنواع الخدمات
+// في جدول القوائم — فلا تظهر خدمات المعاملات التي لا تُنشئ فاتورة.
+const INVOICE_SVC_CODES = new Set(ALL_SERVICES.map(x => SVC_CODE_MAP[x.id] || x.id))
+const svcTypeSwitchable = (code) => {
+  const base = baseSvcCode(code)
+  return INVOICE_SVC_CODES.has(base) && !!TXN_SERVICES[base] && !SVC_TYPE_SWITCH_EXCLUDE.has(base) && !SVC_FIELDS_FROZEN.has(base) && !SVC_COLUMN_TBL[base]
+}
 
 const INV_STATUS_THEME = {
   new:        { c: C.blue,   stamp_ar: 'جديدة',           stamp_en: 'NEW' },
@@ -698,7 +748,7 @@ function Sparkline({ points, width = 360, height = 90 }) {
 /* ═══════════════════════════════════════════════════════════════ */
 // Full invoice row shape used by the list and by deep-link open-by-id.
 const INVOICE_SELECT = `
-        id, invoice_no, total_amount, paid_amount, remaining_amount, payment_plan, installments_count, pricing_breakdown, created_at, last_activity_at, created_by,
+        id, invoice_no, total_amount, paid_amount, remaining_amount, payment_plan, installments_count, pricing_breakdown, created_at, last_activity_at, created_by, service_quantity,
         note_public, note_log, pricing_log, payment_log, cancel_log, service_log,
         creator:created_by(person:person_id(name_ar,name_en)),
         payments(amount,is_valid,deleted_at,payment_date,payment_method:payment_method_id(value_ar,value_en)),
@@ -707,7 +757,7 @@ const INVOICE_SELECT = `
         branch:branch_id(id,branch_code,phone,city:city_id(name_ar)),
         agent:agent_id(id,name_ar,name_en,id_number,phone,nationality_id,edit_log,nationality:nationality_id(code,name_ar,flag_url)),
         transfer_calculation(transfer_only,stage_data,deleted_at,office_fee,office_fee_net,expected_duration_months,billed_renewal_months,renewal_months,worker_name,phone),
-        iqama_renewal_calculation(stage_data,deleted_at,office_fee,office_fee_net,expected_duration_months,billed_renewal_months,renewal_months,worker_name,phone),
+        iqama_renewal_calculation(pricing_model,stage_data,deleted_at,office_fee,office_fee_net,expected_duration_months,billed_renewal_months,renewal_months,worker_name,phone),
         service_request:service_request_id(
           id, request_ref_no, request_date, quantity, cancelled_reason, completion_note, completed_at, cancelled_at,
           accountant_status, accountant_note, accountant_at,
@@ -1817,7 +1867,6 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user, onO
   const [agentModal, setAgentModal] = useState(false)
   const [noteModal, setNoteModal] = useState(false)
   const [pricingModal, setPricingModal] = useState(false)
-  const [discountModal, setDiscountModal] = useState(false)
   const [visaEditModal, setVisaEditModal] = useState(false)
   const [borderModal, setBorderModal] = useState(false)
   const [iqamaModal, setIqamaModal] = useState(false)
@@ -2065,7 +2114,25 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user, onO
         const { data: natRow } = await natQ
         if (natRow?.flag_url) tc.nationality_flag = natRow.flag_url
       }
-      if (alive) setData({ loading: false, insts: insts.data || [], pays: paysWithReceipts, det: det.data || [], code, quote: quote?.data?.quote_no || null, absherDiscount: Number(quote?.data?.absher_discount || 0), tc, officeAccounts, passports: passportByVisa, occMap, iqamaVisaIds, iqamaByVisa, muqeemByVisa, visaFileByVisa, visaInsFileByVisa, visaWpFileByVisa, muqeemFile, insFileAtt, wpFileAtt, moveFileAtt, documentFile, doneFilesMap, receiptImgs })
+      // «العميل هو نفس العامل» في نقل الكفالة وتجديد الإقامة: كثير من الطلبات (المستوردة خاصةً) لا
+      // تحمل عاملاً في صفّها، لكن رقم هوية العميل هو رقم إقامة العامل — فنطابقه بسجلّ العامل لنعرضه
+      // هو ومنشأته في كرت «العامل والمنشأة» بدل «لا يوجد عامل». عرضٌ فقط، والربط الفعلي بزرٍّ صريح.
+      let matchedWorker = null
+      {
+        const _pickW = rel => Array.isArray(rel) ? rel[0]?.worker : rel?.worker
+        const _sr = inv.service_request
+        const _hasW = [_sr?.transfer_applications, _sr?.ajeer_applications, _sr?.iqama_renewal_applications, _sr?.supplier_payroll_applications, _sr?.other_applications].some(_pickW)
+        const _cliId = String(_sr?.client?.id_number || '').replace(/\D/g, '')
+        if (!_hasW && _cliId.length === 10 && ['transfer', 'iqama_renewal'].includes(baseSvcCode(code))) {
+          const WSEL = 'id,name_ar,name_en,phone,iqama_number,iqama_expiry_date,nationality:nationality_id(code,name_ar,flag_url),current_facility:current_facility_id(id,name_ar,name_en,unified_number,hrsd_number,gosi_number)'
+          const [wp, wt] = await Promise.all([
+            sb.from('workers').select(WSEL).eq('iqama_number', _cliId).is('deleted_at', null).limit(1),
+            sb.from('temproryworkers').select(WSEL).eq('iqama_number', _cliId).is('deleted_at', null).limit(1),
+          ])
+          matchedWorker = (wp.data || [])[0] || (wt.data || [])[0] || null
+        }
+      }
+      if (alive) setData({ loading: false, insts: insts.data || [], pays: paysWithReceipts, det: det.data || [], code, matchedWorker, quote: quote?.data?.quote_no || null, absherDiscount: Number(quote?.data?.absher_discount || 0), tc, officeAccounts, passports: passportByVisa, occMap, iqamaVisaIds, iqamaByVisa, muqeemByVisa, visaFileByVisa, visaInsFileByVisa, visaWpFileByVisa, muqeemFile, insFileAtt, wpFileAtt, moveFileAtt, documentFile, doneFilesMap, receiptImgs })
     })()
     return () => { alive = false }
     // refreshTick forces a re-fetch after a payment/refund/cancel so installments+payments stay in sync.
@@ -2087,7 +2154,6 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user, onO
   }).length
 
   const onRecordPayment = () => setActionModal('payment')
-  const onRefund        = () => setActionModal('refund')
   const onCancelInv     = () => setActionModal('cancel')
   const onPrint         = () => setActionModal('print')
   const onMarkDone      = () => { setDoneStage(null); setActionModal('done') }
@@ -2407,7 +2473,7 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user, onO
       })()}
 
       {data.loading ? <InvoiceDetailSkeleton /> : (
-      <InvoiceDetailLayout user={user} inv={inv} data={data} isAr={isAr} T={T} svc={svc} payT={payT} total={total} paid={paid} remaining={remaining} pct={pct} stageStatus={[]} sb={sb} toast={toast} onRecordPayment={onRecordPayment} onRefund={onRefund} onCancelInv={onCancelInv} onPrint={onPrint} onEditWorker={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_worker_pick') ? undefined : () => setWorkerModal(true)} onEditService={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_service_edit') ? undefined : () => setSvcModal(true)} onEditOffice={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_service_edit') ? undefined : () => setOfficeModal(true)} onEditVisa={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_permanent_visa_edit') ? undefined : () => setVisaEditModal(true)} onEditBorders={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_border_numbers') ? undefined : () => setBorderModal(true)} onEditClient={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_client_edit') ? undefined : () => setClientModal(true)} onEditAgent={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_agent_edit') ? undefined : () => setAgentModal(true)} onEditNote={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_note_edit') ? undefined : () => setNoteModal(true)} onEditPricing={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_pricing_edit') ? undefined : () => setPricingModal(true)} onDiscount={cancelledRO || !isGM(user) ? undefined : () => setDiscountModal(true)} onEditPayment={cancelledRO || !canPerm(user, 'invoices.record_payment') || !modalAllowed(user, 'invoices', 'inv_payment_edit') ? undefined : setPayEdit} canPayPerm={canPerm(user, 'invoices.record_payment')} canRefundPerm={canPerm(user, 'invoices.refund') && !gmLock} canCancelPerm={canPerm(user, 'invoices.cancel') && !gmLock} gmLock={gmLock} onOpenService={onOpenService} />
+      <InvoiceDetailLayout user={user} inv={inv} data={data} isAr={isAr} T={T} svc={svc} payT={payT} total={total} paid={paid} remaining={remaining} pct={pct} stageStatus={[]} sb={sb} toast={toast} onRecordPayment={onRecordPayment} onCancelInv={onCancelInv} onPrint={onPrint} onEditWorker={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_worker_pick') ? undefined : () => setWorkerModal(true)} onEditService={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_service_edit') ? undefined : () => setSvcModal(true)} onEditOffice={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_service_edit') ? undefined : () => setOfficeModal(true)} onEditVisa={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_permanent_visa_edit') ? undefined : () => setVisaEditModal(true)} onEditBorders={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_border_numbers') ? undefined : () => setBorderModal(true)} onEditClient={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_client_edit') ? undefined : () => setClientModal(true)} onEditAgent={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_agent_edit') ? undefined : () => setAgentModal(true)} onEditNote={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_note_edit') ? undefined : () => setNoteModal(true)} onEditPricing={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_pricing_edit') ? undefined : () => setPricingModal(true)} onEditPayment={cancelledRO || !canPerm(user, 'invoices.record_payment') || !modalAllowed(user, 'invoices', 'inv_payment_edit') ? undefined : setPayEdit} canPayPerm={canPerm(user, 'invoices.record_payment')} canCancelPerm={canPerm(user, 'invoices.cancel') && !gmLock} gmLock={gmLock} onOpenService={onOpenService} />
       )}
 
       {actionModal && <ActionModal type={actionModal} stage={doneStage} onClose={() => { setActionModal(null); setDoneStage(null) }} sb={sb} T={T} isAr={isAr} inv={inv} total={total} paid={paid} remaining={remaining} toast={toast} user={user} onSaved={() => setRefreshTick(t => t + 1)} visaDet={data?.det || []} svcCode={data?.code} insts={data?.insts || []} />}
@@ -2459,6 +2525,12 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user, onO
         const workerIsClient = !!sr?.client && !apps.some(pickW) && apps.some(pickF)
         // عامل الفاتورة (الدائم) — لقيد رقم جوال العميل ضمن «أرقام جوال الفواتير» للعامل تلقائياً.
         const linkedWorkerId = apps.map(pickW).find(Boolean)?.id || null
+        if (!sr?.client) return (
+          <LinkPartyModal sb={sb} T={T} isAr={isAr} kind="client"
+            srId={sr?.id} invId={inv.id} branchId={inv.branch?.id || null}
+            editorId={user?.id || null} user={user}
+            onClose={() => setClientModal(false)} onSaved={reloadInvoiceFull} />
+        )
         return (
           <ClientEditModal sb={sb} toast={toast} T={T} user={user}
             client={sr?.client || null}
@@ -2472,7 +2544,14 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user, onO
         )
       })()}
 
-      {agentModal && (
+      {agentModal && !(inv.agent || inv.service_request?.service_request_agents?.[0]?.agent) && (
+        <LinkPartyModal sb={sb} T={T} isAr={isAr} kind="agent"
+          srId={inv.service_request?.id} invId={inv.id} branchId={inv.branch?.id || null}
+          editorId={user?.id || null} user={user}
+          onClose={() => setAgentModal(false)} onSaved={reloadInvoiceFull} />
+      )}
+
+      {agentModal && !!(inv.agent || inv.service_request?.service_request_agents?.[0]?.agent) && (
         <AgentEditModal sb={sb} toast={toast} T={T} user={user}
           agent={inv.agent || inv.service_request?.service_request_agents?.[0]?.agent || null}
           editorId={user?.id || null}
@@ -2490,17 +2569,12 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user, onO
           onSaved={reloadInvoiceFull} />
       )}
 
+      {/* محرّر التسعير الموحّد — نفس النافذة لكل أنواع الفواتير، والخصم إحدى خطواتها (لا زر مستقل). */}
       {pricingModal && (
-        <PricingEditModal sb={sb} toast={toast} T={T} isAr={isAr} inv={inv} paid={paid} user={user}
+        <InvoicePricingEditor sb={sb} T={T} isAr={isAr} inv={inv} paid={paid} user={user}
           tc={data?.tc || null} svcCode={data?.code || inv.service_type?.code}
+          insts={data?.insts || []}
           onClose={() => setPricingModal(false)}
-          onSaved={reloadInvoiceFull} />
-      )}
-
-      {discountModal && (
-        <DiscountModal sb={sb} toast={toast} T={T} isAr={isAr} inv={inv} total={total} paid={paid} remaining={remaining}
-          insts={data?.insts || []} pays={data?.pays || []} user={user}
-          onClose={() => setDiscountModal(false)}
           onSaved={reloadInvoiceFull} />
       )}
 
@@ -2874,8 +2948,128 @@ const VisaRefundFinalForm = ({ T, color, refundMethod, setRefundMethod, transfer
   </ModalSection>
 )
 
+// نطاق الإلغاء — فاتورة التأشيرات قد تحمل أكثر من تأشيرة، فيُلغى إمّا كامل الفاتورة أو
+// تأشيرات محدّدة (واحدة أو أكثر) تُزال من الفاتورة ويُسترَدّ ما دُفع على حصّتها.
+const CancelScopeForm = ({ T, isAr, color, scope, setScope, visaList, selectedIds, setSelectedIds }) => {
+  const toggle = id => setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+  const allSel = visaList.length > 0 && selectedIds.length === visaList.length
+  return (
+    <ModalSection Icon={Ban} label={T('نطاق الإلغاء', 'Cancellation Scope')} flex style={{ marginTop: 6 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, flex: 1, minHeight: 0 }}>
+        <Segmented req full label={T('ماذا تريد أن تُلغي؟', 'What do you want to cancel?')} value={scope} onChange={setScope}
+          options={[{ v: 'all', l: T('الفاتورة كاملة', 'Whole invoice'), c: color }, { v: 'visas', l: T('تأشيرات محدّدة', 'Selected visas'), c: color }]} />
+        {scope === 'visas' && (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexShrink: 0 }}>
+              <span style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600 }}>
+                {T('اختر التأشيرات المراد إلغاؤها', 'Pick the visas to cancel')}
+                <span style={{ color, direction: 'ltr', marginInlineStart: 6 }}>{selectedIds.length}/{visaList.length}</span>
+              </span>
+              <button type="button" onClick={() => setSelectedIds(allSel ? [] : visaList.map(v => v.id))}
+                style={{ height: 30, padding: '0 12px', borderRadius: 8, border: '1px solid var(--bd)', background: 'transparent', color: 'var(--tx4)', fontFamily: F, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
+                {allSel ? T('إلغاء التحديد', 'Clear') : T('تحديد الكل', 'Select all')}
+              </button>
+            </div>
+            <ScrollBox fill>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {visaList.map(v => {
+                  const sel = selectedIds.includes(v.id)
+                  return (
+                    <div key={v.id} onClick={() => toggle(v.id)}
+                      style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 10, cursor: 'pointer', transition: '.15s', background: sel ? color + '12' : 'var(--inputBg)', border: `1px solid ${sel ? color + '66' : 'var(--bd)'}` }}>
+                      <span style={{ width: 18, height: 18, borderRadius: 5, flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: sel ? color : 'transparent', border: `1.5px solid ${sel ? color : 'var(--bd)'}` }}>
+                        {sel && <Check size={12} color="#fff" strokeWidth={3} />}
+                      </span>
+                      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        <span style={{ fontSize: 12.5, fontWeight: 600, color: sel ? color : 'var(--tx2)' }}>{visaPickLabel(v, isAr, T)}</span>
+                        <span style={{ fontSize: 10, color: 'var(--tx5)', fontWeight: 600 }}>{visaPickSub(v, isAr, T)}</span>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </ScrollBox>
+          </>
+        )}
+      </div>
+    </ModalSection>
+  )
+}
+
+// إلغاء تأشيرات محدّدة — توزيع النقص على الدفعات المشتركة (الافتراضي = حصّة التأشيرات
+// المختارة)، وتُحذف دفعة إقامة كل تأشيرة مختارة كاملةً. part='amounts' الحقول · part='summary'
+// الملخّص وطريقة إعادة المبلغ. مقسّمة خطوتين التزاماً بقاعدة «نافذة بلا تمرير».
+const CancelVisaDistForm = ({ T, isAr, color, visas, sharedInsts, residenceInsts, milestoneLabel,
+  distDisplay, setDistFor, totalDeduct, totalRefund, newTotal, refundMethod, setRefundMethod, part = 'amounts' }) => {
+  const sumRow = (label, value, c) => (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <span style={{ fontSize: 12, color: 'var(--tx4)', fontWeight: 600 }}>{label}</span>
+      <span style={{ fontSize: 15, fontWeight: 600, color: c, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(value)}</span>
+    </div>
+  )
+  if (part === 'summary') {
+    return (
+      <ModalSection Icon={Wallet} label={T('ملخص الإلغاء', 'Cancellation Summary')} style={{ marginTop: 6 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '13px 14px', borderRadius: 10, background: 'var(--inputBg)', border: '1px solid var(--bd)' }}>
+            {sumRow(T('التأشيرات الملغاة', 'Visas cancelled'), visas.length, color)}
+            {sumRow(T('إجمالي النقص من الفاتورة', 'Total reduced'), totalDeduct, C.gold)}
+            {sumRow(T('المبلغ المُعاد للعميل', 'Returned to client'), totalRefund, C.red)}
+            <div style={{ height: 1, background: 'var(--bd)' }} />
+            {sumRow(T('الإجمالي الجديد', 'New total'), newTotal, C.ok)}
+          </div>
+          {totalRefund > 0.005 && (
+            <Segmented req full label={T('طريقة إعادة المبلغ', 'Refund Method')} value={refundMethod} onChange={setRefundMethod}
+              options={[{ v: 'cash', l: T('نقداً', 'Cash'), c: color }, { v: 'bank', l: T('حوالة بنكية', 'Bank'), c: color }]} />
+          )}
+          {newTotal <= 0.005 && (
+            <div style={{ fontSize: 11.5, color: C.red, fontWeight: 600, padding: '9px 12px', borderRadius: 9, background: `${C.red}14`, border: `1px solid ${C.red}33`, lineHeight: 1.7 }}>
+              {T('لم تبقَ تأشيرة في الفاتورة — ستُلغى الفاتورة بالكامل بعد تنفيذ الإلغاء.',
+                 'No visas will remain — the invoice itself will be cancelled after this.')}
+            </div>
+          )}
+        </div>
+      </ModalSection>
+    )
+  }
+  return (
+    <ModalSection Icon={Wallet} label={T('توزيع النقص على الدفعات', 'Distribute across installments')} flex style={{ marginTop: 6 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, flex: 1, minHeight: 0 }}>
+        <div style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 600, flexShrink: 0, lineHeight: 1.7 }}>
+          {T('كم يُحذف من كل دفعة مشتركة مقابل التأشيرات الملغاة؟ دفعةُ إقامة كل تأشيرة ملغاة تُحذف كاملةً، والجزء المدفوع يُعاد للعميل.',
+             'How much to deduct from each shared installment for the cancelled visas? Each cancelled visa’s residence installment is removed in full; the paid portion is returned.')}
+        </div>
+        <ScrollBox fill>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {residenceInsts.length > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, padding: '10px 12px', borderRadius: 10, background: color + '12', border: `1px dashed ${color}55` }}>
+                <span style={{ fontSize: 11.5, color, fontWeight: 600 }}>{T('دفعات إصدار الإقامة — تُحذف', 'Residence installments — removed')} ({residenceInsts.length})</span>
+                <span style={{ fontSize: 13.5, color, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>−{num(residenceInsts.reduce((s, it) => s + (Number(it.total_amount) || 0), 0))}</span>
+              </div>
+            )}
+            {sharedInsts.map(it => {
+              const tot = Number(it.total_amount) || 0, pd = Number(it.paid_amount) || 0
+              return (
+                <div key={it.id} style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx2)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{milestoneLabel(it) || T('دفعة', 'Installment')}</span>
+                    <span style={{ fontSize: 9.5, color: 'var(--tx5)', fontWeight: 600, direction: 'ltr', textAlign: 'right' }}>{T('مدفوع', 'Paid')} {num(pd)} / {num(tot)}</span>
+                  </div>
+                  <div style={{ flexShrink: 0, width: 150 }}>
+                    <CurrencyField value={distDisplay(it)} onChange={v => setDistFor(it.id, v)} unit={T('ريال', 'SAR')} />
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </ScrollBox>
+      </div>
+    </ModalSection>
+  )
+}
+
 // سبب الإلغاء — تحذير + ملاحظة نصية. الحالة مرفوعة لـ ActionModal.
-const CancelReasonForm = ({ T, reason, setReason }) => (
+const CancelReasonForm = ({ T, reason, setReason, partial = false }) => (
   <>
     <ModalSection Icon={Ban} label={T('سبب الإلغاء', 'Cancellation Reason')}>
       <TextArea req full rows={4} value={reason} onChange={setReason}
@@ -2883,7 +3077,9 @@ const CancelReasonForm = ({ T, reason, setReason }) => (
     </ModalSection>
     <div style={{ marginTop: 12, fontSize: 12.5, color: FKC.red, padding: '10px 14px', borderRadius: 10, background: `${FKC.red}14`, border: `1px solid ${FKC.red}33`, display: 'flex', alignItems: 'flex-start', gap: 8, fontWeight: 600, lineHeight: 1.8, fontFamily: F }}>
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 2 }}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-      <span>{T('بإلغاء الفاتورة تُلغى جميع دفعاتها ومدفوعاتها المسجّلة نهائيًا، ولا يمكن التراجع عن هذا الإجراء.', 'Cancelling the invoice permanently voids all its recorded installments and payments. This action cannot be undone.')}</span>
+      <span>{partial
+        ? T('تُحذف التأشيرات المختارة من الفاتورة نهائيًا ويُعاد ما دُفع على حصّتها، وتبقى الفاتورة سارية ببقية التأشيرات. لا يمكن التراجع.', 'The selected visas are permanently removed and their paid share is returned; the invoice stays active with the remaining visas. This cannot be undone.')
+        : T('بإلغاء الفاتورة تُلغى جميع دفعاتها ومدفوعاتها المسجّلة نهائيًا، ولا يمكن التراجع عن هذا الإجراء.', 'Cancelling the invoice permanently voids all its recorded installments and payments. This action cannot be undone.')}</span>
     </div>
   </>
 )
@@ -3150,7 +3346,7 @@ const ActionModal = ({ type, stage = null, onClose, sb, T, isAr, inv, total, pai
   const [passportFile, setPassportFile] = useState(null)
   const [spawnedVisaIds, setSpawnedVisaIds] = useState(new Set())
   useEffect(() => {
-    if (!sb || (type !== 'payment' && type !== 'refund') || !isWorkVisa) return
+    if (!sb || (type !== 'payment' && type !== 'refund' && type !== 'cancel') || !isWorkVisa) return
     const ids = (visaDet || []).map(v => v.id).filter(Boolean)
     if (!ids.length) return
     let alive = true
@@ -3291,6 +3487,11 @@ const ActionModal = ({ type, stage = null, onClose, sb, T, isAr, inv, total, pai
   const [refundDist, setRefundDist] = useState({}) // معرّف الدفعة المشتركة → المبلغ المُنقَص (توزيع يدوي عند استرجاع تأشيرة)
   // cancel
   const [cancelReason, setCancelReason] = useState('')
+  // إلغاء فاتورة تأشيرات: النطاق (كامل/تأشيرات محدّدة)، التأشيرات المختارة، توزيع النقص، وطريقة إعادة المبلغ.
+  const [cancelScope, setCancelScope] = useState('all')   // 'all' | 'visas'
+  const [cancelVisaIds, setCancelVisaIds] = useState([])
+  const [cancelDist, setCancelDist] = useState({})        // معرّف الدفعة المشتركة → المبلغ المُنقَص
+  const [cancelRefundMethod, setCancelRefundMethod] = useState('cash')
 
   // ─── lookups loaded on mount ─────────────────────────────────────────────
   // payment_method (cash/bank → id), invoice_status='cancelled' → id, and the
@@ -3779,6 +3980,126 @@ const ActionModal = ({ type, stage = null, onClose, sb, T, isAr, inv, total, pai
               { label: T('المتبقي مدفوعًا', 'Remaining Paid'), value: num(Math.max(0, newInvPaidR)), color: C.ok },
             ],
           }
+        }
+      } else if (type === 'cancel' && cancelHasVisaScope && cancelScope === 'visas') {
+        // ─── إلغاء تأشيرات محدّدة ───
+        // الفاتورة تحمل أكثر من تأشيرة، فيُلغى ما اختاره المستخدم فقط: تُحذف صفوف التأشيرات
+        // ودفعاتُ إقامتها كاملةً، ويُنقَص من كل دفعة مشتركة ما وزّعه المستخدم (الافتراضي حصّة
+        // التأشيرات المختارة). ما دُفع ضمن ذلك النقص يُعاد للعميل كدفعة سالبة واحدة.
+        // الثوابت المحفوظة: الإجمالي = مجموع إجمالي الدفعات · المدفوع = مجموع مدفوعها · لا تقل
+        // دفعة عن مسدّدها. وإن لم تبقَ تأشيرة تُلغى الفاتورة كاملةً بنفس السبب.
+        if (!cancelCount) { setActErr(T('اختر تأشيرة واحدة على الأقل', 'Pick at least one visa')); return }
+        const nowIsoV = new Date().toISOString()
+        const { data: invFreshV, error: erF } = await sb.from('invoices')
+          .select('total_amount, paid_amount, cancel_log, status:status_id(code)').eq('id', inv.id).maybeSingle()
+        if (erF) throw erF
+        if (invFreshV?.status?.code === 'cancelled') { setActErr(T('الفاتورة ملغاة بالفعل', 'Invoice is already cancelled')); return }
+        const totalNumV = Number(invFreshV?.total_amount) || 0
+        const curPaidV = Number(invFreshV?.paid_amount) || 0
+        const { data: liveRowsV, error: erLV } = await sb.from('installments')
+          .select('id, total_amount, paid_amount, installment_order, notes, visa_application_id, payment_milestone:payment_milestone_id(value_ar,value_en)')
+          .eq('invoice_id', inv.id).is('deleted_at', null).order('installment_order')
+        if (erLV) throw erLV
+        const isResV = it => { if (it.visa_application_id) return true; const m = it.payment_milestone ? (it.payment_milestone.value_ar || it.payment_milestone.value_en) : ''; return /إقامة|اقامة|iqama|residence/i.test(m || it.notes || '') }
+        const resRowsV = (liveRowsV || []).filter(isResV)
+        const sharedRowsV = (liveRowsV || []).filter(it => !isResV(it))
+        // دفعة إقامة كل تأشيرة مختارة (بالربط المباشر)؛ وللبيانات القديمة بلا ربط نأخذ أقدم
+        // دفعة إقامة غير مربوطة لكل تأشيرة مختارة — فيبقى العدد = عدد التأشيرات المتبقّية.
+        const unlinkedRes = resRowsV.filter(it => !it.visa_application_id)
+        const resToRemove = []
+        for (const vid of cancelVisaIds) {
+          const linked = resRowsV.find(it => it.visa_application_id === vid && !resToRemove.includes(it))
+          if (linked) { resToRemove.push(linked); continue }
+          const spare = unlinkedRes.find(it => !resToRemove.includes(it))
+          if (spare) resToRemove.push(spare)
+        }
+        let totalDeductV = 0, totalRefundV = 0
+        const instOpsV = []
+        for (const it of sharedRowsV) {
+          const ded = cancelDistVal(it); if (ded <= 0.005) continue
+          const tot = Number(it.total_amount) || 0, pd = Number(it.paid_amount) || 0
+          const refund_i = Math.max(0, Math.round((ded - (tot - pd)) * 100) / 100)
+          const newTot = Math.round((tot - ded) * 100) / 100
+          const newPaid = Math.round((pd - refund_i) * 100) / 100
+          totalDeductV += ded; totalRefundV += refund_i
+          instOpsV.push({ id: it.id, newTot, newPaid, del: newTot <= 0.005 && newPaid <= 0.005 })
+        }
+        for (const it of resToRemove) { totalDeductV += Number(it.total_amount) || 0; totalRefundV += Number(it.paid_amount) || 0 }
+        totalDeductV = Math.round(totalDeductV * 100) / 100
+        totalRefundV = Math.round(Math.min(totalRefundV, curPaidV) * 100) / 100
+        if (totalDeductV <= 0.005) { setActErr(T('حدّد مبلغًا للحذف من الدفعات', 'Specify an amount to deduct from installments')); return }
+
+        // 1) إعادة المبلغ المدفوع على التأشيرات الملغاة — دفعة سالبة واحدة تحمل هوية التأشيرات.
+        const reasonTxt = (cancelReason || '').trim()
+        if (totalRefundV > 0.005) {
+          const cpmId = cancelRefundMethod === 'bank' ? payMethodIds.bank : payMethodIds.cash
+          if (!cpmId) { setActErr(T('تعذر تحديد طريقة إعادة المبلغ', 'Cannot resolve the refund method')); return }
+          const refTxt = cancelVisas.map(v => v.border_number || v.file_number || '').filter(Boolean).join('،')
+          const noteV = [isAr ? `إلغاء ${cancelCount} تأشيرة` : `Cancelled ${cancelCount} visa(s)`, refTxt ? `visa_ref:${refTxt}` : '', reasonTxt].filter(Boolean).join(' — ')
+          const { error: erP } = await sb.from('payments').insert({
+            invoice_id: inv.id, installment_id: sharedRowsV[0]?.id || null,
+            service_request_id: inv.service_request?.id || null, branch_id: inv.branch_id || inv.branch?.id || null,
+            amount: -totalRefundV, payment_method_id: cpmId, bank_reference: null, bank_account_id: null,
+            is_valid: true, notes: noteV, created_by: user?.id || null,
+          })
+          if (erP) throw erP
+        }
+        // 2) تطبيق التوزيع على الدفعات المشتركة، وحذف دفعات الإقامة الخاصة بالتأشيرات الملغاة.
+        for (const op of instOpsV) {
+          if (op.del) await sb.from('installments').update({ deleted_at: nowIsoV }).eq('id', op.id)
+          else await sb.from('installments').update({ total_amount: op.newTot, paid_amount: op.newPaid, ...(op.newPaid <= 0.005 ? { paid_date: null } : {}) }).eq('id', op.id)
+        }
+        for (const it of resToRemove) await sb.from('installments').update({ deleted_at: nowIsoV }).eq('id', it.id)
+        // 3) فكّ ارتباط الدفعات ثم حذف صفوف التأشيرات وإنقاص كمية الطلب.
+        await sb.from('installments').update({ visa_application_id: null }).in('visa_application_id', cancelVisaIds)
+        const { error: erDelV } = await sb.from('visa_applications').delete().in('id', cancelVisaIds)
+        if (erDelV) throw erDelV
+        const srIdV = inv.service_request?.id
+        if (srIdV) {
+          const { data: srRowV } = await sb.from('service_requests').select('quantity').eq('id', srIdV).maybeSingle()
+          await sb.from('service_requests').update({ quantity: Math.max(0, (Number(srRowV?.quantity) || 0) - cancelCount) }).eq('id', srIdV)
+        }
+        // 4) تحديث الفاتورة + سجلّ الإلغاء (قيد لكل عملية إلغاء جزئي، يذكر عدد التأشيرات والمبالغ).
+        const newTotalV2 = Math.max(0, Math.round((totalNumV - totalDeductV) * 100) / 100)
+        const newPaidV2 = Math.max(0, Math.round((curPaidV - totalRefundV) * 100) / 100)
+        const survivingV = Math.max(0, (liveRowsV?.length || 0) - instOpsV.filter(op => op.del).length - resToRemove.length)
+        const prevLogV = Array.isArray(invFreshV?.cancel_log) ? invFreshV.cancel_log : []
+        const logEntryV = {
+          at: nowIsoV, by: user?.id || null, by_name: user?.person?.name_ar || user?.person?.name_en || null,
+          reason: reasonTxt, visas_cancelled: cancelCount,
+          visa_refs: cancelVisas.map(v => v.border_number || v.file_number || null).filter(Boolean),
+          deducted: totalDeductV, refunded: totalRefundV, total: { from: totalNumV, to: newTotalV2 },
+        }
+        const invPatchV2 = {
+          total_amount: newTotalV2, paid_amount: newPaidV2, last_activity_at: nowIsoV,
+          installments_count: survivingV, service_quantity: Math.max(0, visaCount - cancelCount),
+          cancel_log: [...prevLogV, logEntryV],
+        }
+        // لم تبقَ تأشيرة → تُلغى الفاتورة نفسها؛ وإلا تُشتقّ حالة السداد من الأرقام الجديدة.
+        const allGone = cancelCount >= visaCount || newTotalV2 <= 0.005
+        if (allGone) {
+          let cidV = cancelledStatusId
+          if (!cidV) {
+            const { data: stV } = await sb.from('lookup_items')
+              .select('id,category:lookup_categories!inner(category_key)')
+              .eq('category.category_key', 'invoice_status').eq('code', 'cancelled').maybeSingle()
+            cidV = stV?.id || null
+          }
+          if (cidV) invPatchV2.status_id = cidV
+        } else if (newTotalV2 > 0.005 && newPaidV2 >= newTotalV2 - 0.005 && fullyPaidStatusId) invPatchV2.status_id = fullyPaidStatusId
+        else if (activeStatusId) invPatchV2.status_id = activeStatusId
+        const { error: erIV } = await sb.from('invoices').update(invPatchV2).eq('id', inv.id)
+        if (erIV) throw erIV
+        successInfo = {
+          title: allGone ? T('تم إلغاء الفاتورة', 'Invoice cancelled') : T('تم إلغاء التأشيرات المحدّدة', 'Selected visas cancelled'),
+          desc: allGone
+            ? T('أُلغيت جميع التأشيرات فأُلغيت الفاتورة معها.', 'All visas were cancelled, so the invoice was cancelled too.')
+            : T('أُزيلت التأشيرات المختارة من الفاتورة وبقيت الفاتورة سارية ببقيّتها.', 'The selected visas were removed; the invoice remains active with the rest.'),
+          rows: [
+            { label: T('التأشيرات الملغاة', 'Visas cancelled'), value: num(cancelCount), color: C.red },
+            { label: T('المبلغ المُعاد', 'Returned'), value: num(totalRefundV), color: C.red },
+            { label: T('الإجمالي الجديد', 'New total'), value: num(newTotalV2), color: C.ok },
+          ],
         }
       } else if (type === 'cancel') {
         // Resolve the cancelled-status id on demand if the modal's lookup effect
@@ -4422,7 +4743,7 @@ const ActionModal = ({ type, stage = null, onClose, sb, T, isAr, inv, total, pai
   // استرجاع التأشيرة — القائمة، التأشيرة المختارة، وتقسيم الدفعات (إقامة/مشتركة) للتوزيع اليدوي.
   // استرجاع «تأشيرة» متاح للدائمة فقط، ويستبعد التأشيرات التي صدرت لها معاملة إقامة مستقلة
   // (لئلا يُيتّمها حذفُ صف التأشيرة) — كما في linkCandidates للدفع.
-  const visaList = isPermanentVisa ? (visaDet || []).filter(v => !spawnedVisaIds.has(v.id)) : []
+  const visaList = isWorkVisa ? (visaDet || []).filter(v => !spawnedVisaIds.has(v.id)) : []
   const visaCount = visaList.length
   const selectedVisa = visaList.find(v => v.id === refundVisaId) || null
   const residenceInstsR = (insts || []).filter(it => isIqamaInst(it))
@@ -4440,6 +4761,25 @@ const ActionModal = ({ type, stage = null, onClose, sb, T, isAr, inv, total, pai
   const visaTotalDeductR = Math.round((sharedInstsR.reduce((s, it) => s + distValR(it), 0) + (residenceToRemoveR ? (Number(residenceToRemoveR.total_amount) || 0) : 0)) * 100) / 100
   const visaTotalRefundR = Math.round(Math.min(sharedInstsR.reduce((s, it) => s + distRefundR(it), 0) + (residenceToRemoveR ? (Number(residenceToRemoveR.paid_amount) || 0) : 0), Number(paid) || 0) * 100) / 100
   const visaNewTotalR = Math.max(0, Math.round(((Number(total) || 0) - visaTotalDeductR) * 100) / 100)
+
+  // ── إلغاء تأشيرات محدّدة ──
+  // النقص = حصّة التأشيرات المختارة من كل دفعة مشتركة (قابلة للتعديل) + دفعات إقامتها كاملةً.
+  // المُعاد للعميل = ما دُفع فعلاً ضمن ذلك النقص. الافتراضي «إجمالي الدفعة ÷ عدد التأشيرات × المختار».
+  const isVisaOwnInst = it => !!it?.visa_application_id || isIqamaInst(it)
+  const cancelSharedInsts = (insts || []).filter(it => !isVisaOwnInst(it))
+  const cancelVisas = visaList.filter(v => cancelVisaIds.includes(v.id))
+  const cancelCount = cancelVisas.length
+  const cancelResInsts = (insts || []).filter(it => isVisaOwnInst(it) && cancelVisaIds.includes(it.visa_application_id))
+  const cancelSuggest = it => Math.min(Number(it.total_amount) || 0, Math.round((Number(it.total_amount) * cancelCount / Math.max(1, visaCount)) * 100) / 100)
+  const cancelDistVal = it => { const v = cancelDist[it.id]; let n = v === undefined ? cancelSuggest(it) : Number(v || 0); if (isNaN(n)) n = 0; return Math.max(0, Math.min(Number(it.total_amount) || 0, Math.round(n * 100) / 100)) }
+  const cancelDistDisplay = it => { const v = cancelDist[it.id]; return v === undefined ? String(cancelSuggest(it)) : v }
+  const cancelDistRefund = it => { const ded = cancelDistVal(it); const rem = (Number(it.total_amount) || 0) - (Number(it.paid_amount) || 0); return Math.max(0, Math.round((ded - rem) * 100) / 100) }
+  const setCancelDistFor = (id, v) => setCancelDist(prev => ({ ...prev, [id]: v }))
+  const cancelDeduct = Math.round((cancelSharedInsts.reduce((s, it) => s + cancelDistVal(it), 0) + cancelResInsts.reduce((s, it) => s + (Number(it.total_amount) || 0), 0)) * 100) / 100
+  const cancelRefundAmt = Math.round(Math.min(cancelSharedInsts.reduce((s, it) => s + cancelDistRefund(it), 0) + cancelResInsts.reduce((s, it) => s + (Number(it.paid_amount) || 0), 0), Number(paid) || 0) * 100) / 100
+  const cancelNewTotal = Math.max(0, Math.round(((Number(total) || 0) - cancelDeduct) * 100) / 100)
+  // خطوة النطاق تظهر فقط حين تحمل الفاتورة أكثر من تأشيرة؛ التأشيرة الواحدة = الفاتورة كاملة.
+  const cancelHasVisaScope = isWorkVisa && visaCount >= 2
   const pages = type === 'payment'
     ? [
         { valid: true, content: invoiceInfo },
@@ -4530,10 +4870,39 @@ const ActionModal = ({ type, stage = null, onClose, sb, T, isAr, inv, total, pai
     : type === 'cancel'
     ? [
         { valid: true, content: invoiceInfo },
+        // فاتورة تأشيرات: اختر إلغاء الفاتورة كاملةً أو تأشيرات محدّدة تُزال ويُعاد ما دُفع عليها.
+        ...(cancelHasVisaScope ? [{
+          title: T('نطاق الإلغاء', 'Scope'),
+          valid: cancelScope === 'all' || cancelCount > 0,
+          content: (
+            <CancelScopeForm T={T} isAr={isAr} color={meta.color}
+              scope={cancelScope} setScope={setCancelScope} visaList={visaList}
+              selectedIds={cancelVisaIds} setSelectedIds={setCancelVisaIds} />
+          ),
+        }] : []),
+        ...(cancelHasVisaScope && cancelScope === 'visas' ? [
+          { title: T('توزيع النقص', 'Distribute'), valid: cancelDeduct > 0.005,
+            content: (
+              <CancelVisaDistForm part="amounts" T={T} isAr={isAr} color={meta.color} visas={cancelVisas}
+                sharedInsts={cancelSharedInsts} residenceInsts={cancelResInsts} milestoneLabel={milestoneText}
+                distDisplay={cancelDistDisplay} setDistFor={setCancelDistFor}
+                totalDeduct={cancelDeduct} totalRefund={cancelRefundAmt} newTotal={cancelNewTotal}
+                refundMethod={cancelRefundMethod} setRefundMethod={setCancelRefundMethod} />
+            ) },
+          { title: T('ملخص الإلغاء', 'Summary'), valid: cancelDeduct > 0.005,
+            content: (
+              <CancelVisaDistForm part="summary" T={T} isAr={isAr} color={meta.color} visas={cancelVisas}
+                sharedInsts={cancelSharedInsts} residenceInsts={cancelResInsts} milestoneLabel={milestoneText}
+                distDisplay={cancelDistDisplay} setDistFor={setCancelDistFor}
+                totalDeduct={cancelDeduct} totalRefund={cancelRefundAmt} newTotal={cancelNewTotal}
+                refundMethod={cancelRefundMethod} setRefundMethod={setCancelRefundMethod} />
+            ) },
+        ] : []),
         { valid: (cancelReason || '').trim().length > 0, content: (
           <CancelReasonForm
             T={T}
             reason={cancelReason} setReason={setCancelReason}
+            partial={cancelHasVisaScope && cancelScope === 'visas' && cancelNewTotal > 0.005}
           />
         ) },
       ]
@@ -4650,6 +5019,14 @@ const ActionModal = ({ type, stage = null, onClose, sb, T, isAr, inv, total, pai
 const cardChrome = { background: 'var(--card-grad2)', border: '1px solid var(--bd)', borderRadius: 16, overflow: 'hidden' }
 const cardHeader = { padding: '14px 22px', borderBottom: '1px solid var(--bd)', display: 'flex', alignItems: 'center', gap: 10 }
 const cardTitle  = { fontSize: 16, fontWeight: 600, color: C.gold, letterSpacing: '.2px' }
+// جسم الكرت الفارغ — يظهر للمدير العام في الكروت التي لا تحمل بيانات بعد، فيبقى الكرت ظاهراً
+// وزرّه («إضافة») متاحاً بدل إخفاء الكرت كلياً وحجب الإدخال.
+const EmptyCardBody = ({ T, text, hint }) => (
+  <div style={{ padding: '14px 0 6px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
+    <span style={{ fontSize: 12.5, color: 'var(--tx4)', fontWeight: 600 }}>{text || T('لا توجد بيانات', 'No data')}</span>
+    {hint && <span style={{ fontSize: 11, color: 'var(--tx5)', fontWeight: 600 }}>{hint}</span>}
+  </div>
+)
 const cardSub    = { fontSize: 11, color: 'var(--tx4)', fontWeight: 600 }
 
 /* ─── بطاقة «سندات القبض» ───
@@ -5907,7 +6284,7 @@ const fmtLineLabel = (label, T = (a) => a) => {
   const m = raw.match(/^(إصدار|تمديد)\s+خروج وعودة\s*\(([^)]+)\)\s*$/)
   return m ? `${T('خروج وعودة', 'Exit / Re-entry')} (${T(m[1], m[1] === 'إصدار' ? 'Issue' : 'Extend')}-${m[2].trim()})` : raw
 }
-const PricingCard = ({ breakdown, total = 0, paid = 0, remaining = 0, absher = 0, tc = null, T, onEdit, log = [], svcCode = null, user }) => {
+const PricingCard = ({ breakdown, total = 0, paid = 0, remaining = 0, absher = 0, tc = null, T, onEdit, discount = 0, discountLog = [], log = [], svcCode = null, qty = 0, user }) => {
   const visBreakdown = fieldVisible(user, 'invoices', 'pricing_breakdown')
   const visOfficeFee = fieldVisible(user, 'invoices', 'pricing_office_fees')
   const visAbsher = fieldVisible(user, 'invoices', 'pricing_absher_discount')
@@ -5919,11 +6296,15 @@ const PricingCard = ({ breakdown, total = 0, paid = 0, remaining = 0, absher = 0
       <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
       <span style={cardTitle}>{T('التسعير','Pricing')}</span>
       {onEdit && (
-        <button onClick={onEdit} title={T('تعديل التسعير','Edit pricing')}
-          style={{ marginInlineStart: 'auto', height: 32, padding: '0 14px', borderRadius: 9, background: 'rgba(176,125,0,.06)', border: '1px dashed var(--accent-bd)', color: 'var(--accent)', fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
-          <span>{T('تعديل','Edit')}</span>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
-        </button>
+        <div style={{ marginInlineStart: 'auto', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+          {onEdit && (
+            <button onClick={onEdit} title={T('تعديل التسعير','Edit pricing')}
+              style={{ height: 32, padding: '0 14px', borderRadius: 9, background: 'rgba(176,125,0,.06)', border: '1px dashed var(--accent-bd)', color: 'var(--accent)', fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+              <span>{T('تعديل','Edit')}</span>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+            </button>
+          )}
+        </div>
       )}
     </div>
     <div style={{ padding: '14px 22px' }}>
@@ -6049,7 +6430,14 @@ const PricingCard = ({ breakdown, total = 0, paid = 0, remaining = 0, absher = 0
         <div style={{ borderRadius: 12, border: '1px solid var(--bd)', background: 'var(--inputBg)', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 9 }}>
           {visBreakdown && feeLines.map((l, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, fontSize: 14 }}>
-              <span style={{ color: 'var(--tx2)', fontWeight: 600, fontSize: 12.5 }}>{((l.label === 'رسوم عقد أجير' || l.label === 'رسوم أساسية') ? T('رسوم العقد', 'Contract Fee') : fmtLineLabel(l.label, T)) + monthSuffix(l.label)}</span>
+              {/* عدد التأشيرات بجانب اسم البند — السطر يحمل قيمة كل التأشيرات مجتمعةً،
+                  فبدون العدد يبدو المبلغ سعرَ تأشيرة واحدة. نفس شارة «×N» في كرت الخدمة. */}
+              <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 6, minWidth: 0 }}>
+                <span style={{ color: 'var(--tx2)', fontWeight: 600, fontSize: 12.5 }}>{((l.label === 'رسوم عقد أجير' || l.label === 'رسوم أساسية') ? T('رسوم العقد', 'Contract Fee') : fmtLineLabel(l.label, T)) + monthSuffix(l.label)}</span>
+                {visaLineQty(l.label, svcCode, qty) > 0 && (
+                  <span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums', fontWeight: 600, color: C.gold, fontSize: 12.5, flexShrink: 0 }}>{visaLineQty(l.label, svcCode, qty) + '×'}</span>
+                )}
+              </span>
               <span style={{ color: 'var(--tx1)', fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(l.amount)}</span>
             </div>
           ))}
@@ -6105,6 +6493,30 @@ const PricingCard = ({ breakdown, total = 0, paid = 0, remaining = 0, absher = 0
           ))}
         </div>
       )})()}
+      {/* الخصم داخل كرت التسعير — «بعد الخصم» هو «الإجمالي» نفسه، فلا معنى لكرت مستقل يكرره. */}
+      {discount > 0.005 && (
+        <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', padding: '9px 12px', borderRadius: 10, background: 'rgba(39,160,70,.06)', border: '1px dashed rgba(39,160,70,.35)' }}>
+          <span style={{ fontSize: 11.5, color: 'var(--tx4)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            {T('قبل الخصم','Before discount')}
+            <span style={{ color: 'var(--tx2)', direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(Math.round((Number(total) + Number(discount)) * 100) / 100)}</span>
+          </span>
+          <span style={{ fontSize: 12, color: '#27a046', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            {T('الخصم','Discount')}
+            <span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>−{num(discount)}</span>
+          </span>
+        </div>
+      )}
+      {discountLog.length > 0 && (
+        <ChangeLog T={T} title={T('سجل الخصم', 'Discount log')} entries={discountLog}
+          actionLabel={T('تم تطبيق خصم', 'Discount applied')}
+          renderDetail={c => (
+            <div style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              <span>{T('القيمة', 'Amount')}:</span>
+              <span style={{ color: '#27a046', direction: 'ltr' }}>{num(c.discount)}</span>
+              {c.reason && <span style={{ color: 'var(--tx5)' }}>· {c.reason}</span>}
+            </div>
+          )} />
+      )}
       <ChangeLog T={T} title={T('سجل تعديل التسعير', 'Pricing edit log')} entries={log}
         actionLabel={T('تم تعديل التسعير', 'Pricing edited')}
         renderDetail={c => <PricingChanges T={T} entry={c} />} />
@@ -6452,6 +6864,188 @@ function WorkerPickModal({ sb, toast, T, isAr, srId, currentWorker, editorId, ed
   )
 }
 
+// ربط طرف بالفاتورة حين لا يكون مرتبطاً بعد (كرت فارغ) — عميل أو وسيط. الطريقان:
+//   • اختيار مسجَّل: بحث بالاسم/الهوية/الجوال في clients أو agents.
+//   • تسجيل جديد: نفس حقول خطوة «العميل/الوسيط» في نموذج الطلب، مع نفس حارس التكرار (هوية/جوال).
+// الربط بعد ذلك: العميل → service_requests.client_id · الوسيط → service_request_agents + invoices.agent_id.
+function LinkPartyModal({ sb, T, isAr, kind, srId, invId, branchId, editorId, onClose, onSaved, user }) {
+  const isAgent = kind === 'agent'
+  const TBL = isAgent ? 'agents' : 'clients'
+  const SEL = 'id,name_ar,name_en,id_number,phone,nationality_id' + (isAgent ? ',default_commission_amount' : '')
+  const [mode, setMode] = useState('existing')
+  const [q, setQ] = useState('')
+  const [results, setResults] = useState([])
+  const [searching, setSearching] = useState(false)
+  const [selected, setSelected] = useState(null)
+  const [f, setF] = useState({ name_ar: '', id_number: '', phone: '', nationality_id: '' })
+  const [nats, setNats] = useState([])
+  const [saving, setSaving] = useState(false)
+  const [done, setDone] = useState(false)
+  const [err, setErr] = useState('')
+  const set = (k, v) => { setErr(''); setF(p => ({ ...p, [k]: v })) }
+  useEffect(() => {
+    sb.from('nationalities').select('id,name_ar,name_en').eq('is_active', true).order('name_ar')
+      .then(({ data }) => setNats(data || []))
+  }, [])
+  // بحث مؤجَّل (300ms) بالاسم أو رقم الهوية أو الجوال — نفس نمط منتقي العامل.
+  useEffect(() => {
+    if (mode !== 'existing' || selected) return
+    const needle = q.trim()
+    if (needle.length < 2) { setResults([]); setSearching(false); return }
+    setSearching(true)
+    const t = setTimeout(async () => {
+      const pattern = '%' + needle.replace(/[%,]/g, '') + '%'
+      const { data } = await sb.from(TBL).select(SEL)
+        .or('name_ar.ilike.' + pattern + ',name_en.ilike.' + pattern + ',id_number.ilike.' + pattern + ',phone.ilike.' + pattern)
+        .is('deleted_at', null).limit(15)
+      setResults(data || []); setSearching(false)
+    }, 300)
+    return () => clearTimeout(t)
+  }, [q, mode, selected, sb])
+  const idDigits = (f.id_number || '').replace(/\D/g, '')
+  const phoneDigits = (f.phone || '').replace(/\D/g, '')
+  // الاسم والجنسية إلزاميان (كنموذج الطلب)؛ الهوية والجوال اختياريان لكن يجب اكتمالهما متى أُدخلا.
+  const valid = mode === 'existing'
+    ? !!selected
+    : !!f.name_ar.trim() && !!f.nationality_id && (idDigits.length === 0 || idDigits.length === 10) && (phoneDigits.length === 0 || phoneDigits.length === 9)
+  const save = async () => {
+    if (saving || !valid) return
+    setErr(''); setSaving(true)
+    try {
+      const nowIso = new Date().toISOString()
+      let partyId = selected?.id || null
+      let commission = selected?.default_commission_amount ?? null
+      if (!partyId) {
+        // حارس التكرار قبل الإنشاء — نفس رسائل نموذج الطلب.
+        const orParts = []
+        if (idDigits) orParts.push('id_number.eq.' + idDigits)
+        if (phoneDigits) orParts.push('phone.eq.966' + phoneDigits)
+        if (orParts.length) {
+          const { data: dup, error: dupErr } = await sb.from(TBL).select('id,name_ar,name_en,id_number').or(orParts.join(',')).is('deleted_at', null).limit(1)
+          if (dupErr) throw dupErr
+          if (dup && dup.length) {
+            const d0 = dup[0]
+            const nm = d0.name_ar || d0.name_en || (isAgent ? T('وسيط آخر', 'another agent') : T('عميل آخر', 'another client'))
+            const byId = idDigits && d0.id_number === idDigits
+            setErr(byId
+              ? T('رقم الهوية مسجّل مسبقاً باسم: ' + nm + ' — ابحث عنه واخترْه من القائمة', 'ID number already registered to: ' + nm + ' — search and pick them from the list')
+              : T('رقم الجوال مسجّل مسبقاً باسم: ' + nm + ' — ابحث عنه واخترْه من القائمة', 'Mobile already registered to: ' + nm + ' — search and pick them from the list'))
+            setSaving(false); return
+          }
+        }
+        const { data: row, error: insErr } = await sb.from(TBL).insert({
+          name_ar: f.name_ar.trim() || null,
+          id_number: idDigits || null,
+          phone: phoneDigits ? '966' + phoneDigits : null,
+          nationality_id: f.nationality_id || null,
+          branch_id: branchId || null,
+          created_by: editorId || null,
+        }).select('id').single()
+        if (insErr) throw insErr
+        partyId = row.id
+      }
+      if (isAgent) {
+        const { data: ex } = await sb.from('service_request_agents').select('service_request_id').eq('service_request_id', srId).limit(1)
+        if (ex && ex.length) {
+          const { error } = await sb.from('service_request_agents').update({ agent_id: partyId }).eq('service_request_id', srId)
+          if (error) throw error
+        } else {
+          const { error } = await sb.from('service_request_agents').insert({ service_request_id: srId, agent_id: partyId, commission_amount: commission })
+          if (error) throw error
+        }
+        // invoices.agent_id هو ما تقرؤه الفاتورة والتقارير والفلاتر — نضبطه أيضاً.
+        const { data: uInv, error: e2 } = await sb.from('invoices').update({ agent_id: partyId }).eq('id', invId).select('id')
+        if (e2) throw e2
+        if (!(uInv || []).length) { setErr(T('لم يتم الحفظ — صلاحية غير كافية', 'Not saved — insufficient permission')); setSaving(false); return }
+      } else {
+        const { data: uSr, error } = await sb.from('service_requests').update({ client_id: partyId, updated_by: editorId || null, updated_at: nowIso }).eq('id', srId).select('id')
+        if (error) throw error
+        if (!(uSr || []).length) { setErr(T('لم يتم الحفظ — صلاحية غير كافية', 'Not saved — insufficient permission')); setSaving(false); return }
+      }
+      onSaved?.(); setDone(true)
+    } catch { setErr(T('تعذر الحفظ', 'Save failed')) }
+    finally { setSaving(false) }
+  }
+  const rowCard = (r) => {
+    const nm = (isAr ? (r.name_ar || r.name_en) : (r.name_en || r.name_ar)) || '—'
+    return (
+      <div key={r.id} onClick={() => { setErr(''); setSelected(r) }}
+        style={{ cursor: 'pointer', border: '1px solid var(--bd)', background: 'linear-gradient(135deg,rgba(255,255,255,.05),rgba(255,255,255,.012))', padding: '12px 14px', borderRadius: 12, display: 'flex', alignItems: 'center', gap: 12, transition: 'all .2s' }}
+        onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(176,125,0,.35)' }}
+        onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--bd)' }}>
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
+          <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--tx)' }}>{nm}</span>
+          <span style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600, direction: 'ltr', display: 'flex', gap: 10 }}>
+            {r.id_number && <span style={{ fontFamily: 'monospace' }}>{r.id_number}</span>}
+            {r.phone && <span style={{ fontFamily: 'monospace' }}>{fmtPhone(r.phone)}</span>}
+          </span>
+        </div>
+      </div>
+    )
+  }
+  const content = (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontFamily: F, flex: 1, minHeight: 0 }}>
+      <ModalSection Icon={User} label={isAgent ? T('الوسيط', 'Agent') : T('العميل', 'Client')} flex style={{ marginTop: 6 }} bodyStyle={{ gap: 16 }}>
+        <Segmented full value={mode} onChange={v => { setErr(''); setSelected(null); setMode(v) }}
+          options={[{ v: 'existing', l: T('اختيار مسجَّل', 'Pick registered') }, { v: 'new', l: T('تسجيل جديد', 'Register new') }]} />
+        {mode === 'existing' && (selected ? (
+          <div style={{ border: '1px solid rgba(176,125,0,.4)', background: 'linear-gradient(135deg,rgba(176,125,0,.12),rgba(255,255,255,.02))', padding: '12px 14px', borderRadius: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <span style={{ fontSize: 14, fontWeight: 600, color: C.gold }}>{(isAr ? (selected.name_ar || selected.name_en) : (selected.name_en || selected.name_ar)) || '—'}</span>
+              <span style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600, direction: 'ltr', display: 'flex', gap: 10 }}>
+                {selected.id_number && <span style={{ fontFamily: 'monospace' }}>{selected.id_number}</span>}
+                {selected.phone && <span style={{ fontFamily: 'monospace' }}>{fmtPhone(selected.phone)}</span>}
+              </span>
+            </div>
+            <button onClick={() => setSelected(null)} title={T('تغيير', 'Change')}
+              style={{ height: 28, padding: '0 10px', borderRadius: 8, background: 'rgba(192,57,43,.10)', border: '1px solid rgba(192,57,43,.3)', color: C.red, fontFamily: F, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
+              {T('تغيير', 'Change')}
+            </button>
+          </div>
+        ) : (
+          <>
+            <div style={{ position: 'relative' }}>
+              <span style={{ position: 'absolute', top: '50%', left: 14, transform: 'translateY(-50%)', color: 'var(--tx4)', pointerEvents: 'none', display: 'inline-flex' }}>
+                <Search size={16} strokeWidth={2} />
+              </span>
+              <input type="text" value={q} onChange={e => setQ(e.target.value)} autoFocus
+                placeholder={T('ابحث بالاسم أو رقم الهوية أو الجوال…', 'Search by name, ID or mobile…')}
+                style={{ width: '100%', height: 42, padding: '0 14px 0 40px', borderRadius: 10, background: 'var(--inputBg)', border: '1px solid var(--bd)', color: 'var(--tx1)', fontFamily: F, fontSize: 12.5, outline: 'none', boxSizing: 'border-box', textAlign: 'right' }} />
+            </div>
+            <ScrollBox fill>
+             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {q.trim().length < 2 && <div style={{ padding: 14, fontSize: 11.5, color: 'var(--tx5)', textAlign: 'center' }}>{T('اكتب حرفين على الأقل للبحث…', 'Type at least two characters…')}</div>}
+              {q.trim().length >= 2 && searching && <div style={{ padding: 14, fontSize: 12, color: 'var(--tx4)', textAlign: 'center' }}>{T('جارٍ البحث…', 'Searching…')}</div>}
+              {q.trim().length >= 2 && !searching && results.length === 0 && (
+                <div style={{ padding: 14, borderRadius: 10, background: 'rgba(176,125,0,.05)', border: '1px dashed rgba(176,125,0,.25)', fontSize: 12, color: 'var(--tx3)', fontWeight: 600, textAlign: 'center' }}>
+                  {isAgent ? T('لا يوجد وسيط بهذا البحث — سجّله من «تسجيل جديد»', 'No agent matches — register one from "Register new"') : T('لا يوجد عميل بهذا البحث — سجّله من «تسجيل جديد»', 'No client matches — register one from "Register new"')}
+                </div>
+              )}
+              {!searching && results.map(rowCard)}
+             </div>
+            </ScrollBox>
+          </>
+        ))}
+        {mode === 'new' && (
+          <div style={GRID}>
+            <TextField label={T('الاسم', 'Name')} req value={f.name_ar} onChange={v => set('name_ar', v)} placeholder={isAgent ? T('اسم الوسيط', 'Agent name') : T('اسم العميل', 'Client name')} />
+            <FKSelect label={T('الجنسية', 'Nationality')} req value={f.nationality_id} onChange={v => set('nationality_id', v)} placeholder={T('— اختر —', '— Select —')}
+              options={nats} getKey={n => n.id} getLabel={n => T(n.name_ar, n.name_en || n.name_ar)} />
+            <IdField label={T('رقم الهوية', 'ID Number')} value={f.id_number} onChange={v => set('id_number', v)} placeholder="0000000000" />
+            <PhoneField label={T('رقم الجوال', 'Phone')} value={f.phone} onChange={v => set('phone', v)} />
+          </div>
+        )}
+      </ModalSection>
+    </div>
+  )
+  return (
+    <Modal open onClose={onClose} title={isAgent ? T('إضافة وسيط للفاتورة', 'Add invoice agent') : T('إضافة عميل للفاتورة', 'Add invoice client')} Icon={User} width={580} height="min(560px, 92vh)" accent={C.gold}
+      success={done ? <SuccessView title={isAgent ? T('تم ربط الوسيط بالفاتورة', 'Agent linked') : T('تم ربط العميل بالفاتورة', 'Client linked')} /> : undefined}
+      pages={[{ valid, error: err || undefined, content }]}
+      onSubmit={save} submitting={saving} submitIcon={CheckCircle2} submitLabel={isAgent ? T('ربط الوسيط', 'Link agent') : T('ربط العميل', 'Link client')} />
+  )
+}
+
 // تعديل بيانات العميل من داخل الفاتورة — الاسم/الهوية/الجوال/الجنسية، تُحفظ على جدول clients.
 // (المكتب يُعدَّل من صفحة العملاء.) يتبع نفس فورمات FormKit ونمط الحفظ الموحّد.
 function ClientEditModal({ sb, toast, T, client, workerIsClient = false, linkedWorkerId = null, editorId, editorName, invId, onClose, onSaved, user }) {
@@ -6661,6 +7255,18 @@ function AgentEditModal({ sb, toast, T, agent, editorId, editorName, invId, onCl
 // • الخدمات العامة: المكتب + الوصف (المخزَّن في other_applications.description).
 // • خدمة الغرفة التجارية (code 'other'): نفس حقول نافذة الإنشاء — نوع التصديق + رقم جوال العامل +
 //   ملف المطبوعات / نص الطلب — بالإضافة إلى المكتب، بدل خانة الوصف.
+// تغيير مكتب الفاتورة — يُحدَّث على الفاتورة والطلب، وتُنقل معه كل مرتبطات الفاتورة (الحسبة
+// والدفعات والمدفوعات) كي لا تبقى محسوبة على المكتب القديم في التقارير والإيداعات.
+const moveInvoiceBranch = async (sb, invId, srId, bid) => {
+  if (invId) { const { error } = await sb.from('invoices').update({ branch_id: bid }).eq('id', invId); if (error) throw error }
+  if (srId) { const { error } = await sb.from('service_requests').update({ branch_id: bid }).eq('id', srId); if (error) throw error }
+  if (!invId) return
+  for (const tbl of ['transfer_calculation', 'iqama_renewal_calculation', 'installments', 'payments']) {
+    const { error } = await sb.from(tbl).update({ branch_id: bid }).eq('invoice_id', invId)
+    if (error) throw error
+  }
+}
+
 function ServiceEditModal({ sb, toast, T, isAr, srId, invId, svcName, svcCode, currentDescription, currentBranchId, currentDetails, currentWorkerPhone, editorId, editorName, onClose, onSaved, user }) {
   const isChamber = svcCode === 'other'
   const visOffice = fieldVisible(user, 'invoices', 'service_office')
@@ -6670,7 +7276,51 @@ function ServiceEditModal({ sb, toast, T, isAr, srId, invId, svcName, svcCode, c
   const visChamberText = fieldVisible(user, 'invoices', 'service_chamber_text')
   const editChamberText = fieldEditable(user, 'invoices', 'service_chamber_text')
   const det0 = (currentDetails && typeof currentDetails === 'object') ? currentDetails : {}
+  // حقول الخدمة الخاصة — تختلف باختلاف الخدمة (مشتقّة من تعريف كرت الخدمة).
+  const svcFields = useMemo(() => svcEditFields(svcCode), [svcCode])
+  const colMode = !!svcFields[0]?.col
+  const DETAIL_TBL = SVC_COLUMN_TBL[baseSvcCode(svcCode)] || 'other_applications'
+  // «الوصف» عمودٌ في other_applications دائماً، وفي الجداول المخصّصة حسب الجدول.
+  const hasDesc = !colMode || !!SVC_COLUMN_DESC[baseSvcCode(svcCode)]
+  const quoteDriven = SVC_QUOTE_DRIVEN.has(baseSvcCode(svcCode))
+  const seedDyn = (src) => Object.fromEntries(svcFields.map(f => [f.key, src?.[f.key] ?? '']))
+  const [dyn, setDyn] = useState(() => seedDyn(det0))
+  const [dynBase, setDynBase] = useState(() => seedDyn(det0))
+  // نقرأ الصفّ الحالي من جدول التفاصيل — أدقّ من قيم الكرت (خدمات مثل «عقد أجير» تعرض من جدول
+  // وتخزّن في آخر)، ونستعمله أساساً للمقارنة عند الحفظ.
   const [desc, setDesc] = useState(currentDescription || '')
+  const [descBase, setDescBase] = useState(currentDescription || '')
+  const descTouched = useRef(false)
+  useEffect(() => {
+    const cols = colMode ? ('id' + (hasDesc ? ',description' : '') + ',' + svcFields.map(f => f.key).join(',')) : 'id,description,details'
+    sb.from(DETAIL_TBL).select(cols).eq('service_request_id', srId).is('deleted_at', null).limit(1)
+      .then(({ data }) => {
+        const r = data?.[0]; if (!r) return
+        if (svcFields.length) {
+          const o = seedDyn(colMode ? r : ((r.details && typeof r.details === 'object') ? r.details : {}))
+          setDyn(o); setDynBase(o)
+        }
+        // الوصف الحقيقي من الصفّ الذي سيُكتب عليه — لا من صفّ العرض (يختلفان في «عقد أجير»).
+        if (!hasDesc) return
+        setDescBase(r.description || '')
+        if (!descTouched.current) setDesc(r.description || '')
+      })
+  }, [srId, svcCode])
+  // نوع الخدمة — للمدير العام فقط، وبين الخدمات التي تتشارك جدول التفاصيل نفسه.
+  const canSwitchType = isGM(user) && svcTypeSwitchable(svcCode)
+  const [svcTypes, setSvcTypes] = useState([])
+  const [svcTypeId, setSvcTypeId] = useState('')
+  useEffect(() => {
+    if (!canSwitchType) return
+    sb.from('lookup_items').select('id,code,value_ar,value_en,category:lookup_categories!inner(category_key)')
+      .eq('category.category_key', 'service_type').eq('is_active', true)
+      .then(({ data }) => setSvcTypes((data || []).filter(x => svcTypeSwitchable(x.code)).sort((a, b) => String(a.value_ar || '').localeCompare(String(b.value_ar || ''), 'ar'))))
+  }, [canSwitchType])
+  useEffect(() => {
+    if (!svcTypes.length || svcTypeId) return
+    const cur = svcTypes.find(x => x.code === svcCode)
+    if (cur) setSvcTypeId(cur.id)
+  }, [svcTypes])
   const [branchId, setBranchId] = useState(currentBranchId || '')
   const [branches, setBranches] = useState([])
   // حقول الغرفة التجارية
@@ -6693,13 +7343,58 @@ function ServiceEditModal({ sb, toast, T, isAr, srId, invId, svcName, svcCode, c
     (subtype === 'open_request' && chamberText.trim() !== (det0.chamber_text || '').trim()) ||
     (subtype === 'printed' && !!chamberFile)
   )
-  const dirty = isChamber ? (chamberDirty || branchChanged) : ((desc.trim() !== (currentDescription || '').trim()) || branchChanged)
+  const norm = v => v === null || v === undefined ? '' : String(v).trim()
+  const svcDirty = svcFields.some(f => norm(dyn[f.key]) !== norm(dynBase[f.key]))
+  const newType = svcTypes.find(x => x.id === svcTypeId) || null
+  const typeChanged = !!(canSwitchType && newType && newType.code !== svcCode)
+  const dirty = (isChamber ? (chamberDirty || branchChanged) : (((hasDesc && desc.trim() !== descBase.trim())) || branchChanged)) || svcDirty || typeChanged
+  // حفظ نوع الخدمة الجديد على الطلب والفاتورة معاً (كلاهما يحمل service_type_id).
+  const saveSvcType = async () => {
+    if (!typeChanged) return null
+    const { error: e1 } = await sb.from('service_requests').update({ service_type_id: newType.id }).eq('id', srId)
+    if (e1) throw e1
+    if (invId) { const { error: e2 } = await sb.from('invoices').update({ service_type_id: newType.id }).eq('id', invId); if (e2) throw e2 }
+    const curType = svcTypes.find(x => x.code === svcCode)
+    return { field: 'service_type', from: curType?.value_ar || svcCode || null, to: newType.value_ar || newType.code }
+  }
   const save = async () => {
     if (saving || !srId || !dirty) return
     setErr(''); setSaving(true)
     try {
       const nowIso = new Date().toISOString()
       const codeOf = id => branches.find(b => b.id === id)?.branch_code || null
+      // خدمات جدولها المخصّص (رواتب سبلاير): الحقول أعمدة لا details — نكتبها مباشرة،
+      // ويُلحق سجلّ التعديل بـ invoices.service_log (لا يوجد عمود details في ذلك الجدول).
+      if (colMode) {
+        const changes = []
+        const patchCol = { updated_by: editorId || null, updated_at: nowIso }
+        for (const f of svcFields) {
+          if (norm(dyn[f.key]) === norm(dynBase[f.key])) continue
+          const val = norm(dyn[f.key]) === '' ? null : (f.money || f.months ? Number(String(dyn[f.key]).replace(/[^\d.]/g, '')) : String(dyn[f.key]).trim())
+          patchCol[f.key] = val
+          changes.push({ field: f.key, from: dynBase[f.key] ?? null, to: val })
+        }
+        if (hasDesc && desc.trim() !== descBase.trim()) {
+          patchCol.description = desc.trim() || null
+          changes.push({ field: 'description', from: descBase.trim() || null, to: desc.trim() || null })
+        }
+        if (Object.keys(patchCol).length > 2) {
+          const { error } = await sb.from(DETAIL_TBL).update(patchCol).eq('service_request_id', srId).is('deleted_at', null)
+          if (error) throw error
+          setDynBase({ ...dyn }); setDescBase(desc)
+        }
+        if (branchChanged) {
+          changes.push({ field: 'office', from: codeOf(currentBranchId), to: codeOf(branchId) })
+          await moveInvoiceBranch(sb, invId, srId, branchId || null)
+        }
+        if (changes.length && invId) {
+          const { data: invRow } = await sb.from('invoices').select('service_log').eq('id', invId).maybeSingle()
+          const slog = Array.isArray(invRow?.service_log) ? invRow.service_log : []
+          const { error: eL } = await sb.from('invoices').update({ service_log: [...slog, { at: nowIso, by: editorId || null, by_name: editorName || null, changes }] }).eq('id', invId)
+          if (eL) throw eL
+        }
+        onSaved?.(); setDone(true); setSaving(false); return
+      }
       // اقرأ الصفّ الحالي لإلحاق السجلّ (details.service_changes) دون الكتابة فوق قيم متزامنة.
       const { data: rows } = await sb.from('other_applications').select('id,details,worker_phone,description').eq('service_request_id', srId).is('deleted_at', null)
       const cur = rows?.[0] || {}
@@ -6734,9 +7429,21 @@ function ServiceEditModal({ sb, toast, T, isAr, srId, invId, svcName, svcCode, c
         }
       } else {
         const newDesc = desc.trim()
-        if (newDesc !== (currentDescription || '').trim()) changes.push({ field: 'description', from: (currentDescription || '').trim() || null, to: newDesc || null })
+        if (newDesc !== descBase.trim()) changes.push({ field: 'description', from: descBase.trim() || null, to: newDesc || null })
         patch.description = newDesc || null
       }
+      // حقول الخدمة الخاصة (تختلف باختلاف الخدمة) — تُكتب في details بمفاتيحها كما يقرؤها الكرت.
+      for (const f of svcFields) {
+        if (norm(dyn[f.key]) === norm(dynBase[f.key])) continue
+        const raw = norm(dyn[f.key])
+        const val = raw === '' ? null : ((f.money || f.months) && !isNaN(Number(raw.replace(/[^\d.]/g, ''))) ? Number(raw.replace(/[^\d.]/g, '')) : raw)
+        changes.push({ field: f.key, from: det[f.key] ?? null, to: val })
+        if (val === null) delete nextDetails[f.key]
+        else nextDetails[f.key] = val
+      }
+      // نوع الخدمة — يُحفظ على الطلب والفاتورة، ويُقيَّد في نفس سجلّ تعديل الخدمة.
+      const typeChange = await saveSvcType()
+      if (typeChange) changes.push(typeChange)
       if (branchChanged) changes.push({ field: 'office', from: codeOf(currentBranchId), to: codeOf(branchId) })
       if (changes.length) nextDetails.service_changes = [...log, { at: nowIso, by: editorId || null, by_name: editorName || null, changes }]
       patch.details = nextDetails
@@ -6758,22 +7465,58 @@ function ServiceEditModal({ sb, toast, T, isAr, srId, invId, svcName, svcCode, c
         })
         if (touched) { const { error: eb } = await sb.from('invoices').update({ pricing_breakdown: nextBd }).eq('id', invId); if (eb) throw eb }
       }
-      // المكتب — يُحدَّث على الفاتورة وطلب الخدمة معاً للحفاظ على التطابق (كرت «المكتب» يقرأ من الفاتورة).
-      if (branchChanged) {
-        const bid = branchId || null
-        if (invId) { const { error: e1 } = await sb.from('invoices').update({ branch_id: bid }).eq('id', invId); if (e1) throw e1 }
-        const { error: e2 } = await sb.from('service_requests').update({ branch_id: bid }).eq('id', srId); if (e2) throw e2
-      }
+      // المكتب — يُحدَّث على الفاتورة وطلب الخدمة معاً، وتُنقل معه مرتبطات الفاتورة.
+      if (branchChanged) await moveInvoiceBranch(sb, invId, srId, branchId || null)
       onSaved?.(); setDone(true)
     } catch { setErr(T('تعذر الحفظ','Save failed')) }
     finally { setSaving(false) }
   }
   const content = (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontFamily: F, flex: 1, minHeight: 0 }}>
-      <ModalSection flex Icon={FileText} label={T('تفاصيل الخدمة','Service Details')} style={{ marginTop: 6 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontFamily: F }}>
+      <ModalSection Icon={FileText} label={T('تفاصيل الخدمة','Service Details')} style={{ marginTop: 6 }}>
         <div style={GRID}>
           {visOffice && <FKSelect full label={T('المكتب','Office')} value={branchId} onChange={v => { setErr(''); setBranchId(v) }} placeholder={T('— اختر —','— Select —')}
             options={branches} getKey={b => b.id} getLabel={b => branchLabel(b)} disabled={!editOffice} />}
+          {canSwitchType && (
+            <div style={FULL}>
+              <FKSelect full label={T('نوع الخدمة','Service Type')} value={svcTypeId} onChange={v => { setErr(''); setSvcTypeId(v) }} placeholder={T('— اختر —','— Select —')}
+                options={svcTypes} getKey={o => o.id} getLabel={o => T(o.value_ar, o.value_en || o.value_ar)} />
+              {typeChanged && (
+                <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8, padding: '9px 11px', borderRadius: 9, background: 'rgba(176,125,0,.07)', border: '1px solid rgba(176,125,0,.25)', color: C.goldSoft, fontSize: 11, fontWeight: 600 }}>
+                  <AlertCircle size={13} strokeWidth={2.2} style={{ flexShrink: 0 }} />
+                  <span>{T('تغيير نوع الخدمة لا يُعيد حساب التسعير — عدّل التسعير بعده إن لزم.','Changing the service type does not re-price the invoice — edit pricing afterwards if needed.')}</span>
+                </div>
+              )}
+            </div>
+          )}
+          {quoteDriven && (
+            <div style={{ ...FULL, display: 'flex', alignItems: 'center', gap: 8, padding: '9px 11px', borderRadius: 9, background: 'rgba(176,125,0,.07)', border: '1px solid rgba(176,125,0,.25)', color: C.goldSoft, fontSize: 11, fontWeight: 600 }}>
+              <AlertCircle size={13} strokeWidth={2.2} style={{ flexShrink: 0 }} />
+              <span>{T('هذه القيم تخصّ الفاتورة فقط — تعديلها لا يغيّر الحسبة المعتمدة ولا التسعير.','These values belong to the invoice only — editing them does not change the certified quote or the pricing.')}</span>
+            </div>
+          )}
+          {/* حقول الخدمة الخاصة — تختلف باختلاف الخدمة (نفس حقول كرت «الخدمة»). */}
+          {svcFields.map(f => {
+            const label = T(f.l_ar, f.l_en || f.l_ar)
+            const v = dyn[f.key] ?? ''
+            const on = val => { setErr(''); setDyn(p => ({ ...p, [f.key]: val })) }
+            if (f.opts) return (
+              <FKSelect key={f.key} label={label} value={String(v || '')} onChange={on} placeholder={T('— اختر —','— Select —')}
+                options={Object.entries(f.opts).map(([k, l]) => ({ k, l }))} getKey={o => o.k} getLabel={o => o.l} />
+            )
+            if (f.date) return <DateField key={f.key} label={label} value={v || ''} onChange={on} />
+            if (f.money) return <CurrencyField key={f.key} label={label} value={v === null ? '' : String(v)} onChange={on} unit={f.noUnit ? ' ' : undefined} />
+            if (f.months) return (
+              <FKSelect key={f.key} label={label} value={String(v || '')} onChange={on} placeholder={T('— اختر —','— Select —')}
+                options={Array.from({ length: 24 }, (_, i) => String(i + 1))} getKey={o => o} getLabel={o => o + ' ' + (Number(o) >= 3 && Number(o) <= 10 ? T('أشهر','months') : T('شهر','month'))} />
+            )
+            if (f.wide) return (
+              <div key={f.key} style={FULL}>
+                <TextArea full rows={3} label={label} value={String(v || '')} onChange={on} placeholder={label} />
+              </div>
+            )
+            return <TextField key={f.key} label={label} value={String(v || '')} onChange={on} placeholder={label} />
+          })}
           {isChamber ? (
             <>
               <Segmented full height={64} label={T('نوع التصديق','Certification Type')} value={subtype} onChange={v => { setErr(''); setSubtype(v) }}
@@ -6801,10 +7544,10 @@ function ServiceEditModal({ sb, toast, T, isAr, srId, invId, svcName, svcCode, c
               )}
             </>
           ) : (
-            visDesc && (
+            hasDesc && visDesc && (
               <div style={{ ...FULL, ...(editDesc ? {} : { opacity: .55, pointerEvents: 'none' }) }}>
                 <TextArea full rows={4} label={T('الوصف','Description')}
-                  value={desc} onChange={v => { if (!editDesc) return; setErr(''); setDesc(v) }} placeholder={T('وصف الخدمة لهذا الطلب…','Service description for this request…')} />
+                  value={desc} onChange={v => { if (!editDesc) return; descTouched.current = true; setErr(''); setDesc(v) }} placeholder={T('وصف الخدمة لهذا الطلب…','Service description for this request…')} />
               </div>
             )
           )}
@@ -6813,7 +7556,7 @@ function ServiceEditModal({ sb, toast, T, isAr, srId, invId, svcName, svcCode, c
     </div>
   )
   return (
-    <Modal open onClose={onClose} title={T('تعديل تفاصيل الخدمة','Edit service details')} Icon={FileText} width={560} height={540} accent={C.gold}
+    <Modal open onClose={onClose} title={T('تعديل تفاصيل الخدمة','Edit service details')} Icon={FileText} width={620} height="auto" accent={C.gold}
       success={done ? <SuccessView title={T('تم حفظ التعديلات','Changes saved')} /> : undefined}
       pages={[{ valid: dirty, error: err || undefined, content }]}
       onSubmit={save} submitting={saving} submitIcon={CheckCircle2} submitLabel={T('تعديل تفاصيل الخدمة','Edit service details')} />
@@ -6847,14 +7590,9 @@ function OfficeEditModal({ sb, toast, T, srId, invId, currentBranchId, editorId,
       const { data: invRow } = await sb.from('invoices').select('service_log').eq('id', invId).maybeSingle()
       const log = Array.isArray(invRow?.service_log) ? invRow.service_log : []
       const entry = { at: nowIso, by: editorId || null, by_name: editorName || null, changes: [{ field: 'office', from: codeOf(currentBranchId), to: codeOf(bid) }] }
-      const { error: e1 } = await sb.from('invoices').update({ branch_id: bid, service_log: [...log, entry] }).eq('id', invId); if (e1) throw e1
-      const { error: e2 } = await sb.from('service_requests').update({ branch_id: bid }).eq('id', srId); if (e2) throw e2
-      // نقل كل مرتبطات الفاتورة إلى المكتب الجديد كي لا تبقى في المكتب القديم:
-      // حسبة نقل الكفالة/تجديد الإقامة + جدول الدفعات + المدفوعات — كلها مرتبطة بالفاتورة عبر invoice_id.
-      for (const tbl of ['transfer_calculation', 'iqama_renewal_calculation', 'installments', 'payments']) {
-        const { error } = await sb.from(tbl).update({ branch_id: bid }).eq('invoice_id', invId)
-        if (error) throw error
-      }
+      const { error: e1 } = await sb.from('invoices').update({ service_log: [...log, entry] }).eq('id', invId); if (e1) throw e1
+      // نقل الفاتورة والطلب وكل مرتبطاتهما (الحسبة والدفعات والمدفوعات) إلى المكتب الجديد.
+      await moveInvoiceBranch(sb, invId, srId, bid)
       onSaved?.(); setDone(true)
     } catch { setErr(T('تعذر الحفظ','Save failed')) }
     finally { setSaving(false) }
@@ -7786,551 +8524,26 @@ function PaymentEditModal({ sb, toast, T, isAr, inv, payment, onClose, onSaved, 
   )
 }
 
-// تعديل تسعير فاتورة نقل الكفالة (مرتبطة بحسبة تنازل) — كرت التسعير مبنيّ من أعمدة الحسبة (tc)،
-// فيعرض المحرّر كل بنود الحسبة قابلةً للتعديل (الرسوم، رسوم المكتب، خصم أبشر/المكتب) + «خصم إضافي»
-// على مستوى الفاتورة. عند الحفظ: تُكتب الرسوم/الخصومات للحسبة عبر update-quotation (adjust_fees) —
-// فينعكس على الكرت وصفحة الحسبة والطباعة — ثم يُزامَن إجمالي الفاتورة = إجمالي الحسبة − الخصم الإضافي
-// مع المدفوع/المتبقي/الحالة وجدول الدفعات عبر syncInvoicePricing.
-function TcPricingEditModal({ sb, toast, T, inv, paid = 0, tc, onClose, onSaved, user }) {
-  const r2 = n => Math.round((Number(n) || 0) * 100) / 100
-  // الرسوم القابلة للتعديل (نفس مجموعة adjust_fees في update-quotation). البنود تُعرَض إن كان لها قيمة
-  // ابتدائية موجبة (كما في الكرت)، مع إبقاء رسوم المكتب وخصم المكتب والخصم الإضافي ظاهرة دائماً.
-  const FEE_FIELDS = [
-    { key: 'transfer_fee', label: T('رسوم نقل الكفالة', 'Sponsorship Transfer Fee') },
-    { key: 'iqama_renewal_fee', label: T('تجديد الإقامة', 'Iqama Renewal') },
-    { key: 'late_fine_amount', label: T('غرامة تأخير التجديد', 'Renewal Late Fine') },
-    { key: 'work_permit_fee', label: T('رخصة العمل', 'Work Permit') },
-    { key: 'prof_change_fee', label: T('تغيير المهنة', 'Change Occupation') },
-    { key: 'medical_fee', label: T('التأمين الطبي', 'Medical Insurance') },
-    { key: 'office_fee', label: T('رسوم المكتب', 'Office Fees') },
-  ]
-  const FEE_KEYS = FEE_FIELDS.map(f => f.key)
-  const initFees = Object.fromEntries(FEE_KEYS.map(k => [k, String(Number(tc?.[k]) || 0)]))
-  const initExtras = (Array.isArray(tc?.extras) ? tc.extras : []).map(e => ({ name: e?.name || '', amount: String(Number(e?.amount) || 0) }))
-  const initAbsher = String(Number(tc?.absher_discount) || 0)
-  const initManual = String(Number(tc?.manual_discount) || 0)
-  const quoteTotal0 = Number(tc?.total_amount) || 0
-  const invTotal0 = Number(inv?.total_amount) || 0
-  const initExtra = String(Math.max(0, r2(quoteTotal0 - invTotal0)))
-  const [fees, setFees] = useState(initFees)
-  const [extras, setExtras] = useState(initExtras)
-  const [absher, setAbsher] = useState(initAbsher)
-  const [manual, setManual] = useState(initManual)
-  const [extraDisc, setExtraDisc] = useState(initExtra)
-  const [saving, setSaving] = useState(false)
-  const [done, setDone] = useState(false)
-  const [err, setErr] = useState('')
-  const setFee = (k, v) => { setErr(''); setFees(p => ({ ...p, [k]: v })) }
-  const setExtraAmt = (i, v) => { setErr(''); setExtras(p => p.map((e, j) => j === i ? { ...e, amount: v } : e)) }
-  // بند يُعرَض إن كان له قيمة ابتدائية موجبة، ورسوم المكتب تُعرَض دائماً.
-  const showFee = k => k === 'office_fee' ? true : (Number(initFees[k]) || 0) > 0
-  const showAbsher = (Number(initAbsher) || 0) > 0
-  const feeSum = FEE_KEYS.reduce((s, k) => s + (Number(fees[k]) || 0), 0)
-  const extrasSum = extras.reduce((s, e) => s + (Number(e.amount) || 0), 0)
-  const subtotal = r2(feeSum + extrasSum)
-  const absherV = Math.min(Number(absher) || 0, subtotal)
-  const manualV = Math.min(Number(manual) || 0, Math.max(0, subtotal - absherV))
-  const quoteTotal = Math.max(0, r2(subtotal - absherV - manualV))
-  const extraV = Math.max(0, Number(extraDisc) || 0)
-  const finalTotal = Math.max(0, r2(quoteTotal - extraV))
-  const valid = finalTotal >= 0 && finalTotal >= paid - 0.005
-  const nm = v => num(v)
-  const save = async () => {
-    if (saving || !inv?.id || !tc?.id) return
-    if (finalTotal < paid - 0.005) { setErr(T('الإجمالي أقل من المبلغ المدفوع', 'Total is less than the paid amount')); return }
-    setErr(''); setSaving(true)
-    try {
-      const invoke = async (body) => {
-        const { data, error } = await sb.functions.invoke('update-quotation', { body })
-        let res = data
-        if (error) { try { res = await error.context.json() } catch { /* تجاهل قراءة جسم الخطأ */ } }
-        if (!res?.ok) throw new Error(res?.detail || res?.error || 'update_failed')
-        return res
-      }
-      // 1) البنود الإضافية (إن تغيّرت) — تُكتب أولاً كي يعيد adjust_fees الحساب على قيمها الجديدة.
-      const extrasChanged = JSON.stringify(initExtras.map(e => ({ name: e.name, amount: Number(e.amount) || 0 })))
-        !== JSON.stringify(extras.map(e => ({ name: e.name, amount: Number(e.amount) || 0 })))
-      if (extrasChanged) {
-        await invoke({ action: 'update_extras', id: tc.id, extras: extras.map(e => ({ name: e.name, amount: Number(e.amount) || 0 })) })
-      }
-      // 2) الرسوم + الخصومات → الحسبة (والخادم يعيد حساب الإجمالي ويكتب سجل التغيير).
-      const feePayload = Object.fromEntries(FEE_KEYS.map(k => [k, Number(fees[k]) || 0]))
-      feePayload.absher_discount = Number(absher) || 0
-      feePayload.manual_discount = Number(manual) || 0
-      const adj = await invoke({ action: 'adjust_fees', id: tc.id, fees: feePayload })
-      const newQuoteTotal = Number(adj?.row?.total_amount) || 0
-      const newFinal = Math.max(0, r2(newQuoteTotal - extraV))
-      if (newFinal < paid - 0.005) { setErr(T('الإجمالي أقل من المبلغ المدفوع', 'Total is less than the paid amount')); setSaving(false); return }
-      // 3) مزامنة الفاتورة: إجمالي جديد + حالة السداد + إعادة توزيع الدفعات + سجلّ التسعير.
-      const changes = []
-      const push = (label, from, to) => { if (r2(from) !== r2(to)) changes.push({ label, from: Number(from) || 0, to: Number(to) || 0 }) }
-      FEE_FIELDS.forEach(f => push(f.label, Number(initFees[f.key]) || 0, Number(feePayload[f.key]) || 0))
-      initExtras.forEach((e, i) => push(e.name || T('بند إضافي', 'Extra'), Number(e.amount) || 0, Number(extras[i]?.amount) || 0))
-      push(T('خصم أبشر', 'Absher Discount'), Number(initAbsher) || 0, Number(absher) || 0)
-      push(T('خصم المكتب', 'Office Discount'), Number(initManual) || 0, Number(manual) || 0)
-      push(T('خصم إضافي', 'Extra Discount'), Number(initExtra) || 0, extraV)
-      const logEntry = {
-        by: user?.id || null, by_name: user?.person?.name_ar || user?.person?.name_en || null,
-        total: { from: invTotal0, to: newFinal }, changes,
-      }
-      await syncInvoicePricing(sb, inv.id, newFinal, { logEntry })
-      onSaved?.(); setDone(true)
-    } catch (e) { setErr((String(e?.message || '') === 'quote_expired') ? T('انتهت صلاحية الحسبة', 'Quote expired') : T('تعذر الحفظ', 'Save failed')) }
-    finally { setSaving(false) }
-  }
-  const feeRow = (label, value, onChange, key, accent) => (
-    <div key={key} style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'space-between' }}>
-      <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, color: accent || 'var(--tx3)', fontWeight: 600 }}>{label}</span>
-      <div style={{ width: 150, flexShrink: 0 }}><CurrencyField value={value} onChange={onChange} unit={T('ريال', 'SAR')} /></div>
-    </div>
-  )
-  const content = (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontFamily: F }}>
-      <ModalSection Icon={Wallet} label={T('الرسوم', 'Fees')} style={{ marginTop: 6 }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {FEE_FIELDS.filter(f => showFee(f.key)).map(f => feeRow(f.label, fees[f.key], v => setFee(f.key, v), f.key))}
-          {extras.map((e, i) => feeRow(e.name || T('بند إضافي', 'Extra'), e.amount, v => setExtraAmt(i, v), 'ex' + i))}
-        </div>
-      </ModalSection>
-      <ModalSection Icon={Percent} label={T('الخصومات', 'Discounts')}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {showAbsher && feeRow(T('خصم أبشر', 'Absher Discount'), absher, v => { setErr(''); setAbsher(v) }, 'absher', '#27a046')}
-          {feeRow(T('خصم إضافي', 'Extra Discount'), manual, v => { setErr(''); setManual(v) }, 'manual', '#27a046')}
-          {feeRow(T('خصم المدير', 'Manager Discount'), extraDisc, v => { setErr(''); setExtraDisc(v) }, 'extra', '#27a046')}
-        </div>
-      </ModalSection>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '12px 14px', background: 'var(--inputBg)', borderRadius: 12, border: '1px solid var(--bd)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: 12.5, color: C.gold, fontWeight: 600 }}>{T('الإجمالي الابتدائي', 'Subtotal')}</span><span style={{ fontSize: 13, color: C.gold, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{nm(subtotal)}</span></div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, paddingTop: 8, borderTop: '1px solid var(--bd)' }}><span style={{ fontSize: 14.5, color: C.gold, fontWeight: 600 }}>{T('الإجمالي النهائي', 'Final Total')}</span><span style={{ fontSize: 18, color: C.gold, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{nm(finalTotal)}</span></div>
-      </div>
-    </div>
-  )
-  return (
-    <Modal open onClose={onClose} title={T('تعديل التسعير', 'Edit pricing')} Icon={Wallet} width={560} height="min(640px, 92vh)" accent={C.gold}
-      success={done ? <SuccessView title={T('تم حفظ التعديلات', 'Changes saved')} /> : undefined}
-      pages={[{ valid, error: err || undefined, content }]}
-      onSubmit={save} submitting={saving} submitIcon={CheckCircle2} submitLabel={T('حفظ التسعير', 'Save pricing')} />
-  )
-}
-
-// تعديل تسعير فاتورة تجديد الإقامة (مرتبطة بحسبة تجديد) — الكرت مبنيّ من أعمدة الحسبة (tc).
-// نموذج التجديد يختلف عن التنازل: الإجمالي = رسوم المكتب + الزائد الحكومي + الغرامة + تغيير المهنة
-// + الإضافات − خصم أبشر − خصم المكتب (رسوم الإقامة/الرخصة/التأمين ممثَّلة ضمن الزائد/التغطية، لا تُجمع
-// مرّتين). لا توجد edge function للتجديد — الحسبة تُحدَّث مباشرةً (RLS مفتوحة) ثم تُعاد الأعمدة المشتقّة
-// عبر computeRenewalDerived، ويُزامَن إجمالي الفاتورة = إجمالي الحسبة − الخصم الإضافي عبر syncInvoicePricing.
-function RenewalPricingEditModal({ sb, toast, T, inv, paid = 0, tc, onClose, onSaved, user }) {
-  const r2 = n => Math.round((Number(n) || 0) * 100) / 100
-  // نفس مجموعة كرت تسعير حسبة التجديد (CARD_FIELDS.pricing في RenewalCalcPage).
-  const FEE_FIELDS = [
-    { key: 'iqama_renewal_fee', label: T('تجديد الإقامة', 'Iqama Renewal') },
-    { key: 'late_fine_amount', label: T('غرامة تأخير التجديد', 'Renewal Late Fine') },
-    { key: 'work_permit_fee', label: T('رخصة العمل', 'Work Permit') },
-    { key: 'prof_change_fee', label: T('تغيير المهنة', 'Change Occupation') },
-    { key: 'medical_fee', label: T('التأمين الطبي', 'Medical Insurance') },
-    { key: 'office_fee', label: T('رسوم المكتب', 'Office Fees') },
-    { key: 'gov_excess', label: T('الزائد عن الحدود الحكومية', 'Gov Excess') },
-  ]
-  const FEE_KEYS = FEE_FIELDS.map(f => f.key)
-  const initFees = Object.fromEntries(FEE_KEYS.map(k => [k, String(Number(tc?.[k]) || 0)]))
-  const extrasSum = (Array.isArray(tc?.extras) ? tc.extras : []).reduce((s, e) => s + (Number(e?.amount) || 0), 0)
-  const initAbsher = String(Number(tc?.absher_discount) || 0)
-  const initManual = String(Number(tc?.manual_discount) || 0)
-  const quoteTotal0 = Number(tc?.total_amount) || 0
-  const invTotal0 = Number(inv?.total_amount) || 0
-  const initExtra = String(Math.max(0, r2(quoteTotal0 - invTotal0)))
-  const [fees, setFees] = useState(initFees)
-  const [absher, setAbsher] = useState(initAbsher)
-  const [manual, setManual] = useState(initManual)
-  const [extraDisc, setExtraDisc] = useState(initExtra)
-  const [saving, setSaving] = useState(false)
-  const [done, setDone] = useState(false)
-  const [err, setErr] = useState('')
-  const setFee = (k, v) => { setErr(''); setFees(p => ({ ...p, [k]: v })) }
-  const showFee = k => k === 'office_fee' ? true : (Number(initFees[k]) || 0) > 0
-  const showAbsher = (Number(initAbsher) || 0) > 0
-  // الإجمالي: رسوم المكتب + الزائد الحكومي + الغرامة + تغيير المهنة + الإضافات − الخصومات (لا تُجمع الإقامة/الرخصة/التأمين).
-  const subtotal = r2((Number(fees.office_fee) || 0) + (Number(fees.gov_excess) || 0) + (Number(fees.late_fine_amount) || 0) + (Number(fees.prof_change_fee) || 0) + extrasSum)
-  const absherV = Math.min(Number(absher) || 0, subtotal)
-  const manualV = Math.min(Number(manual) || 0, Math.max(0, subtotal - absherV))
-  const quoteTotal = Math.max(0, r2(subtotal - absherV - manualV))
-  const extraV = Math.max(0, Number(extraDisc) || 0)
-  const finalTotal = Math.max(0, r2(quoteTotal - extraV))
-  const valid = finalTotal >= 0 && finalTotal >= paid - 0.005
-  const save = async () => {
-    if (saving || !inv?.id || !tc?.id) return
-    if (finalTotal < paid - 0.005) { setErr(T('الإجمالي أقل من المبلغ المدفوع', 'Total is less than the paid amount')); return }
-    setErr(''); setSaving(true)
-    try {
-      const now = new Date().toISOString()
-      const patch = {}, auditRows = []
-      const setPatch = (k, newV) => {
-        const oldV = (tc[k] === undefined ? null : tc[k])
-        if (JSON.stringify(oldV) !== JSON.stringify(newV)) { patch[k] = newV; auditRows.push({ quotation_id: tc.id, field_name: k, old_value: oldV, new_value: newV, source: 'employee', changed_by: user?.id || null, changed_at: now }) }
-      }
-      FEE_KEYS.forEach(k => setPatch(k, Number(fees[k]) || 0))
-      setPatch('absher_discount', Number(absher) || 0)
-      setPatch('manual_discount', Number(manual) || 0)
-      patch.subtotal = subtotal
-      patch.total_amount = quoteTotal
-      Object.assign(patch, computeRenewalDerived({ ...tc, ...patch }, getIqamaRenewalPricingConfig(tc.branch_id || null)))
-      patch.updated_at = now; patch.updated_by = user?.id || null
-      const { error } = await sb.from('iqama_renewal_calculation').update(patch).eq('id', tc.id).is('deleted_at', null)
-      if (error) throw error
-      if (auditRows.length) await sb.from('iqama_renewal_calculation_audit').insert(auditRows)
-      const newFinal = Math.max(0, r2((Number(patch.total_amount) || 0) - extraV))
-      if (newFinal < paid - 0.005) { setErr(T('الإجمالي أقل من المبلغ المدفوع', 'Total is less than the paid amount')); setSaving(false); return }
-      const changes = []
-      const push = (label, from, to) => { if (r2(from) !== r2(to)) changes.push({ label, from: Number(from) || 0, to: Number(to) || 0 }) }
-      FEE_FIELDS.forEach(f => push(f.label, Number(initFees[f.key]) || 0, Number(fees[f.key]) || 0))
-      push(T('خصم أبشر', 'Absher Discount'), Number(initAbsher) || 0, Number(absher) || 0)
-      push(T('خصم إضافي', 'Extra Discount'), Number(initManual) || 0, Number(manual) || 0)
-      push(T('خصم المدير', 'Manager Discount'), Number(initExtra) || 0, extraV)
-      await syncInvoicePricing(sb, inv.id, newFinal, { logEntry: { by: user?.id || null, by_name: user?.person?.name_ar || user?.person?.name_en || null, total: { from: invTotal0, to: newFinal }, changes } })
-      onSaved?.(); setDone(true)
-    } catch { setErr(T('تعذر الحفظ', 'Save failed')) }
-    finally { setSaving(false) }
-  }
-  const feeRow = (label, value, onChange, key, accent) => (
-    <div key={key} style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'space-between' }}>
-      <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, color: accent || 'var(--tx3)', fontWeight: 600 }}>{label}</span>
-      <div style={{ width: 150, flexShrink: 0 }}><CurrencyField value={value} onChange={onChange} unit={T('ريال', 'SAR')} /></div>
-    </div>
-  )
-  const content = (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontFamily: F }}>
-      <ModalSection Icon={Wallet} label={T('الرسوم', 'Fees')} style={{ marginTop: 6 }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {FEE_FIELDS.filter(f => showFee(f.key)).map(f => feeRow(f.label, fees[f.key], v => setFee(f.key, v), f.key))}
-        </div>
-      </ModalSection>
-      <ModalSection Icon={Percent} label={T('الخصومات', 'Discounts')}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {showAbsher && feeRow(T('خصم أبشر', 'Absher Discount'), absher, v => { setErr(''); setAbsher(v) }, 'absher', '#27a046')}
-          {feeRow(T('خصم المكتب', 'Office Discount'), manual, v => { setErr(''); setManual(v) }, 'manual', '#27a046')}
-          {feeRow(T('خصم إضافي', 'Extra Discount'), extraDisc, v => { setErr(''); setExtraDisc(v) }, 'extra', '#27a046')}
-        </div>
-      </ModalSection>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '12px 14px', background: 'var(--inputBg)', borderRadius: 12, border: '1px solid var(--bd)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: 12.5, color: C.gold, fontWeight: 600 }}>{T('الإجمالي الابتدائي', 'Subtotal')}</span><span style={{ fontSize: 13, color: C.gold, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(subtotal)}</span></div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, paddingTop: 8, borderTop: '1px solid var(--bd)' }}><span style={{ fontSize: 14.5, color: C.gold, fontWeight: 600 }}>{T('الإجمالي النهائي', 'Final Total')}</span><span style={{ fontSize: 18, color: C.gold, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(finalTotal)}</span></div>
-      </div>
-    </div>
-  )
-  return (
-    <Modal open onClose={onClose} title={T('تعديل التسعير', 'Edit pricing')} Icon={Wallet} width={560} height="min(640px, 92vh)" accent={C.gold}
-      success={done ? <SuccessView title={T('تم حفظ التعديلات', 'Changes saved')} /> : undefined}
-      pages={[{ valid, error: err || undefined, content }]}
-      onSubmit={save} submitting={saving} submitIcon={CheckCircle2} submitLabel={T('حفظ التسعير', 'Save pricing')} />
-  )
-}
-
-// تعديل تسعير الفاتورة — بنود التسعيرة (اسم + مبلغ) والإجمالي. يحدّث total_amount و
-// pricing_breakdown ويعيد ضبط الحالة. لا يعيد توزيع جدول الدفعات (يُدار من مكانه).
-function PricingEditModal({ sb, toast, T, inv, paid = 0, tc = null, svcCode = null, onClose, onSaved, user }) {
-  // فاتورة نقل الكفالة/تجديد الإقامة المرتبطة بحسبة: محرّر مخصّص يعرض كل بنود الحسبة قابلة للتعديل.
-  const isTransferQuote = !!(tc && tc.id && svcCode === 'transfer')
-  if (isTransferQuote) return <TcPricingEditModal sb={sb} toast={toast} T={T} inv={inv} paid={paid} tc={tc} user={user} onClose={onClose} onSaved={onSaved} />
-  const isRenewalQuote = !!(tc && tc.id && svcCode === 'iqama_renewal')
-  if (isRenewalQuote) return <RenewalPricingEditModal sb={sb} toast={toast} T={T} inv={inv} paid={paid} tc={tc} user={user} onClose={onClose} onSaved={onSaved} />
-  const hasBreakdown = Array.isArray(inv.pricing_breakdown) && inv.pricing_breakdown.length > 0
-  const [lines, setLines] = useState(hasBreakdown ? inv.pricing_breakdown.map(l => ({ label: l.label || '', amount: String(l.amount ?? '') })) : [])
-  const [flatTotal, setFlatTotal] = useState(String(Number(inv.total_amount) || ''))
-  const [saving, setSaving] = useState(false)
-  const [done, setDone] = useState(false)
-  const [err, setErr] = useState('')
-  const computedTotal = hasBreakdown ? lines.reduce((s, l) => s + (Number(l.amount) || 0), 0) : (Number(flatTotal) || 0)
-  // Per-field permission gates (invoices tab). Line items keyed by pricing_breakdown; flat total by pricing_total.
-  const visBreakdown = fieldVisible(user, 'invoices', 'pricing_breakdown')
-  const editBreakdown = fieldEditable(user, 'invoices', 'pricing_breakdown')
-  const visTotal = fieldVisible(user, 'invoices', 'pricing_total')
-  const editTotal = fieldEditable(user, 'invoices', 'pricing_total')
-  const setLine = (i, k, v) => { setErr(''); setLines(p => p.map((l, j) => j === i ? { ...l, [k]: v } : l)) }
-  const addLine = () => setLines(p => [...p, { label: '', amount: '' }])
-  // البند الأول (الخدمة الأساسية) لا يُحذف — حماية على مستوى المنطق إضافةً لإخفاء زرّه.
-  const removeLine = i => { if (i === 0) return; setLines(p => p.filter((_, j) => j !== i)) }
-  const valid = computedTotal >= 0 && (!hasBreakdown || lines.every(l => l.label.trim()))
-  const save = async () => {
-    if (saving || !inv?.id) return
-    if (computedTotal < paid - 0.005) { setErr(T('الإجمالي أقل من المبلغ المدفوع','Total is less than the paid amount')); return }
-    setErr(''); setSaving(true)
-    try {
-      const nowIso = new Date().toISOString()
-      const { data: invFresh } = await sb.from('invoices').select('paid_amount, pricing_log, status:status_id(code)').eq('id', inv.id).maybeSingle()
-      const curPaid = Number(invFresh?.paid_amount) || 0
-      const newLines = hasBreakdown ? lines.map(l => ({ label: l.label.trim(), amount: Number(l.amount) || 0 })) : []
-      const patch = { total_amount: computedTotal, last_activity_at: nowIso }
-      if (hasBreakdown) patch.pricing_breakdown = newLines
-      // سجلّ تعديل التسعير — يُلحق بـ pricing_log (نفس نمط note_log): تغيّر الإجمالي + كل بند. نقرأ السجل الحالي أولاً لتفادي الكتابة فوق تعديلات متزامنة.
-      const oldTotal = Number(inv.total_amount) || 0
-      const changes = pricingEditChanges(inv.pricing_breakdown, newLines)
-      if (oldTotal !== computedTotal || changes.length) {
-        const log = Array.isArray(invFresh?.pricing_log) ? invFresh.pricing_log : []
-        patch.pricing_log = [...log, { at: nowIso, by: user?.id || null, by_name: user?.person?.name_ar || user?.person?.name_en || null, total: { from: oldTotal, to: computedTotal }, changes }]
-      }
-      const stPatch = await invoiceStatusPatch(sb, invFresh?.status?.code, curPaid, computedTotal)
-      const { error } = await sb.from('invoices').update({ ...patch, ...stPatch }).eq('id', inv.id)
-      if (error) throw error
-      // مزامنة جدول الدفعات مع الإجمالي الجديد كي لا يبقى مجموع الدفعات مخالفاً للتسعير:
-      //  • دفعة واحدة → تُضبط على الإجمالي مباشرة.
-      //  • دفعات متعددة → الدفعات المسدّدة بالكامل تبقى كما هي، والفرق (إجمالي جديد − مجموع الدفعات الحالي)
-      //    يُوزّع على الدفعات غير المسدّدة نسبياً لمتبقّي كلٍّ منها (آخر دفعة مفتوحة تستوعب فرق التقريب).
-      // remaining_amount عمود محسوب فيتحدّث تلقائياً.
-      const { data: insRows } = await sb.from('installments').select('id,total_amount,paid_amount,installment_order').eq('invoice_id', inv.id).is('deleted_at', null).order('installment_order')
-      if (Array.isArray(insRows) && insRows.length) {
-        const r2 = n => Math.round((Number(n) || 0) * 100) / 100
-        const sumT = insRows.reduce((s, r) => s + (Number(r.total_amount) || 0), 0)
-        const delta = r2(computedTotal - sumT)
-        if (Math.abs(delta) > 0.005) {
-          if (insRows.length === 1) {
-            const only = insRows[0]
-            if (computedTotal >= Number(only.paid_amount) - 0.005) {
-              await sb.from('installments').update({ total_amount: computedTotal }).eq('id', only.id)
-            }
-          } else {
-            // أعِد توزيع جدول الدفعات بحيث: مجموع إجمالي الدفعات = الإجمالي الجديد دائماً،
-            // ولا تقل أي دفعة عن مسدّدها. نبدأ كل دفعة من مسدّدها (أرضية) ثم نوزّع الزيادة
-            // (الإجمالي الجديد − مجموع المسدّد) بنسبة متبقّي كل دفعة — فإن كانت كل الدفعات مسدّدة
-            // بالكامل (لا متبقٍّ) تستوعب آخرُ دفعة الزيادةَ بالكامل. هذا مطابق للسلوك السابق
-            // للدفعات المدفوعة جزئياً، ويُصلح حالة رفع إجمالي فاتورة مسدّدة بالكامل (كان الفرق يضيع).
-            const rows = insRows.slice().sort((a, b) => (Number(a.installment_order) || 0) - (Number(b.installment_order) || 0))
-            const paidArr = rows.map(r => r2(Number(r.paid_amount) || 0))
-            const floorSum = r2(paidArr.reduce((s, v) => s + v, 0))
-            let extra = r2(computedTotal - floorSum); if (extra < 0) extra = 0
-            const remArr = rows.map((r, i) => Math.max(0, r2((Number(r.total_amount) || 0) - paidArr[i])))
-            const remSum = r2(remArr.reduce((s, v) => s + v, 0))
-            const weights = remSum > 0.005 ? remArr.map(v => v / remSum) : rows.map((_, i) => i === rows.length - 1 ? 1 : 0)
-            const newTotals = paidArr.slice()
-            let acc = 0
-            for (let i = 0; i < rows.length; i++) {
-              const add = i === rows.length - 1 ? r2(extra - acc) : r2(extra * weights[i])
-              acc = r2(acc + add)
-              newTotals[i] = r2(newTotals[i] + add)
-            }
-            for (let i = 0; i < rows.length; i++) {
-              if (r2(newTotals[i]) !== r2(Number(rows[i].total_amount) || 0)) {
-                await sb.from('installments').update({ total_amount: r2(newTotals[i]) }).eq('id', rows[i].id)
-              }
-            }
-          }
-        }
-      }
-      onSaved?.(); setDone(true)
-    } catch { setErr(T('تعذر الحفظ','Save failed')) }
-    finally { setSaving(false) }
-  }
-  const content = (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontFamily: F }}>
-      <ModalSection Icon={Wallet} label={T('التسعير','Pricing')} style={{ marginTop: 6 }}>
-        {hasBreakdown ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {lines.map((l, i) => (
-              <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
-                <div style={{ flex: 1 }}>
-                  <TextField label={i === 0 ? T('البند','Item') : undefined} value={l.label} onChange={v => setLine(i, 'label', v)} placeholder={T('اسم البند','Item label')} disabled={!editBreakdown} />
-                </div>
-                <div style={{ width: 130 }}>
-                  <CurrencyField label={i === 0 ? T('المبلغ','Amount') : undefined} value={l.amount} onChange={v => setLine(i, 'amount', v)} unit={T('ريال','SAR')} disabled={!editBreakdown} />
-                </div>
-                {(i === 0 || !editBreakdown) ? (
-                  // الخدمة الأساسية لا تُحذف — مسافة فارغة بنفس عرض الزر للحفاظ على المحاذاة.
-                  <div style={{ flexShrink: 0, width: 38, height: 42 }} />
-                ) : (
-                  <button type="button" onClick={() => removeLine(i)} title={T('حذف','Remove')}
-                    style={{ flexShrink: 0, width: 38, height: 42, borderRadius: 9, border: '1px solid rgba(232,114,101,.3)', background: 'rgba(232,114,101,.08)', color: C.red, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
-                  </button>
-                )}
-              </div>
-            ))}
-            {editBreakdown && <button type="button" onClick={addLine}
-              style={{ alignSelf: 'flex-end', height: 36, padding: '0 14px', borderRadius: 9, border: '1px dashed var(--accent-bd)', background: 'rgba(176,125,0,.06)', color: 'var(--accent)', fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7, direction: 'ltr' }}>
-              <Plus size={14} /> <span>{T('إضافة بند','Add item')}</span>
-            </button>}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 10, borderTop: '1px solid var(--bd)' }}>
-              <span style={{ fontSize: 15, color: C.gold, fontWeight: 600 }}>{T('الإجمالي','Total')}</span>
-              <span style={{ fontSize: 16, color: C.gold, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(computedTotal)}</span>
-            </div>
-          </div>
-        ) : (
-          visTotal && (
-          <div style={GRID}>
-            <CurrencyField full label={T('إجمالي الفاتورة','Invoice Total')} req value={flatTotal} onChange={v => { setErr(''); setFlatTotal(v) }} unit={T('ريال','SAR')} disabled={!editTotal} />
-          </div>
-          )
-        )}
-      </ModalSection>
-    </div>
-  )
-  return (
-    <Modal open onClose={onClose} title={T('تعديل التسعير','Edit pricing')} Icon={Wallet} width={560} height="min(600px, 92vh)" accent={C.gold}
-      success={done ? <SuccessView title={T('تم حفظ التعديلات','Changes saved')} /> : undefined}
-      pages={[{ valid, error: err || undefined, content }]}
-      onSubmit={save} submitting={saving} submitIcon={CheckCircle2} submitLabel={T('حفظ التسعير','Save pricing')} />
-  )
-}
-
-// يطبّق تغيير تسعير على الفاتورة ويحافظ على اتساق كل الأجزاء المرتبطة بالإجمالي:
-// يحدّث الإجمالي/البنود + سجلّ التسعير، يعيد اشتقاق حالة السداد، ويعيد توزيع جدول
-// الدفعات ليطابق الإجمالي الجديد (remaining_amount عمود محسوب فيتحدّث تلقائياً).
-async function applyInvoicePricing(sb, inv, { newTotal, newLines, logEntry }) {
-  const nowIso = new Date().toISOString()
-  const r2 = n => Math.round((Number(n) || 0) * 100) / 100
-  const { data: invFresh } = await sb.from('invoices').select('paid_amount, pricing_log, status:status_id(code)').eq('id', inv.id).maybeSingle()
-  const curPaid = Number(invFresh?.paid_amount) || 0
-  const patch = { total_amount: newTotal, last_activity_at: nowIso }
-  if (newLines) patch.pricing_breakdown = newLines
-  if (logEntry) {
-    const log = Array.isArray(invFresh?.pricing_log) ? invFresh.pricing_log : []
-    patch.pricing_log = [...log, { at: nowIso, ...logEntry }]
-  }
-  const stPatch = await invoiceStatusPatch(sb, invFresh?.status?.code, curPaid, newTotal)
-  const { error } = await sb.from('invoices').update({ ...patch, ...stPatch }).eq('id', inv.id)
-  if (error) throw error
-  // مزامنة جدول الدفعات مع الإجمالي الجديد — نفس منطق نافذة تعديل التسعير.
-  const { data: insRows } = await sb.from('installments').select('id,total_amount,paid_amount,installment_order').eq('invoice_id', inv.id).is('deleted_at', null).order('installment_order')
-  if (Array.isArray(insRows) && insRows.length) {
-    const sumT = insRows.reduce((s, r) => s + (Number(r.total_amount) || 0), 0)
-    const delta = r2(newTotal - sumT)
-    if (Math.abs(delta) > 0.005) {
-      if (insRows.length === 1) {
-        const only = insRows[0]
-        if (newTotal >= Number(only.paid_amount) - 0.005) await sb.from('installments').update({ total_amount: newTotal }).eq('id', only.id)
-      } else {
-        const rows = insRows.slice().sort((a, b) => (Number(a.installment_order) || 0) - (Number(b.installment_order) || 0))
-        const paidArr = rows.map(r => r2(Number(r.paid_amount) || 0))
-        const floorSum = r2(paidArr.reduce((s, v) => s + v, 0))
-        let extra = r2(newTotal - floorSum); if (extra < 0) extra = 0
-        const remArr = rows.map((r, i) => Math.max(0, r2((Number(r.total_amount) || 0) - paidArr[i])))
-        const remSum = r2(remArr.reduce((s, v) => s + v, 0))
-        const weights = remSum > 0.005 ? remArr.map(v => v / remSum) : rows.map((_, i) => i === rows.length - 1 ? 1 : 0)
-        const newTotals = paidArr.slice()
-        let acc = 0
-        for (let i = 0; i < rows.length; i++) {
-          const add = i === rows.length - 1 ? r2(extra - acc) : r2(extra * weights[i])
-          acc = r2(acc + add)
-          newTotals[i] = r2(newTotals[i] + add)
-        }
-        for (let i = 0; i < rows.length; i++) {
-          if (r2(newTotals[i]) !== r2(Number(rows[i].total_amount) || 0)) await sb.from('installments').update({ total_amount: r2(newTotals[i]) }).eq('id', rows[i].id)
-        }
-      }
-    }
-  }
-}
-
-// نافذة الخصم — للمدير العام فقط: تعرض التسعيرة والدفعات والإجمالي/المدفوع/المتبقي،
-// ويُدخل المدير قيمة الخصم فيُضاف بند «خصم» (سالب) للتسعيرة ويُخفَّض الإجمالي — فينعكس
-// على المتبقي وحالة السداد وجدول الدفعات والطباعة والإحصاء عبر applyInvoicePricing.
-function DiscountModal({ sb, toast, T, isAr, inv, total = 0, paid = 0, remaining = 0, insts = [], pays = [], user, onClose, onSaved }) {
-  const r2 = n => Math.round((Number(n) || 0) * 100) / 100
-  const DISC = T('خصم', 'Discount')
-  // نكتشف سطر الخصم بعلم discount (نفس علم قالب الطباعة) أو بعنوانه — كي تُستبعَد من بنود الرسوم.
-  const isDiscLine = l => l && (l.discount === true || l._discount === true || l.label === 'خصم' || l.label === 'الخصم' || l.label === 'Discount' || l.label === DISC)
-  const hasBreakdown = Array.isArray(inv.pricing_breakdown) && inv.pricing_breakdown.length > 0
-  const curLines = hasBreakdown ? inv.pricing_breakdown : []
-  const curDiscount = r2(curLines.filter(isDiscLine).reduce((s, l) => s + Math.abs(Number(l.amount) || 0), 0))
-  const [disc, setDisc] = useState('')
-  const [reason, setReason] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [done, setDone] = useState(false)
-  const [err, setErr] = useState('')
-  const d = r2(disc)
-  const newTotal = r2(Number(total) - d)
-  const newRemaining = Math.max(0, r2(newTotal - paid))
-  const valid = d > 0 && newTotal >= r2(paid) - 0.005 && newTotal >= 0
-  const save = async () => {
-    if (saving || !inv?.id) return
-    if (!(d > 0)) { setErr(T('أدخل قيمة خصم أكبر من صفر', 'Enter a discount greater than zero')); return }
-    if (newTotal < r2(paid) - 0.005) { setErr(T('الخصم يجعل الإجمالي أقل من المبلغ المدفوع', 'Discount makes the total less than the amount paid')); return }
-    setErr(''); setSaving(true)
-    try {
-      // الخصم يُخصَم من الإجمالي الحالي الفعلي — لا من مجموع البنود (قد يختلف عن الإجمالي في فواتير
-      // الحسبة حيث الإجمالي معتمَد على الحسبة لا على البنود). بند «خصم» يمتصّ الفارق كي يبقى مجموع
-      // البنود = الإجمالي النهائي دائماً.
-      const newTotal = r2(Number(total) - d)
-      let newLines
-      if (hasBreakdown) {
-        const grossLines = inv.pricing_breakdown
-          .map(l => ({ ...l, label: l.label || '', amount: Number(l.amount) || 0 }))
-          .filter(l => !isDiscLine(l))
-        const grossSum = r2(grossLines.reduce((s, l) => s + (Number(l.amount) || 0), 0))
-        const discAmt = r2(newTotal - grossSum)
-        newLines = discAmt < -0.005 ? [...grossLines, { label: DISC, amount: discAmt, discount: true }] : grossLines
-      } else {
-        newLines = [
-          { label: (isAr ? inv.service_type?.value_ar : (inv.service_type?.value_en || inv.service_type?.value_ar)) || T('قيمة الخدمة', 'Service amount'), amount: r2(Number(total)) },
-          { label: DISC, amount: -d, discount: true },
-        ]
-      }
-      await applyInvoicePricing(sb, inv, {
-        newTotal, newLines,
-        logEntry: { by: user?.id || null, by_name: user?.person?.name_ar || user?.person?.name_en || null, discount: d, reason: reason.trim() || null, total: { from: r2(total), to: newTotal }, changes: [{ field: 'discount', from: '', to: String(d) }] },
-      })
-      onSaved?.(); setDone(true)
-    } catch { setErr(T('تعذّر تطبيق الخصم', 'Could not apply the discount')) }
-    finally { setSaving(false) }
-  }
-  const chip = (label, value, color) => (
-    <div style={{ flex: 1, minWidth: 0, padding: '10px 12px', borderRadius: 10, background: 'var(--inputBg)', border: '1px solid var(--bd)', display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center' }}>
-      <span style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 600 }}>{label}</span>
-      <span style={{ fontSize: 15, color: color || 'var(--tx)', fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(value)}</span>
-    </div>
-  )
-  const content = (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontFamily: F }}>
-      <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
-        {chip(T('الإجمالي', 'Total'), total, C.gold)}
-        {chip(T('المدفوع', 'Paid'), paid, C.ok)}
-        {chip(T('المتبقي', 'Remaining'), remaining, remaining > 0.005 ? C.red : C.ok)}
-      </div>
-
-      <ModalSection Icon={Percent} label={T('تطبيق خصم', 'Apply discount')}>
-        {curDiscount > 0.005 && (
-          <div style={{ fontSize: 11.5, color: 'var(--tx4)', fontWeight: 600, marginBottom: 8 }}>
-            {T('خصم حالي', 'Current discount')}: <span style={{ color: C.red, direction: 'ltr' }}>{num(curDiscount)}</span>
-          </div>
-        )}
-        <div style={GRID}>
-          <CurrencyField full label={T('قيمة الخصم', 'Discount amount')} value={disc} onChange={v => { setErr(''); setDisc(v) }} unit={T('ريال', 'SAR')} />
-          <TextField full label={T('سبب الخصم (اختياري)', 'Reason (optional)')} value={reason} onChange={setReason} placeholder={T('مثال: عميل مميز', 'e.g. loyal customer')} />
-        </div>
-        {d > 0 && (
-          <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-            {chip(T('الإجمالي بعد الخصم', 'Total after'), newTotal, C.gold)}
-            {chip(T('المتبقي بعد الخصم', 'Remaining after'), newRemaining, newRemaining > 0.005 ? C.red : C.ok)}
-          </div>
-        )}
-      </ModalSection>
-    </div>
-  )
-  return (
-    <Modal open onClose={onClose} title={T('خصم على الفاتورة', 'Invoice discount')} Icon={Percent} width={560} height="min(640px, 92vh)" accent={C.gold}
-      success={done ? <SuccessView title={T('تم تطبيق الخصم', 'Discount applied')} /> : undefined}
-      pages={[{ valid, error: err || undefined, content }]}
-      onSubmit={save} submitting={saving} submitIcon={CheckCircle2} submitLabel={T('تطبيق الخصم', 'Apply discount')} />
-  )
-}
-
 // سجلّ تغييرات موحّد — يُعرض أسفل البطاقات (العميل/العامل/الخدمة/الملاحظة) بنمط واحد:
 // أيقونة تاريخ + عنوان، ثم بطاقة لكل تعديل (الأحدث أولاً) فيها «تم… بواسطة فلان» + الوقت + التفاصيل.
 const ChangeLog = ({ T, title, entries, actionLabel, renderDetail }) => {
   if (!Array.isArray(entries) || !entries.length) return null
   return (
     <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 7 }}>
-      <span style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+      <span style={{ fontSize: 10, color: 'var(--log-c)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>
         {title}
       </span>
       {[...entries].reverse().map((c, i) => (
-        <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 9, padding: '9px 11px', borderRadius: 10, background: 'var(--inputBg)', border: '1px solid var(--bd)' }}>
-          <span style={{ flexShrink: 0, width: 22, height: 22, borderRadius: 7, background: 'rgba(176,125,0,.1)', border: '1px solid rgba(176,125,0,.28)', color: C.gold, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 1 }}>
+        <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 9, padding: '9px 11px', borderRadius: 10, background: 'var(--log-bg)', border: '1px dashed var(--log-bd)' }}>
+          <span style={{ flexShrink: 0, width: 22, height: 22, borderRadius: 7, background: 'var(--log-bd)', border: '1px solid var(--log-bd)', color: 'var(--log-c)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 1 }}>
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
           </span>
           <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 7, justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap', minWidth: 0 }}>
-                <span style={{ fontSize: 11.5, color: 'var(--tx2)', fontWeight: 600 }}>{actionLabel}</span>
-                {c.by_name && <span style={{ fontSize: 11, color: C.gold, fontWeight: 600 }}>{T('بواسطة', 'by')} {c.by_name}</span>}
+                <span style={{ fontSize: 11.5, color: 'var(--tx3)', fontWeight: 600 }}>{actionLabel}</span>
+                {c.by_name && <span style={{ fontSize: 11, color: 'var(--log-c)', fontWeight: 600 }}>{T('بواسطة', 'by')} {c.by_name}</span>}
               </div>
               <span style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 600, direction: 'ltr', flexShrink: 0 }}>{fmtDateTime(c.at)}</span>
             </div>
@@ -8355,22 +8568,6 @@ const FieldChanges = ({ T, changes, LBL, showVal }) => (
   ))}</>
 )
 
-// فرق بنود التسعيرة بين الحالة القديمة والجديدة (مقارنة بالترتيب) — لكل بند: مُضاف/محذوف/تغيّر مبلغه أو اسمه.
-const pricingEditChanges = (oldLines, newLines) => {
-  const O = Array.isArray(oldLines) ? oldLines : []
-  const N = Array.isArray(newLines) ? newLines : []
-  const out = []
-  for (let i = 0; i < Math.max(O.length, N.length); i++) {
-    const o = O[i], n = N[i]
-    const oL = (o?.label || '').trim(), nL = (n?.label || '').trim()
-    const oA = o ? Number(o.amount) || 0 : null, nA = n ? Number(n.amount) || 0 : null
-    if (o && !n) out.push({ label: oL || '—', from: oA, to: null })
-    else if (!o && n) out.push({ label: nL || '—', from: null, to: nA })
-    else if (o && n && (oL !== nL || oA !== nA)) out.push({ label: nL || oL || '—', from: oA, to: nA, fromLabel: oL !== nL ? oL : undefined })
-  }
-  return out
-}
-
 // تفاصيل تغيير التسعير داخل ChangeLog — تغيّر الإجمالي + كل بند (مُضاف/محذوف/تعديل).
 const PricingChanges = ({ T, entry }) => {
   const rowS = { fontSize: 11, color: 'var(--tx4)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }
@@ -8378,6 +8575,17 @@ const PricingChanges = ({ T, entry }) => {
   const tot = entry.total
   return (
     <>
+      {/* سبب التعديل المصنَّف (إلزامي في المحرّر الموحّد) — أعلى التفاصيل ليُقرأ أولاً. */}
+      {(entry.reason_kind || entry.reason) && (
+        <div style={{ ...rowS, marginBottom: 2 }}>
+          {entry.reason_kind && (
+            <span style={{ padding: '1px 8px', borderRadius: 6, background: 'var(--accent-soft)', border: '1px solid var(--accent-bd)', color: 'var(--accent)', fontSize: 10 }}>
+              {pricingReasonLabel(entry.reason_kind, T)}
+            </span>
+          )}
+          {entry.reason && <span style={{ color: 'var(--tx3)' }}>{entry.reason}</span>}
+        </div>
+      )}
       {tot && Number(tot.from) !== Number(tot.to) && (
         <div style={rowS}>
           <span style={{ color: C.gold }}>{T('الإجمالي', 'Total')}:</span>
@@ -9127,7 +9335,20 @@ function InvoiceCommentModal({ sb, T, toast, srId, user, onClose, onSaved }) {
   )
 }
 
-const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid, remaining, pct, stageStatus, sb, toast, onRecordPayment, onRefund, onCancelInv, onPrint, onEditWorker, onEditService, onEditOffice, onEditVisa, onEditBorders, onEditClient, onEditAgent, onEditNote, onEditPricing, onDiscount, onEditPayment, onOpenService, canPayPerm = true, canRefundPerm = true, canCancelPerm = true, gmLock = false }) => (
+const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid, remaining, pct, stageStatus, sb, toast, onRecordPayment, onCancelInv, onPrint, onEditWorker, onEditService, onEditOffice, onEditVisa, onEditBorders, onEditClient, onEditAgent, onEditNote, onEditPricing, onEditPayment, onOpenService, canPayPerm = true, canCancelPerm = true, gmLock = false }) => {
+  // المدير العام يرى كل الكروت حتى الفارغة منها — ليتمكّن من الإضافة/التعديل من داخل الفاتورة.
+  const showEmpty = isGM(user)
+  // خصم المدير العام — يُعرض داخل كرت التسعير (لا كرت مستقل: «بعد الخصم» = «الإجمالي» نفسه).
+  const discountLog = (Array.isArray(inv.pricing_log) ? inv.pricing_log : []).filter(e => Number(e?.discount) > 0)
+  const discountAmt = (() => {
+    const bd = Array.isArray(inv.pricing_breakdown) ? inv.pricing_breakdown : []
+    const isDisc = l => l && (l.discount === true || ['خصم', 'الخصم', 'Discount'].includes(String(l.label || '').trim()))
+    const lineDisc = bd.filter(isDisc).reduce((s, l) => s + Math.abs(Number(l.amount) || 0), 0)
+    const logDisc = discountLog.reduce((s, e) => s + (Number(e.discount) || 0), 0)
+    // خصم المدير العام المُطبَّق (من السجل) — لا الخصم الكلي الذي قد يشمل خصم الحسبة.
+    return logDisc > 0.005 ? logDisc : lineDisc
+  })()
+  return (
   <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 14, alignItems: 'flex-start' }}>
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       {/* كرت العميل يظهر فقط للخدمات التي تتطلب عميلاً (تأشيرات العمل، نقل الكفالة، تجديد الإقامة،
@@ -9137,14 +9358,16 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
         const code = inv.service_type?.code
         // الخدمات التي تتطلب عميلاً منفصلاً (تطابق CLIENT_SERVICES في نموذج الطلب عبر SVC_CODE_MAP).
         const CLIENT_REQUIRED = new Set(['work_visa_permanent', 'work_visa_9m', 'work_visa_6m', 'work_visa_temporary', 'transfer', 'iqama_renewal', 'general'])
-        if (!CLIENT_REQUIRED.has(code)) return null
+        // المدير العام يرى الكرت في كل الخدمات (ولو لم تكن «تتطلّب عميلاً») ليقدر على ربط عميل.
+        if (!CLIENT_REQUIRED.has(code) && !showEmpty) return null
         const sr = inv.service_request
         const pickW = rel => Array.isArray(rel) ? rel[0]?.worker : rel?.worker
         const pickF = rel => Array.isArray(rel) ? rel[0]?.facility : rel?.facility
         const apps = [sr?.transfer_applications, sr?.ajeer_applications, sr?.iqama_renewal_applications, sr?.supplier_payroll_applications, sr?.other_applications]
         // العامل هو العميل: إمّا لا يوجد سجل عميل منفصل والعامل يحلّ محلّه، أو يوجد عميل بلا عامل منفصل لكن بمنشأة.
         const workerIsClient = (!sr?.client && apps.some(pickW)) || (!!sr?.client && !apps.some(pickW) && apps.some(pickF))
-        if (workerIsClient) return null
+        if (workerIsClient && !showEmpty) return null
+        const hasClient = !!sr?.client
         return (
       <div style={cardChrome}>
         <div style={cardHeader}>
@@ -9160,16 +9383,18 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
               ? <img src={fl} alt={nat.name_ar || ''} title={nat.name_ar || ''} style={{ width: 22, height: 16, objectFit: 'cover', borderRadius: 2, flexShrink: 0 }} />
               : (em ? <span title={nat.name_ar || ''} style={{ fontSize: 16, lineHeight: 1, flexShrink: 0 }}>{em}</span> : null)
           })()}
-          {!!onEditClient && !!inv.service_request?.client && canCardBtn(user, 'invoices', 'client', 'edit') && (
-            <button onClick={onEditClient} title={T('تعديل بيانات العميل','Edit client')}
+          {!!onEditClient && (hasClient || showEmpty) && canCardBtn(user, 'invoices', 'client', 'edit') && (
+            <button onClick={onEditClient} title={hasClient ? T('تعديل بيانات العميل','Edit client') : T('إضافة عميل','Add client')}
               style={{ marginInlineStart: 'auto', height: 32, padding: '0 14px', borderRadius: 9, background: 'rgba(176,125,0,.06)', border: '1px dashed var(--accent-bd)', color: 'var(--accent)', fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
-              <span>{T('تعديل','Edit')}</span>
+              <span>{hasClient ? T('تعديل','Edit') : T('إضافة','Add')}</span>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
             </button>
           )}
         </div>
         <div style={{ padding: '16px 22px' }}>
-          <ClientRows inv={inv} T={T} user={user} />
+          {hasClient
+            ? <ClientRows inv={inv} T={T} user={user} />
+            : <EmptyCardBody T={T} text={T('لا يوجد عميل مرتبط بهذه الفاتورة','No client linked to this invoice')} hint={T('اضغط «إضافة» لاختيار عميل مسجّل أو تسجيل عميل جديد','Use “Add” to pick a registered client or create a new one')} />}
           {(() => {
             // سجلّ تعديل بيانات العميل (من clients.edit_log المشترك) — يُعرض فقط القيود التي تمّت من هذه
             // الفاتورة (entry.inv === inv.id)، لا كل تعديلات العميل عبر فواتيره الأخرى.
@@ -9193,7 +9418,9 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
         const pick = (rel, key) => Array.isArray(rel) ? rel[0]?.[key] : rel?.[key]
         const apps = [sr?.transfer_applications, sr?.ajeer_applications, sr?.iqama_renewal_applications, sr?.supplier_payroll_applications, sr?.other_applications]
         const realWorker = apps.map(a => pick(a, 'worker')).find(Boolean) || null
-        const facility = apps.map(a => pick(a, 'facility')).find(Boolean) || null
+        // العامل المطابق برقم هوية العميل (نقل الكفالة/تجديد الإقامة بلا عامل مرتبط) — من المحمِّل.
+        const matchedWorker = realWorker ? null : (data?.matchedWorker || null)
+        const facility = apps.map(a => pick(a, 'facility')).find(Boolean) || matchedWorker?.current_facility || null
         // «العميل هو نفس العامل»: the general-service row keeps worker_id null (no separate worker
         // record) but still carries a facility. Surface the client as the worker so the card — and
         // especially its facility (المنشأة) — still shows instead of vanishing entirely.
@@ -9206,6 +9433,8 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
         const invWorkerPhone = (() => { const d = String(otherApp?.worker_phone || spApp?.worker_phone || '').replace(/\D/g, ''); return d ? (d.startsWith('966') ? d : '966' + d.slice(-9)) : null })()
         const worker = realWorker
           ? { ...realWorker, phone: invWorkerPhone || realWorker.phone }
+          : matchedWorker
+            ? { ...matchedWorker, phone: matchedWorker.phone || sr?.client?.phone || null }
           : (workerIsClient ? {
               name_ar: sr.client.name_ar, name_en: sr.client.name_en, phone: invWorkerPhone || sr.client.phone,
               iqama_number: sr.client.id_number, nationality: sr.client.nationality,
@@ -9213,32 +9442,36 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
         // The worker is editable only for general-bucket services (خدمة عامة …) whose worker is
         // stored in other_applications. Transfer/Ajeer carry their own gov-process facility model,
         // and the client-as-worker case is locked to the client — both stay read-only here.
-        const editable = !!onEditWorker && realWorker && realWorker === pick(sr?.other_applications, 'worker') && canCardBtn(user, 'invoices', 'worker_facility', 'edit')
+        // بلا عامل: يبقى الزر متاحاً متى كان صفّ الخدمة في other_applications (هو ما تكتب عليه نافذة الاختيار).
+        const editable = !!onEditWorker && canCardBtn(user, 'invoices', 'worker_facility', 'edit')
+          && (realWorker ? realWorker === pick(sr?.other_applications, 'worker') : (!worker && !!otherApp))
         // سجلّ تغيير العامل (من details.worker_changes) — يُعرض أسفل البطاقة: من غيّر، متى، والعامل السابق.
         const det0 = Array.isArray(data?.det) ? data.det[0] : null
         const changes = Array.isArray(det0?.details?.worker_changes) ? det0.details.worker_changes : []
-        if (!worker) return null
+        if (!worker && !showEmpty) return null
         return (
           <div style={cardChrome}>
             <div style={cardHeader}>
               <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
               <span style={cardTitle}>{T('العامل والمنشأة','Worker & Facility')}</span>
-              {workerIsClient && (
-                <span title={T('العامل هو العميل','Worker is the client')} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 9px', borderRadius: 7, background: 'rgba(176,125,0,.16)', border: '1px solid rgba(176,125,0,.42)', color: C.goldSoft, fontSize: 10.5, fontWeight: 600 }}>
+              {(workerIsClient || !!matchedWorker) && (
+                <span title={matchedWorker ? T('مطابَق برقم هوية العميل (= رقم الإقامة)','Matched by the client ID (= Iqama number)') : T('العامل هو العميل','Worker is the client')} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 9px', borderRadius: 7, background: 'rgba(176,125,0,.16)', border: '1px solid rgba(176,125,0,.42)', color: C.goldSoft, fontSize: 10.5, fontWeight: 600 }}>
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M9 17H7A5 5 0 0 1 7 7h2"/><path d="M15 7h2a5 5 0 1 1 0 10h-2"/><line x1="8" x2="16" y1="12" y2="12"/></svg>
                   {T('= العميل','= client')}
                 </span>
               )}
-              {editable && (
-                <button onClick={onEditWorker} title={T('تغيير العامل','Change worker')}
+              {editable && !matchedWorker && (
+                <button onClick={onEditWorker} title={worker ? T('تغيير العامل','Change worker') : T('إضافة عامل','Add worker')}
                   style={{ marginInlineStart: 'auto', height: 32, padding: '0 14px', borderRadius: 9, background: 'rgba(176,125,0,.06)', border: '1px dashed var(--accent-bd)', color: 'var(--accent)', fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
-                  <span>{T('تعديل','Edit')}</span>
+                  <span>{worker ? T('تعديل','Edit') : T('إضافة','Add')}</span>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
                 </button>
               )}
             </div>
             <div style={{ padding: '16px 22px' }}>
-              <WorkerRows worker={worker} facility={facility} T={T} user={user} />
+              {worker
+                ? <WorkerRows worker={worker} facility={facility} T={T} user={user} />
+                : <EmptyCardBody T={T} text={T('لا يوجد عامل مرتبط بهذه الفاتورة','No worker linked to this invoice')} hint={editable ? T('اضغط «إضافة» لاختيار العامل — وتتبعه منشأته تلقائياً','Use “Add” to pick the worker — the facility follows automatically') : undefined} />}
               <ChangeLog T={T} title={T('سجل تغيير العامل','Worker change log')} entries={changes}
                 actionLabel={T('تم تغيير العامل','Worker changed')}
                 renderDetail={c => c.from_name ? (
@@ -9292,25 +9525,36 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
         // The service detail is editable only for general-bucket services whose row lives
         // in other_applications (dedicated-table services carry their own gov-process model).
         const svcCode = baseSvcCode(data?.code || inv.service_type?.code)
-        const svcEditable = !!onEditService && !['transfer', 'ajeer', 'iqama_renewal', 'iqama_issuance'].includes(svcCode) && canCardBtn(user, 'invoices', 'service', 'edit')
+        const svcEditable = !!onEditService && !['transfer', 'iqama_issuance'].includes(svcCode) && canCardBtn(user, 'invoices', 'service', 'edit')
         // الخدمات ذات الجداول المخصّصة (نقل/أجير/تجديد/إصدار إقامة) لا تستخدم نافذة تعديل تفاصيل الخدمة،
         // لكن يبقى المكتب قابلاً للتعديل عبر نافذة مستقلة — يظهر زرّها فقط لهذه الخدمات.
-        const officeEditable = !!onEditOffice && ['transfer', 'ajeer', 'iqama_renewal', 'iqama_issuance'].includes(svcCode) && fieldEditable(user, 'invoices', 'service_office') && canCardBtn(user, 'invoices', 'service', 'edit')
+        const officeEditable = !!onEditOffice && ['transfer', 'iqama_issuance'].includes(svcCode) && fieldEditable(user, 'invoices', 'service_office') && canCardBtn(user, 'invoices', 'service', 'edit')
         // سجلّ تعديل المكتب لهذه الخدمات يُخزَّن في invoices.service_log (نفس نمط نافذة تعديل التأشيرات).
         const officeChanges = officeEditable ? (Array.isArray(inv.service_log) ? inv.service_log : []) : []
         // سجلّ تعديل الخدمة (من other_applications.details.service_changes) — تغييرات الوصف/المكتب.
         const det0 = Array.isArray(data?.det) ? data.det[0] : null
-        const svcChanges = Array.isArray(det0?.details?.service_changes) ? det0.details.service_changes : []
+        // مصدر السجلّ: details.service_changes لصفّ other_applications (وقد يكون صفّ العرض من جدول
+        // آخر كما في «عقد أجير»)، أو invoices.service_log للخدمات التي تخزّن حقولها أعمدةً.
+        const _oaRow = Array.isArray(inv.service_request?.other_applications) ? inv.service_request.other_applications[0] : inv.service_request?.other_applications
+        const svcChanges = SVC_COLUMN_TBL[svcCode]
+          ? (Array.isArray(inv.service_log) ? inv.service_log : [])
+          : Array.isArray(det0?.details?.service_changes) ? det0.details.service_changes
+          : Array.isArray(_oaRow?.details?.service_changes) ? _oaRow.details.service_changes : []
         const SVC_LBL = {
           description: ['الوصف', 'Description'], office: ['المكتب', 'Office'],
+          service_type: ['نوع الخدمة', 'Service type'],
           chamber_subtype: ['نوع التصديق', 'Certification type'],
           chamber_text: ['نص الطلب', 'Request text'],
           chamber_file: ['ملف المطبوعات', 'Printout file'],
+          // حقول الخدمة الخاصة — نفس تسميات كرت الخدمة، فيظهر السجلّ باسم الحقل لا بمفتاحه.
+          ...svcFieldLabels(svcCode),
         }
         // الملف الحالي المرفق — يُستخدم لربط الإدخالات القديمة (التي خزّنت الاسم فقط) بالرابط عند تطابق الاسم.
         const curFile = det0?.details?.chamber_file || null
         // قِيَم بعض الحقول رموزٌ إنجليزية (نوع التصديق) — نعرضها بمسمّاها العربي؛ وملف المطبوعات رابطٌ قابل للنقر.
+        const _SVC_OPTS = svcFieldOpts(svcCode)
         const SVC_VAL = (field, v) => {
+          if (_SVC_OPTS[field]) return (v && _SVC_OPTS[field][v]) || v || '—'
           if (field === 'chamber_subtype') return v === 'printed' ? T('تصديق مطبوعات', 'Printed certification') : v === 'open_request' ? T('طلب مفتوح', 'Open request') : (v || '—')
           if (field === 'chamber_file') {
             if (!v) return '—'
@@ -9359,10 +9603,10 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
           </div>
         )
       })())}
-      {cardVisible(user, 'invoices', 'pricing') && !isZeroSvc(data?.code || inv.service_type?.code) && (
-      <PricingCard breakdown={inv.pricing_breakdown} total={total} paid={paid} remaining={remaining} absher={data.absherDiscount || 0} tc={data.tc} T={T} onEdit={canCardBtn(user, 'invoices', 'pricing', 'edit') ? onEditPricing : undefined} log={inv.pricing_log} svcCode={data?.code || inv.service_type?.code} user={user} />
+      {cardVisible(user, 'invoices', 'pricing') && (!isZeroSvc(data?.code || inv.service_type?.code) || showEmpty) && (
+      <PricingCard breakdown={inv.pricing_breakdown} total={total} paid={paid} remaining={remaining} absher={data.absherDiscount || 0} tc={data.tc} T={T} onEdit={canCardBtn(user, 'invoices', 'pricing', 'edit') ? onEditPricing : undefined} discount={discountAmt} discountLog={discountLog} log={inv.pricing_log} svcCode={data?.code || inv.service_type?.code} qty={inv.service_quantity ?? inv.service_request?.quantity ?? (data?.det || []).length} user={user} />
       )}
-      {cardVisible(user, 'invoices', 'installments_payments') && total > 0 && (
+      {cardVisible(user, 'invoices', 'installments_payments') && (total > 0 || showEmpty) && (
       <div style={cardChrome}>
         <div style={cardHeader}>
           <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
@@ -9412,8 +9656,8 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
       })()}
       {cardVisible(user, 'invoices', 'agent') && (() => {
         const agent = inv.agent || inv.service_request?.service_request_agents?.[0]?.agent || null
-        if (!agent) return null
-        const nat = agent.nationality
+        if (!agent && !showEmpty) return null
+        const nat = agent?.nationality
         const natVis = fieldVisible(user, 'invoices', 'agent_nationality')
         const fl = natVis ? nat?.flag_url : null
         const em = natVis ? flagEmoji(nat?.code) : null
@@ -9425,19 +9669,21 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
               {fl
                 ? <img src={fl} alt={nat?.name_ar || ''} title={nat?.name_ar || ''} style={{ width: 22, height: 16, objectFit: 'cover', borderRadius: 2, flexShrink: 0 }} />
                 : (em ? <span title={nat?.name_ar || ''} style={{ fontSize: 16, lineHeight: 1, flexShrink: 0 }}>{em}</span> : null)}
-              {!!onEditAgent && !!agent.id && canCardBtn(user, 'invoices', 'agent', 'edit') && (
-                <button onClick={onEditAgent} title={T('تعديل بيانات الوسيط','Edit agent')}
+              {!!onEditAgent && (!!agent?.id || showEmpty) && canCardBtn(user, 'invoices', 'agent', 'edit') && (
+                <button onClick={onEditAgent} title={agent ? T('تعديل بيانات الوسيط','Edit agent') : T('إضافة وسيط','Add agent')}
                   style={{ marginInlineStart: 'auto', height: 32, padding: '0 14px', borderRadius: 9, background: 'rgba(176,125,0,.06)', border: '1px dashed var(--accent-bd)', color: 'var(--accent)', fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
-                  <span>{T('تعديل','Edit')}</span>
+                  <span>{agent ? T('تعديل','Edit') : T('إضافة','Add')}</span>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
                 </button>
               )}
             </div>
             <div style={{ padding: '16px 22px' }}>
-              <BrokerRows agent={agent} T={T} user={user} />
+              {agent
+                ? <BrokerRows agent={agent} T={T} user={user} />
+                : <EmptyCardBody T={T} text={T('لا يوجد وسيط على هذه الفاتورة','No agent on this invoice')} hint={T('اضغط «إضافة» لاختيار وسيط مسجّل أو تسجيل وسيط جديد','Use “Add” to pick a registered agent or create a new one')} />}
               {(() => {
                 // سجلّ تعديل بيانات الوسيط (من agents.edit_log) — يُعرض فقط قيود هذه الفاتورة (entry.inv === inv.id).
-                const allLog = Array.isArray(agent.edit_log) ? agent.edit_log : []
+                const allLog = Array.isArray(agent?.edit_log) ? agent.edit_log : []
                 const log = allLog.filter(e => e && e.inv === inv.id)
                 if (!log.length) return null
                 const LBL = { name: ['الاسم', 'Name'], id: ['رقم الهوية', 'ID Number'], phone: ['رقم الجوال', 'Phone'], nationality: ['الجنسية', 'Nationality'] }
@@ -9448,57 +9694,6 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
                     renderDetail={c => <FieldChanges T={T} changes={c.changes} LBL={LBL} showVal={showVal} />} />
                 )
               })()}
-            </div>
-          </div>
-        )
-      })()}
-      {(() => {
-        // كرت الخصم — يظهر أسفل كرت الوسيط عند وجود خصم على الفاتورة (من زر «خصم» للمدير العام).
-        const discLog = (Array.isArray(inv.pricing_log) ? inv.pricing_log : []).filter(e => Number(e?.discount) > 0)
-        const bd = Array.isArray(inv.pricing_breakdown) ? inv.pricing_breakdown : []
-        const isDisc = l => l && (l.discount === true || ['خصم', 'الخصم', 'Discount'].includes(String(l.label || '').trim()))
-        const lineDisc = bd.filter(isDisc).reduce((s, l) => s + Math.abs(Number(l.amount) || 0), 0)
-        const logDisc = discLog.reduce((s, e) => s + (Number(e.discount) || 0), 0)
-        // نُظهر خصم المدير العام المُطبَّق (من السجل) — لا الخصم الكلي الذي قد يشمل خصم الحسبة.
-        const discountAmt = logDisc > 0.005 ? logDisc : lineDisc
-        if (discountAmt <= 0.005) return null
-        const gross = Math.round((Number(total) + discountAmt) * 100) / 100
-        const cell = (label, value, color) => (
-          <div style={{ flex: 1, minWidth: 0, padding: '10px 12px', borderRadius: 10, background: 'var(--inputBg)', border: '1px solid var(--bd)', display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center' }}>
-            <span style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 600 }}>{label}</span>
-            <span style={{ fontSize: 15, color: color || 'var(--tx)', fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(value)}</span>
-          </div>
-        )
-        return (
-          <div style={cardChrome}>
-            <div style={cardHeader}>
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#27a046' }} />
-              <span style={{ ...cardTitle, color: '#27a046' }}>{T('الخصم', 'Discount')}</span>
-              {!!onDiscount && (
-                <button onClick={onDiscount} title={T('تطبيق خصم', 'Apply discount')}
-                  style={{ marginInlineStart: 'auto', height: 32, padding: '0 14px', borderRadius: 9, background: 'rgba(176,125,0,.06)', border: '1px dashed var(--accent-bd)', color: 'var(--accent)', fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
-                  <span>{T('خصم إضافي', 'Add discount')}</span>
-                  <Percent size={13} />
-                </button>
-              )}
-            </div>
-            <div style={{ padding: '16px 22px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div style={{ display: 'flex', gap: 8 }}>
-                {cell(T('قبل الخصم', 'Before'), gross, C.gold)}
-                {cell(T('الخصم', 'Discount'), discountAmt, '#27a046')}
-                {cell(T('بعد الخصم', 'After'), total, C.gold)}
-              </div>
-              {discLog.length > 0 && (
-                <ChangeLog T={T} title={T('سجل الخصم', 'Discount log')} entries={discLog}
-                  actionLabel={T('تم تطبيق خصم', 'Discount applied')}
-                  renderDetail={c => (
-                    <div style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                      <span>{T('القيمة', 'Amount')}:</span>
-                      <span style={{ color: '#27a046', direction: 'ltr' }}>{num(c.discount)}</span>
-                      {c.reason && <span style={{ color: 'var(--tx5)' }}>· {c.reason}</span>}
-                    </div>
-                  )} />
-              )}
             </div>
           </div>
         )
@@ -9524,7 +9719,7 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
       {cardVisible(user, 'invoices', 'comments') && <InvoiceCommentsCard sb={sb} T={T} isAr={isAr} toast={toast} inv={inv} user={user} />}
     </div>
     <div style={{ position: 'sticky', top: 14, display: 'flex', flexDirection: 'column', gap: 14 }}>
-      {total > 0 && cardVisible(user, 'invoices', 'financial_summary') && (
+      {(total > 0 || showEmpty) && cardVisible(user, 'invoices', 'financial_summary') && (
       <FinancialSummaryCard inv={inv} data={data} isAr={isAr} T={T} total={total} paid={paid} remaining={remaining} pct={pct} payT={payT} user={user}
         stageStatus={(cardVisible(user, 'invoices', 'service_transaction') && ['work_visa', 'other', 'ajeer'].includes(baseSvcCode(data?.code || inv.service_type?.code))) ? undefined : stageStatus} />
       )}
@@ -9635,7 +9830,7 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
               <span style={{ fontSize: 16, fontWeight: 600, color: C.gold, letterSpacing: '.2px' }}>{T('المعاملة', 'Transaction')}</span>
               <span style={{ flex: 1, height: 1, background: 'rgba(255,255,255,.05)' }} />
               {/* تاق منشئ الفاتورة — يُعرض هنا فقط حين يكون الكرت المالي مخفياً (إجمالي صفري) كي لا يتكرّر. */}
-              {total <= 0 && (() => {
+              {total <= 0 && !(showEmpty && cardVisible(user, 'invoices', 'financial_summary')) && (() => {
                 const person = inv.creator?.person
                 const full = (isAr ? (person?.name_ar || person?.name_en) : (person?.name_en || person?.name_ar)) || ''
                 const twoNames = full.trim().split(/\s+/).filter(Boolean).slice(0, 2).join(' ')
@@ -10171,32 +10366,24 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
       })()}
       {(() => {
         // Action buttons depend on invoice state: a cancelled invoice exposes none,
-        // a fully-paid one hides "record payment", an unpaid one hides "refund".
+        // a fully-paid one hides "record payment".
+        // «استرجاع» و«خصم» أُزيلا من هذه الشبكة (قرار المستخدم): الخصم زرُّه داخل كرت التسعير،
+        // وإعادة المبلغ صارت جزءاً من «إلغاء» (إلغاء تأشيرات محدّدة يُعيد حصّتها المدفوعة) ومن
+        // «تعديل التسعير» حين يهبط الإجمالي دون المدفوع.
         const cancelled = inv.status?.code === 'cancelled'
         // Same branch-scope gate used in InvoiceDetailPage: the user may act on this
         // invoice only when its office is within their permitted branches.
         const invBranchCan = canTabBranch(user, 'invoices', inv.branch_id || inv.branch?.id || null)
         const canPay = !cancelled && invBranchCan && remaining > 0.005 && canPayPerm && modalAllowed(user, 'invoices', 'inv_action_payment')
-        const canRefund = !cancelled && invBranchCan && paid > 0.005 && canRefundPerm && modalAllowed(user, 'invoices', 'inv_action_refund')
         // رواتب سبلاير: لا يُعرض زر إلغاء الفاتورة (تُدار حالة الطلب من زر «تأكيد الإنجاز» فقط).
         const canCancel = !cancelled && invBranchCan && canCancelPerm && !isZeroSvc(inv.service_type?.code) && modalAllowed(user, 'invoices', 'inv_action_cancel')
-        // خصم — للمدير العام فقط (onDiscount يُمرَّر مضبوطاً حسب صلاحية GM من InvoiceDetailPage).
-        // يظهر فقط عند وجود متبقٍّ يُخصَم منه — الفاتورة المسدّدة بالكامل تحتاج استرجاعاً لا خصماً.
-        const canDiscount = !cancelled && invBranchCan && !!onDiscount && Number(remaining) > 0.005
-        if (!canPay && !canRefund && !canCancel && !canDiscount) return null
+        if (!canPay && !canCancel) return null
         return (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             {canPay && (
-              <div style={{ gridColumn: canRefund ? 'auto' : 'span 2', display: 'grid' }}>
+              <div style={{ gridColumn: 'span 2', display: 'grid' }}>
                 <ActionGridButton onClick={onRecordPayment} color={C.ok} label={T('تسجيل دفعة','Record Payment')}>
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
-                </ActionGridButton>
-              </div>
-            )}
-            {canRefund && (
-              <div style={{ gridColumn: canPay ? 'auto' : 'span 2', display: 'grid' }}>
-                <ActionGridButton onClick={onRefund} color={C.red} label={T('استرجاع','Refund')}>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
                 </ActionGridButton>
               </div>
             )}
@@ -10204,13 +10391,6 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
               <div style={{ gridColumn: 'span 2', display: 'grid' }}>
                 <ActionGridButton onClick={onCancelInv} color={C.red} label={T('إلغاء','Cancel')}>
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M4.93 4.93l14.14 14.14"/></svg>
-                </ActionGridButton>
-              </div>
-            )}
-            {canDiscount && (
-              <div style={{ gridColumn: 'span 2', display: 'grid' }}>
-                <ActionGridButton onClick={onDiscount} color={C.gold} label={T('خصم','Discount')}>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>
                 </ActionGridButton>
               </div>
             )}
@@ -10232,7 +10412,8 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
       </>)}
     </div>
   </div>
-)
+  )
+}
 
 // صف حالة المعاملة العام (للخدمات غير التأشيرية) — منجزة (أخضر/صح) · قيد التنفيذ (ذهبي/ساعة) · ملغاة (أحمر/x).
 const TxnStatusBar = ({ T, stage, phase, label }) => {

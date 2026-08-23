@@ -73,6 +73,7 @@ const COL_DEFS = {
   _row: { ar: 'التأشيرة', en: 'Visa', w: 156, kind: 'rownum' },
   unified_number: { ar: 'الرقم الموحد', en: 'Unified no.', w: 172, kind: 'uni', edit: true, mono: true, owns: ['unified_number', 'main_facility_id'] },
   _hrsd: { ar: 'رقم الموارد البشرية', en: 'HRSD no.', w: 176, kind: 'hrsd', edit: true, mono: true, owns: ['main_facility_id', 'unified_number'] },
+  _gosi: { ar: 'رقم التأمينات', en: 'GOSI no.', w: 160, kind: 'gosi', edit: true, mono: true, owns: ['main_facility_id', 'unified_number'] },
   _facility: { ar: 'المنشأة', en: 'Facility', w: 250, kind: 'facname' },
   _fee: { ar: 'رسوم التأشيرة', en: 'Visa fee', w: 172, kind: 'fee' },
   _sadad: { ar: 'رقم السداد', en: 'SADAD no.', w: 160, kind: 'sadad', mono: true },
@@ -85,7 +86,7 @@ const COL_DEFS = {
 
 const STAGES = [
   { key: 'facility', ar: 'تحديد المنشأة', en: 'Set facility', c: C.gold2,
-    cols: ['_row', 'unified_number', '_hrsd', '_facility'] },
+    cols: ['_row', 'unified_number', '_hrsd', '_gosi', '_facility'] },
   { key: 'request', ar: 'طلب السداد', en: 'Request payment', c: C.blue,
     cols: ['_row', '_facility', '_fee'] },
   { key: 'awaiting', ar: 'بانتظار السداد', en: 'Awaiting payment', c: C.warn,
@@ -188,7 +189,9 @@ export default function VisaGridPage({ sb, user, toast, lang, onTabChange }) {
     setLoading(true)
     const [visaR, facR, catR, feeKindR] = await Promise.all([
       sb.from('visa_applications').select(VISA_SELECT).is('deleted_at', null).order('created_at', { ascending: false }),
-      sb.from('facilities').select('id,name_ar,name_en,unified_number,cr_number,hrsd_number').is('deleted_at', null).order('name_ar'),
+      /* range صريح: المنشآت ١,١٩١ صفاً وسقف PostgREST الافتراضي ١٠٠٠ — بدونه تختفي
+         ~٢٠٠ منشأة من بحث الأرقام فيُقال «لا توجد منشأة» وهي موجودة. */
+      sb.from('facilities').select('id,name_ar,name_en,unified_number,cr_number,hrsd_number,gosi_number').is('deleted_at', null).order('name_ar').range(0, 4999),
       sb.from('lookup_categories').select('id').eq('category_key', 'visa_usage_status').maybeSingle(),
       sb.from('lookup_items').select('id').eq('code', FEE_KIND_CODE).limit(1).maybeSingle(),
     ])
@@ -220,8 +223,28 @@ export default function VisaGridPage({ sb, user, toast, lang, onTabChange }) {
   useEffect(() => { load() }, [load])
 
   const facById = useMemo(() => { const m = new Map(); for (const f of facilities) m.set(f.id, f); return m }, [facilities])
-  const facByUnified = useMemo(() => { const m = new Map(); for (const f of facilities) if (f.unified_number) m.set(String(f.unified_number).trim(), f); return m }, [facilities])
-  const facByHrsd = useMemo(() => { const m = new Map(); for (const f of facilities) if (f.hrsd_number) m.set(String(f.hrsd_number).trim(), f); return m }, [facilities])
+  /* ── فهرس أرقام المنشأة ─────────────────────────────────────────────────
+     مفتاح واحد لكل رقم تعرفه المنشأة: الموحّد · التأمينات · الموارد — بصيغته
+     كما هي وبأرقامه المجرّدة (رقم الموارد يُكتب `18-4048702` وقد يُلصق بلا
+     شرطة). فأي عمود من الثلاثة يقبل أيّ رقم منها ويحدّد المنشأة نفسها. */
+  const digits = (v) => latin(v).replace(/\D+/g, '')
+  const facIndex = useMemo(() => {
+    const m = new Map()
+    const put = (k, f) => { const s = String(k ?? '').trim(); if (s && !m.has(s)) m.set(s, f) }
+    for (const f of facilities) {
+      for (const v of [f.unified_number, f.gosi_number, f.hrsd_number]) {
+        if (!v) continue
+        put(latin(v).trim(), f)
+        put(digits(v), f)
+      }
+    }
+    return m
+  }, [facilities])
+  const facLookup = useCallback((text) => {
+    const s = latin(text).trim()
+    if (!s) return null
+    return facIndex.get(s) || facIndex.get(digits(s)) || null
+  }, [facIndex])
   const statusById = useMemo(() => { const m = new Map(); for (const s of statuses) m.set(s.id, s); return m }, [statuses])
 
   const fieldOf = useCallback((row, key) => {
@@ -266,7 +289,7 @@ export default function VisaGridPage({ sb, user, toast, lang, onTabChange }) {
       const hay = [r.visa_number, r.border_number, r.unified_number,
         r.sr?.request_ref_no, r.sr?.branch?.branch_code, r.sr?.client?.name_ar,
         r.nationality?.name_ar, r.occupation?.name_ar, r.embassy?.name_ar,
-        fac?.name_ar, fac?.unified_number, fac?.hrsd_number]
+        fac?.name_ar, fac?.unified_number, fac?.hrsd_number, fac?.gosi_number]
       if (!hay.some((v) => String(v || '').toLowerCase().includes(s))) return false
     }
     return true
@@ -359,29 +382,33 @@ export default function VisaGridPage({ sb, user, toast, lang, onTabChange }) {
         const hit = statuses.find((o) => o.value_ar === s || (o.value_en || '').toLowerCase() === low || (o.code || '').toLowerCase() === low)
         return hit ? { usage_status_id: hit.id } : undefined
       }
+      /* الأعمدة الثلاثة تمرّ على الفهرس نفسه: اكتب الموحّد أو التأمينات أو
+         الموارد في أيٍّ منها فتُحدَّد المنشأة وتُملأ بقيّة الخلايا منها. */
       case 'uni': {
         const v = latin(s)
         if (!v) return { unified_number: null, main_facility_id: null }
-        const fac = facByUnified.get(v)
+        const fac = facLookup(v)
         /* الرقم يُحفظ حتى بلا منشأة مطابقة — بيانات قديمة فيها أرقام بلا منشأة
            مسجّلة، ومنعُها يمنع تصحيحها */
-        return fac ? { unified_number: v, main_facility_id: fac.id } : { unified_number: v }
+        return fac ? { unified_number: fac.unified_number || v, main_facility_id: fac.id } : { unified_number: v }
       }
-      case 'hrsd': {
+      case 'hrsd':
+      case 'gosi': {
         const v = latin(s)
         if (!v) return { main_facility_id: null }
-        const fac = facByHrsd.get(v)
+        const fac = facLookup(v)
         return fac ? { main_facility_id: fac.id, unified_number: fac.unified_number || null } : undefined
       }
       default: return undefined
     }
-  }, [statuses, facByUnified, facByHrsd])
+  }, [statuses, facLookup])
 
   const dispOf = useCallback((row, col) => {
     if (!row || !col) return ''
     switch (col.kind) {
       case 'uni': return fieldOf(row, 'unified_number') || ''
       case 'hrsd': return facOf(row)?.hrsd_number || ''
+      case 'gosi': return facOf(row)?.gosi_number || ''
       case 'facname': return facOf(row)?.name_ar || facOf(row)?.name_en || ''
       case 'status': { const s = statusById.get(fieldOf(row, 'usage_status_id')); return s ? (isAr ? s.value_ar : (s.value_en || s.value_ar)) : '' }
       case 'date': return ymd(fieldOf(row, col.key))
@@ -454,7 +481,7 @@ export default function VisaGridPage({ sb, user, toast, lang, onTabChange }) {
       setEditing(null); setSeq((s) => s + 1)
       if (row && col) {
         const { bad } = writeCells([{ row, col, text }])
-        if (bad) toast && toast(col.kind === 'hrsd'
+        if (bad) toast && toast(col.kind === 'hrsd' || col.kind === 'gosi'
           ? T('لا توجد منشأة بهذا الرقم', 'No facility with that number')
           : T('قيمة غير صالحة — لم تُحفظ', 'Invalid value — not applied'))
       }
@@ -1100,7 +1127,7 @@ function CellEditor({ col, seed, initial, inputRef, statuses, facilities, isAr, 
     )
   }
 
-  const listId = col.kind === 'uni' ? 'vg-uni-list' : col.kind === 'hrsd' ? 'vg-hrsd-list' : undefined
+  const listId = col.kind === 'uni' ? 'vg-uni-list' : col.kind === 'hrsd' ? 'vg-hrsd-list' : col.kind === 'gosi' ? 'vg-gosi-list' : undefined
   return (
     <>
       <input className="vg-in" autoFocus ref={inputRef} list={listId}
@@ -1113,7 +1140,7 @@ function CellEditor({ col, seed, initial, inputRef, statuses, facilities, isAr, 
       {listId && (
         <datalist id={listId}>
           {facilities.slice(0, 1500).map((f) => {
-            const v = col.kind === 'uni' ? f.unified_number : f.hrsd_number
+            const v = col.kind === 'uni' ? f.unified_number : col.kind === 'gosi' ? f.gosi_number : f.hrsd_number
             return v ? <option key={f.id} value={v}>{f.name_ar || f.name_en || ''}</option> : null
           })}
         </datalist>

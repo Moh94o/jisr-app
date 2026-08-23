@@ -16,6 +16,36 @@ async function invoiceStatusPatch(sb, statusCode, paid, total) {
   return map[want] ? { status_id: map[want] } : {}
 }
 
+// توزيع جدول الدفعات على إجمالي جديد — دالة صافية (بلا قاعدة بيانات) كي يستعملها
+// المحرّر لمعاينة الأثر قبل الحفظ، ويستعملها الحفظ نفسه فلا يفترق العرض عن الكتابة.
+// كل دفعة تبدأ من مسدّدها (أرضية) ثم يُوزَّع الفرق بنسبة متبقّي كل دفعة؛ فإن كانت
+// كلها مسدّدة استوعبت آخرُ دفعة الزيادة بالكامل.
+export function redistributeInstallments(rows, newTotal) {
+  const list = (Array.isArray(rows) ? rows : []).slice()
+    .sort((a, b) => (Number(a.installment_order) || 0) - (Number(b.installment_order) || 0))
+  const total = r2(newTotal)
+  if (!list.length) return []
+  const paidArr = list.map(r => r2(r.paid_amount))
+  if (list.length === 1) {
+    const only = list[0]
+    const to = total >= paidArr[0] - 0.005 ? total : r2(only.total_amount)
+    return [{ id: only.id, order: only.installment_order, paid: paidArr[0], from: r2(only.total_amount), to }]
+  }
+  const floorSum = r2(paidArr.reduce((s, v) => s + v, 0))
+  let extra = r2(total - floorSum); if (extra < 0) extra = 0
+  const remArr = list.map((r, i) => Math.max(0, r2((Number(r.total_amount) || 0) - paidArr[i])))
+  const remSum = r2(remArr.reduce((s, v) => s + v, 0))
+  const weights = remSum > 0.005 ? remArr.map(v => v / remSum) : list.map((_, i) => i === list.length - 1 ? 1 : 0)
+  const out = []
+  let acc = 0
+  for (let i = 0; i < list.length; i++) {
+    const add = i === list.length - 1 ? r2(extra - acc) : r2(extra * weights[i])
+    acc = r2(acc + add)
+    out.push({ id: list[i].id, order: list[i].installment_order, paid: paidArr[i], from: r2(list[i].total_amount), to: r2(paidArr[i] + add) })
+  }
+  return out
+}
+
 // يضبط فاتورة على إجمالي جديد. options: { newLines } لكتابة pricing_breakdown، { logEntry } لإلحاق سجلّ التسعير.
 export async function syncInvoicePricing(sb, invoiceId, newTotal, { newLines, logEntry } = {}) {
   if (!invoiceId) return
@@ -33,37 +63,14 @@ export async function syncInvoicePricing(sb, invoiceId, newTotal, { newLines, lo
   const stPatch = await invoiceStatusPatch(sb, invFresh?.status?.code, curPaid, total)
   const { error } = await sb.from('invoices').update({ ...patch, ...stPatch }).eq('id', invoiceId)
   if (error) throw error
-  // مزامنة جدول الدفعات مع الإجمالي الجديد:
-  //  • دفعة واحدة → تُضبط على الإجمالي مباشرة (ما لم تقل عن مسدّدها).
-  //  • دفعات متعددة → كل دفعة تبدأ من مسدّدها (أرضية) ثم يُوزَّع الفرق (الإجمالي الجديد − مجموع المسدّد)
-  //    بنسبة متبقّي كل دفعة؛ فإن كانت كلها مسدّدة استوعبت آخرُ دفعة الزيادة بالكامل.
+  // مزامنة جدول الدفعات مع الإجمالي الجديد — بنفس دالة المعاينة المستعملة في المحرّر.
   const { data: insRows } = await sb.from('installments')
     .select('id,total_amount,paid_amount,installment_order').eq('invoice_id', invoiceId).is('deleted_at', null).order('installment_order')
   if (Array.isArray(insRows) && insRows.length) {
     const sumT = insRows.reduce((s, r) => s + (Number(r.total_amount) || 0), 0)
-    const delta = r2(total - sumT)
-    if (Math.abs(delta) > 0.005) {
-      if (insRows.length === 1) {
-        const only = insRows[0]
-        if (total >= Number(only.paid_amount) - 0.005) await sb.from('installments').update({ total_amount: total }).eq('id', only.id)
-      } else {
-        const rows = insRows.slice().sort((a, b) => (Number(a.installment_order) || 0) - (Number(b.installment_order) || 0))
-        const paidArr = rows.map(r => r2(Number(r.paid_amount) || 0))
-        const floorSum = r2(paidArr.reduce((s, v) => s + v, 0))
-        let extra = r2(total - floorSum); if (extra < 0) extra = 0
-        const remArr = rows.map((r, i) => Math.max(0, r2((Number(r.total_amount) || 0) - paidArr[i])))
-        const remSum = r2(remArr.reduce((s, v) => s + v, 0))
-        const weights = remSum > 0.005 ? remArr.map(v => v / remSum) : rows.map((_, i) => i === rows.length - 1 ? 1 : 0)
-        const newTotals = paidArr.slice()
-        let acc = 0
-        for (let i = 0; i < rows.length; i++) {
-          const add = i === rows.length - 1 ? r2(extra - acc) : r2(extra * weights[i])
-          acc = r2(acc + add)
-          newTotals[i] = r2(newTotals[i] + add)
-        }
-        for (let i = 0; i < rows.length; i++) {
-          if (r2(newTotals[i]) !== r2(Number(rows[i].total_amount) || 0)) await sb.from('installments').update({ total_amount: r2(newTotals[i]) }).eq('id', rows[i].id)
-        }
+    if (Math.abs(r2(total - sumT)) > 0.005) {
+      for (const row of redistributeInstallments(insRows, total)) {
+        if (r2(row.to) !== r2(row.from)) await sb.from('installments').update({ total_amount: r2(row.to) }).eq('id', row.id)
       }
     }
   }

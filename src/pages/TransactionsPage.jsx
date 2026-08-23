@@ -6072,20 +6072,20 @@ const ChangeLog = ({ T, title, entries, actionLabel, renderDetail }) => {
   if (!Array.isArray(entries) || !entries.length) return null
   return (
     <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 7 }}>
-      <span style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+      <span style={{ fontSize: 10, color: 'var(--log-c)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>
         {title}
       </span>
       {[...entries].reverse().map((c, i) => (
-        <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 9, padding: '9px 11px', borderRadius: 10, background: 'var(--inputBg)', border: '1px solid var(--bd)' }}>
-          <span style={{ flexShrink: 0, width: 22, height: 22, borderRadius: 7, background: 'rgba(176,125,0,.1)', border: '1px solid rgba(176,125,0,.28)', color: C.gold, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 1 }}>
+        <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 9, padding: '9px 11px', borderRadius: 10, background: 'var(--log-bg)', border: '1px dashed var(--log-bd)' }}>
+          <span style={{ flexShrink: 0, width: 22, height: 22, borderRadius: 7, background: 'var(--log-bd)', border: '1px solid var(--log-bd)', color: 'var(--log-c)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 1 }}>
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
           </span>
           <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 7, justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap', minWidth: 0 }}>
-                <span style={{ fontSize: 11.5, color: 'var(--tx2)', fontWeight: 600 }}>{actionLabel}</span>
-                {c.by_name && <span style={{ fontSize: 11, color: C.gold, fontWeight: 600 }}>{T('بواسطة', 'by')} {c.by_name}</span>}
+                <span style={{ fontSize: 11.5, color: 'var(--tx3)', fontWeight: 600 }}>{actionLabel}</span>
+                {c.by_name && <span style={{ fontSize: 11, color: 'var(--log-c)', fontWeight: 600 }}>{T('بواسطة', 'by')} {c.by_name}</span>}
               </div>
               <span style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 600, direction: 'ltr', flexShrink: 0 }}>{fmtDateTime(c.at)}</span>
             </div>

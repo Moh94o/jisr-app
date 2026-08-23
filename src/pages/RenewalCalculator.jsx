@@ -438,30 +438,45 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
     const officeDays = renewalMonths * 30
     const officeMode = cfg.iqamaOfficeFeeMode === 'daily' ? 'daily' : 'flat'
     const officeFloor = Math.round(officeDailyRate * officeDays)   // الحد الأدنى المسموح للخصم عند التصديق
-    const officeFee = officeMode === 'daily'
-      ? officeFloor
-      : (f.officeFee !== '' && !isNaN(parseFloat(f.officeFee)) ? parseFloat(f.officeFee) : (parseFloat(cfg.officeFee) || 0))
-    // حدود التغطية كلها قابلة للتعديل من الإعدادات (الإدارة ← الخدمات ← تجديد الإقامة):
-    //  • الإقامة: «حد التغطية الحكومية» السنوي (650) × عدد الأشهر ÷ 12 — يتناسب مع مدة التجديد.
-    //  • رخصة العمل: سعر الكرت الثابت للمدة نفسها (workPermit{N}M) — 3 أشهر = 25 … 12 شهر = 100.
-    //  • التأمين: حد ثابت «حد تغطية المكتب» (medGovCover، الافتراضي 1000/سنة).
-    const coverIqama = Math.round((parseFloat(cfg.iqamaGovCover) || COVER.iqama) * renewalMonths / 12 * 10) / 10
-    const coverWorkPermit = parseFloat(cfg['workPermit' + renewalMonths + 'M'])
-      || Math.round((COVER.workPermit / 12) * renewalMonths * 10) / 10
-    const medGovCover = parseFloat(cfg.medGovCover) || COVER.medical
-    const iqamaExcess = Math.max(0, renewalBase - coverIqama)
-    const wpExcess = Math.max(0, workPermit - coverWorkPermit)
-    const medExcess = Math.max(0, medical - medGovCover)
-    const govExcess = iqamaExcess + wpExcess + medExcess
     const extrasTotal = (f.extras || []).reduce((s, e) => s + (parseFloat(e.amount) || 0), 0)
-    const subtotal = officeFee + govExcess + fine + profChange + extrasTotal
+    // ── نموذج التسعير ──────────────────────────────────────────────────────────
+    const flatModel = cfg.iqamaPricingModel !== 'cover'
+    let officeFee, coverIqama = 0, coverWorkPermit = 0, medGovCover = 0
+    let iqamaExcess = 0, wpExcess = 0, medExcess = 0, govExcess = 0, officeShare = 0, subtotal = 0
+    if (flatModel) {
+      // الجديد: كل الرسوم الحكومية تدخل الإجمالي بقيمها الكاملة. ورسوم المكتب متغيّرٌ
+      // يمتصّ **التأمين وحده**: حصة المدة − التأمين (لا تنزل تحت صفر) — فمجموع
+      // (المكتب + التأمين) لا يقلّ عن الحصة مهما تبدّلت شريحة عمر العامل، بينما
+      // تغيّر تجديد الإقامة أو رخصة العمل ينعكس على الإجمالي مباشرةً.
+      officeShare = parseFloat(cfg['iqamaOfficeShare' + renewalMonths + 'M'])
+      if (!(officeShare > 0)) officeShare = parseFloat(cfg.officeFee) || 0   // مدة غير معيارية أو حصة غير مضبوطة
+      // إدخال يدوي لرسوم المكتب (عند التصديق) يتجاوز الحصة إن أُدخل صراحةً.
+      officeFee = (f.officeFee !== '' && !isNaN(parseFloat(f.officeFee)))
+        ? parseFloat(f.officeFee)
+        : Math.max(0, Math.round((officeShare - medical) * 100) / 100)
+      subtotal = renewalBase + workPermit + medical + officeFee + fine + profChange + extrasTotal
+    } else {
+      // القديم (محفوظ للحسبات الصادرة به): حدود تغطية لكل رسم، ولا يدخل الإجمالي إلا الزائد.
+      officeFee = officeMode === 'daily'
+        ? officeFloor
+        : (f.officeFee !== '' && !isNaN(parseFloat(f.officeFee)) ? parseFloat(f.officeFee) : (parseFloat(cfg.officeFee) || 0))
+      coverIqama = Math.round((parseFloat(cfg.iqamaGovCover) || COVER.iqama) * renewalMonths / 12 * 10) / 10
+      coverWorkPermit = parseFloat(cfg['workPermit' + renewalMonths + 'M'])
+        || Math.round((COVER.workPermit / 12) * renewalMonths * 10) / 10
+      medGovCover = parseFloat(cfg.medGovCover) || COVER.medical
+      iqamaExcess = Math.max(0, renewalBase - coverIqama)
+      wpExcess = Math.max(0, workPermit - coverWorkPermit)
+      medExcess = Math.max(0, medical - medGovCover)
+      govExcess = iqamaExcess + wpExcess + medExcess
+      subtotal = officeFee + govExcess + fine + profChange + extrasTotal
+    }
     // تاريخ الانتهاء الجديد المتوقع بعد التجديد — قاعدة قوى (fallback ميلادي للمدد غير المعيارية)
     const expectedExpiry = newExpiryYMD || (() => {
       const expBase = (exp && !isNaN(exp) && exp > today) ? new Date(exp) : new Date(today)
       const d = new Date(expBase); d.setMonth(d.getMonth() + renewalMonths)
       return d.toISOString().slice(0, 10)
     })()
-    return { expired, inGrace, renewalBase, fine, workPermit, medical, officeFee, profChange, iqamaExcess, wpExcess, medExcess, govExcess, extrasTotal, subtotal, billedMonths, expectedExpiry, coverIqama, coverWorkPermit, medGovCover, medInsuredValid, medDaysLeft, wpBilledMonths, wpExpired, wpBasisFellBack, wpLongExpired, disabledPeriods, profChangeIsFree, officeMode, officeDays, officeDailyRate, officeFloor }
+    return { expired, inGrace, renewalBase, fine, workPermit, medical, officeFee, profChange, iqamaExcess, wpExcess, medExcess, govExcess, extrasTotal, subtotal, flatModel, officeShare, billedMonths, expectedExpiry, coverIqama, coverWorkPermit, medGovCover, medInsuredValid, medDaysLeft, wpBilledMonths, wpExpired, wpBasisFellBack, wpLongExpired, disabledPeriods, profChangeIsFree, officeMode, officeDays, officeDailyRate, officeFloor }
   }, [worker, f, cfg])
 
   // قاعدة قوى: إن أصبحت مدة التجديد المختارة غير متاحة (أقصر من تأخّر الرخصة) انتقل تلقائياً لأصغر مدة مسموحة.
@@ -498,6 +513,8 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
         prof_change_fee: calc.profChange, medical_fee: calc.medical, office_fee: calc.officeFee,
         medical_insured: !!calc.medInsuredValid, medical_insurance_end: f.medInsuranceEnd || null,
         medical_insurance_company: f.medInsuranceCompany || null, medical_insurance_policy: f.medInsurancePolicy || null,
+        // نموذج التسعير يُختم على الحسبة: الصادرة بالنموذج القديم تبقى تُحسب وتُعرض به مهما عُدِّلت لاحقاً.
+        pricing_model: calc.flatModel ? 'flat' : 'cover',
         gov_excess: calc.govExcess, extras: f.extras || [], absher_discount: absher,
         subtotal: calc.subtotal, total_amount: grandTotal,
         status: 'priced', priced_at: new Date().toISOString(), created_by: user?.id || null,
@@ -604,6 +621,40 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
             const totExcess = rows.reduce((s, r) => s + r.excess, 0)
             const cols = '1.5fr .8fr 1fr 1.05fr'
             const num = { fontVariantNumeric: 'tabular-nums', direction: 'ltr', textAlign: 'left' }
+            // النموذج الجديد: لا تغطية ولا زائد — كل رسم يدخل الإجمالي بقيمته الكاملة،
+            // ورسوم المكتب بندٌ ظاهر (حصة المدة − التأمين). فالجدول عمودان لا أربعة.
+            if (calc.flatModel) {
+              const flatRows = [
+                ...rows.filter(r => r.amt > 0),
+                ...(calc.fine > 0 ? [{ label: T('غرامة تأخير التجديد', 'Late fine'), amt: calc.fine }] : []),
+                ...(calc.extrasTotal > 0 ? [{ label: T('بنود إضافية', 'Extras'), amt: calc.extrasTotal }] : []),
+                { label: T('رسوم المكتب', 'Office fee'), amt: calc.officeFee, office: true },
+              ]
+              const flatTotal = flatRows.reduce((s, r) => s + r.amt, 0)
+              return (
+                <div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 8, padding: '0 2px 7px', fontSize: 9.5, fontWeight: 600, color: 'var(--tx4)' }}>
+                    <span style={{ textAlign: 'start' }}>{T('البند', 'Item')}</span>
+                    <span style={num}>{T('المبلغ', 'Amount')}</span>
+                  </div>
+                  {flatRows.map((r, i) => (
+                    <div key={i} style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 8, alignItems: 'center', padding: '9px 2px', borderTop: '1px solid var(--bd)', fontSize: 12.5 }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', minWidth: 0 }}>
+                        <span style={{ fontWeight: 600, color: 'var(--tx)' }}>{r.label}</span>
+                        {r.months ? <span style={{ fontSize: 9, fontWeight: 600, color: C.gold, background: 'rgba(176,125,0,.1)', border: '1px solid rgba(176,125,0,.25)', borderRadius: 20, padding: '1px 6px' }}>{r.months} {T('شهر', 'mo')}</span> : null}
+                        {typeof r.exempt === 'boolean' && <span style={{ fontSize: 9, fontWeight: 600, color: r.exempt ? '#2ea043' : C.red, background: r.exempt ? 'rgba(46,160,67,.1)' : 'rgba(192,57,43,.1)', border: `1px solid ${r.exempt ? 'rgba(46,160,67,.3)' : 'rgba(192,57,43,.3)'}`, borderRadius: 20, padding: '1px 6px' }}>{r.exempt ? T('إعفاء', 'Exempt') : T('بدون إعفاء', 'No exempt')}</span>}
+                        {r.office && <span style={{ fontSize: 9, fontWeight: 600, color: C.gold, background: 'rgba(176,125,0,.1)', border: '1px solid rgba(176,125,0,.25)', borderRadius: 20, padding: '1px 6px' }}>{T(`حصة ${nm(calc.officeShare)} − التأمين`, `share ${nm(calc.officeShare)} − medical`)}</span>}
+                      </span>
+                      <span style={{ ...num, fontWeight: 600, color: r.office ? C.gold : 'var(--tx)' }}>{nm(r.amt)}</span>
+                    </div>
+                  ))}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 8, alignItems: 'center', padding: '9px 2px 1px', borderTop: '1px dashed rgba(176,125,0,.35)', fontSize: 13 }}>
+                    <span style={{ fontWeight: 600, color: C.gold }}>{T('الإجمالي', 'Total')}</span>
+                    <span style={{ ...num, fontWeight: 600, color: C.gold }}>{nm(flatTotal)}</span>
+                  </div>
+                </div>
+              )
+            }
             return (
               <div>
                 {/* رأس الجدول */}
@@ -654,8 +705,13 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 14, fontWeight: 600, color: C.gold }}><Briefcase size={15} strokeWidth={2.3} />{T('رسوم المكتب', 'Office Fee')}</span>
         <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 5, fontVariantNumeric: 'tabular-nums' }}><span style={{ direction: 'ltr', fontSize: 22, fontWeight: 600, color: C.gold, lineHeight: 1 }}>{nm(calc.officeFee)}</span><span style={{ fontSize: 10.5, fontWeight: 600, color: C.gold, opacity: .65 }}>{T('ريال', 'SAR')}</span></span>
       </div>
-      {/* الزائد على العميل — مجموع ما تجاوز حدود المكتب + رسوم تغيير المهنة (تُحمّل كاملةً على العميل) */}
-      {(() => { const clientExcess = calc.govExcess + calc.profChange; return (
+      {/* النموذج الجديد: لا «زائد» — الكرت الثاني يعرض الرسوم الحكومية كاملةً (وهي ما يُطبع للعميل). */}
+      {calc.flatModel ? (() => { const gov = calc.renewalBase + calc.workPermit + calc.medical; return (
+        <div style={{ borderRadius: 13, padding: '13px 14px', background: 'linear-gradient(135deg, rgba(53,122,189,.13), rgba(53,122,189,.03))', border: '1px solid rgba(53,122,189,.32)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 14, fontWeight: 600, color: '#357abd' }}><Briefcase size={15} strokeWidth={2.3} />{T('الرسوم الحكومية', 'Government Fees')}</span>
+          <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 5, fontVariantNumeric: 'tabular-nums' }}><span style={{ direction: 'ltr', fontSize: 22, fontWeight: 600, color: '#357abd', lineHeight: 1 }}>{nm(gov)}</span><span style={{ fontSize: 10.5, fontWeight: 600, color: '#357abd', opacity: .65 }}>{T('ريال', 'SAR')}</span></span>
+        </div>
+      ) })() : (() => { const clientExcess = calc.govExcess + calc.profChange; return (
       <div style={{ borderRadius: 13, padding: '13px 14px', background: clientExcess > 0 ? 'linear-gradient(135deg, rgba(192,57,43,.13), rgba(192,57,43,.03))' : 'linear-gradient(135deg, rgba(46,160,67,.13), rgba(46,160,67,.03))', border: `1px solid ${clientExcess > 0 ? 'rgba(192,57,43,.32)' : 'rgba(46,160,67,.32)'}`, display: 'flex', flexDirection: 'column', gap: 6 }}>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 14, fontWeight: 600, color: clientExcess > 0 ? C.red : '#2ea043' }}>{clientExcess > 0 ? <AlertCircle size={15} strokeWidth={2.3} /> : <Check size={15} strokeWidth={2.6} />}{T('الزائد على العميل', 'Excess on Customer')}</span>
         <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 5, fontVariantNumeric: 'tabular-nums' }}><span style={{ direction: 'ltr', fontSize: 22, fontWeight: 600, color: clientExcess > 0 ? C.red : '#2ea043', lineHeight: 1 }}>{clientExcess > 0 ? '+' : ''}{nm(clientExcess)}</span><span style={{ fontSize: 10.5, fontWeight: 600, opacity: .65, color: clientExcess > 0 ? C.red : '#2ea043' }}>{T('ريال', 'SAR')}</span></span>
@@ -796,7 +852,13 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12, fontWeight: 600, color: C.red, background: 'rgba(192,57,43,.08)', border: '1px solid rgba(192,57,43,.3)', borderRadius: 9, padding: '11px 13px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><ShieldAlert size={15} style={{ flexShrink: 0 }} />{T('بيانات العامل غير مكتملة — لا يمكن إكمال الطلب', 'Worker data incomplete — cannot proceed')}</div>
                   <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--tx3)', lineHeight: 1.7 }}>{T('النواقص: ', 'Missing: ')}<span style={{ color: C.red, fontWeight: 600 }}>{missingWorkerFields.join(T('، ', ', '))}</span></div>
-                  <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--tx3)', lineHeight: 1.7 }}>{T('يرجى التواصل مع الموظف المختص لإكمال بيانات العامل.', 'Please contact the responsible employee to complete the worker data.')}</div>
+                  {/* رقم الإقامة صريح هنا عمداً: تتكرّر الأسماء المتشابهة في جدول العمالة، فالتعديل
+                      بالبحث بالاسم قد يقع على عاملٍ آخر ويبقى هذا السجلّ ناقصاً. */}
+                  <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--tx3)', lineHeight: 1.7 }}>
+                    {T('أكمل البيانات في جدول العمالة للسجلّ ذي رقم الإقامة ', 'Complete the data in the workforce table for iqama ')}
+                    <span style={{ color: C.gold, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{worker?.iqama_number || '—'}</span>
+                    {T(' — ابحث برقم الإقامة لا بالاسم (تتكرّر الأسماء).', ' — search by iqama, not by name (names repeat).')}
+                  </div>
                 </div>
               ) : calc?.expired ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, fontWeight: 600, color: C.red, background: 'rgba(192,57,43,.08)', border: '1px solid rgba(192,57,43,.3)', borderRadius: 9, padding: '9px 12px' }}><ShieldAlert size={15} style={{ flexShrink: 0 }} />{T('الإقامة منتهية — تُحتسب المدة الكاملة بالتقويم وغرامة التأخير', 'Iqama expired — full calendar duration & late fine billed')}</div>

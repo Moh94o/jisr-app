@@ -1096,8 +1096,14 @@ export default function WorkforcePage({ sb, toast, lang, user, onTabChange }) {
         const prevLog = Array.isArray(freshRow?.edit_log) ? freshRow.edit_log : (Array.isArray(editRow.edit_log) ? editRow.edit_log : [])
         patch.edit_log = [...prevLog, { at: new Date().toISOString(), by: user?.id || null, by_name: user?.person?.name_ar || user?.person?.name_en || null, changes }]
       }
-      const { error } = await sb.from('workers').update(patch).eq('id', editRow.id)
+      // .select() ليس تجميلاً: تحديثٌ تُصفّيه RLS (أو معرّف لسجلّ محذوف) يعود بلا خطأ
+      // وبصفر صفوف، فتُعرض «تم الحفظ» ولا شيء كُتب. نتحقّق من الصفّ العائد ونُفشل صراحةً.
+      const { data: updRows, error } = await sb.from('workers').update(patch).eq('id', editRow.id).select('id')
       if (error) throw new Error(error.message)
+      if (!updRows || updRows.length === 0) {
+        throw new Error(T('لم يُحفظ أي تغيير — تحقّق من الصلاحيات أو أن سجلّ العامل لم يُحذف',
+                          'Nothing was saved — check your permissions or whether the worker record was deleted'))
+      }
       // رفع الملفات (PDF) إلى bucket «attachments» وربطها بالعامل (entity_type='worker', notes=<النوع>).
       for (const u of fileUploads) {
         const safe = (u.file.name || `${u.folder}.pdf`).replace(/[^\w.\-]+/g, '_')

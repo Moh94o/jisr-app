@@ -14,7 +14,7 @@ const VISA = new Set(['work_visa', 'work_visa_permanent', 'work_visa_temporary']
 const baseSvcCode = c => (VISA.has(c) ? 'work_visa' : c)
 
 const INVOICE_SELECT = `
-  id, invoice_no, total_amount, paid_amount, remaining_amount, payment_plan, installments_count, pricing_breakdown, created_at, last_activity_at,
+  id, invoice_no, total_amount, paid_amount, remaining_amount, payment_plan, installments_count, pricing_breakdown, created_at, last_activity_at, service_quantity,
   note_public, note_log, pricing_log, payment_log, cancel_log, service_log,
   creator:created_by(person:person_id(name_ar,name_en)),
   payments(amount,is_valid,deleted_at,payment_date),

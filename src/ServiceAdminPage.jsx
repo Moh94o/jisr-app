@@ -265,6 +265,16 @@ const WP_NO_EXEMPT_FIELDS=[
 ]
 // حقول خاصّة بتجديد الإقامة فقط — حد التغطية الحكومية (يُحرَّر من صفحة التسعير، وتقرأه حاسبة التجديد).
 const IQAMA_EXTRA_FIELDS=[
+  // نموذج التسعير: 'flat' الجديد (كل الرسوم تدخل الإجمالي ورسوم المكتب تمتصّ التأمين)
+  // أو 'cover' القديم (تغطية حكومية ولا يدخل الإجمالي إلا الزائد). الحسبات الصادرة
+  // بنموذجٍ تبقى عليه، فالتبديل يسري على الحسبات الجديدة وحدها.
+  {k:'iqamaPricingModel',l:'نموذج التسعير',d:'flat',t:'mode'},
+  // حصة المكتب والتأمين لكل مدة — رسوم المكتب = الحصة − التأمين (لا تنزل تحت صفر).
+  // فمجموعهما لا يقلّ عن الحصة مهما تبدّلت شريحة عمر العامل.
+  {k:'iqamaOfficeShare3M',l:'حصة المكتب والتأمين · ٣ أشهر',d:1412.5,sfx:'ريال'},
+  {k:'iqamaOfficeShare6M',l:'حصة المكتب والتأمين · ٦ أشهر',d:2825,sfx:'ريال'},
+  {k:'iqamaOfficeShare9M',l:'حصة المكتب والتأمين · ٩ أشهر',d:4237.5,sfx:'ريال'},
+  {k:'iqamaOfficeShare12M',l:'حصة المكتب والتأمين · ١٢ شهر',d:5650,sfx:'ريال'},
   {k:'iqamaGovCover',l:'حد التغطية الحكومية للإقامة',d:650,sfx:'ريال'},
   {k:'iqamaWpResetEnabled',l:'تفعيل قاعدة الإقامة المنتهية من مدة طويلة',d:false,t:'bool'},
   {k:'iqamaWpResetAfterDays',l:'حدّ التأخّر الطويل (يبدأ بعده إصدار جديد)',d:365,sfx:'يوم'},
@@ -1849,6 +1859,32 @@ const renderIqamaOfficeBody=(step)=>{
       </div>
       <div style={{opacity:daily?.45:1,pointerEvents:daily?'none':'auto'}}>{renderFeeFieldRow('officeFee',descOf('officeFee'))}</div>
       {renderFeeFieldRow('officeDailyRate',descOf('officeDailyRate'))}
+      {/* ── نموذج التسعير ─────────────────────────────────────────────────────
+          «رسوم كاملة» (flat): كل رسم حكومي يدخل الإجمالي بقيمته، ورسوم المكتب
+          متغيّرٌ يمتصّ التأمين وحده (حصة المدة − التأمين) — فمجموعهما لا يقلّ عن
+          الحصة مهما تبدّلت شريحة العمر، وتغيّرُ تجديد الإقامة أو الرخصة ينعكس
+          على الإجمالي. «تغطية وزائد» (cover): النموذج القديم.
+          الحسبات الصادرة بنموذجٍ تبقى عليه — التبديل للجديدة فقط. */}
+      {(()=>{const flat=priceState.iqamaPricingModel!=='cover'
+        const mopt=(val,label,sub)=>{const on=(val==='flat')===flat
+          return(<button type="button" onClick={()=>setPriceState(p=>({...p,iqamaPricingModel:val}))} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:3,padding:'11px 8px',borderRadius:10,border:`1px solid ${on?C.gold:'rgba(255,255,255,.1)'}`,background:on?'rgba(176,125,0,.12)':'rgba(255,255,255,.02)',color:on?C.gold:'var(--tx3)',cursor:'pointer',fontFamily:F,transition:'.15s'}}>
+            <span style={{fontSize:12.5,fontWeight:600}}>{label}</span>
+            <span style={{fontSize:9.5,fontWeight:600,opacity:.8}}>{sub}</span>
+          </button>)}
+        return(<div style={{display:'flex',flexDirection:'column',gap:12,marginTop:4,paddingTop:14,borderTop:'1px solid var(--bd)'}}>
+          <span style={{fontSize:12,fontWeight:600,color:C.gold}}>نموذج التسعير</span>
+          <div style={{display:'flex',gap:8}}>
+            {mopt('flat','رسوم كاملة','المكتب يمتصّ التأمين')}
+            {mopt('cover','تغطية وزائد','النموذج القديم')}
+          </div>
+          {flat&&(<>
+            <span style={{fontSize:11,color:'var(--tx4)',fontWeight:600,lineHeight:1.8}}>حصة المكتب والتأمين لكل مدة: <b>رسوم المكتب = الحصة − التأمين</b> (لا تنزل تحت صفر). فلو كانت الحصة ١٤١٢٫٥ وتأمين العامل ٤٠٠ صارت رسوم المكتب ١٠١٢٫٥؛ ولو كان تأمينه ٥٠٠ صارت ٩١٢٫٥ — والإجمالي لا يتغيّر بتغيّر التأمين، بينما يتغيّر بتغيّر تجديد الإقامة أو رخصة العمل.</span>
+            {renderFeeFieldRow('iqamaOfficeShare3M',descOf('iqamaOfficeShare3M'))}
+            {renderFeeFieldRow('iqamaOfficeShare6M',descOf('iqamaOfficeShare6M'))}
+            {renderFeeFieldRow('iqamaOfficeShare9M',descOf('iqamaOfficeShare9M'))}
+            {renderFeeFieldRow('iqamaOfficeShare12M',descOf('iqamaOfficeShare12M'))}
+          </>)}
+        </div>)})()}
     </div>
   )
 }
@@ -1997,7 +2033,7 @@ const renderIqamaInlineEditor=(s,opts={})=>{
     'المهلة والغرامات':{keys:['iqamaGraceDays','iqamaFine1','iqamaFine2']},
     'كرت العمل (رخصة العمل)':{keys:['workPermit3M','workPermit6M','workPermit9M','workPermit12M','workPermitNoExempt3M','workPermitNoExempt6M','workPermitNoExempt9M','workPermitNoExempt12M','workPermitDailyAfter','workPermitCutoffDate','workPermitProcDays','iqamaWpBasis','iqamaExemptionMode','iqamaWpResetEnabled','iqamaWpResetAfterDays','iqamaWpIssuanceDays']},
     'رسوم تغيير المهنة':{keys:['profChange'],extra:['profChangeFreeOccupations']},
-    'رسوم المكتب':{keys:['officeFee','officeDailyRate','iqamaOfficeFeeMode','iqamaOfficeDiscountEnabled','iqamaApprovalDiscountCap3M','iqamaApprovalDiscountCap6M','iqamaApprovalDiscountCap9M','iqamaApprovalDiscountCap12M']},
+    'رسوم المكتب':{keys:['officeFee','officeDailyRate','iqamaOfficeFeeMode','iqamaPricingModel','iqamaOfficeShare3M','iqamaOfficeShare6M','iqamaOfficeShare9M','iqamaOfficeShare12M','iqamaOfficeDiscountEnabled','iqamaApprovalDiscountCap3M','iqamaApprovalDiscountCap6M','iqamaApprovalDiscountCap9M','iqamaApprovalDiscountCap12M']},
     'التأمين الطبي':{keys:['medicalGraceMonths','medicalGraceDays','medGovCover'],extra:['medicalBrackets']},
   }
   const titles=['الرسوم الحكومية لتجديد الإقامة','المهلة والغرامات','كرت العمل (رخصة العمل)','رسوم تغيير المهنة','رسوم المكتب','التأمين الطبي']

@@ -395,10 +395,15 @@ export default function RenewalCalcPage({ sb, toast, user, lang, emptyIcon, onNe
       })
       if (card === 'worker' && patch.nationality_id) { const n = (nationalities || []).find(x => x.id === patch.nationality_id); if (n) patch.nationality = n.name_ar }
       if (card === 'pricing') {
-        // الإجمالي = رسوم المكتب + الزائد الحكومي (gov_excess) + الغرامة + تغيير المهنة + الإضافات — نفس صيغة الحاسبة (RenewalCalculator).
-        // لا تُضاف رسوم الإقامة/الرخصة/التأمين منفردةً لأنها ممثَّلة أصلاً ضمن gov_excess/التغطية، وإلا انحسبت مرّتين.
+        // صيغة الإجمالي تتبع نموذج الحسبة (نفس صيغة RenewalCalculator):
+        //  • 'flat' الجديد: كل الرسوم تُجمع بقيمها الكاملة + رسوم المكتب.
+        //  • 'cover' القديم: رسوم المكتب + الزائد الحكومي فقط — رسوم الإقامة/الرخصة/التأمين
+        //    ممثَّلة ضمن gov_excess/التغطية فجمعها منفردةً ازدواج.
         const extrasTotal = (Array.isArray(r.extras) ? r.extras : []).reduce((s, e) => s + (Number(e?.amount) || 0), 0)
-        const sum = ['office_fee', 'gov_excess', 'late_fine_amount', 'prof_change_fee'].reduce((s, k) => s + (Number(cardEdit[k]) || 0), 0) + extrasTotal
+        const sumKeys = r.pricing_model === 'flat'
+          ? ['office_fee', 'iqama_renewal_fee', 'work_permit_fee', 'medical_fee', 'late_fine_amount', 'prof_change_fee']
+          : ['office_fee', 'gov_excess', 'late_fine_amount', 'prof_change_fee']
+        const sum = sumKeys.reduce((s, k) => s + (Number(cardEdit[k]) || 0), 0) + extrasTotal
         const newTotal = Math.max(0, sum - (Number(cardEdit.absher_discount) || 0) - (Number(cardEdit.manual_discount) || 0))
         patch.subtotal = sum
         patch.total_amount = newTotal
@@ -529,7 +534,7 @@ export default function RenewalCalcPage({ sb, toast, user, lang, emptyIcon, onNe
     const officeFee = Number(r.office_fee || 0)
     const govExcess = Number(r.gov_excess || 0)
     // الخصم = ما يغطيه المكتب من الرسوم الحكومية — مجمّد في عمود office_cover؛ الحساب احتياطي للسجلات القديمة
-    const cover = r.office_cover != null ? Number(r.office_cover) : Math.max(0, fIqama + fWP + fMed - govExcess)
+    const cover = r.pricing_model === 'flat' ? 0 : (r.office_cover != null ? Number(r.office_cover) : Math.max(0, fIqama + fWP + fMed - govExcess))
     const absher = Number(r.absher_discount || 0)
     const manualDisc = Number(r.manual_discount || 0)
     const finalTotal = Number(r.total_amount || 0)
@@ -1076,7 +1081,7 @@ ${noticeBlk}
               const billedIqamaMos = r.billed_renewal_months != null ? Number(r.billed_renewal_months) : (() => { let billed = renMonths; const exp = r.iqama_expiry_gregorian ? new Date(r.iqama_expiry_gregorian) : null; if (exp && !isNaN(exp)) { const ref = r.priced_at ? new Date(r.priced_at) : new Date(); ref.setHours(0, 0, 0, 0); exp.setHours(0, 0, 0, 0); if (exp < ref) { const end = new Date(ref); end.setMonth(end.getMonth() + renMonths); let m = (end.getFullYear() - exp.getFullYear()) * 12 + (end.getMonth() - exp.getMonth()); let d = end.getDate() - exp.getDate(); if (d < 0) { m -= 1; d += new Date(end.getFullYear(), end.getMonth(), 0).getDate() } billed = d > 0 ? m + 1 : m } } return billed })()
               const renIqamaSuffix = billedIqamaMos > 0 ? T(` (${billedIqamaMos} شهر)`, ` (${billedIqamaMos} mo)`) : ''
               const renSuffix = renMonths > 0 ? T(` (${renMonths} شهر)`, ` (${renMonths} mo)`) : ''
-              const cover = r.office_cover != null ? Number(r.office_cover) : Math.max(0, Number(r.iqama_renewal_fee || 0) + Number(r.work_permit_fee || 0) + Number(r.medical_fee || 0) - Number(r.gov_excess || 0))
+              const cover = r.pricing_model === 'flat' ? 0 : (r.office_cover != null ? Number(r.office_cover) : Math.max(0, Number(r.iqama_renewal_fee || 0) + Number(r.work_permit_fee || 0) + Number(r.medical_fee || 0) - Number(r.gov_excess || 0)))
               const officeFeeV = Number(r.office_fee || 0); const subtotalV = Number(r.subtotal || 0); const totalV = Number(r.total_amount || 0)
               const lineItems = [
                 Number(r.iqama_renewal_fee || 0) > 0 ? [T('تجديد الإقامة', 'Iqama Renewal') + renIqamaSuffix, r.iqama_renewal_fee, null] : null,
@@ -1150,7 +1155,7 @@ ${noticeBlk}
             const renMo = Number(r.renewal_months || 0)
             // القيم المشتقّة مجمّدة في أعمدة وقت الإصدار/التصديق/التعديل؛ الحساب احتياطي للسجلات القديمة فقط.
             // الخصم (تغطية المكتب من الرسوم الحكومية) = (تجديد الإقامة + رخصة العمل + التأمين) − الزائد عن الحدود الحكومية
-            const cover = r.office_cover != null ? Number(r.office_cover) : Math.max(0, Number(r.iqama_renewal_fee || 0) + Number(r.work_permit_fee || 0) + Number(r.medical_fee || 0) - govExcess)
+            const cover = r.pricing_model === 'flat' ? 0 : (r.office_cover != null ? Number(r.office_cover) : Math.max(0, Number(r.iqama_renewal_fee || 0) + Number(r.work_permit_fee || 0) + Number(r.medical_fee || 0) - govExcess))
             const officeNet = r.office_fee_net != null ? Number(r.office_fee_net) : Math.max(0, officeFee - cover - manual)
             // كل الرسوم الحكومية الكاملة (تجديد الإقامة + رخصة العمل + التأمين + غرامة التأخّر + تغيير المهنة)
             const govFeesTotal = r.government_fees != null ? Number(r.government_fees) : Number(r.iqama_renewal_fee || 0) + Number(r.work_permit_fee || 0) + Number(r.medical_fee || 0) + Number(r.late_fine_amount || 0) + Number(r.prof_change_fee || 0)
@@ -1199,7 +1204,7 @@ ${noticeBlk}
                 const expExpiry = r.expected_expiry_date || (renMo > 0 ? (() => { const d = new Date(base); d.setMonth(d.getMonth() + renMo); return d.toISOString().slice(0, 10) })() : null)
                 const durMo = r.expected_duration_months != null ? Number(r.expected_duration_months) : renMo
                 const invoiced = ['invoiced', 'completed'].includes(r.status)
-                const cover = r.office_cover != null ? Number(r.office_cover) : Math.max(0, Number(r.iqama_renewal_fee || 0) + Number(r.work_permit_fee || 0) + Number(r.medical_fee || 0) - Number(r.gov_excess || 0))
+                const cover = r.pricing_model === 'flat' ? 0 : (r.office_cover != null ? Number(r.office_cover) : Math.max(0, Number(r.iqama_renewal_fee || 0) + Number(r.work_permit_fee || 0) + Number(r.medical_fee || 0) - Number(r.gov_excess || 0)))
                 return <div style={{ padding: '14px 22px', borderTop: '1px solid var(--bd)', display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {cover > 0 && <Meta label={T('الخصم', 'Discount')} color={C.ok} value={<span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums', unicodeBidi: 'isolate' }}>{nm(cover)}</span>} />}
                   {absher > 0 && <Meta label={T('خصم أبشر', 'Absher Discount')} color={C.ok} value={<span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums', unicodeBidi: 'isolate' }}>{nm(absher)}</span>} />}
@@ -1345,7 +1350,7 @@ ${noticeBlk}
         </div></ModalSection>
         else content = <ModalSection Icon={Banknote} label={T('الرسوم', 'Fees')}><div style={GRID}>
           {[['office_fee', T('رسوم المكتب', 'Office Fee')], ['iqama_renewal_fee', T('تجديد الإقامة', 'Iqama Renewal')], ['late_fine_amount', T('غرامة تأخير التجديد', 'Renewal Late Fine')], ['work_permit_fee', T('رسوم رخصة العمل', 'Work Permit')], ['medical_fee', T('التأمين الطبي', 'Medical')], ['prof_change_fee', T('تغيير المهنة', 'Occupation Change')], ['gov_excess', T('الزائد عن الحدود الحكومية', 'Gov Excess')], ['absher_discount', T('خصم أبشر', 'Absher Discount')], ['manual_discount', T('خصم المكتب', 'Office Discount')]].filter(([k]) => fVis(k)).map(([k, l]) => <CurrencyField key={k} label={l} value={f[k] ?? ''} onChange={v => setF(k, v)} disabled={!fEd(k)} />)}
-          <div style={{ gridColumn: '1/-1', display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderRadius: 9, background: 'rgba(176,125,0,.08)', border: '1px solid rgba(176,125,0,.3)', minHeight: 44 }}><span style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx2)' }}>{T('الإجمالي بعد التعديل', 'New total')}</span><span style={{ flex: 1 }} /><span style={{ fontSize: 16, fontWeight: 600, color: C.gold, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{(() => { const sum = ['office_fee', 'iqama_renewal_fee', 'late_fine_amount', 'work_permit_fee', 'medical_fee', 'prof_change_fee', 'gov_excess'].reduce((s, k) => s + (Number(f[k]) || 0), 0); const tot = Math.max(0, sum - (Number(f.absher_discount) || 0) - (Number(f.manual_discount) || 0)); return nm(tot) + ' ' + T('ريال', 'SAR') })()}</span></div>
+          <div style={{ gridColumn: '1/-1', display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderRadius: 9, background: 'rgba(176,125,0,.08)', border: '1px solid rgba(176,125,0,.3)', minHeight: 44 }}><span style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx2)' }}>{T('الإجمالي بعد التعديل', 'New total')}</span><span style={{ flex: 1 }} /><span style={{ fontSize: 16, fontWeight: 600, color: C.gold, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{(() => { const sum = (r.pricing_model === 'flat' ? ['office_fee', 'iqama_renewal_fee', 'late_fine_amount', 'work_permit_fee', 'medical_fee', 'prof_change_fee'] : ['office_fee', 'gov_excess', 'late_fine_amount', 'prof_change_fee']).reduce((s, k) => s + (Number(f[k]) || 0), 0); const tot = Math.max(0, sum - (Number(f.absher_discount) || 0) - (Number(f.manual_discount) || 0)); return nm(tot) + ' ' + T('ريال', 'SAR') })()}</span></div>
         </div></ModalSection>
         return <FKModal open onClose={() => { if (!cardSaving) setCardEdit(null) }} width={560} variant="edit" title={titles[f.card]} Icon={FileText}
           onSubmit={saveCardEdit} submitting={cardSaving} submitLabel={T('حفظ', 'Save')} pages={[{ valid: true, content }]} />
