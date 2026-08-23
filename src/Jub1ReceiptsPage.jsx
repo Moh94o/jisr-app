@@ -409,19 +409,16 @@ export default function Jub1ReceiptsPage({ sb, user, toast, lang = 'ar', emptyIc
     else tt(T('لا يوجد سند مسجّل بالرقم ', 'No receipt registered with no ') + k)
   }, [entries, openLinked])
 
-  // ربط/فكّ ربط سندَين ثنائي الاتجاه (رقم السند غير فريد فالربط بمعرّفات صريحة) — يُكتب فوراً للطرفين
+  /* ربط/فكّ ربط سندَين ثنائي الاتجاه (رقم السند غير فريد فالربط بمعرّفات صريحة).
+     الطرفان يُكتبان في **نداءٍ واحد** (دالة jub1_toggle_link) لا في تحديثين
+     متوازيين: التحديثان كانا يتقاتلان على أقفال الصفوف فيسقط أحدهما بـdeadlock
+     («فشل الربط»)، وقد ينجح طرفٌ ويفشل الآخر فيبقى الربط من جهةٍ واحدة. */
   const toggleLink = useCallback(async (currentId, targetId, link) => {
     const cur = entries.find(e => e.id === currentId)
     const tgt = entries.find(e => e.id === targetId)
     if (!cur || !tgt) return
-    const curSet = new Set(cur.linked_receipt_ids || [])
-    const tgtSet = new Set(tgt.linked_receipt_ids || [])
-    if (link) { curSet.add(targetId); tgtSet.add(currentId) } else { curSet.delete(targetId); tgtSet.delete(currentId) }
-    const [{ error: e1 }, { error: e2 }] = await Promise.all([
-      sb.from('jub1_receipts').update({ linked_receipt_ids: [...curSet] }).eq('id', currentId),
-      sb.from('jub1_receipts').update({ linked_receipt_ids: [...tgtSet] }).eq('id', targetId),
-    ])
-    if (e1 || e2) { tt(T('فشل الربط: ', 'Link failed: ') + ((e1 || e2).message)); return }
+    const { error } = await sb.rpc('jub1_toggle_link', { p_cur: currentId, p_tgt: targetId, p_link: !!link })
+    if (error) { tt(T('فشل الربط: ', 'Link failed: ') + error.message); return }
     await loadEntries()
     tt(link ? T('تم ربط السند', 'Receipt linked') : T('تم إلغاء الربط', 'Link removed'))
   }, [sb, entries, loadEntries])
