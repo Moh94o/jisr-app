@@ -36,7 +36,11 @@ export const KAFALA_DEFAULTS={
   //         بينما تغيّر تجديد الإقامة أو رخصة العمل يغيّر الإجمالي كما هو متوقَّع.
   iqamaPricingModel:'flat',
   // حصة المكتب والتأمين لكل مدة (ريال) — الحدّ الأدنى لمجموعهما في نموذج 'flat'.
+  // تُشتقّ تلقائياً من «الإجمالي المستهدف باستثناء الغرامة» أدناه إن كان مضبوطاً (> 0)؛ وإلا تُستخدم كقيمة مباشرة (توافق قديم).
   iqamaOfficeShare3M:1412.5,iqamaOfficeShare6M:2825,iqamaOfficeShare9M:4237.5,iqamaOfficeShare12M:5650,
+  // الإجمالي المستهدف باستثناء غرامة التأخير لكل مدة (الحالة القياسية: بإعفاء، بلا تغيير مهنة أو إضافات، بلا تأخير).
+  // البرنامج يشتق منه رسوم المكتب تلقائياً: حصة المكتب = الإجمالي المستهدف − تجديد الإقامة القياسي − رخصة العمل (بإعفاء).
+  iqamaExclFineTotal3M:5000,iqamaExclFineTotal6M:8500,iqamaExclFineTotal9M:12500,iqamaExclFineTotal12M:16000,
   medicalGraceMonths:2,medicalGraceDays:10,medGovCover:1000,
   medicalBrackets:[{min:20,max:30,rate:400},{min:30,max:40,rate:500},{min:40,max:50,rate:600},{min:50,max:60,rate:700},{min:60,max:70,rate:900}],
   // حاسبة تاريخ الانتهاء (مطابقة قوى) — أيام تُضاف لكل مدة + تعويض تأخير الإقامات المنتهية.

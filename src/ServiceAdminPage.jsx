@@ -190,7 +190,7 @@ const ALL_SERVICES=[
 {id:'chamber_certification',name_ar:'الغرفة التجارية',Icon:FileCheck,defaultBillable:true,group:'main'},
 {id:'medical_insurance',name_ar:'تأمين طبي',Icon:HeartPulse,defaultBillable:true,group:'other'},
 {id:'profession_change',name_ar:'تغيير المهنة',Icon:UserCog,defaultBillable:true,group:'other'},
-{id:'external_transfer_approval',name_ar:'الموافقة للنقل الخارجي',Icon:BadgeCheck,defaultBillable:false,group:'other'},
+{id:'external_transfer_approval',name_ar:'الموافقة للنقل الخارجي',Icon:BadgeCheck,defaultBillable:true,group:'other'},
 {id:'name_translation',name_ar:'تعديل الراتب',Icon:Wallet,defaultBillable:true,group:'other'},
 {id:'exit_reentry_visa',name_ar:'إصدار / تمديد خروج وعودة',Icon:Plane,defaultBillable:true,group:'other'},
 {id:'final_exit_visa',name_ar:'خروج نهائي',Icon:PlaneTakeoff,defaultBillable:true,group:'other'},
@@ -270,11 +270,16 @@ const IQAMA_EXTRA_FIELDS=[
   // بنموذجٍ تبقى عليه، فالتبديل يسري على الحسبات الجديدة وحدها.
   {k:'iqamaPricingModel',l:'نموذج التسعير',d:'flat',t:'mode'},
   // حصة المكتب والتأمين لكل مدة — رسوم المكتب = الحصة − التأمين (لا تنزل تحت صفر).
-  // فمجموعهما لا يقلّ عن الحصة مهما تبدّلت شريحة عمر العامل.
+  // فمجموعهما لا يقلّ عن الحصة مهما تبدّلت شريحة عمر العامل. (تُشتقّ تلقائياً من الإجمالي المستهدف أدناه إن كان مضبوطاً.)
   {k:'iqamaOfficeShare3M',l:'حصة المكتب والتأمين · ٣ أشهر',d:1412.5,sfx:'ريال'},
   {k:'iqamaOfficeShare6M',l:'حصة المكتب والتأمين · ٦ أشهر',d:2825,sfx:'ريال'},
   {k:'iqamaOfficeShare9M',l:'حصة المكتب والتأمين · ٩ أشهر',d:4237.5,sfx:'ريال'},
   {k:'iqamaOfficeShare12M',l:'حصة المكتب والتأمين · ١٢ شهر',d:5650,sfx:'ريال'},
+  // الإجمالي المستهدف (باستثناء غرامة التأخير) لكل مدة — أدخل هذا فيُشتقّ منه حصة المكتب أعلاه تلقائياً.
+  {k:'iqamaExclFineTotal3M',l:'الإجمالي المستهدف (بلا غرامة) · ٣ أشهر',d:5000,sfx:'ريال'},
+  {k:'iqamaExclFineTotal6M',l:'الإجمالي المستهدف (بلا غرامة) · ٦ أشهر',d:8500,sfx:'ريال'},
+  {k:'iqamaExclFineTotal9M',l:'الإجمالي المستهدف (بلا غرامة) · ٩ أشهر',d:12500,sfx:'ريال'},
+  {k:'iqamaExclFineTotal12M',l:'الإجمالي المستهدف (بلا غرامة) · ١٢ شهر',d:16000,sfx:'ريال'},
   {k:'iqamaGovCover',l:'حد التغطية الحكومية للإقامة',d:650,sfx:'ريال'},
   {k:'iqamaWpResetEnabled',l:'تفعيل قاعدة الإقامة المنتهية من مدة طويلة',d:false,t:'bool'},
   {k:'iqamaWpResetAfterDays',l:'حدّ التأخّر الطويل (يبدأ بعده إصدار جديد)',d:365,sfx:'يوم'},
@@ -556,7 +561,7 @@ const fmtThousands=(v)=>{
 }
 useEffect(()=>{
   const sb=getSupabase();if(!sb)return
-  sb.from('branches').select('id,branch_code').is('deleted_at',null).order('branch_code').then(({data,error})=>{if(error){console.error('Failed to load branches',error);toast(T('تعذّر تحميل المكاتب','Failed to load branches'))}else setBranches(data||[])})
+  sb.from('branches').select('id,branch_code,name_ar').is('deleted_at',null).order('branch_code').then(({data,error})=>{if(error){console.error('Failed to load branches',error);toast(T('تعذّر تحميل المكاتب','Failed to load branches'))}else setBranches(data||[])})
 },[])
 // Same guard as the global overrides effect: mirror to localStorage always, but
 // skip the DB push on the initial mount run (and the post-hydration write-back)
@@ -674,7 +679,7 @@ const renderInlineOverrideEditor=(svc)=>{
     </div>
   )
   return(
-    <div style={{borderRadius:12,background:'rgba(0,0,0,.18)',border:'1px solid rgba(176,125,0,.25)',padding:'14px 16px',display:'flex',flexDirection:'column',gap:14}}>
+    <div style={{borderRadius:12,background:'var(--sunken)',border:'1px solid rgba(176,125,0,.25)',padding:'14px 16px',display:'flex',flexDirection:'column',gap:14}}>
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,paddingBottom:10,borderBottom:'1px solid var(--bd)'}}>
         <span style={{display:'inline-flex',alignItems:'center',gap:8,fontSize:12,fontWeight:600,color:C.gold,letterSpacing:'.2px'}}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/></svg>
@@ -687,31 +692,34 @@ const renderInlineOverrideEditor=(svc)=>{
           <span>المكتب{selectedSet.size>0&&` (${selectedSet.size} محدّد)`}</span>
           <span style={{fontSize:9,color:'var(--tx5)',fontWeight:500}}>اضغط لتحديد عدة مكاتب</span>
         </label>
-        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(90px,1fr))',gap:6,padding:8,borderRadius:10,background:'rgba(0,0,0,.18)',border:'1px solid var(--bd2)'}}>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(150px,1fr))',gap:6,padding:8,borderRadius:10,background:'var(--sunken)',border:'1px solid var(--bd2)'}}>
           {availableBranches.length===0?(
             <div style={{gridColumn:'1/-1',padding:14,textAlign:'center',fontSize:11,color:'var(--tx5)'}}>كل المكاتب لها تخصيص بالفعل أو لا توجد مكاتب نشطة</div>
           ):availableBranches.map(b=>{
             const isSel=selectedSet.has(b.id)
             return(<button key={b.id} type="button" onClick={()=>toggleBranch(b.id)}
-              style={{height:34,borderRadius:8,border:`1px solid ${isSel?C.gold:'var(--bd)'}`,background:isSel?'rgba(176,125,0,.18)':'var(--bd2)',color:C.gold,fontFamily:'monospace',fontSize:12,fontWeight:600,cursor:'pointer',direction:'ltr',transition:'.15s',boxShadow:isSel?`0 0 0 1px ${C.gold}33, 0 2px 6px ${C.gold}22`:'none',display:'inline-flex',alignItems:'center',justifyContent:'center',gap:5}}
+              style={{minHeight:46,padding:'6px 8px',borderRadius:8,border:`1px solid ${isSel?C.gold:'var(--bd)'}`,background:isSel?'rgba(176,125,0,.18)':'var(--bd2)',color:C.gold,fontFamily:F,fontSize:12,fontWeight:600,cursor:'pointer',transition:'.15s',boxShadow:isSel?`0 0 0 1px ${C.gold}33, 0 2px 6px ${C.gold}22`:'none',display:'flex',alignItems:'center',justifyContent:'center',gap:5,textAlign:'center'}}
               onMouseEnter={e=>{if(!isSel){e.currentTarget.style.background='rgba(176,125,0,.10)';e.currentTarget.style.borderColor=`${C.gold}55`}}}
-              onMouseLeave={e=>{if(!isSel){e.currentTarget.style.background='rgba(255,255,255,.03)';e.currentTarget.style.borderColor='rgba(255,255,255,.06)'}}}>
-              {isSel&&<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
-              <span>{b.branch_code}</span>
+              onMouseLeave={e=>{if(!isSel){e.currentTarget.style.background='var(--bd2)';e.currentTarget.style.borderColor='var(--bd)'}}}>
+              {isSel&&<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0}}><polyline points="20 6 9 17 4 12"/></svg>}
+              <span style={{minWidth:0,display:'flex',flexDirection:'column',alignItems:'center',gap:1,lineHeight:1.3}}>
+                <span style={{fontFamily:'monospace',direction:'ltr',fontSize:12,fontWeight:600}}>{b.branch_code}</span>
+                {b.name_ar&&<span style={{fontSize:9.5,fontWeight:500,color:'var(--tx4)',maxWidth:'100%',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}} title={b.name_ar}>{b.name_ar}</span>}
+              </span>
             </button>)
           })}
         </div>
       </div>
       {/* Active + Billable */}
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-        <div style={{padding:'10px 12px',borderRadius:10,background:'rgba(0,0,0,.18)',border:'1px solid var(--bd)'}}>
+        <div style={{padding:'10px 12px',borderRadius:10,background:'var(--sunken)',border:'1px solid var(--bd)'}}>
           <div style={{fontSize:10,color:'var(--tx4)',fontWeight:600,marginBottom:8}}>الحالة <span style={{color:'var(--tx5)'}}>(الافتراضي: {baseActive?'فعّالة':'معطّلة'})</span></div>
           <Toggle on={eff.active} onChange={v=>setDraft({active:v})}
             onLabel="فعّالة" offLabel="معطّلة" onColor={C.ok} offColor={C.red}
             onIcon={<Power size={9} color={C.ok} strokeWidth={3}/>} offIcon={<PowerOff size={9} color={C.red} strokeWidth={3}/>}/>
           {typeof draft.active==='boolean'&&<button type="button" onClick={()=>setDraft({active:undefined})} style={{marginInlineStart:8,fontSize:10,color:'var(--tx5)',background:'transparent',border:'none',cursor:'pointer',fontFamily:F}}>← الافتراضي</button>}
         </div>
-        <div style={{padding:'10px 12px',borderRadius:10,background:'rgba(0,0,0,.18)',border:'1px solid var(--bd)'}}>
+        <div style={{padding:'10px 12px',borderRadius:10,background:'var(--sunken)',border:'1px solid var(--bd)'}}>
           <div style={{fontSize:10,color:'var(--tx4)',fontWeight:600,marginBottom:8}}>الفوترة <span style={{color:'var(--tx5)'}}>(الافتراضي: {baseBillable?'مفوترة':'مجانية'})</span></div>
           <Toggle on={eff.billable} onChange={v=>setDraft({billable:v})}
             onLabel="مفوترة" offLabel="مجانية" onColor={C.gold} offColor={C.ok}
@@ -913,7 +921,7 @@ const renderField=(f,readOnly,big=true)=>{
 const SAUD_FIELDS=(PRICING_SCHEMA.ajeer_contract?.fields||[]).filter(f=>f._section==='saud'&&f.t!=='bool')
 const renderSaudCard=(readOnly,bare=false)=>{
   const on=priceState.saudizationEnabled!==false
-  const outer=bare?{}:{borderRadius:12,background:'rgba(0,0,0,.18)',border:`1px solid ${on?'rgba(176,125,0,.25)':'rgba(255,255,255,.07)'}`,overflow:'hidden'}
+  const outer=bare?{}:{borderRadius:12,background:'var(--sunken)',border:`1px solid ${on?'rgba(176,125,0,.25)':'rgba(255,255,255,.07)'}`,overflow:'hidden'}
   return(
     <div style={outer}>
       <div style={{padding:bare?'0 0 12px':'12px 14px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,borderBottom:'1px solid var(--bd)'}}>
@@ -1013,7 +1021,7 @@ const SectionHead=({title,badge,isCollapsed,onToggle})=>(
 )
 // Edit button positioned as a "tab" on the top-left border of the section card — sits ON the gold border.
 const EditTab=({onClick})=>(
-  <button type="button" onClick={onClick} title="تعديل" style={{position:'absolute',top:-11,insetInlineEnd:14,height:22,padding:'0 10px',borderRadius:6,border:`1px dashed ${C.gold}`,background:'#1a1a1a',color:C.gold,fontFamily:F,fontSize:10,fontWeight:600,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:5,transition:'.15s',zIndex:2}} onMouseEnter={e=>{e.currentTarget.style.boxShadow='0 0 0 2px #1a1a1a'}} onMouseLeave={e=>{e.currentTarget.style.boxShadow='none'}}>
+  <button type="button" onClick={onClick} title="تعديل" style={{position:'absolute',top:-11,insetInlineEnd:14,height:22,padding:'0 10px',borderRadius:6,border:`1px dashed ${C.gold}`,background:'var(--tab-mask)',color:C.gold,fontFamily:F,fontSize:10,fontWeight:600,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:5,transition:'.15s',zIndex:2}} onMouseEnter={e=>{e.currentTarget.style.boxShadow='0 0 0 2px var(--tab-mask)'}} onMouseLeave={e=>{e.currentTarget.style.boxShadow='none'}}>
     <Edit3 size={10} strokeWidth={2.4}/>
     <span>تعديل</span>
   </button>
@@ -1021,11 +1029,11 @@ const EditTab=({onClick})=>(
 // Save + Cancel tabs shown while editing — same position as EditTab so they replace it.
 const EditActionTabs=({onSave,onCancel})=>(
   <div style={{position:'absolute',top:-11,insetInlineEnd:14,display:'inline-flex',alignItems:'center',gap:6,zIndex:2}}>
-    <button type="button" onClick={onCancel} title="إلغاء" style={{height:22,padding:'0 10px',borderRadius:6,border:'1px solid rgba(255,255,255,.2)',background:'#1a1a1a',color:'rgba(255,255,255,.75)',fontFamily:F,fontSize:10,fontWeight:600,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:5,transition:'.15s'}} onMouseEnter={e=>{e.currentTarget.style.borderColor='rgba(255,255,255,.4)';e.currentTarget.style.color='#fff';e.currentTarget.style.boxShadow='0 0 0 2px #1a1a1a'}} onMouseLeave={e=>{e.currentTarget.style.borderColor='rgba(255,255,255,.2)';e.currentTarget.style.color='rgba(255,255,255,.75)';e.currentTarget.style.boxShadow='none'}}>
+    <button type="button" onClick={onCancel} title="إلغاء" style={{height:22,padding:'0 10px',borderRadius:6,border:'1px solid var(--bd)',background:'var(--tab-mask)',color:'var(--tx2)',fontFamily:F,fontSize:10,fontWeight:600,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:5,transition:'.15s'}} onMouseEnter={e=>{e.currentTarget.style.borderColor='var(--tx4)';e.currentTarget.style.color='var(--tx)';e.currentTarget.style.boxShadow='0 0 0 2px var(--tab-mask)'}} onMouseLeave={e=>{e.currentTarget.style.borderColor='var(--bd)';e.currentTarget.style.color='var(--tx2)';e.currentTarget.style.boxShadow='none'}}>
       <span>إلغاء</span>
       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
     </button>
-    <button type="button" onClick={onSave} title="حفظ" style={{height:22,padding:'0 12px',borderRadius:6,border:`1px solid ${C.ok}`,background:'#1a1a1a',color:C.ok,fontFamily:F,fontSize:10,fontWeight:600,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:5,transition:'.15s'}} onMouseEnter={e=>{e.currentTarget.style.boxShadow='0 0 0 2px #1a1a1a, 0 0 0 3px '+C.ok+'66'}} onMouseLeave={e=>{e.currentTarget.style.boxShadow='none'}}>
+    <button type="button" onClick={onSave} title="حفظ" style={{height:22,padding:'0 12px',borderRadius:6,border:`1px solid ${C.ok}`,background:'var(--tab-mask)',color:C.ok,fontFamily:F,fontSize:10,fontWeight:600,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:5,transition:'.15s'}} onMouseEnter={e=>{e.currentTarget.style.boxShadow='0 0 0 2px var(--tab-mask), 0 0 0 3px '+C.ok+'66'}} onMouseLeave={e=>{e.currentTarget.style.boxShadow='none'}}>
       <span>حفظ</span>
       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
     </button>
@@ -1141,14 +1149,14 @@ return<div className="svc-admin-pricing" style={{display:'flex',flexDirection:'c
                             <Search size={15} strokeWidth={2.2} className="svc-occ-search-ico" style={{position:'absolute',top:'50%',left:14,transform:'translateY(-50%)',pointerEvents:'none'}}/>
                             <input type="text" value={q} onChange={e=>setQ(e.target.value)} placeholder={`ابحث بالاسم (${occupations.length} مهنة متاحة)…`} style={{...inpS,height:38,textAlign:'right',direction:'rtl',paddingLeft:40,paddingRight:14,background:'var(--inputBg)'}}/>
                           </div>
-                          <div className="svc-occ-list" style={{maxHeight:220,overflowY:'auto',border:'1px solid var(--bd)',borderRadius:7,background:'rgba(0,0,0,.25)'}}>
+                          <div className="svc-occ-list" style={{maxHeight:220,overflowY:'auto',border:'1px solid var(--bd)',borderRadius:7,background:'var(--sunken)'}}>
                             {filtered.length>0?filtered.slice(0,300).map(o=>(
                               <div key={o.id} onClick={()=>setPriceState(p=>({...p,transferBumpOccupations:[...bumpIds,o.id]}))} style={{padding:'7px 10px',cursor:'pointer',fontSize:11.5,fontWeight:600,color:'var(--tx)',borderBottom:'1px solid var(--bd2)',display:'flex',justifyContent:'space-between',alignItems:'center',gap:8}} onMouseEnter={e=>{e.currentTarget.style.background='rgba(52,131,180,.08)'}} onMouseLeave={e=>{e.currentTarget.style.background='transparent'}}>
                                 <span>{o.name_ar}</span>
                                 {o.name_en&&<span style={{fontSize:10,color:'var(--tx5)',unicodeBidi:'plaintext'}}>{o.name_en}</span>}
                               </div>
                             )):<div style={{fontSize:10.5,color:'var(--tx5)',padding:'14px',textAlign:'center'}}>{occupations.length===0?'جاري تحميل المهن…':q?'لا توجد نتائج':'كل المهن مضافة'}</div>}
-                            {filtered.length>300&&<div style={{fontSize:10,color:'var(--tx5)',padding:'6px 10px',textAlign:'center',background:'rgba(0,0,0,.2)'}}>… و {filtered.length-300} مهنة أخرى · ضيّق البحث</div>}
+                            {filtered.length>300&&<div style={{fontSize:10,color:'var(--tx5)',padding:'6px 10px',textAlign:'center',background:'var(--sunken)'}}>… و {filtered.length-300} مهنة أخرى · ضيّق البحث</div>}
                           </div>
                         </div>)
                       })()}
@@ -1324,14 +1332,14 @@ return<div className="svc-admin-pricing" style={{display:'flex',flexDirection:'c
                             <Search size={15} strokeWidth={2.2} className="svc-occ-search-ico" style={{position:'absolute',top:'50%',left:14,transform:'translateY(-50%)',pointerEvents:'none'}}/>
                             <input type="text" value={q} onChange={e=>setQ(e.target.value)} placeholder={`ابحث بالاسم (${occupations.length} مهنة متاحة)…`} style={{...inpS,height:38,textAlign:'right',direction:'rtl',paddingLeft:40,paddingRight:14,background:'var(--inputBg)'}}/>
                           </div>
-                          <div className="svc-occ-list" style={{maxHeight:220,overflowY:'auto',border:'1px solid var(--bd)',borderRadius:7,background:'rgba(0,0,0,.25)'}}>
+                          <div className="svc-occ-list" style={{maxHeight:220,overflowY:'auto',border:'1px solid var(--bd)',borderRadius:7,background:'var(--sunken)'}}>
                             {filtered.length>0?filtered.slice(0,300).map(o=>(
                               <div key={o.id} onClick={()=>setPriceState(p=>({...p,profChangeFreeOccupations:[...selectedIds,o.id]}))} style={{padding:'7px 10px',cursor:'pointer',fontSize:11.5,fontWeight:600,color:'var(--tx)',borderBottom:'1px solid var(--bd2)',display:'flex',justifyContent:'space-between',alignItems:'center',gap:8}} onMouseEnter={e=>{e.currentTarget.style.background='rgba(39,160,70,.08)'}} onMouseLeave={e=>{e.currentTarget.style.background='transparent'}}>
                                 <span>{o.name_ar}</span>
                                 {o.name_en&&<span style={{fontSize:10,color:'var(--tx5)',unicodeBidi:'plaintext'}}>{o.name_en}</span>}
                               </div>
                             )):<div style={{fontSize:10.5,color:'var(--tx5)',padding:'14px',textAlign:'center'}}>{occupations.length===0?'جاري تحميل المهن…':q?'لا توجد نتائج':'كل المهن مضافة'}</div>}
-                            {filtered.length>300&&<div style={{fontSize:10,color:'var(--tx5)',padding:'6px 10px',textAlign:'center',background:'rgba(0,0,0,.2)'}}>… و {filtered.length-300} مهنة أخرى · ضيّق البحث</div>}
+                            {filtered.length>300&&<div style={{fontSize:10,color:'var(--tx5)',padding:'6px 10px',textAlign:'center',background:'var(--sunken)'}}>… و {filtered.length-300} مهنة أخرى · ضيّق البحث</div>}
                           </div>
                         </div>)
                       })()}
@@ -1579,15 +1587,15 @@ return<div className="svc-admin-pricing" style={{display:'flex',flexDirection:'c
         const heroUnit=<span style={{fontSize:12,color:'var(--tx4)',fontWeight:600,minWidth:64,textAlign:'center'}}>{totalField.sfx}</span>
         const heroValue=(fs,h,align)=>editable
           ?<input type="text" inputMode="decimal" value={fmtThousands(tv??'')} onChange={onPriceChange} placeholder={String(totalField.d)}
-            style={{flex:1,minWidth:0,height:h,padding:'0 14px',border:'1px solid rgba(176,125,0,.35)',borderRadius:11,fontFamily:F,fontSize:Math.min(fs,22),fontWeight:600,color:C.gold,outline:'none',background:'rgba(0,0,0,.30)',textAlign:align==='start'?'left':align,boxSizing:'border-box',direction:'ltr',fontVariantNumeric:'tabular-nums',letterSpacing:'-.5px'}}/>
+            style={{flex:1,minWidth:0,height:h,padding:'0 14px',border:'1px solid rgba(176,125,0,.35)',borderRadius:11,fontFamily:F,fontSize:Math.min(fs,22),fontWeight:600,color:C.gold,outline:'none',background:'var(--sf)',textAlign:align==='start'?'left':align,boxSizing:'border-box',direction:'ltr',fontVariantNumeric:'tabular-nums',letterSpacing:'-.5px'}}/>
           :<div style={{flex:1,minWidth:0,height:h,display:'flex',alignItems:'center',justifyContent:align==='center'?'center':align==='start'?'flex-start':'flex-end',fontSize:fs,fontWeight:600,color:C.gold,fontVariantNumeric:'tabular-nums',direction:'ltr',letterSpacing:'-.5px'}}>{fmtThousands(tv??totalField.d)}</div>
         const minOnChange=(k)=>e=>{let v=e.target.value.replace(/[^0-9.]/g,'');const i=v.indexOf('.');if(i!==-1)v=v.slice(0,i+1)+v.slice(i+1).replace(/\./g,'');setPriceState(p=>({...p,[k]:v}))}
-        const minInput=(f,fs,wide)=><input type="text" inputMode="decimal" value={fmtThousands(priceState[f.k]??'')} onChange={minOnChange(f.k)} placeholder={String(f.d)} style={{...(wide?{flex:1,minWidth:0}:{width:140}),height:40,padding:'0 14px',border:'1px solid rgba(176,125,0,.35)',borderRadius:11,fontFamily:F,fontSize:15,fontWeight:600,color:C.gold,outline:'none',background:'rgba(0,0,0,.30)',textAlign:'center',boxSizing:'border-box',direction:'ltr',fontVariantNumeric:'tabular-nums',letterSpacing:'-.5px'}}/>
+        const minInput=(f,fs,wide)=><input type="text" inputMode="decimal" value={fmtThousands(priceState[f.k]??'')} onChange={minOnChange(f.k)} placeholder={String(f.d)} style={{...(wide?{flex:1,minWidth:0}:{width:140}),height:40,padding:'0 14px',border:'1px solid rgba(176,125,0,.35)',borderRadius:11,fontFamily:F,fontSize:15,fontWeight:600,color:C.gold,outline:'none',background:'var(--sf)',textAlign:'center',boxSizing:'border-box',direction:'ltr',fontVariantNumeric:'tabular-nums',letterSpacing:'-.5px'}}/>
         const minNum=(f,fs,color)=><span style={{fontSize:fs,fontWeight: 600,color:color||'var(--tx)',fontVariantNumeric:'tabular-nums',direction:'ltr'}}>{fmtThousands(priceState[f.k]??f.d)}</span>
         const renderMinimums=()=>(
           <div style={{display:'flex',flexDirection:'column',gap:8}}>
             {gridFields.map(f=>(
-              <div key={f.k} style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,padding:'10px 14px',borderRadius:10,background:'rgba(0,0,0,.18)',border:'1px solid var(--bd)'}}>
+              <div key={f.k} style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,padding:'10px 14px',borderRadius:10,background:'var(--sunken)',border:'1px solid var(--bd)'}}>
                 <label style={{fontSize:12,fontWeight:600,color:'var(--tx3)',margin:0}}>{f.l}</label>
                 <div style={{display:'flex',alignItems:'center',gap:8}}>{editable?minInput(f,13,false):minNum(f,14,C.gold)}<span style={{fontSize:10,fontWeight:600,color:'var(--tx5)',minWidth:60,textAlign:'center'}}>{f.sfx}</span></div>
               </div>
@@ -1596,11 +1604,11 @@ return<div className="svc-admin-pricing" style={{display:'flex',flexDirection:'c
         )
         return <div style={{display:'flex',flexDirection:'column',gap:18}}>
           {/* Hero — default total (accent-rail design) */}
-          <div style={{display:'flex',borderRadius:11,overflow:'hidden',background:'rgba(0,0,0,.18)',border:'1px solid var(--bd)'}}>
+          <div style={{display:'flex',borderRadius:11,overflow:'hidden',background:'var(--sunken)',border:'1px solid var(--bd)'}}>
             <div style={{width:5,background:`linear-gradient(180deg,${C.gold},${C.gold}88)`,flexShrink:0}}/>
             <div style={{flex:1,minWidth:0,padding:'14px 16px',display:'flex',flexDirection:'column',gap:10}}>
               <span style={{fontSize:13.5,color:'var(--tx2)',fontWeight:600,letterSpacing:'.3px'}}>{totalField.l}</span>
-              <div style={{display:'flex',alignItems:'center',gap:8}}>{heroValue(30,46,'start')}{heroUnit}</div>
+              <div style={{display:'flex',alignItems:'center',gap:8}}>{heroValue(30,46,'center')}{heroUnit}</div>
             </div>
           </div>
 
@@ -1723,7 +1731,7 @@ const renderProfChangeFreePicker=()=>{
         <Search size={15} strokeWidth={2.2} className="svc-occ-search-ico" style={{position:'absolute',top:'50%',left:14,transform:'translateY(-50%)',pointerEvents:'none'}}/>
         <input type="text" value={q} onChange={e=>setQ(e.target.value)} placeholder={`ابحث بالاسم (${occupations.length} مهنة متاحة)…`} style={{...inpS,height:38,textAlign:'right',direction:'rtl',paddingLeft:40,paddingRight:14,background:'var(--inputBg)'}}/>
       </div>
-      {q&&<div className="svc-occ-list" style={{maxHeight:200,overflowY:'auto',border:'1px solid var(--bd)',borderRadius:7,background:'rgba(0,0,0,.25)'}}>
+      {q&&<div className="svc-occ-list" style={{maxHeight:200,overflowY:'auto',border:'1px solid var(--bd)',borderRadius:7,background:'var(--sunken)'}}>
         {filtered.length>0?filtered.slice(0,300).map(o=>(
           <div key={o.id} onClick={()=>{setPriceState(p=>({...p,profChangeFreeOccupations:[...selectedIds,o.id],__profChangeFreeQuery:''}))}} style={{padding:'7px 10px',cursor:'pointer',fontSize:11.5,fontWeight:600,color:'var(--tx)',borderBottom:'1px solid var(--bd2)',display:'flex',justifyContent:'space-between',alignItems:'center',gap:8}} onMouseEnter={e=>{e.currentTarget.style.background='rgba(39,160,70,.08)'}} onMouseLeave={e=>{e.currentTarget.style.background='transparent'}}>
             <span>{o.name_ar}</span>{o.name_en&&<span style={{fontSize:10,color:'var(--tx5)',unicodeBidi:'plaintext'}}>{o.name_en}</span>}
@@ -2017,8 +2025,17 @@ const renderIqamaInlineEditor=(s,opts={})=>{
         <span style={{fontSize:9.5,color:'var(--tx5)',fontWeight:600}}>المصدر: منصة قوى — تُطبَّق هذه القاعدة تلقائياً في حاسبة تجديد الإقامة.</span>
       </div></div>)}
     if(title==='رسوم تغيير المهنة'){const fc=Array.isArray(v.profChangeFreeOccupations)?v.profChangeFreeOccupations.length:0;return(<div style={{display:'flex',flexDirection:'column',gap:10}}>{ed?fld('profChange',1):grid(2,[Stat('رسوم تغيير المهنة',fmtThousands(v.profChange??0),'ريال'),Stat('مهن معفاة',fc,'مهنة')])}{ed?renderProfChangeFreePicker():null}</div>)}
-    if(title==='رسوم المكتب'){const daily=v.iqamaOfficeFeeMode==='daily';return(<div style={{display:'flex',flexDirection:'column',gap:12}}>
-      {sub('طريقة الحساب')}{ed?seg('iqamaOfficeFeeMode',[{val:'flat',l:'سعر ثابت',sub:'نفس المبلغ'},{val:'daily',l:'يومي',sub:'سعر اليوم × الأيام'}]):pill(daily?'الوضع: يومي':'الوضع: سعر ثابت',C.gold)}
+    if(title==='رسوم المكتب'){const daily=v.iqamaOfficeFeeMode==='daily';
+      // حصة المكتب تُشتقّ تلقائياً من الإجمالي المستهدف: الحصة = الإجمالي − تجديد الإقامة القياسي − رخصة العمل (بإعفاء).
+      const stdBase=m=>Math.round(m*(parseFloat(v.iqamaPerMonth)||0)*10)/10
+      const derivedShare=m=>Math.max(0,Math.round(((parseFloat(v['iqamaExclFineTotal'+m+'M'])||0)-stdBase(m)-(parseFloat(v['workPermit'+m+'M'])||0))*100)/100)
+      return(<div style={{display:'flex',flexDirection:'column',gap:12}}>
+      {sub('الإجمالي المستهدف (باستثناء غرامة التأخير) حسب مدة التجديد')}
+      <span style={{fontSize:10.5,color:'var(--tx4)',fontWeight:600,lineHeight:1.8,marginTop:-4}}>أدخل الإجمالي الذي تريده لكل مدة (بالحالة القياسية: بإعفاء، بلا تغيير مهنة أو إضافات أو تأخير) — والبرنامج يشتق رسوم المكتب تلقائياً بحيث يطابق الإجمالي الفعلي هذا الرقم.</span>
+      {ed?grid(4,[fld('iqamaExclFineTotal3M',1),fld('iqamaExclFineTotal6M',1),fld('iqamaExclFineTotal9M',1),fld('iqamaExclFineTotal12M',1)]):grid(4,[Stat('٣ أشهر',fmtThousands(v.iqamaExclFineTotal3M??5000),'ريال'),Stat('٦ أشهر',fmtThousands(v.iqamaExclFineTotal6M??8500),'ريال'),Stat('٩ أشهر',fmtThousands(v.iqamaExclFineTotal9M??12500),'ريال'),Stat('١٢ شهر',fmtThousands(v.iqamaExclFineTotal12M??16000),'ريال')])}
+      {sub('حصة المكتب والتأمين المشتقة (معاينة فقط — لا تُعدَّل مباشرة)')}
+      {grid(4,[Stat('٣ أشهر',fmtThousands(derivedShare(3)),'ريال',true),Stat('٦ أشهر',fmtThousands(derivedShare(6)),'ريال',true),Stat('٩ أشهر',fmtThousands(derivedShare(9)),'ريال',true),Stat('١٢ شهر',fmtThousands(derivedShare(12)),'ريال',true)])}
+      {sub('طريقة الحساب (احتياطي لمدد غير قياسية)')}{ed?seg('iqamaOfficeFeeMode',[{val:'flat',l:'سعر ثابت',sub:'نفس المبلغ'},{val:'daily',l:'يومي',sub:'سعر اليوم × الأيام'}]):pill(daily?'الوضع: يومي':'الوضع: سعر ثابت',C.gold)}
       {ed?grid(2,[fld('officeFee',1),fld('officeDailyRate',1)]):grid(2,[Stat('السعر الثابت',fmtThousands(v.officeFee??0),'ريال'),Stat('سعر اليوم',fmtThousands(v.officeDailyRate??0),'ريال/يوم')])}
       {sub('الخصم الإضافي عند التصديق')}{ed?sw('iqamaOfficeDiscountEnabled','مسموح بالخصم الإضافي','الخصم الإضافي معطّل'):pill(v.iqamaOfficeDiscountEnabled!==false?'الخصم الإضافي: مسموح':'الخصم الإضافي: غير مسموح',v.iqamaOfficeDiscountEnabled!==false?C.ok:C.red)}
       {sub('سقف الخصم حسب مدة التجديد')}{ed?grid(4,[fld('iqamaApprovalDiscountCap3M',1),fld('iqamaApprovalDiscountCap6M',1),fld('iqamaApprovalDiscountCap9M',1),fld('iqamaApprovalDiscountCap12M',1)]):grid(4,[Stat('٣ أشهر',fmtThousands(v.iqamaApprovalDiscountCap3M??25),'ريال'),Stat('٦ أشهر',fmtThousands(v.iqamaApprovalDiscountCap6M??51),'ريال'),Stat('٩ أشهر',fmtThousands(v.iqamaApprovalDiscountCap9M??76),'ريال'),Stat('١٢ شهر',fmtThousands(v.iqamaApprovalDiscountCap12M??102),'ريال')])}</div>)}
@@ -2033,7 +2050,7 @@ const renderIqamaInlineEditor=(s,opts={})=>{
     'المهلة والغرامات':{keys:['iqamaGraceDays','iqamaFine1','iqamaFine2']},
     'كرت العمل (رخصة العمل)':{keys:['workPermit3M','workPermit6M','workPermit9M','workPermit12M','workPermitNoExempt3M','workPermitNoExempt6M','workPermitNoExempt9M','workPermitNoExempt12M','workPermitDailyAfter','workPermitCutoffDate','workPermitProcDays','iqamaWpBasis','iqamaExemptionMode','iqamaWpResetEnabled','iqamaWpResetAfterDays','iqamaWpIssuanceDays']},
     'رسوم تغيير المهنة':{keys:['profChange'],extra:['profChangeFreeOccupations']},
-    'رسوم المكتب':{keys:['officeFee','officeDailyRate','iqamaOfficeFeeMode','iqamaPricingModel','iqamaOfficeShare3M','iqamaOfficeShare6M','iqamaOfficeShare9M','iqamaOfficeShare12M','iqamaOfficeDiscountEnabled','iqamaApprovalDiscountCap3M','iqamaApprovalDiscountCap6M','iqamaApprovalDiscountCap9M','iqamaApprovalDiscountCap12M']},
+    'رسوم المكتب':{keys:['officeFee','officeDailyRate','iqamaOfficeFeeMode','iqamaPricingModel','iqamaOfficeShare3M','iqamaOfficeShare6M','iqamaOfficeShare9M','iqamaOfficeShare12M','iqamaExclFineTotal3M','iqamaExclFineTotal6M','iqamaExclFineTotal9M','iqamaExclFineTotal12M','iqamaOfficeDiscountEnabled','iqamaApprovalDiscountCap3M','iqamaApprovalDiscountCap6M','iqamaApprovalDiscountCap9M','iqamaApprovalDiscountCap12M']},
     'التأمين الطبي':{keys:['medicalGraceMonths','medicalGraceDays','medGovCover'],extra:['medicalBrackets']},
   }
   const titles=['الرسوم الحكومية لتجديد الإقامة','المهلة والغرامات','كرت العمل (رخصة العمل)','رسوم تغيير المهنة','رسوم المكتب','التأمين الطبي']
@@ -2146,12 +2163,15 @@ const renderOvBranchPicker=(svcId)=>{
       {available.length===0
         ? <div style={{padding:24,textAlign:'center',fontSize:12,color:'var(--tx5)',fontWeight:500}}>{T('كل المكاتب لها تخصيص بالفعل','All branches already have an override')}</div>
         : <ScrollBox fill>
-            <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(96px,1fr))',gap:11,padding:'4px 2px 6px 18px'}}>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(150px,1fr))',gap:11,padding:'4px 2px 6px 18px'}}>
               {available.map(b=>{const sel=ovBranchIds.includes(b.id);return(
                 <button key={b.id} type="button" onClick={()=>toggle(b.id)}
-                  style={{height:40,borderRadius:9,border:`1px solid ${sel?C.gold:'var(--bd)'}`,background:sel?'rgba(176,125,0,.18)':'var(--bd2)',color:C.gold,fontFamily:'monospace',fontSize:13,fontWeight:600,cursor:'pointer',direction:'ltr',transition:'.15s',boxShadow:sel?`0 0 0 1px ${C.gold}33`:'none',display:'inline-flex',alignItems:'center',justifyContent:'center',gap:6}}>
-                  {sel&&<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
-                  <span>{b.branch_code}</span>
+                  style={{minHeight:50,padding:'6px 8px',borderRadius:9,border:`1px solid ${sel?C.gold:'var(--bd)'}`,background:sel?'rgba(176,125,0,.18)':'var(--bd2)',color:C.gold,fontFamily:F,fontSize:13,fontWeight:600,cursor:'pointer',transition:'.15s',boxShadow:sel?`0 0 0 1px ${C.gold}33`:'none',display:'flex',alignItems:'center',justifyContent:'center',gap:6,textAlign:'center'}}>
+                  {sel&&<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0}}><polyline points="20 6 9 17 4 12"/></svg>}
+                  <span style={{minWidth:0,display:'flex',flexDirection:'column',alignItems:'center',gap:1,lineHeight:1.3}}>
+                    <span style={{fontFamily:'monospace',direction:'ltr',fontSize:13,fontWeight:600}}>{b.branch_code}</span>
+                    {b.name_ar&&<span style={{fontSize:9.5,fontWeight:500,color:'var(--tx4)',maxWidth:'100%',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}} title={b.name_ar}>{b.name_ar}</span>}
+                  </span>
                 </button>)})}
             </div>
           </ScrollBox>}
@@ -2197,7 +2217,7 @@ const renderRow=(s)=>{
     <div key={s.id} className="brs-row" onClick={()=>setSelectedSvcId(s.id)}
       style={{position:'relative',cursor:'pointer',borderRadius:14,background:`radial-gradient(ellipse at top, ${tone}10 0%, var(--card-bg) 60%)`,border:'1px solid var(--bd)',boxShadow:'0 4px 14px rgba(0,0,0,.22)',overflow:'hidden',opacity:st.active?1:.7,transition:'.15s'}}
       onMouseEnter={e=>{e.currentTarget.style.borderColor=`${tone}55`}}
-      onMouseLeave={e=>{e.currentTarget.style.borderColor='rgba(255,255,255,.05)'}}>
+      onMouseLeave={e=>{e.currentTarget.style.borderColor='var(--bd)'}}>
       <div style={{padding:'16px 22px 14px 18px'}}>
         <div className="svc-row-grid">
           {/* Right (info): icon + name + tags */}
@@ -2295,7 +2315,7 @@ style={{width:46,height:24,borderRadius:999,border:'none',background:st.active?C
 {(() => {
   const ovs=getOverridesForSvc(s.id)
   return(
-    <div style={{padding:'10px 22px 14px',borderTop:'1px solid var(--bd2)',display:'flex',flexDirection:'column',gap:8,background:'rgba(0,0,0,.10)'}}>
+    <div style={{padding:'10px 22px 14px',borderTop:'1px solid var(--bd2)',display:'flex',flexDirection:'column',gap:8,background:'var(--bd2)'}}>
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,flexWrap:'wrap'}}>
         <span style={{fontSize:11,fontWeight:600,color:'var(--tx3)',display:'inline-flex',alignItems:'center',gap:6}}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/></svg>
@@ -2317,7 +2337,7 @@ style={{width:46,height:24,borderRadius:999,border:'none',background:st.active?C
           return(
             <span key={o.branchId} style={{display:'inline-flex',alignItems:'center',gap:6,padding:'4px 4px 4px 10px',borderRadius:999,background:'rgba(176,125,0,.08)',border:'1px solid rgba(176,125,0,.25)',fontSize:11,fontWeight:600,color:'var(--tx)'}}>
               <button type="button" onClick={()=>openOverrideEditor(s.id,o.branchId)} title="تعديل التخصيص" style={{background:'transparent',border:'none',padding:0,cursor:'pointer',color:'inherit',fontFamily:F,fontWeight:600,display:'inline-flex',alignItems:'center',gap:5}}>
-                <span style={{color:C.gold,direction:'ltr',fontFamily:'monospace'}}>{code}</span>
+                <span style={{color:C.gold,direction:'ltr',fontFamily:'monospace'}} title={br?.name_ar||''}>{code}</span>{br?.name_ar&&<span style={{fontSize:10,fontWeight:500,color:'var(--tx4)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',maxWidth:120}}>{br.name_ar}</span>}
                 {aOff&&<span title="معطّلة" style={{color:C.red,fontSize:10}}>✗</span>}
                 {!aOff&&bOff&&<span title="مجانية" style={{color:C.ok,fontSize:10}}>$</span>}
                 {pCount>0&&<span style={{padding:'1px 6px',borderRadius:999,background:'rgba(176,125,0,.18)',color:C.gold,fontSize:9}}>{pCount} سعر</span>}
@@ -2333,7 +2353,7 @@ style={{width:46,height:24,borderRadius:999,border:'none',background:st.active?C
   )
 })()}
 {/* Expandable price editor */}
-{isOpen&&<div style={{padding:'24px 22px 18px',borderTop:'1px solid var(--bd)',background:'rgba(0,0,0,.18)'}}>
+{isOpen&&<div style={{padding:'24px 22px 18px',borderTop:'1px solid var(--bd)',background:'var(--sunken)'}}>
 {renderPriceEditor(s)}
 </div>}
 </div>
@@ -2477,7 +2497,7 @@ if(selectedSvc){
           {/* Existing types — rename inline or delete */}
           <div style={{display:'flex',flexDirection:'column',gap:8}}>
             {docTypes.map(d=>(
-              <div key={d.value} style={{display:'flex',alignItems:'center',gap:8,padding:'8px 10px',borderRadius:11,background:'rgba(0,0,0,.2)',border:'1px solid var(--bd)'}}>
+              <div key={d.value} style={{display:'flex',alignItems:'center',gap:8,padding:'8px 10px',borderRadius:11,background:'var(--sunken)',border:'1px solid var(--bd)'}}>
                 <FileStack size={14} color={C.gold} strokeWidth={2} style={{flexShrink:0,opacity:.8}}/>
                 <input value={d.label} onChange={e=>renameDocType(d.value,e.target.value)} readOnly={!canCardBtn(user,'admin_services','document_types','edit')}
                   style={{...FORM_INPUT,height:36,flex:1,fontWeight:600}}/>
@@ -2549,10 +2569,10 @@ if(selectedSvc){
               const fmtV=(x)=>x===undefined||x===null||x===''?'—':((typeof x==='number'||/^\d+(\.\d+)?$/.test(String(x)))?fmtNum(x):String(x))
               const pf=allPriceFields.map(f=>{const ovv=o.pricing?.[f.k];const has=ovv!==undefined&&ovv!==null&&ovv!=='';const dv=def[f.k]??f.d;return{f,ovv,has,dv}}).filter(x=>x.has)
               return(
-                <div key={o.branchId} style={{display:'flex',flexDirection:'column',borderRadius:12,background:'rgba(0,0,0,.22)',border:'1px solid var(--bd)',overflow:'hidden'}}>
-                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,padding:'9px 11px',background:'rgba(0,0,0,.18)',borderBottom:'1px solid var(--bd)'}}>
+                <div key={o.branchId} style={{display:'flex',flexDirection:'column',borderRadius:12,background:'var(--sunken)',border:'1px solid var(--bd)',overflow:'hidden'}}>
+                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,padding:'9px 11px',background:'var(--sunken)',borderBottom:'1px solid var(--bd)'}}>
                     <button type="button" disabled={!canCardBtn(user,'admin_services','branch_overrides','edit')} onClick={()=>{if(!canCardBtn(user,'admin_services','branch_overrides','edit'))return;isSimplePricing(s.id)?openOvModal(s.id,o.branchId):openOverrideEditor(s.id,o.branchId)}} title="تعديل" style={{background:'transparent',border:'none',padding:0,cursor:canCardBtn(user,'admin_services','branch_overrides','edit')?'pointer':'default',display:'inline-flex',alignItems:'center',gap:8,fontFamily:F,flex:1,minWidth:0,justifyContent:'flex-start'}}>
-                      <span style={{color:C.gold,direction:'ltr',fontFamily:'monospace',fontWeight:600,fontSize:14}}>{code}</span>
+                      <span style={{color:C.gold,direction:'ltr',fontFamily:'monospace',fontWeight:600,fontSize:14}}>{code}</span>{br?.name_ar&&<span style={{fontSize:11,fontWeight:500,color:'var(--tx4)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',maxWidth:170}} title={br.name_ar}>{br.name_ar}</span>}
                       {aOff&&<span style={{padding:'2px 7px',borderRadius:5,background:'rgba(192,57,43,.15)',border:'1px solid rgba(192,57,43,.35)',color:C.red,fontSize:10,fontWeight:600,display:'inline-flex',alignItems:'center',gap:3}}><PowerOff size={9} strokeWidth={2.8}/>معطّلة</span>}
                       {!aOff&&bDiff&&(o.billable===false
                         ?<span style={{padding:'2px 7px',borderRadius:5,background:'rgba(39,160,70,.15)',border:'1px solid rgba(39,160,70,.35)',color:C.ok,fontSize:10,fontWeight:600,display:'inline-flex',alignItems:'center',gap:3}}><Gift size={9} strokeWidth={2.8}/>مجانية</span>
@@ -2612,7 +2632,7 @@ if(selectedSvc){
         <div className="svc-section-body">
           <div style={{display:'flex',flexDirection:'column',gap:12}}>
             {/* Active */}
-            <div style={{padding:'14px 16px',borderRadius:11,background:'rgba(0,0,0,.18)',border:'1px solid var(--bd)',display:'flex',alignItems:'center',justifyContent:'space-between',gap:12}}>
+            <div style={{padding:'14px 16px',borderRadius:11,background:'var(--sunken)',border:'1px solid var(--bd)',display:'flex',alignItems:'center',justifyContent:'space-between',gap:12}}>
               <div>
                 <div style={{fontSize:12,color:'var(--tx2)',fontWeight:600,marginBottom:4}}>حالة التشغيل</div>
                 <div style={{fontSize:10.5,color:'var(--tx5)',fontWeight:500}}>{st.active?'الخدمة متاحة لكل المكاتب':'الخدمة معطّلة لكل المكاتب'}</div>
@@ -2630,7 +2650,7 @@ if(selectedSvc){
               </div>
             </div>
             {/* Billable */}
-            <div style={{padding:'14px 16px',borderRadius:11,background:'rgba(0,0,0,.18)',border:'1px solid var(--bd)',display:'flex',alignItems:'center',justifyContent:'space-between',gap:12}}>
+            <div style={{padding:'14px 16px',borderRadius:11,background:'var(--sunken)',border:'1px solid var(--bd)',display:'flex',alignItems:'center',justifyContent:'space-between',gap:12}}>
               <div>
                 <div style={{fontSize:12,color:'var(--tx2)',fontWeight:600,marginBottom:4}}>حالة الفوترة</div>
                 <div style={{fontSize:10.5,color:'var(--tx5)',fontWeight:500}}>{st.billable?'تُضاف للفاتورة بسعر التسعير':'لا تُحتسب على العميل'}</div>
@@ -2868,20 +2888,24 @@ return<div style={{paddingTop:0,paddingBottom:80,display:'flex',flexDirection:'c
               <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 14px',borderRadius:10,background:'rgba(176,125,0,.08)',border:`1px solid ${C.gold}55`}}>
                 <span style={{display:'inline-flex',alignItems:'center',gap:8,color:C.gold,fontSize:13,fontWeight:600}}>
                   <span style={{width:6,height:6,borderRadius:'50%',background:C.gold,boxShadow:`0 0 6px ${C.gold}`}}/>
-                  <span style={{fontFamily:'monospace',direction:'ltr'}}>{branches.find(b=>b.id===overrideEditor.branchId)?.branch_code||'—'}</span>
+                  {(()=>{const ob=branches.find(b=>b.id===overrideEditor.branchId);return<>
+                    <span style={{fontFamily:'monospace',direction:'ltr'}}>{ob?.branch_code||'—'}</span>
+                    {ob?.name_ar&&<span style={{fontSize:11,fontWeight:500,color:'var(--tx4)'}}>{ob.name_ar}</span>}
+                  </>})()}
                 </span>
                 <button type="button" onClick={()=>setOverrideEditor(p=>({...p,branchId:null}))} style={{fontSize:11,color:'var(--tx4)',background:'transparent',border:'none',cursor:'pointer',fontFamily:F}}>تغيير المكتب</button>
               </div>
             ):(
-              <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(110px,1fr))',gap:6,maxHeight:200,overflowY:'auto',padding:8,borderRadius:10,background:'rgba(0,0,0,.18)',border:'1px solid var(--bd)'}}>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(150px,1fr))',gap:6,maxHeight:200,overflowY:'auto',padding:8,borderRadius:10,background:'var(--sunken)',border:'1px solid var(--bd)'}}>
                 {availableBranches.length===0?(
                   <div style={{gridColumn:'1/-1',padding:14,textAlign:'center',fontSize:11,color:'var(--tx5)'}}>كل المكاتب لها تخصيص بالفعل أو لا توجد مكاتب نشطة</div>
                 ):availableBranches.map(b=>(
                   <button key={b.id} type="button" onClick={()=>setOverrideEditor(p=>({...p,branchId:b.id}))}
-                    style={{height:36,borderRadius:8,border:'1px solid var(--bd)',background:'var(--bd2)',color:C.gold,fontFamily:'monospace',fontSize:12,fontWeight:600,cursor:'pointer',direction:'ltr',transition:'.15s'}}
+                    style={{minHeight:46,padding:'6px 8px',borderRadius:8,border:'1px solid var(--bd)',background:'var(--bd2)',color:C.gold,fontFamily:F,fontSize:12,fontWeight:600,cursor:'pointer',transition:'.15s',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:1,lineHeight:1.3,textAlign:'center'}}
                     onMouseEnter={e=>{e.currentTarget.style.background='rgba(176,125,0,.12)';e.currentTarget.style.borderColor=`${C.gold}55`}}
-                    onMouseLeave={e=>{e.currentTarget.style.background='rgba(255,255,255,.03)';e.currentTarget.style.borderColor='rgba(255,255,255,.06)'}}>
-                    {b.branch_code}
+                    onMouseLeave={e=>{e.currentTarget.style.background='var(--bd2)';e.currentTarget.style.borderColor='var(--bd)'}}>
+                    <span style={{fontFamily:'monospace',direction:'ltr',fontSize:12,fontWeight:600}}>{b.branch_code}</span>
+                    {b.name_ar&&<span style={{fontSize:9.5,fontWeight:500,color:'var(--tx4)',maxWidth:'100%',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}} title={b.name_ar}>{b.name_ar}</span>}
                   </button>
                 ))}
               </div>
@@ -2890,14 +2914,14 @@ return<div style={{paddingTop:0,paddingBottom:80,display:'flex',flexDirection:'c
 
           {/* Active + Billable toggles */}
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-            <div style={{padding:'10px 12px',borderRadius:10,background:'rgba(0,0,0,.18)',border:'1px solid var(--bd)'}}>
+            <div style={{padding:'10px 12px',borderRadius:10,background:'var(--sunken)',border:'1px solid var(--bd)'}}>
               <div style={{fontSize:10,color:'var(--tx4)',fontWeight:600,marginBottom:8}}>الحالة <span style={{color:'var(--tx5)'}}>(الافتراضي: {baseActive?'فعّالة':'معطّلة'})</span></div>
               <Toggle on={eff.active} onChange={v=>setDraft({active:v})}
                 onLabel="فعّالة" offLabel="معطّلة" onColor={C.ok} offColor={C.red}
                 onIcon={<Power size={9} color={C.ok} strokeWidth={3}/>} offIcon={<PowerOff size={9} color={C.red} strokeWidth={3}/>}/>
               {typeof draft.active==='boolean'&&<button type="button" onClick={()=>setDraft({active:undefined})} style={{marginInlineStart:8,fontSize:10,color:'var(--tx5)',background:'transparent',border:'none',cursor:'pointer',fontFamily:F}}>← الافتراضي</button>}
             </div>
-            <div style={{padding:'10px 12px',borderRadius:10,background:'rgba(0,0,0,.18)',border:'1px solid var(--bd)'}}>
+            <div style={{padding:'10px 12px',borderRadius:10,background:'var(--sunken)',border:'1px solid var(--bd)'}}>
               <div style={{fontSize:10,color:'var(--tx4)',fontWeight:600,marginBottom:8}}>الفوترة <span style={{color:'var(--tx5)'}}>(الافتراضي: {baseBillable?'مفوترة':'مجانية'})</span></div>
               <Toggle on={eff.billable} onChange={v=>setDraft({billable:v})}
                 onLabel="مفوترة" offLabel="مجانية" onColor={C.gold} offColor={C.ok}
@@ -2908,7 +2932,7 @@ return<div style={{paddingTop:0,paddingBottom:80,display:'flex',flexDirection:'c
 
           {/* Pricing fields */}
           {fields.length>0&&(
-            <div style={{padding:'12px 14px',borderRadius:10,background:'rgba(0,0,0,.18)',border:'1px solid var(--bd)'}}>
+            <div style={{padding:'12px 14px',borderRadius:10,background:'var(--sunken)',border:'1px solid var(--bd)'}}>
               <div style={{fontSize:11,fontWeight:600,color:'var(--tx2)',marginBottom:10,display:'flex',alignItems:'center',gap:6}}>
                 <DollarSign size={12} color={C.gold}/> أسعار خاصة لهذا المكتب
                 <span style={{marginInlineStart:'auto',fontSize:10,color:'var(--tx5)',fontWeight:500}}>اترك فارغاً لاستعمال السعر الافتراضي</span>

@@ -23,7 +23,13 @@ const M = {
 const DIV_SQ = '▪▪▪▪▪▪▪▪▪'
 const DIV_DOT = '· · · · · · ·   · · · · · · ·   · · · · · · ·'
 // الخدمات الصفرية (بلا عمود مالي على الفاتورة): لا تُعرض لها الأرصدة (إجمالي/مدفوع/متبقٍّ) في رسالة الواتساب.
-const ZERO_INVOICE_SVCS = new Set(['supplier_payroll', 'documents', 'external_transfer_approval'])
+const ZERO_INVOICE_SVCS = new Set(['supplier_payroll', 'documents'])
+// الموافقة للنقل الخارجي: بند «رسوم» قابل للتعديل (افتراضي صفر) — صفرية فقط إن بقي إجماليها صفراً فعلاً.
+const isZeroInvoiceSvc = (code, total) => {
+  if (ZERO_INVOICE_SVCS.has(code)) return true
+  if (code === 'external_transfer_approval') return !(Number(total) > 0)
+  return false
+}
 const moLbl = n => (n >= 3 && n <= 10) ? 'أشهر' : 'شهر'
 
 // اسم نوع المستند من قيمته المخزّنة — أنواع الأدمن (docTypesConfig) أولاً ثم الأنواع الثابتة.
@@ -181,7 +187,7 @@ export function buildInvoiceWaMessage(inv, day = null) {
   const total = Number(inv.total_amount || 0), paid = Number(inv.paid_amount || 0), rem = Number(inv.remaining_amount || 0)
   const cur = M.currency
   // الخدمات الصفرية: نستبدل الأرصدة (إجمالي/مدفوع/متبقٍّ) ببنود الطلب (رواتب سبلاير: إجمالي الرواتب + المدة).
-  const isZero = ZERO_INVOICE_SVCS.has(inv.service_type?.code)
+  const isZero = isZeroInvoiceSvc(inv.service_type?.code, total)
   // فاتورة نالت خصماً: نُظهر «الإجمالي قبل الخصم» + «الخصم» + «الإجمالي بعد الخصم» بدل سطر الإجمالي الواحد،
   // كي يتّضح للقارئ أن السعر الأصلي أعلى وأن خصماً طُبِّق. بلا خصم يبقى سطر الإجمالي كما هو.
   const disc = isZero ? 0 : invoiceDiscount(inv)

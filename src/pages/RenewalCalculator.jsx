@@ -409,6 +409,8 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
     else if (wpStart >= cutoff) workPermit = Math.ceil((wpEnd - wpStart) / 86400000) * dailyRate
     else workPermit = bracketFee + Math.ceil((wpEnd - cutoff) / 86400000) * dailyRate
     workPermit = Math.round(workPermit)
+    // سعر «بدون إعفاء» لهذه المدة هو الحد الأعلى الممكن لرخصة العمل — احتساب اليومي/التأخير (بإعفاء) لا يتجاوزه.
+    { const noExemptCap = parseFloat(cfg[`workPermitNoExempt${months}M`]); if (noExemptCap > 0) workPermit = Math.min(workPermit, noExemptCap) }
     // بدون إعفاء: تُحتسب الرخصة بعدد الأشهر المفوترة (مضاعف 3، يشمل التأخّر) — سعر الشريحة المطابقة إن وُجدت
     // (3/6/9/12) وإلا عددها × سعر الشهر (سعر 12 شهر ÷ 12) للمُدد الأطول. لا وجود لشريحة «4 أشهر».
     if (f.exemption === false) {
@@ -448,8 +450,17 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
       // يمتصّ **التأمين وحده**: حصة المدة − التأمين (لا تنزل تحت صفر) — فمجموع
       // (المكتب + التأمين) لا يقلّ عن الحصة مهما تبدّلت شريحة عمر العامل، بينما
       // تغيّر تجديد الإقامة أو رخصة العمل ينعكس على الإجمالي مباشرةً.
-      officeShare = parseFloat(cfg['iqamaOfficeShare' + renewalMonths + 'M'])
-      if (!(officeShare > 0)) officeShare = parseFloat(cfg.officeFee) || 0   // مدة غير معيارية أو حصة غير مضبوطة
+      // أولوية الاشتقاق: «الإجمالي المستهدف باستثناء الغرامة» (إعدادات الأدمن) — الحصة = الإجمالي − تجديد الإقامة
+      // الفعلي − رخصة العمل الفعلية (بقيمهما المحتسبين أعلاه، أياً كان خيار الإعفاء أو شهور التأخير). فالإجمالي
+      // الفعلي (بلا غرامة، بلا تغيير مهنة أو إضافات) يطابق الرقم المُدخل دائماً — المكتب يمتص فرق خيار الإعفاء
+      // أيضاً، لا التأمين وحده. تُترك «حصة المكتب» المباشرة توافقاً قديماً لو لم يُضبط الإجمالي المستهدف.
+      const targetTotal = parseFloat(cfg['iqamaExclFineTotal' + renewalMonths + 'M'])
+      if (targetTotal > 0) {
+        officeShare = Math.max(0, Math.round((targetTotal - renewalBase - workPermit) * 100) / 100)
+      } else {
+        officeShare = parseFloat(cfg['iqamaOfficeShare' + renewalMonths + 'M'])
+        if (!(officeShare > 0)) officeShare = parseFloat(cfg.officeFee) || 0   // مدة غير معيارية أو حصة غير مضبوطة
+      }
       // إدخال يدوي لرسوم المكتب (عند التصديق) يتجاوز الحصة إن أُدخل صراحةً.
       officeFee = (f.officeFee !== '' && !isNaN(parseFloat(f.officeFee)))
         ? parseFloat(f.officeFee)
@@ -517,7 +528,9 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
         pricing_model: calc.flatModel ? 'flat' : 'cover',
         gov_excess: calc.govExcess, extras: f.extras || [], absher_discount: absher,
         subtotal: calc.subtotal, total_amount: grandTotal,
-        status: 'priced', priced_at: new Date().toISOString(), created_by: user?.id || null,
+        // تُصدَر مصدَّقة مباشرة (بلا خطوة تصديق منفصلة) — نفس الحقول التي تضبطها شاشة التصديق في RenewalCalcPage.
+        status: 'approved', priced_at: new Date().toISOString(), created_by: user?.id || null,
+        approved_at: new Date().toISOString(), approved_by: user?.id || null,
         branch_id: user?.branch_id || user?.primary_branch_id || null,
       }
       // لقطة مجمّدة للقيم المشتقّة — تُخزَّن مع الصف فلا تتغيّر القيم التاريخية لاحقًا

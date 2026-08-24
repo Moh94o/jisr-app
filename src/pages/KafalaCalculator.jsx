@@ -874,6 +874,9 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
     } else {
       total = bracketFee + Math.ceil((end - cutoff) / 86400000) * dailyRate
     }
+    // سعر «بدون إعفاء» لهذه المدة هو الحد الأعلى الممكن لرخصة العمل — احتساب اليومي/التأخير لا يتجاوزه.
+    const noExemptCap = parseFloat(cfg[`workPermitNoExempt${months}M`])
+    if (noExemptCap > 0) total = Math.min(total, noExemptCap)
     setF(p => ({ ...p, workPermitRate: String(Math.round(total)) }))
   }, [f.renewalMonths, f.iqamaExpiry, f.wpExpiry, cfg])
 
@@ -1863,7 +1866,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
                     </span>
                     {/* حقل المبلغ */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, direction: dir, opacity: absherOn ? 1 : .5, transition: '.2s' }}>
-                      <input type="text" inputMode="decimal" disabled={!absherOn} value={f.absherBalance ? Number(f.absherBalance.replace(/,/g,'')).toLocaleString('en-US') : ''} onChange={e => set('absherBalance', e.target.value.replace(/[^0-9.]/g, ''))} placeholder="0" style={{ flex: 1, height: 36, padding: '0 12px', borderRadius: 8, border: `1px solid ${absherOn ? absherClr + '4d' : 'rgba(39,160,70,.22)'}`, background: absherOn ? absherClr + '0f' : 'rgba(39,160,70,.06)', fontFamily: F, fontSize: 14, fontWeight: 500, color: absherOn ? absherClr : 'var(--tx5)', outline: 'none', textAlign: 'center', transition: '.2s' }} />
+                      <input type="text" inputMode="decimal" disabled={!absherOn} value={f.absherBalance ? Number(f.absherBalance.replace(/,/g,'')).toLocaleString('en-US') : ''} onChange={e => { const raw = e.target.value.replace(/[^0-9.]/g, ''); const cap = Math.max(0, transferFee + iqamaRenewalFee); const n = parseFloat(raw); set('absherBalance', (isFinite(n) && n > cap) ? String(cap) : raw) }} placeholder="0" style={{ flex: 1, height: 36, padding: '0 12px', borderRadius: 8, border: `1px solid ${absherOn ? absherClr + '4d' : 'rgba(39,160,70,.22)'}`, background: absherOn ? absherClr + '0f' : 'rgba(39,160,70,.06)', fontFamily: F, fontSize: 14, fontWeight: 500, color: absherOn ? absherClr : 'var(--tx5)', outline: 'none', textAlign: 'center', transition: '.2s' }} />
                       <span style={{ fontSize: 13, fontWeight: 500, color: absherOn ? absherClr : 'var(--tx5)' }}>{T('ريال','SAR')}</span>
                     </div>
                   </div>

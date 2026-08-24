@@ -1076,7 +1076,7 @@ export function Modal({ open, onClose, title, subtitle, Icon, width = 720, child
   const body = hasTabs ? tabs[Math.min(curTab, tabs.length - 1)].content : (hasPages ? pages[cur].content : children)
   // مسافة علوية إضافية حين تظهر صفحة بلا عنوان (شريط التقدّم فقط) — تفسح مجالاً
   // لشارة عنوان القسم العائمة بدل التصاقها بشريط التقدّم.
-  const bodyPadTop = (hasPages && pages.length > 1 && !pages[cur].title) ? 16 : 2
+  const bodyPadTop = (hasPages && pages.length > 1 && !pages[cur].title) ? 20 : 8
 
   // أزرار التنقّل: السابق (أقصى اليمين) + التالي/حفظ (أقصى اليسار)، معطّلة حتى تُملأ الإلزامية
   const goBack = controlled ? (() => onBack?.()) : (() => setPage(p => Math.max(0, p - 1)))
@@ -1092,7 +1092,7 @@ export function Modal({ open, onClose, title, subtitle, Icon, width = 720, child
   const showFooter = backNode || forwardNode || shownError != null
   // ارتفاع ثابت بين الخطوات في وضع الصفحات حتى لا يتغيّر شكل النافذة.
   // height يتجاوز كل شيء (لتضمين مكوّن طويل له ترويسته الخاصة عبر hideHeader).
-  const boxHeight = height || (hasPages ? 'min(600px, 92vh)' : undefined)
+  const boxHeight = height || (hasPages ? 'min(640px, 92vh)' : undefined)
 
   // وضع النجاح: يُعرض داخل نفس النافذة (لا قفزة) — زر إغلاق في الزاوية + محتوى
   // النجاح موسَّطاً. مرّر success={<SuccessView .../>} ليتوحّد شكل كل شاشات النجاح.
@@ -1130,7 +1130,7 @@ export function Modal({ open, onClose, title, subtitle, Icon, width = 720, child
 
           {/* الترويسة — تُخفى عبر hideHeader عند تضمين مكوّن له ترويسته الخاصة */}
           {!hideHeader && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 20px 4px', flexShrink: 0 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 26px 6px', flexShrink: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               {Icon && <Icon size={26} color={AC} strokeWidth={1.8} style={{ flexShrink: 0 }} />}
               <div>
@@ -1151,7 +1151,7 @@ export function Modal({ open, onClose, title, subtitle, Icon, width = 720, child
 
           {/* شريط التبويبات — وصول حرّ (للوحات العرض). تحت العنوان مباشرة. */}
           {hasTabs && (
-            <div style={{ display: 'flex', gap: 4, padding: '0 16px 10px', flexShrink: 0, overflowX: 'auto' }}>
+            <div style={{ display: 'flex', gap: 4, padding: '0 26px 12px', flexShrink: 0, overflowX: 'auto' }}>
               {tabs.map((t, i) => {
                 const sel = i === Math.min(curTab, tabs.length - 1)
                 return (
@@ -1167,7 +1167,7 @@ export function Modal({ open, onClose, title, subtitle, Icon, width = 720, child
 
           {/* شريط التقدّم + اسم الخطوة الحالية — تحت العنوان مباشرة */}
           {hasPages && (pages.length > 1 || pages[cur].title) && (
-            <div style={{ padding: '0 20px 3px', flexShrink: 0 }}>
+            <div style={{ padding: '0 26px 4px', flexShrink: 0 }}>
               {pages.length > 1 && (
                 <div style={{ display: 'flex', gap: 6, marginBottom: pages[cur].title ? 9 : 0 }}>
                   {pages.map((_, i) => (
@@ -1185,13 +1185,13 @@ export function Modal({ open, onClose, title, subtitle, Icon, width = 720, child
           <style>{`.fk-body input:focus,.fk-body select:focus,.fk-body textarea:focus,.fk-body button:focus{outline:none!important}
             .fk-body > *:first-child{margin-top:4px!important}
             .fk-body::-webkit-scrollbar{width:4px}.fk-body::-webkit-scrollbar-thumb{background:var(--bd);border-radius:4px}`}</style>
-          <div className="fk-body" style={{ flex: 1, minHeight: 0, overflowY: hasTabs || scroll || hasPages ? 'auto' : 'hidden', overflowX: 'hidden', padding: `${bodyPadTop}px 16px 12px`, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
+          <div className="fk-body" style={{ flex: 1, minHeight: 0, overflowY: hasTabs || scroll || hasPages ? 'auto' : 'hidden', overflowX: 'hidden', padding: `${bodyPadTop}px 26px 18px`, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
             {body}
           </div>
 
           {/* التذييل: السابق (يمين) · رسالة خطأ (وسط) · التالي/حفظ (يسار) */}
           {showFooter && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 20px 6px', flexShrink: 0, gap: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 26px 16px', flexShrink: 0, gap: 12 }}>
               <div style={{ minWidth: 90, display: 'flex', justifyContent: 'flex-start' }}>{backNode}</div>
               <div style={{ flex: 1, minHeight: 18, fontSize: 12, fontWeight: 600, color: C.red, transition: '.15s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                 {shownError && <AlertTriangle size={14} strokeWidth={2.4} style={{ flexShrink: 0 }} />}

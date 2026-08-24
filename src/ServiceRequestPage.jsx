@@ -55,27 +55,6 @@ const dateStatus=(d)=>{if(!d)return'none';const dt=new Date(d),now=new Date(),da
 // Visa-file grouping key: visas may share a file ONLY when nationality, embassy, gender AND profession all match.
 // A file is fully homogeneous — two visas with any differing attribute can never sit in the same file.
 const visaBucketKey=(g)=>`${g?.nationality||''}|${g?.embassy||''}|${g?.gender||''}|${g?.profession||''}`
-// Validate that a file distribution is still consistent with the current groups:
-// every file holds a single bucket (≤4 visas), and each group's assigned total matches its requested count.
-// Used to detect stale assignments after a group's attributes change, so we can re-pack.
-const visaFilesValid=(files,groups)=>{
-const byId=Object.fromEntries((groups||[]).map(g=>[String(g.id),g]))
-if(!files||!files.length)return (groups||[]).every(g=>(parseInt(g.count)||0)<=0)
-const need={};for(const g of groups||[]){const c=parseInt(g.count)||0;if(c>0)need[String(g.id)]=c}
-const have={}
-for(const f of files){
-const ks=new Set();let fc=0
-for(const[gid,n]of Object.entries(f.assignments||{})){
-const cnt=parseInt(n)||0;if(cnt<=0)continue
-const g=byId[String(gid)];if(!g)return false
-ks.add(visaBucketKey(g));fc+=cnt
-have[String(gid)]=(have[String(gid)]||0)+cnt
-}
-if(ks.size>1||fc>4)return false // mixed bucket or over-capacity file
-}
-for(const k of new Set([...Object.keys(need),...Object.keys(have)])){if((need[k]||0)!==(have[k]||0))return false}
-return true
-}
 // Pack visa groups into files of ≤4 visas, never mixing incompatible buckets (different nationality/embassy/gender/profession).
 // Each bucket is packed independently, so a file always holds visas that share those four attributes.
 const packVisaFiles=(groups)=>{
@@ -125,7 +104,7 @@ const MAIN_SERVICES=[
 const OTHER_SERVICES=[
 {id:'medical_insurance',name_ar:'تأمين طبي',name_en:'Medical Insurance',Icon:HeartPulse,billable:true},
 {id:'profession_change',name_ar:'تغيير المهنة',name_en:'Occupation Change',Icon:UserCog,billable:true},
-{id:'external_transfer_approval',name_ar:'الموافقة للنقل الخارجي',name_en:'External Transfer Approval',Icon:BadgeCheck,billable:false},
+{id:'external_transfer_approval',name_ar:'الموافقة للنقل الخارجي',name_en:'External Transfer Approval',Icon:BadgeCheck,billable:true},
 {id:'name_translation',name_ar:'تعديل الراتب',name_en:'Salary Edit',Icon:Wallet,billable:true},
 {id:'exit_reentry_visa',name_ar:'خروج وعودة',name_en:'Exit & Re-entry',Icon:Plane,billable:true},
 {id:'final_exit_visa',name_ar:'خروج نهائي',name_en:'Final Exit',Icon:PlaneTakeoff,billable:true},
@@ -144,7 +123,7 @@ const inpOpts=(opts,isAr)=>(opts||[]).map(o=>isAr||!o.label_en?o:{...o,label:o.l
 // Resolve a SERVICE_INPUTS placeholder by current language (falls back to Arabic).
 const inpPh=(inp,isAr)=>!inp?'':(isAr?(inp.placeholder||''):(inp.placeholder_en||inp.placeholder||''))
 // Display translation for computed pricing-line labels (the stored label stays Arabic; this only flips the display).
-const PRICE_LABEL_EN={'رسوم العقد':'Contract Fee','رسوم مكتب':'Office Fee','رسوم المكتب':'Office Fee','رسوم خروج نهائي':'Final Exit Fee','رسم تغيير المهنة':'Occupation Change Fee','رسم تحديث بيانات الجواز':'Passport Update Fee','رسم تعديل الراتب':'Salary Edit Fee','طباعة الإقامة':'Iqama Print','التأمين الطبي':'Medical Insurance','تصديق المطبوعات':'Printout Certification','تصديق طلب مفتوح':'Open-Request Certification','الغرفة التجارية':'Chamber of Commerce','خدمة عامة':'General Service','رسوم النقل':'Transfer Fee','تجديد الإقامة':'Iqama Renewal','رخصة العمل':'Work Permit','تغيير المهنة':'Occupation Change','غرامة تأخير التجديد':'Renewal Late Fine','غرامة تأخّر الإقامة':'Renewal Late Fine','الخصم':'Discount','إضافي':'Extra'}
+const PRICE_LABEL_EN={'رسوم العقد':'Contract Fee','رسوم مكتب':'Office Fee','رسوم المكتب':'Office Fee','رسوم':'Fees','رسوم خروج نهائي':'Final Exit Fee','رسم تغيير المهنة':'Occupation Change Fee','رسم تحديث بيانات الجواز':'Passport Update Fee','رسم تعديل الراتب':'Salary Edit Fee','طباعة الإقامة':'Iqama Print','التأمين الطبي':'Medical Insurance','تصديق المطبوعات':'Printout Certification','تصديق طلب مفتوح':'Open-Request Certification','الغرفة التجارية':'Chamber of Commerce','خدمة عامة':'General Service','رسوم النقل':'Transfer Fee','تجديد الإقامة':'Iqama Renewal','رخصة العمل':'Work Permit','تغيير المهنة':'Occupation Change','غرامة تأخير التجديد':'Renewal Late Fine','غرامة تأخّر الإقامة':'Renewal Late Fine','الخصم':'Discount','إضافي':'Extra'}
 const priceLabel=(lbl,isAr)=>{if(isAr||!lbl)return lbl;if(PRICE_LABEL_EN[lbl])return PRICE_LABEL_EN[lbl];
   // handle parameterized labels like "خروج وعودة (تمديد-مفردة)", "تجديد الإقامة (12 شهر)", "معامل السعودة ×N"
   let m;
@@ -154,6 +133,8 @@ const priceLabel=(lbl,isAr)=>{if(isAr||!lbl)return lbl;if(PRICE_LABEL_EN[lbl])re
   if((m=lbl.match(/^خروج وعودة \(إصدار-(.+)\)$/)))return `Exit & Re-entry (issue-${m[1]==='متعددة'?'multiple':'single'})`;
   if((m=lbl.match(/^معامل السعودة ×(.+)$/)))return `Saudization factor ×${m[1]}`;
   return lbl}
+// تغيير المهنة: بند «رسوم مكتب» يُعرض «رسوم السعودة» (المخزَّن يبقى «رسوم مكتب» — نفس منطق الحد الأدنى والطباعة).
+const dispLineLabel=(lbl,svcId,isAr)=>(svcId==='profession_change'&&(lbl==='رسوم مكتب'||lbl==='رسوم المكتب'))?(isAr?'رسوم السعودة':'Saudization Fee'):priceLabel(lbl,isAr)
 export const ALL_SERVICES=[...MAIN_SERVICES,...OTHER_SERVICES]
 
 // خريطة: معرّف الخدمة في المعالج → كود service_type في lookup_items. (مُصدَّرة لإعادة استخدامها في فلتر الفواتير.)
@@ -189,7 +170,7 @@ const QUOTE_SVCS=new Set(['kafala_transfer','iqama_renewal'])
 const iqamaQuoteGovFees=q=>q?.government_fees!=null?Number(q.government_fees):Math.max(0,Number(q?.iqama_renewal_fee||0)+Number(q?.work_permit_fee||0)+Number(q?.medical_fee||0)+Number(q?.late_fine_amount||0)+Number(q?.prof_change_fee||0))
 
 // Shared column projection for worker queries (workers / temproryworkers share the same FK shape).
-const WORKER_SELECT='id,name_ar,name_en,phone,iqama_number,iqama_expiry_date,passport_number,passport_expiry,occupation_ar,nationality_ar,birth_date,nationality:nationality_id(id,name_ar,code:code,flag_url),current_occupation:current_occupation_id(name_ar),current_facility:current_facility_id(id,name_ar,unified_number,gosi_number,hrsd_number)'
+const WORKER_SELECT='id,name_ar,name_en,phone,iqama_number,iqama_expiry_date,work_permit_expiry,passport_number,passport_expiry,occupation_ar,nationality_ar,birth_date,nationality:nationality_id(id,name_ar,code:code,flag_url),current_occupation:current_occupation_id(name_ar),current_facility:current_facility_id(id,name_ar,unified_number,gosi_number,hrsd_number)'
 
 // ═══════ Occupations (used by kafala_transfer.new_occupation) ═══════
 const KAFALA_OCCUPATIONS=['عامل بناء','نجار','حداد','كهربائي','سباك','دهان','مشغل معدات','سائق','مقاول','فني تكييف','حارس أمن','عامل نظافة','بائع','موظف إداري','أخرى']
@@ -441,7 +422,6 @@ const[kafalaInstallments,setKafalaInstallments]=useState([{amount:'',date:''}])
 const[kafalaPayStep,setKafalaPayStep]=useState(false)
 const[visaGroups,setVisaGroups]=useState([{id:1,nationality:'',embassy:'',profession:'',gender:'male',count:'1'}])
 const[expandedGroups,setExpandedGroups]=useState(new Set([1]))
-const[step3Mode,setStep3Mode]=useState('groups')// 'groups' | 'files' (visa services only)
 const[kafalaPage,setKafalaPage]=useState(1)// 1=worker data, 2=transfer details
 // Kafala transfer quote search (replaces step 3 fields for kafala_transfer)
 const[kafalaQuoteQ,setKafalaQuoteQ]=useState('')
@@ -454,9 +434,7 @@ const[kafalaSameClient,setKafalaSameClient]=useState(null)
 const[kafalaClientLoading,setKafalaClientLoading]=useState(false)// resolving the worker→client link after choosing «same worker»
 const[passportPage,setPassportPage]=useState(1)// 1=facility+current+type, 2=new passport fields
 const prefilledRef=useRef(new Set())// tracks which fields have already been auto-prefilled
-const[visaDistMode,setVisaDistMode]=useState('auto')// 'auto' (4 per file) | 'custom' (open files sub-step)
 const[visaFiles,setVisaFiles]=useState([])// [{id,count}, ...] — global file distribution across total visas
-const[forceCustomFiles,setForceCustomFiles]=useState(false)// explicit custom mode toggle
 const[dragInfo,setDragInfo]=useState(null)// {fileId, groupId} — drag state for moving visas between files
 const[lkCountries,setLkCountries]=useState([])
 const[lkEmbassies,setLkEmbassies]=useState([])
@@ -494,7 +472,7 @@ useEffect(()=>{
   setKafalaPricing({transferFeeInput:'',iqamaRenewalFee:'',profChangeInput:'',workPermitRate:'',medicalFee:'',officeFee:'',absherBalance:'',discount:'',extras:[]})
   setKafalaPayMode('single');setKafalaInstallments([{amount:'',date:''}]);setKafalaPayStep(false);setKafalaPage(1)
   // التأشيرات
-  setVisaGroups([{id:1,nationality:'',embassy:'',profession:'',gender:'male',count:'1'}]);setExpandedGroups(new Set([1]));setStep3Mode('groups');setVisaDistMode('auto');setVisaFiles([]);setForceCustomFiles(false);setVisaInstallments({issuance:'',authorization:'',residencePerVisa:''});setTotalOverride(null)
+  setVisaGroups([{id:1,nationality:'',embassy:'',profession:'',gender:'male',count:'1'}]);setExpandedGroups(new Set([1]));setVisaFiles([]);setVisaInstallments({issuance:'',authorization:'',residencePerVisa:''});setTotalOverride(null)
   // الوسيط
   setHasBroker(false);setBrokerMode('existing');setBrokerQ('');setSelBroker(null);setNewBroker({name_ar:'',name_en:'',phone:'',id_number:'',nationality_id:''});setBrokerOpen(false)
   // الدفع / الفاتورة
@@ -532,7 +510,7 @@ setClients(c.data||[])
 // Reshape workers to match the legacy `country` / `occupation` / `facility` field names downstream code expects.
 const wRows=(w.data||[]).map(x=>({
 id:x.id,name:x.name_ar||x.name_en,name_ar:x.name_ar,name_en:x.name_en,phone:x.phone,iqama_number:x.iqama_number,
-iqama_expiry_date:x.iqama_expiry_date||null,birth_date:x.birth_date,passport_number:x.passport_number||null,passport_expiry:x.passport_expiry||null,
+iqama_expiry_date:x.iqama_expiry_date||null,work_permit_expiry:x.work_permit_expiry||null,birth_date:x.birth_date,passport_number:x.passport_number||null,passport_expiry:x.passport_expiry||null,
 nationality_id:x.nationality?.id||null,
 nationality:x.nationality?.name_ar||x.nationality_ar||null,
 country:x.nationality?{nationality_ar:x.nationality.name_ar,flag_emoji:null,code:x.nationality.code||null,flag_url:x.nationality.flag_url||null}:(x.nationality_ar?{nationality_ar:x.nationality_ar,flag_emoji:null,code:null,flag_url:null}:null),
@@ -634,15 +612,13 @@ const skipClientStep=!!selSvc&&!CLIENT_SERVICES.has(selSvc)
 const isFreeSvc=!!selSvc&&(selSvc==='documents'||!isServiceBillable(selSvc))
 // All STEPS + الوسيط (if applicable) - merged field - (free svc skips 2 steps)
 // تجديد الإقامة يحذف خطوة العميل، فينقص عدد الخطوات بواحد.
-const totalSteps=STEPS.length+(hasBrokerStep?1:0)-(hasMergedField?1:0)-(isFreeSvc?2:0)-(selSvc==='iqama_renewal'?1:0)-((selSvc==='medical_insurance'||selSvc==='name_translation')?1:0)+(needBranch?1:0)
+const totalSteps=STEPS.length+(hasBrokerStep?1:0)-(hasMergedField?1:0)-(isFreeSvc?2:0)-(selSvc==='iqama_renewal'?1:0)+(needBranch?1:0)
 const displayStep=(()=>{
 if(onBranchScreen)return 1
 const branchOffset=needBranch?1:0
 let d=hasMergedField&&step>=4?step-1:(hasMergedField&&step===3?2:step)
 // تجديد الإقامة: لا خطوة عميل (3)، فكل خطوة بعد التفاصيل تُزاح مؤشّرها بواحد.
 if(selSvc==='iqama_renewal'&&step>=4)d=step-1
-// التأمين الطبي / تعديل الراتب: لا خطوة تسعيرة (4)، فالدفع وما بعده يُزاح مؤشّره بواحد.
-if((selSvc==='medical_insurance'||selSvc==='name_translation')&&step>=5)d=step-1
 // Note sub-screen sits right before the summary (always the second-to-last step)
 // Note/Summary use absolute positions (already include the branch step via totalSteps).
 let absolute=false
@@ -710,7 +686,7 @@ let cancelled=false
 ;(async()=>{
 let m=workers.find(w=>w.iqama_number===idn)||null
 if(!m){
-const mapMin=(x,type)=>({id:x.id,name:x.name_ar||x.name_en,name_ar:x.name_ar,name_en:x.name_en,phone:x.phone,iqama_number:x.iqama_number,iqama_expiry_date:x.iqama_expiry_date||null,birth_date:x.birth_date,passport_number:x.passport_number||null,passport_expiry:x.passport_expiry||null,nationality_id:x.nationality?.id||null,nationality:x.nationality?.name_ar||x.nationality_ar||null,occupation:x.current_occupation?{value_ar:x.current_occupation.name_ar}:(x.occupation_ar?{value_ar:x.occupation_ar}:null),facility:x.current_facility?{id:x.current_facility.id,name_ar:x.current_facility.name_ar,unified_national_number:x.current_facility.unified_number,hrsd_number:x.current_facility.hrsd_number||null,gosi_file_number:x.current_facility.gosi_number||null}:null,worker_type:type})
+const mapMin=(x,type)=>({id:x.id,name:x.name_ar||x.name_en,name_ar:x.name_ar,name_en:x.name_en,phone:x.phone,iqama_number:x.iqama_number,iqama_expiry_date:x.iqama_expiry_date||null,work_permit_expiry:x.work_permit_expiry||null,birth_date:x.birth_date,passport_number:x.passport_number||null,passport_expiry:x.passport_expiry||null,nationality_id:x.nationality?.id||null,nationality:x.nationality?.name_ar||x.nationality_ar||null,occupation:x.current_occupation?{value_ar:x.current_occupation.name_ar}:(x.occupation_ar?{value_ar:x.occupation_ar}:null),facility:x.current_facility?{id:x.current_facility.id,name_ar:x.current_facility.name_ar,unified_national_number:x.current_facility.unified_number,hrsd_number:x.current_facility.hrsd_number||null,gosi_file_number:x.current_facility.gosi_number||null}:null,worker_type:type})
 const[wp,wt]=await Promise.all([
 sb.from('workers').select(WORKER_SELECT).is('deleted_at',null).eq('iqama_number',idn).limit(1),
 sb.from('temproryworkers').select(WORKER_SELECT).is('deleted_at',null).eq('iqama_number',idn).limit(1),
@@ -774,7 +750,7 @@ let country=x.nationality?{nationality_ar:x.nationality.name_ar,flag_emoji:null,
 if((!country||!country.flag_url)){const raw=(country?.nationality_ar||x.nationality_ar||'').trim();const hit=raw&&(natByName[raw]||natByName[normNat(raw)]);if(hit)country={nationality_ar:hit.nat||raw,flag_emoji:null,code:hit.code,flag_url:hit.flag_url}}
 return{
 id:x.id,name:x.name_ar||x.name_en,name_ar:x.name_ar,name_en:x.name_en,phone:x.phone,iqama_number:x.iqama_number,
-iqama_expiry_date:x.iqama_expiry_date||null,birth_date:x.birth_date,passport_number:x.passport_number||null,passport_expiry:x.passport_expiry||null,
+iqama_expiry_date:x.iqama_expiry_date||null,work_permit_expiry:x.work_permit_expiry||null,birth_date:x.birth_date,passport_number:x.passport_number||null,passport_expiry:x.passport_expiry||null,
 nationality_id:x.nationality?.id||null,nationality:x.nationality?.name_ar||x.nationality_ar||null,country,
 occupation:x.current_occupation?{value_ar:x.current_occupation.name_ar}:(x.occupation_ar?{value_ar:x.occupation_ar}:null),
 facility:x.current_facility?{id:x.current_facility.id,name_ar:x.current_facility.name_ar,unified_national_number:x.current_facility.unified_number,hrsd_number:x.current_facility.hrsd_number||null,gosi_file_number:x.current_facility.gosi_number||null}:null,
@@ -924,7 +900,7 @@ return d
 }
 
 // ── Other services: auto pricing calc (dispatches by selSvc) ──
-const SVC_WITH_PRICING=new Set(['ajeer_contract','exit_reentry_visa','final_exit_visa','profession_change','passport_update','name_translation','iqama_print','medical_insurance','chamber_certification','documents','custom'])
+const SVC_WITH_PRICING=new Set(['ajeer_contract','exit_reentry_visa','final_exit_visa','profession_change','passport_update','name_translation','iqama_print','medical_insurance','chamber_certification','documents','custom','external_transfer_approval'])
 const otherServiceAutoCalc=useMemo(()=>{
 if(!SVC_WITH_PRICING.has(selSvc))return null
 const cfg=getServicesConfig(svcBranch||user?.primary_branch_id||branchId||null)
@@ -970,6 +946,10 @@ if(selSvc==='exit_reentry_visa'){
 }
 if(selSvc==='final_exit_visa'){
   return{lines:[{label:'رسوم خروج نهائي',amount:cfg.finalExit.fee}]}
+}
+if(selSvc==='external_transfer_approval'){
+  // لا سعر افتراضي — يبدأ صفراً ويقرّره الموظف بند «رسوم» قابل للتعديل (حدّ أدنى صفر، لا سقف).
+  return{lines:[{label:'رسوم',amount:0}]}
 }
 if(selSvc==='profession_change'){
   const pcOfficeFee=parseFloat(cfg.professionChange.officeFeeFixed)||0
@@ -1356,9 +1336,7 @@ if(ph.length!==9){setErr(T('يرجى إدخال رقم جوال العامل (9 
 {const e=validatePhone(ph);if(e){setErr(e);return false}}
 }
 if(VISA_SERVICES.has(selSvc)){
-// Every group must be fully filled in BOTH sub-modes (groups + files): the file-distribution
-// step is downstream of the groups, so an incomplete group is never valid — even after switching
-// to manual distribution. Guards «التالي» AND the «توزيع تلقائي» toggle (which jumps to files).
+// كل مجموعة يجب أن تكون مكتملة قبل «التالي» — التوزيع اليدوي أُلغي، والملفات تُحزم آلياً.
 for(let i=0;i<visaGroups.length;i++){
 const g=visaGroups[i]
 const lbl=T(`المجموعة ${i+1}`,`Group ${i+1}`)
@@ -1369,26 +1347,6 @@ if(!g.gender){setErr(`${lbl}: `+T('يرجى اختيار الجنس','please sel
 if((parseInt(g.count)||0)<1){setErr(`${lbl}: `+T('يرجى إدخال عدد التأشيرات','please enter the visa count'));return false}
 }
 if(visaGroups.reduce((s,g)=>s+(parseInt(g.count)||0),0)>4){setErr(T('الحد الأقصى 4 تأشيرات لكل فاتورة','Maximum 4 visas per invoice'));return false}
-if(step3Mode!=='groups'){
-// Validate global file distribution
-const totalV=visaGroups.reduce((s,g)=>s+(parseInt(g.count)||0),0)
-const fc=(f)=>Object.values(f.assignments||{}).reduce((s,n)=>s+(parseInt(n)||0),0)
-const sumF=visaFiles.reduce((s,f)=>s+fc(f),0)
-if(sumF!==totalV){setErr(T(`مجموع التأشيرات في الملفات (${sumF}) لا يطابق الإجمالي (${totalV})`,`Visas across files (${sumF}) do not match the total (${totalV})`));return false}
-for(let i=0;i<visaFiles.length;i++){
-const c=fc(visaFiles[i])
-if(c<1){setErr(T(`الملف ${i+1}: يجب أن يحتوي على تأشيرة واحدة على الأقل`,`File ${i+1}: must contain at least one visa`));return false}
-if(c>4){setErr(T(`الملف ${i+1}: الحد الأقصى 4 تأشيرات لكل ملف`,`File ${i+1}: maximum 4 visas per file`));return false}
-// Every visa in a file must share the same nationality, embassy, gender and profession
-const bks=new Set();for(const g of visaGroups){if((parseInt(visaFiles[i].assignments?.[g.id])||0)>0)bks.add(visaBucketKey(g))}
-if(bks.size>1){setErr(T(`الملف ${i+1}: لا يمكن دمج تأشيرات بجنسية أو سفارة أو جنس أو مهنة مختلفة في ملف واحد`,`File ${i+1}: cannot mix visas of different nationality, embassy, gender or occupation in one file`));return false}
-}
-for(const g of visaGroups){
-const have=visaFiles.reduce((s,f)=>s+(parseInt(f.assignments?.[g.id])||0),0)
-const need=parseInt(g.count)||0
-if(have!==need){setErr(T(`لم يتم توزيع جميع تأشيرات كل مجموعة على الملفات`,`Not all visas of every group are distributed across files`));return false}
-}
-}
 }else if(selSvc==='chamber_certification'){
 if(!fields.chamber_subtype){setErr(T('يرجى اختيار نوع التصديق','Please select a certification type'));return false}
 if(fields.chamber_subtype==='printed'&&!fields.chamber_file){setErr(T('يرجى رفع ملف المطبوعات','Please upload the printout file'));return false}
@@ -1560,23 +1518,11 @@ return
 if(step===2&&step2Mode==='client'&&!VISA_SERVICES.has(selSvc)&&!QUOTE_SVCS.has(selSvc)&&selSvc!=='custom'){setStep2Mode('worker');setErr('');return}
 // If the service's single field is merged into Step 2, skip Step 3 entirely
 if(step===2&&hasMergedField){setStep(4);return}
-// Step 3 sub-flow (visa services): groups → [auto: skip to step 4] or [custom: files distribution → step 4]
-if(step===3&&VISA_SERVICES.has(selSvc)&&step3Mode==='groups'){
-// Auto-initialize global distribution: ≤4 per file, never mixing different nationality/embassy/gender
-const totalV=visaGroups.reduce((s,g)=>s+(parseInt(g.count)||0),0)
-const files=packVisaFiles(visaGroups)
-if(visaDistMode==='auto'){
-// Auto: fix distribution at 4-per-file and jump directly to invoice
-setVisaFiles(files)
-setForceCustomFiles(false)
+// Step 3 (visa services): المجموعات ← الفاتورة مباشرة. التوزيع اليدوي أُلغي — الملفات تُحزم آلياً
+// دائماً: ≤4 تأشيرات لكل ملف، ولا تُخلط جنسية/سفارة/جنس/مهنة مختلفة في ملف واحد.
+if(step===3&&VISA_SERVICES.has(selSvc)){
+setVisaFiles(packVisaFiles(visaGroups))
 setStep(4);setErr('');return
-}
-// Custom: seed if needed (or re-pack when the existing distribution went stale after a group edit), open files sub-step
-if(!visaFilesValid(visaFiles,visaGroups)){
-setVisaFiles(files)
-setForceCustomFiles(false)
-}
-setStep3Mode('files');setErr('');return
 }
 // تجديد الإقامة: لا خطوة عميل (العامل هو نفسه العميل، يُربط تلقائياً) — من التفاصيل (الخطوة 2) ننتقل مباشرة لخطة الدفع (الخطوة 4).
 if(step===2&&selSvc==='iqama_renewal'){setStep(4);setKafalaPayStep(true);setErr('');return}
@@ -1586,9 +1532,7 @@ if(step===3&&QUOTE_SVCS.has(selSvc)){setStep(4);setKafalaPayStep(true);setErr(''
 if(step===3&&selSvc==='passport_update'&&passportPage<2){setPassportPage(2);setErr('');return}
 // Free services (documents): skip invoice + payment, jump to the note step (then summary)
 if(step===3&&isFreeSvc){setStep(5);setShowBrokerNoteScreen(true);setErr('');return}
-// التأمين الطبي / تعديل الراتب / خروج نهائي: السعر محسوب تلقائياً (رسم ثابت) — نتخطّى خطوة التسعيرة (الفاتورة) وننتقل من التفاصيل (3) مباشرة للدفع (5).
-// نُعبّئ «المبلغ المدفوع» بالكامل ضمن نفس التحديث حتى لا تومض حالة «المتبقّي» قبل أن يملأه التأثير بعد الرسم.
-if(step===3&&(selSvc==='medical_insurance'||selSvc==='name_translation'||selSvc==='final_exit_visa')){setPaidAmount(String(Number(pricing.total)||0));setStep(5);setErr('');return}
+// خروج نهائي / تعديل الراتب / التأمين الطبي يمرّون بخطوة التسعيرة (4) — رسمها بند قابل للتعديل بحدّ أدنى (لا يقل عن السعر المحتسب).
 // Step 4 kafala/iqama/خدمة عامة sub-flow: pricing → payment-plan screen (before moving to step 5)
 if(step===4&&(selSvc==='kafala_transfer'||selSvc==='iqama_renewal'||selSvc==='custom')&&!kafalaPayStep){setKafalaPayStep(true);setErr('');return}
 // Step 5 sub-flow: payment → note (every service) → summary
@@ -1626,15 +1570,13 @@ if(step===2&&step2Mode==='worker'){if(skipClientStep){setStep(1);return}setStep2
 // Step 3 kafala sub-flow: removed — quote search is the entire step now
 // Step 3 passport sub-flow: new passport fields → current data+type
 if(step===3&&selSvc==='passport_update'&&passportPage>1){setPassportPage(1);return}
-// Step 3 sub-flow: files → groups
-if(step===3&&step3Mode==='files'){setStep3Mode('groups');return}
 // Step 4 quote-driven sub-flow: payment-plan → step 3 (no pricing entry — prices come from the quote).
 // تجديد الإقامة يتخطّى خطوة العميل، فالرجوع من الدفع يعود مباشرة للتفاصيل (الخطوة 2).
 if(step===4&&QUOTE_SVCS.has(selSvc)&&kafalaPayStep){setKafalaPayStep(false);setStep(selSvc==='iqama_renewal'?2:3);return}
 // خدمة عامة: من خطة الدفع رجوعاً إلى جدول التسعيرة (نفس الخطوة 4).
 if(step===4&&selSvc==='custom'&&kafalaPayStep){setKafalaPayStep(false);return}
 // Coming back from step 4 into step 3: visa → restore sub-mode, quote-driven → client party step
-if(step===4&&VISA_SERVICES.has(selSvc)){setStep(3);setStep3Mode(visaDistMode==='auto'?'groups':'files');return}
+if(step===4&&VISA_SERVICES.has(selSvc)){setStep(3);return}
 if(step===4&&QUOTE_SVCS.has(selSvc)){setStep(selSvc==='iqama_renewal'?2:3);return}
 if(step===4&&selSvc==='passport_update'){setStep(3);setPassportPage(2);return}
 // Step 5 sub-flow: summary → note (always present now) → payment entry
@@ -1643,8 +1585,6 @@ if(step===5&&showSummaryScreen){setShowSummaryScreen(false);setShowBrokerNoteScr
 if(step===5&&showBrokerNoteScreen){setShowBrokerNoteScreen(false);if(isFreeSvc)setStep(3);return}
 // Coming back from step 5 into step 4: kafala/iqama/خدمة عامة → restore payment-plan screen
 if(step===5&&(selSvc==='kafala_transfer'||selSvc==='iqama_renewal'||selSvc==='custom')){setStep(4);setKafalaPayStep(true);return}
-// التأمين الطبي / تعديل الراتب / خروج نهائي: الرجوع من الدفع (5) يعود مباشرة للتفاصيل (3) — لا خطوة تسعيرة.
-if(step===5&&!showSummaryScreen&&!showBrokerNoteScreen&&(selSvc==='medical_insurance'||selSvc==='name_translation'||selSvc==='final_exit_visa')){setStep(3);return}
 // Mirror the skip on the way back
 if(step===4&&hasMergedField){setStep(2);setStep2Mode('worker');return}
 setStep(s=>Math.max(s-1,1))
@@ -2367,7 +2307,7 @@ const onEnter=e=>{if(!sel){e.currentTarget.style.background=G.hover;e.currentTar
 const onLeave=e=>{if(!sel){e.currentTarget.style.background=G.base;e.currentTarget.style.borderColor=G.baseB}}
 const handleClick=()=>{setSelClient(c);setClientMode('existing')}// اختيار العميل فقط — الربط الذكي للعامل يتكفّل به المُحلِّل (autoWorker) بحثاً في القاعدة (دائم+مؤقت)
 const deselect=e=>{if(e)e.stopPropagation();setSelClient(null);setWorkerIsClient(false);setSelWorker(null)}
-const infoBox=(Icon,label,val)=><div style={{display:'flex',alignItems:'center',gap:8,padding:'7px 12px',borderRadius:9,background:'var(--fk-input-bg)',border:'1px solid rgba(176,125,0,.18)',minWidth:132}}><Icon size={13} color={C.bentoGold} strokeWidth={1.8}/><div style={{display:'flex',flexDirection:'column',gap:2,minWidth:0}}><span style={{fontSize:9,color:'var(--tx4)',fontWeight:600}}>{label}</span><span style={{fontSize:13,color:'var(--tx)',fontWeight:600,direction:'ltr',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{val}</span></div></div>
+const infoBox=(Icon,label,val)=><div style={{display:'flex',alignItems:'center',gap:8,padding:'7px 12px',borderRadius:9,background:'var(--fk-input-bg)',border:'1px solid rgba(176,125,0,.18)',minWidth:132}}><Icon size={13} color={C.bentoGold} strokeWidth={1.8}/><div style={{display:'flex',flexDirection:'column',gap:2,minWidth:0}}><span style={{fontSize:10.5,color:'var(--tx3)',fontWeight:600}}>{label}</span><span style={{fontSize:13,color:'var(--tx)',fontWeight:600,direction:'ltr',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{val}</span></div></div>
 const flagEl=size=><div title={natLabel} style={{width:size,height:size,borderRadius:12,background:'rgba(0,0,0,.25)',border:sel?'1.5px solid rgba(176,125,0,.4)':'1px solid rgba(255,255,255,.08)',flexShrink:0,transition:'.25s',boxShadow:sel?'0 2px 8px rgba(176,125,0,.15)':'none',position:'relative',overflow:'hidden'}}>{flagUrl?<img src={flagUrl} alt={natLabel} loading="lazy" style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>:<div style={{width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center'}}><Globe size={Math.round(size*.42)} strokeWidth={1.6} color="rgba(255,255,255,.35)"/></div>}</div>
 const nameBlock=<div style={{flex:1,minWidth:0,display:'flex',flexDirection:'column',gap:3}}><span style={{fontSize:14.5,fontWeight:600,color:sel?C.gold:'var(--tx)',letterSpacing:'-.2px'}}>{c.name_ar||c.name_en||'—'}</span>{c.name_ar&&c.name_en&&<span style={{fontSize:11,color:'var(--tx3)',fontWeight:600,opacity:.9}}>{c.name_en}</span>}</div>
 const boxes=<div style={{display:'flex',gap:8,flexShrink:0}}>{c.id_number&&infoBox(CreditCard,T('رقم الهوية','ID number'),c.id_number)}{c.phone&&infoBox(Phone,T('الجوال','Phone'),fmtPhone(c.phone))}</div>
@@ -2515,7 +2455,7 @@ const onLeave=e=>{if(!sel){e.currentTarget.style.background=G.base;e.currentTarg
 const deselect=e=>{if(e)e.stopPropagation();setSelWorker(null)}
 // Iqama-expiry status colors — mirror the expanded worker details below (expired/soon/ok/none).
 const stColors={expired:'#c0392b',soon:'#e5b534',ok:'#27a046',none:'var(--tx5)'}
-const infoBox=(Icon,label,val,valColor)=><div style={{display:'flex',alignItems:'center',gap:8,padding:'7px 10px',borderRadius:9,background:'var(--fk-input-bg)',border:'1px solid rgba(176,125,0,.18)',minWidth:0}}><Icon size={13} color={valColor||C.bentoGold} strokeWidth={1.8}/><div style={{display:'flex',flexDirection:'column',gap:2,minWidth:0}}><span style={{fontSize:9,color:'var(--tx4)',fontWeight:600}}>{label}</span><span style={{fontSize:12,color:valColor||'var(--tx)',fontWeight:600,direction:'ltr',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{val}</span></div></div>
+const infoBox=(Icon,label,val,valColor)=><div style={{display:'flex',alignItems:'center',gap:8,padding:'7px 10px',borderRadius:9,background:'var(--fk-input-bg)',border:'1px solid rgba(176,125,0,.18)',minWidth:0}}><Icon size={13} color={valColor||C.bentoGold} strokeWidth={1.8}/><div style={{display:'flex',flexDirection:'column',gap:2,minWidth:0}}><span style={{fontSize:10.5,color:'var(--tx3)',fontWeight:600}}>{label}</span><span style={{fontSize:12,color:valColor||'var(--tx)',fontWeight:600,direction:'ltr',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{val}</span></div></div>
 const flagEl=size=><div title={natLabel} style={{width:size,height:size,borderRadius:12,background:'rgba(0,0,0,.25)',border:sel?'1.5px solid rgba(176,125,0,.4)':'1px solid rgba(255,255,255,.08)',flexShrink:0,transition:'.25s',boxShadow:sel?'0 2px 8px rgba(176,125,0,.15)':'none',position:'relative',overflow:'hidden'}}>{flagUrl?<img src={flagUrl} alt={natLabel} loading="lazy" style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>:<div style={{width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center'}}><Globe size={Math.round(size*.42)} strokeWidth={1.6} color="rgba(255,255,255,.35)"/></div>}</div>
 const xIcon=<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
 // مُختار — أيقونة زاوية (التفاصيل الغنية تظهر أسفله)
@@ -2531,7 +2471,7 @@ style={{cursor:'pointer',position:'relative',border:`1px solid ${G.baseB}`,backg
 </div>})}
 
 {/* ─── Selected Worker Expanded Details ─── */}
-{selWorker&&(()=>{const w=selWorker;const stat=workerFacilityStat;const latestWP=[...(w.work_permits||[])].sort((a,b)=>new Date(b.wp_expiry_date||0)-new Date(a.wp_expiry_date||0))[0];const latestIns=[...(w.worker_insurance||[])].sort((a,b)=>new Date(b.end_date||0)-new Date(a.end_date||0))[0];const iqStat=dateStatus(w.iqama_expiry_date);const wpStat=dateStatus(latestWP?.wp_expiry_date);const insStat=dateStatus(latestIns?.end_date);const natName=w.country?.nationality_ar||w.nationality||'—';const natFlag=w.country?.flag_emoji||flagEmoji(w.country?.code)||flagEmoji(w.nationality);const ncMap={'platinum':'#E5E4E2','green':'#27a046','green_low':'#6bb77a','green_mid':'#3fa356','green_high':'#1e8c3a','green_top':'#0d6b25','yellow':'#e5b534','yellow_low':'#e5b534','yellow_high':'#c99a2a','red':'#c0392b'};const ncCode=stat?.nitaqat?.code;const ncLabel=stat?.nitaqat?.value_ar||'—';const ncColor=ncCode?(ncMap[ncCode]||'#888'):'#444';const pillBase={display:'flex',alignItems:'center',gap:8,padding:'8px 11px',borderRadius:9,background:'rgba(255,255,255,.03)',border:'1px solid var(--bd)',fontSize:11,fontFamily:F,color:'var(--tx3)',minHeight:40};const lbl={fontSize:10,color:'var(--tx4)',fontWeight:600,letterSpacing:'.2px',lineHeight:1.2};const val={fontSize:13,color:'var(--tx)',fontWeight:600,direction:'ltr',lineHeight:1.2,textAlign:'right'};const stColors={expired:'#c0392b',soon:'#e5b534',ok:'#27a046',none:'var(--tx4)'};const workerLabel=w.name_ar||w.name_en||w.name||T('بيانات العامل','Worker data');const facilityLabel=w.facility?.name_ar||T('بيانات المنشأة','Facility data');
+{selWorker&&(()=>{const w=selWorker;const stat=workerFacilityStat;const latestIns=[...(w.worker_insurance||[])].sort((a,b)=>new Date(b.end_date||0)-new Date(a.end_date||0))[0];const iqStat=dateStatus(w.iqama_expiry_date);const wpStat=dateStatus(w.work_permit_expiry);const insStat=dateStatus(latestIns?.end_date);const natName=w.country?.nationality_ar||w.nationality||'—';const natFlag=w.country?.flag_emoji||flagEmoji(w.country?.code)||flagEmoji(w.nationality);const ncMap={'platinum':'#E5E4E2','green':'#27a046','green_low':'#6bb77a','green_mid':'#3fa356','green_high':'#1e8c3a','green_top':'#0d6b25','yellow':'#e5b534','yellow_low':'#e5b534','yellow_high':'#c99a2a','red':'#c0392b'};const ncCode=stat?.nitaqat?.code;const ncLabel=stat?.nitaqat?.value_ar||'—';const ncColor=ncCode?(ncMap[ncCode]||'#888'):'#444';const pillBase={display:'flex',alignItems:'center',gap:8,padding:'8px 11px',borderRadius:9,background:'rgba(255,255,255,.03)',border:'1px solid var(--bd)',fontSize:11,fontFamily:F,color:'var(--tx3)',minHeight:40};const lbl={fontSize:10,color:'var(--tx4)',fontWeight:600,letterSpacing:'.2px',lineHeight:1.2};const val={fontSize:13,color:'var(--tx)',fontWeight:600,direction:'ltr',lineHeight:1.2,textAlign:'right'};const stColors={expired:'#c0392b',soon:'#e5b534',ok:'#27a046',none:'var(--tx4)'};const workerLabel=w.name_ar||w.name_en||w.name||T('بيانات العامل','Worker data');const facilityLabel=w.facility?.name_ar||T('بيانات المنشأة','Facility data');
 return<>
 {/* ─── Worker data fieldset ─── */}
 <div style={{marginTop:19,padding:'16px 14px 12px',borderRadius:12,border:'1.5px solid rgba(176,125,0,.35)',position:'relative'}}>
@@ -2552,7 +2492,7 @@ return<>
 </div>
 <div style={pillBase}>
 <BadgeCheck size={12} color={stColors[wpStat]} strokeWidth={1.8}/>
-<div style={{display:'flex',flexDirection:'column',gap:5}}><span style={lbl}>{T('رخصة العمل','Work Permit')}</span><span style={{...val,color:stColors[wpStat],direction:'ltr'}}>{fmtDate(latestWP?.wp_expiry_date)}</span></div>
+<div style={{display:'flex',flexDirection:'column',gap:5}}><span style={lbl}>{T('رخصة العمل','Work Permit')}</span><span style={{...val,color:stColors[wpStat],direction:'ltr'}}>{fmtDate(w.work_permit_expiry)}</span></div>
 </div>
 </div>
 </div>
@@ -2686,196 +2626,6 @@ if(VISA_SERVICES.has(selSvc)){
 const totalVisas=visaGroups.reduce((s,g)=>s+(parseInt(g.count)||0),0)
 const MAX_VISAS=4 // Total visas across all groups may not exceed 4 per invoice
 
-// ─── Global file distribution sub-step (a file may only hold visas sharing nationality/embassy/gender) ───
-if(step3Mode==='files'){
-const MAX_FILES=4 // max 4 visas/invoice → at most 4 files (1 visa each), one clean row
-const fileCount=(f)=>Object.values(f.assignments||{}).reduce((s,n)=>s+(parseInt(n)||0),0)
-const sumF=visaFiles.reduce((s,f)=>s+fileCount(f),0)
-const remaining=totalVisas-sumF
-const groupAssigned=(gid)=>visaFiles.reduce((s,f)=>s+(parseInt(f.assignments?.[gid])||0),0)
-const groupRem=(gid)=>{const g=visaGroups.find(x=>x.id===gid);return(parseInt(g?.count)||0)-groupAssigned(gid)}
-// A file's bucket = the nationality/embassy/gender of whatever group currently sits in it (null when empty).
-const bucketOfFile=(f)=>{for(const g of visaGroups){if((parseInt(f.assignments?.[g.id])||0)>0)return visaBucketKey(g)}return null}
-const groupBucket=(gid)=>visaBucketKey(visaGroups.find(x=>x.id===gid))
-const incGroup=(fid,gid)=>{if(remaining<=0)return;setForceCustomFiles(true);setVisaFiles(fs=>fs.map(f=>{
-if(f.id!==fid)return f
-if(fileCount(f)>=4)return f
-const bk=bucketOfFile(f)
-if(bk&&bk!==groupBucket(gid))return f // can't add an incompatible nationality/embassy/gender to this file
-return{...f,assignments:{...(f.assignments||{}),[gid]:(parseInt(f.assignments?.[gid])||0)+1}}
-}))}
-const decGroup=(fid,gid)=>{setForceCustomFiles(true);setVisaFiles(fs=>fs.map(f=>{
-if(f.id!==fid)return f
-const cur=parseInt(f.assignments?.[gid])||0
-if(cur<=0)return f
-const next={...(f.assignments||{})};next[gid]=cur-1
-if(next[gid]<=0)delete next[gid]
-return{...f,assignments:next}
-}))}
-const addFile=()=>{setForceCustomFiles(true);setVisaFiles(fs=>fs.length>=MAX_FILES?fs:[...fs,{id:Math.max(0,...fs.map(f=>f.id))+1,assignments:{}}])}
-const removeFile=(fid)=>{setForceCustomFiles(true);setVisaFiles(fs=>fs.filter(f=>f.id!==fid))}
-// Move 1 visa of `gid` from one file to another (drag-and-drop)
-const moveVisa=(fromFid,toFid,gid)=>{
-if(fromFid===toFid)return
-// Validate the move up-front so we never decrement the source without filling the destination.
-const dest=visaFiles.find(f=>f.id===toFid)
-if(!dest)return
-const destSum=Object.values(dest.assignments||{}).reduce((s,n)=>s+(parseInt(n)||0),0)
-if(destSum>=4)return
-const destBk=bucketOfFile(dest)
-if(destBk&&destBk!==groupBucket(gid))return // destination already holds a different nationality/embassy/gender
-setForceCustomFiles(true)
-setVisaFiles(fs=>fs.map(f=>{
-if(f.id===fromFid){
-const cur=parseInt(f.assignments?.[gid])||0
-if(cur<=0)return f
-const next={...(f.assignments||{})};next[gid]=cur-1
-if(next[gid]<=0)delete next[gid]
-return{...f,assignments:next}
-}
-if(f.id===toFid){
-const sum=Object.values(f.assignments||{}).reduce((s,n)=>s+(parseInt(n)||0),0)
-if(sum>=4)return f
-return{...f,assignments:{...(f.assignments||{}),[gid]:(parseInt(f.assignments?.[gid])||0)+1}}
-}
-return f
-}))
-}
-const activeFiles=visaFiles
-const activeRemaining=remaining
-const activeTotal=totalVisas
-const canAddMore=activeFiles.length<MAX_FILES
-const distPct=activeTotal>0?Math.min(100,Math.round((sumF/activeTotal)*100)):0
-const isComplete=activeRemaining===0&&activeTotal>0
-const isOver=activeRemaining<0
-const multiGroup=visaGroups.length>1
-return<div style={{display:'flex',flexDirection:'column',gap:8,flex:1,minHeight:0,width:'100%'}}>
-<style>{`
-.sr-pill{position:relative;display:inline-flex;align-items:center;gap:4px;padding:1px 7px;border-radius:4px;background:transparent;font-family:${F};font-size:9px;font-weight:600;transition:.2s;flex-shrink:0}
-.sr-pill[data-tip]{cursor:help}
-.sr-pill[data-tip]::after{content:attr(data-tip);position:absolute;top:calc(100% + 8px);right:-4px;background:var(--modal-bg);color:#B07D00;border:1px solid rgba(176,125,0,.35);padding:5px 11px;border-radius:7px;font-size:10.5px;font-weight:600;font-family:${F};white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .18s,transform .18s;transform:translateY(-4px);box-shadow:0 6px 18px rgba(0,0,0,.5);z-index:30;letter-spacing:0}
-.sr-pill[data-tip]::before{content:'';position:absolute;top:calc(100% + 3px);right:8px;width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-bottom:5px solid rgba(176,125,0,.45);opacity:0;pointer-events:none;transition:opacity .18s,transform .18s;transform:translateY(-4px);z-index:30}
-.sr-pill[data-tip]:hover::after,.sr-pill[data-tip]:hover::before{opacity:1;transform:translateY(0)}
-.sr-pill.info{border:none;background:transparent;color:#b497e8;padding:1px 2px;font-size:12px;gap:5px}
-.sr-pill.action{border:1.3px dashed rgba(176,125,0,.55);border-radius:9px;color:#B07D00;cursor:pointer;height:30px;padding:0 13px;font-size:12px;gap:6px}
-.sr-pill.action:hover{background:rgba(176,125,0,.08);border-color:rgba(176,125,0,.85)}
-.sr-pill.status-ok{border:none;background:transparent;color:#2ea043;padding:1px 2px;font-size:12px;gap:5px}
-.sr-pill.status-warn{border:none;background:transparent;color:#B07D00;padding:1px 2px;font-size:12px;gap:5px}
-.sr-pill.status-err{border:none;background:transparent;color:#c0392b;padding:1px 2px;font-size:12px;gap:5px}
-`}</style>
-{/* ═══ Simplified header — matches other step title rows ═══ */}
-<div style={{display:'flex',alignItems:'center',gap:10,flexShrink:0,fontFamily:F,paddingBottom:8,borderBottom:'1px solid var(--bd)'}}>
-{/* Status pill */}
-<span className={`sr-pill ${isComplete?'status-ok':isOver?'status-err':'status-warn'}`}>
-<span>{activeTotal}/{sumF}</span>
-<span>·</span>
-<span>{isComplete?T('مكتمل','Complete'):isOver?T('زيادة','Over'):T('متبقي','Remaining')}</span>
-</span>
-{/* Progress bar */}
-<div style={{flex:1,minWidth:40,height:4,borderRadius:2,background:'var(--bd)',overflow:'hidden'}}>
-<div style={{height:'100%',width:`${distPct}%`,background:isComplete?'#2ea043':isOver?'#c0392b':C.gold,borderRadius:2,transition:'width .3s cubic-bezier(.4,0,.2,1)'}}/>
-</div>
-{/* Drag hint — instructional pill (no tooltip) */}
-{multiGroup&&activeFiles.length>1&&<span className="sr-pill info">
-<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 9l4-4 4 4M9 5v14M19 15l-4 4-4-4M15 19V5"/></svg>
-<span>{T('اسحب للنقل','Drag to move')}</span>
-</span>}
-{/* Back-to-auto */}
-<button type="button" onClick={()=>{setVisaDistMode('auto');setStep3Mode('groups');setErr('')}} className="sr-pill action">{T('تلقائي','Auto')}</button>
-{/* Add file button */}
-{canAddMore&&<button type="button" onClick={addFile} className="sr-pill action">
-<span>{T('ملف','File')}</span>
-<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-</button>}
-</div>
-{/* File cards — composition-aware, drop-target enabled */}
-<div className="sr-modal-scroll" style={{flex:1,minHeight:0,overflowY:'auto',overflowX:'hidden',padding:'6px 2px 10px',scrollbarWidth:'none',msOverflowStyle:'none'}}>
-<div style={{display:'grid',gridTemplateColumns:activeFiles.length<=1?'minmax(0,1fr)':'repeat(2, minmax(0, 1fr))',gap:12,alignItems:'stretch',gridAutoRows:'1fr',minHeight:'100%'}}>
-{activeFiles.map((f,i)=>{
-const c=fileCount(f)
-const full=c>=4
-const fBk=bucketOfFile(f) // this file's locked nationality/embassy/gender (null while empty)
-// Drop-target state: a valid destination must have room AND share this file's bucket (or be empty)
-const isDragSource=!!dragInfo&&dragInfo.fileId===f.id
-const isValidDrop=!!dragInfo&&dragInfo.fileId!==f.id&&!full&&(!fBk||fBk===groupBucket(dragInfo.groupId))
-return<div key={f.id}
-onDragOver={e=>{if(isValidDrop){e.preventDefault();e.dataTransfer.dropEffect='move'}}}
-onDrop={e=>{if(!dragInfo||dragInfo.fileId===f.id)return;e.preventDefault();moveVisa(dragInfo.fileId,f.id,dragInfo.groupId);setDragInfo(null)}}
-style={{position:'relative',display:'flex',flexDirection:'column',minHeight:0,borderRadius:12,border:`1.5px ${isValidDrop?'dashed':'solid'} ${isValidDrop?'rgba(52,152,219,.6)':full?'rgba(46,160,67,.35)':c>0?'rgba(176,125,0,.25)':'rgba(255,255,255,.08)'}`,background:isValidDrop?'linear-gradient(135deg, rgba(52,152,219,.14), rgba(52,152,219,.04))':full?'linear-gradient(135deg, rgba(46,160,67,.08), rgba(46,160,67,.02))':c>0?'linear-gradient(135deg, rgba(176,125,0,.06), rgba(176,125,0,.02))':'rgba(255,255,255,.015)',overflow:'hidden',transition:'.2s',boxShadow:isValidDrop?'0 0 0 3px rgba(52,152,219,.15), 0 2px 12px rgba(52,152,219,.2)':full?'0 2px 8px rgba(46,160,67,.08)':'0 2px 8px rgba(0,0,0,.15)',opacity:isDragSource?.55:1}}>
-{/* Delete button */}
-{activeFiles.length>1&&<button type="button" onClick={()=>removeFile(f.id)} title={T('حذف','Delete')}
-style={{position:'absolute',top:6,left:6,width:20,height:20,borderRadius:5,border:'none',background:'rgba(192,57,43,.15)',color:C.red,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',padding:0,zIndex:2,transition:'.15s'}}
-onMouseEnter={e=>{e.currentTarget.style.background='rgba(192,57,43,.3)'}}
-onMouseLeave={e=>{e.currentTarget.style.background='rgba(192,57,43,.15)'}}>
-<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-</button>}
-{/* File header: label + count/4 */}
-<div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'6px 8px 4px',borderBottom:'1px solid var(--bd)',background:'var(--bd2)'}}>
-<span style={{fontSize:10.5,fontWeight:600,color:full?'#2ea043':C.gold,fontFamily:F,letterSpacing:'.3px'}}>{isAr?'الملف ':'File '}{isAr?(['الأول','الثاني','الثالث','الرابع','الخامس','السادس','السابع','الثامن','التاسع','العاشر'][i]||(i+1)):(i+1)}</span>
-<span style={{fontSize:9,fontWeight:600,color:'var(--tx5)'}}>•</span>
-<span style={{fontSize:14,fontWeight:600,color:full?'#2ea043':c>0?C.gold:'var(--tx5)',fontFamily:F,lineHeight:1}}><span style={{fontSize:9.5,fontWeight:600,color:'var(--tx5)'}}>4/</span>{c}</span>
-</div>
-{multiGroup?(
-// ── Multi-group: per-group rows with mini -/+ controls ──
-<div style={{display:'flex',flexDirection:'column',gap:3,padding:'6px 6px 8px',flex:1,justifyContent:'center',minHeight:0}}>
-{visaGroups.map((g,gi)=>{
-const cnt=parseInt(f.assignments?.[g.id])||0
-const natLbl=g.nationality?(lkCountries.find(co=>co.id===g.nationality)?.nationality_ar||T(`المجموعة ${gi+1}`,`Group ${gi+1}`)):T(`المجموعة ${gi+1}`,`Group ${gi+1}`)
-const profLbl=g.profession?(lkOccupations.find(o=>o.id===g.profession)?.value_ar||''):''
-const gR=groupRem(g.id)
-const compatible=!fBk||visaBucketKey(g)===fBk
-const canInc=!full&&gR>0&&compatible
-const canDec=cnt>0
-// Hide a group from this file when it has nothing left to place here, or belongs to a different bucket
-if(cnt===0&&(gR<=0||!compatible))return null
-const isDraggingThis=!!dragInfo&&dragInfo.fileId===f.id&&dragInfo.groupId===g.id
-return<div key={g.id}
-draggable={cnt>0}
-onDragStart={e=>{if(cnt<=0){e.preventDefault();return}setDragInfo({fileId:f.id,groupId:g.id});e.dataTransfer.effectAllowed='move';try{e.dataTransfer.setData('text/plain',`visa:${f.id}:${g.id}`)}catch(_){}}}
-onDragEnd={()=>setDragInfo(null)}
-title={cnt>0?T('اسحب لنقل تأشيرة إلى ملف آخر','Drag to move a visa to another file'):''}
-style={{display:'flex',alignItems:'center',gap:5,fontFamily:F,padding:'3px 5px',borderRadius:6,background:isDraggingThis?'rgba(52,152,219,.15)':cnt>0?'rgba(176,125,0,.08)':'var(--bd2)',border:`1px solid ${isDraggingThis?'rgba(52,152,219,.5)':cnt>0?'rgba(176,125,0,.18)':'var(--bd2)'}`,transition:'.15s',cursor:cnt>0?'grab':'default',opacity:isDraggingThis?.6:1}}>
-<button type="button" onClick={()=>decGroup(f.id,g.id)} disabled={!canDec} title={T('إنقاص','Decrease')}
-style={{width:20,height:20,borderRadius:5,border:'none',background:canDec?'rgba(192,57,43,.12)':'transparent',color:canDec?C.red:'var(--tx6)',cursor:canDec?'pointer':'not-allowed',display:'flex',alignItems:'center',justifyContent:'center',padding:0,fontSize:13,fontWeight:600,transition:'.15s',flexShrink:0}}
-onMouseEnter={e=>{if(canDec)e.currentTarget.style.background='rgba(192,57,43,.22)'}}
-onMouseLeave={e=>{if(canDec)e.currentTarget.style.background='rgba(192,57,43,.12)'}}>−</button>
-<span style={{fontSize:12,fontWeight:600,color:cnt>0?C.gold:'var(--tx3)',minWidth:12,textAlign:'center',flexShrink:0}}>{cnt}</span>
-<span style={{fontSize:10,fontWeight:600,color:cnt>0?'var(--tx2)':'var(--tx3)',flex:1,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',minWidth:0}} title={profLbl?`${natLbl} · ${profLbl}`:natLbl}>{natLbl}{profLbl&&<span style={{fontSize:9,fontWeight:500,color:'var(--tx4)',marginRight:4}}> · {profLbl}</span>}</span>
-<button type="button" onClick={()=>incGroup(f.id,g.id)} disabled={!canInc} title={T('إضافة','Add')}
-style={{width:20,height:20,borderRadius:5,border:'none',background:canInc?'rgba(46,160,67,.12)':'transparent',color:canInc?'#2ea043':'var(--tx6)',cursor:canInc?'pointer':'not-allowed',display:'flex',alignItems:'center',justifyContent:'center',padding:0,fontSize:13,fontWeight:600,transition:'.15s',flexShrink:0}}
-onMouseEnter={e=>{if(canInc)e.currentTarget.style.background='rgba(46,160,67,.22)'}}
-onMouseLeave={e=>{if(canInc)e.currentTarget.style.background='rgba(46,160,67,.12)'}}>+</button>
-</div>
-})}
-{/* Placeholder when empty file */}
-{c===0&&<div style={{fontSize:10,color:'var(--tx3)',fontFamily:F,textAlign:'center',padding:'8px 4px'}}>{T('أضف تأشيرات من المجموعات المتاحة','Add visas from the available groups')}</div>}
-</div>
-):(
-// ── Single-group: dot slots + simple -/+ ──
-<>
-<div style={{display:'flex',justifyContent:'center',alignItems:'center',gap:4,padding:'10px 0 8px',flex:1,minHeight:0}}>
-{[1,2,3,4].map(n=>{const filled=n<=c;const gid=visaGroups[0]?.id;return<button key={n} type="button" onClick={()=>{if(!gid)return;const target=Math.min(n,c+Math.max(0,remaining));if(target<1)return;setVisaFiles(fs=>fs.map(ff=>ff.id===f.id?{...ff,assignments:{[gid]:target}}:ff));setForceCustomFiles(true)}}
-style={{width:9,height:9,borderRadius:'50%',border:'none',background:filled?(full?'#2ea043':C.gold):'var(--bd)',cursor:'pointer',padding:0,transition:'.15s',boxShadow:filled?`0 0 4px ${full?'rgba(46,160,67,.5)':'rgba(176,125,0,.5)'}`:'none'}} title={T(`اضبط على ${n}`,`Set to ${n}`)}/>})}
-</div>
-<div style={{display:'flex',borderTop:'1px solid var(--bd)',marginTop:'auto'}}>
-<button type="button" onClick={()=>{const gid=visaGroups[0]?.id;if(gid)decGroup(f.id,gid)}} disabled={c<=1}
-style={{flex:1,height:28,border:'none',background:'transparent',color:'var(--tx3)',fontSize:16,fontWeight:600,cursor:c<=1?'not-allowed':'pointer',opacity:c<=1?.25:1,fontFamily:F,padding:0,display:'flex',alignItems:'center',justifyContent:'center',transition:'.15s'}}
-onMouseEnter={e=>{if(c>1)e.currentTarget.style.background='rgba(192,57,43,.08)'}}
-onMouseLeave={e=>{e.currentTarget.style.background='transparent'}}>−</button>
-<div style={{width:1,background:'var(--bd)'}}/>
-<button type="button" onClick={()=>{const gid=visaGroups[0]?.id;if(gid)incGroup(f.id,gid)}} disabled={c>=4||remaining<=0}
-style={{flex:1,height:28,border:'none',background:'transparent',color:'var(--tx3)',fontSize:16,fontWeight:600,cursor:(c>=4||remaining<=0)?'not-allowed':'pointer',opacity:(c>=4||remaining<=0)?.25:1,fontFamily:F,padding:0,display:'flex',alignItems:'center',justifyContent:'center',transition:'.15s'}}
-onMouseEnter={e=>{if(c<4&&remaining>0)e.currentTarget.style.background='rgba(46,160,67,.08)'}}
-onMouseLeave={e=>{e.currentTarget.style.background='transparent'}}>+</button>
-</div>
-</>
-)}
-</div>
-})}
-</div>
-</div>
-</div>
-}
 
 const updateGroup=(id,patch)=>setVisaGroups(gs=>gs.map(g=>g.id===id?{...g,...patch}:g))
 const addGroup=()=>{
@@ -2993,25 +2743,6 @@ onChange={(n)=>{const others=totalVisas-(parseInt(g.count)||0);const cap=Math.ma
 </>
 })()}
 
-{/* Distribution mode — single checkbox: unchecking navigates to files customization view.
-    Hidden when total visas ≤ 1 (one visa = one file, so there's nothing to distribute). */}
-{visaGroups.reduce((s,g)=>s+(parseInt(g.count)||0),0)>1&&<div style={{padding:'2px 2px'}}>
-<FKCheckbox checked={visaDistMode==='auto'} label={isAr?`توزيع تلقائي${visaDistMode==='custom'?' (اضغط للعودة)':''}`:`Auto distribute${visaDistMode==='custom'?' (click to revert)':''}`}
-onChange={()=>{
-// Unchecking opens manual file distribution — a forward step past the groups, so gate it on the
-// same validation as «التالي»: an incomplete group blocks it (canNext sets the error banner).
-if(visaDistMode==='auto'){
-if(!canNext())return
-setVisaDistMode('custom')
-const totalV=visaGroups.reduce((s,g)=>s+(parseInt(g.count)||0),0)
-if(totalV>0){
-const files=packVisaFiles(visaGroups)
-if(!visaFilesValid(visaFiles,visaGroups)){setVisaFiles(files);setForceCustomFiles(false)}
-}
-setStep3Mode('files');setErr('')
-}else setVisaDistMode('auto')
-}}/>
-</div>}
 </div>
 }
 
@@ -3903,7 +3634,7 @@ const o=otherServiceLines
 const ac=otherServiceAutoCalc||{lines:[]}
 const setOV=(idx,v)=>setOtherServicePricing(p=>({...p,overrides:{...p.overrides,[idx]:v}}))
 // نمط «إضافة بند جديد»: زر منقّط عريض مطوي افتراضياً، يتوسّع لحقل إدخال + زر إلغاء عند الضغط.
-const togChip=(label,stateKey,clr)=>{
+const togChip=(label,stateKey,clr,max)=>{
 const on=!!otherServicePricing[stateKey+'_on']
 const c=clr||C.gold
 const setTK=(key,v)=>setOtherServicePricing(p=>({...p,[key]:v}))
@@ -3911,7 +3642,7 @@ return !on
 ?<button type="button" onClick={()=>setTK(stateKey+'_on',true)} onMouseEnter={e=>{e.currentTarget.style.background=`${c}1a`}} onMouseLeave={e=>{e.currentTarget.style.background='transparent'}} style={{width:'100%',height:42,borderRadius:10,border:`1px dashed ${c}80`,background:'transparent',color:c,fontFamily:F,fontSize:13,fontWeight:600,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8,transition:'background .15s ease'}}>{label}<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
 :<div style={{display:'flex',gap:7,alignItems:'center',width:'100%'}}>
 <div style={{...fS,flex:2,height:42,display:'inline-flex',alignItems:'center',justifyContent:'center',color:c,fontWeight:600,cursor:'default'}}>{label}</div>
-<input autoFocus type="text" inputMode="decimal" value={fmtAmt(otherServicePricing[stateKey]||'')} onChange={e=>{const raw=e.target.value.replace(/[^0-9.]/g,'');setTK(stateKey,raw)}} onKeyDown={e=>{if(e.key==='Enter')e.currentTarget.blur();if(e.key==='Escape'){setTK(stateKey,'');setTK(stateKey+'_on',false)}}} placeholder={T('المبلغ','Amount')} style={{...fS,flex:1,height:42,direction:'ltr',textAlign:'center'}}/>
+<input autoFocus type="text" inputMode="decimal" value={fmtAmt(otherServicePricing[stateKey]||'')} onChange={e=>{let raw=e.target.value.replace(/[^0-9.]/g,'');if(max!=null&&raw!==''&&Number(raw)>max)raw=String(max);setTK(stateKey,raw)}} onKeyDown={e=>{if(e.key==='Enter')e.currentTarget.blur();if(e.key==='Escape'){setTK(stateKey,'');setTK(stateKey+'_on',false)}}} placeholder={T('المبلغ','Amount')} style={{...fS,flex:1,height:42,direction:'ltr',textAlign:'center'}}/>
 <button type="button" title={T('إلغاء','Cancel')} onClick={()=>{setTK(stateKey,'');setTK(stateKey+'_on',false)}} onMouseEnter={e=>{e.currentTarget.style.background='rgba(192,57,43,.14)';e.currentTarget.style.borderColor='rgba(192,57,43,.45)';e.currentTarget.style.color=C.red}} onMouseLeave={e=>{e.currentTarget.style.background='transparent';e.currentTarget.style.borderColor='rgba(255,255,255,.12)';e.currentTarget.style.color='var(--tx4)'}} style={{height:42,width:42,flexShrink:0,borderRadius:10,border:'1px solid rgba(255,255,255,.12)',background:'transparent',color:'var(--tx4)',cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',transition:'background .15s ease,border-color .15s ease,color .15s ease'}}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
 </div>}
 return<div style={{marginTop:10,borderRadius:12,border:'1.5px solid rgba(176,125,0,.35)',padding:'18px 14px 14px',position:'relative'}}>
@@ -3928,13 +3659,14 @@ return<div style={{marginTop:10,borderRadius:12,border:'1.5px solid rgba(176,125
 const auto=Number(ac.lines[i]?.amount)||0
 const curVal=otherServicePricing.overrides?.[i]??''
 // طباعة الإقامة / تحديث بيانات الجواز / خروج وعودة: السعر ثابت من الإعدادات (لا يُعدَّل) — يُعرض كرقم بدل حقل إدخال.
-const fixed=selSvc==='iqama_print'||selSvc==='passport_update'||selSvc==='exit_reentry_visa'||selSvc==='name_translation'||selSvc==='profession_change'||selSvc==='chamber_certification'||selSvc==='ajeer_contract'
+// تعديل الراتب مستثنى — سعرها المحتسب (نسبة × راتب) قابل للتعديل بحدّ أدنى (نفس معاملة خروج نهائي).
+const fixed=selSvc==='iqama_print'||selSvc==='passport_update'||selSvc==='exit_reentry_visa'||selSvc==='profession_change'||selSvc==='chamber_certification'||selSvc==='ajeer_contract'
 // «رسوم المكتب» تبقى حقل إدخال (بحدّ أدنى = رسوم المكتب المضبوطة في الإدارة لهذه الخدمة/المكتب) حتى في الخدمات ثابتة السعر.
 // نقل الكفالة وتجديد الإقامة مستثناتان لأنهما حسبتان مصدّقتان لا تمرّان من هذا البلوك أصلاً (ليستا ضمن SVC_WITH_PRICING).
 const isOfficeFee=line.label==='رسوم مكتب'||line.label==='رسوم المكتب'
 const dispFixed=fixed&&!isOfficeFee
 return<div key={i} style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,padding:dispFixed?'10px 12px':'7px 12px',borderBottom:'1px solid var(--bd)'}}>
-<span style={{display:'inline-flex',alignItems:'center',gap:7}}><span style={{width:16,flexShrink:0}}/><span style={{fontSize:13,fontWeight:600,color:'var(--tx)',whiteSpace:'nowrap'}}>{priceLabel(line.label,isAr)}{line.detail&&<span style={{color:'var(--tx5)',fontSize:10,marginRight:4,fontWeight:600}}>({line.detail})</span>}</span></span>
+<span style={{display:'inline-flex',alignItems:'center',gap:7}}><span style={{width:16,flexShrink:0}}/><span style={{fontSize:13,fontWeight:600,color:'var(--tx)',whiteSpace:'nowrap'}}>{dispLineLabel(line.label,selSvc,isAr)}{line.detail&&<span style={{color:'var(--tx5)',fontSize:10,marginRight:4,fontWeight:600}}>({line.detail})</span>}</span></span>
 {dispFixed
 ?<span style={{display:'flex',alignItems:'baseline',gap:5,direction:'ltr',whiteSpace:'nowrap'}}><span style={{fontSize:10.5,color:'var(--tx4)',fontWeight:600}}>{T('ريال','SAR')}</span><span style={{fontSize:14,fontWeight:600,color:'var(--tx)',fontVariantNumeric:'tabular-nums'}}>{fmtAmt(Number(line.amount)||auto)}</span></span>
 :<input type="text" inputMode="decimal" value={fmtAmt(curVal)}
@@ -3968,8 +3700,9 @@ return!otherExtraOpen
 {/* الإجمالي نمط الإيصال — خط علوي ذهبي عريض ورقم بارز */}
 <div style={{marginTop:14,display:'flex',flexDirection:'column',gap:8}}>
 {/* رصيد أبشر only for profession_change + exit_reentry_visa (discount only for kafala_transfer/iqama_renewal, not shown here) */}
+{/* تغيير المهنة: رصيد أبشر لا يتجاوز 1000 (حدّ أقصى إلزامي). خروج وعودة: لا يتجاوز بند «خروج وعودة» نفسه (بلا رسوم المكتب). */}
 {(selSvc==='profession_change'||selSvc==='exit_reentry_visa')&&<div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
-{togChip(T('رصيد أبشر','Absher Balance'),'absherBalance','#2ea043')}
+{togChip(T('رصيد أبشر','Absher Balance'),'absherBalance','#2ea043',selSvc==='profession_change'?1000:(selSvc==='exit_reentry_visa'?(Number(ac?.lines?.[0]?.amount)||0):null))}
 </div>}
 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',background:'rgba(176,125,0,.1)',borderRadius:10,padding:'12px 14px'}}>
 <span style={{fontSize:14,fontWeight:600,color:C.gold}}>{T('الإجمالي','Total')}</span>
@@ -4376,7 +4109,7 @@ const absh=rules.absherBalance||0
 const disc=rules.discount||0
 return<>
 {lines.map((line,i)=>
-<Row key={i} label={priceLabel(line.label,isAr)} value={<span style={{direction:dir,display:'inline-flex',gap:4,...(line.discount?{color:'#2ea043'}:{})}}><bdi>{line.discount?'-':''}{fmtAmt(Number(line.amount).toFixed(2))}</bdi><bdi style={{fontSize:10,color:line.discount?'#2ea043':'var(--tx5)'}}>{T('ريال','SAR')}</bdi></span>}/>
+<Row key={i} label={dispLineLabel(line.label,selSvc,isAr)} value={<span style={{direction:dir,display:'inline-flex',gap:4,...(line.discount?{color:'#2ea043'}:{})}}><bdi>{line.discount?'-':''}{fmtAmt(Number(line.amount).toFixed(2))}</bdi><bdi style={{fontSize:10,color:line.discount?'#2ea043':'var(--tx5)'}}>{T('ريال','SAR')}</bdi></span>}/>
 )}
 {(absh>0||disc>0)&&<Row label={T('الإجمالي الابتدائي','Subtotal')} value={<span style={{direction:dir,display:'inline-flex',gap:4}}><bdi>{fmtAmt(sub.toFixed(2))}</bdi><bdi style={{fontSize:10,color:'var(--tx3)'}}>{T('ريال','SAR')}</bdi></span>}/>}
 {absh>0&&<Row label={T('خصم أبشر','Absher Discount')} value={<span style={{direction:dir,display:'inline-flex',gap:4,color:C.red}}><bdi>-{fmtAmt(absh.toFixed(2))}</bdi><bdi style={{fontSize:10}}>{T('ريال','SAR')}</bdi></span>}/>}
@@ -4512,7 +4245,7 @@ const G={base:'linear-gradient(135deg,rgba(176,125,0,.07),rgba(255,255,255,.015)
 const onEnter=e=>{if(!sel){e.currentTarget.style.background=G.hover;e.currentTarget.style.borderColor=G.hoverB}}
 const onLeave=e=>{if(!sel){e.currentTarget.style.background=G.base;e.currentTarget.style.borderColor=G.baseB}}
 const deselect=e=>{if(e)e.stopPropagation();setSelBroker(null)}
-const infoBox=(Icon,label,val)=><div style={{display:'flex',alignItems:'center',gap:8,padding:'7px 12px',borderRadius:9,background:'var(--fk-input-bg)',border:'1px solid rgba(176,125,0,.18)',minWidth:132}}><Icon size={13} color={C.bentoGold} strokeWidth={1.8}/><div style={{display:'flex',flexDirection:'column',gap:2,minWidth:0}}><span style={{fontSize:9,color:'var(--tx4)',fontWeight:600}}>{label}</span><span style={{fontSize:13,color:'var(--tx)',fontWeight:600,direction:'ltr',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{val}</span></div></div>
+const infoBox=(Icon,label,val)=><div style={{display:'flex',alignItems:'center',gap:8,padding:'7px 12px',borderRadius:9,background:'var(--fk-input-bg)',border:'1px solid rgba(176,125,0,.18)',minWidth:132}}><Icon size={13} color={C.bentoGold} strokeWidth={1.8}/><div style={{display:'flex',flexDirection:'column',gap:2,minWidth:0}}><span style={{fontSize:10.5,color:'var(--tx3)',fontWeight:600}}>{label}</span><span style={{fontSize:13,color:'var(--tx)',fontWeight:600,direction:'ltr',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{val}</span></div></div>
 const flagEl=size=><div title={natLabel} style={{width:size,height:size,borderRadius:12,background:'rgba(0,0,0,.25)',border:sel?'1.5px solid rgba(176,125,0,.4)':'1px solid rgba(255,255,255,.08)',flexShrink:0,transition:'.25s',boxShadow:sel?'0 2px 8px rgba(176,125,0,.15)':'none',position:'relative',overflow:'hidden'}}>{flagUrl?<img src={flagUrl} alt={natLabel} loading="lazy" style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>:<div style={{width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center'}}><Globe size={Math.round(size*.42)} strokeWidth={1.6} color="rgba(255,255,255,.35)"/></div>}</div>
 const nameBlock=<div style={{flex:1,minWidth:0,display:'flex',flexDirection:'column',gap:3}}><span style={{fontSize:14.5,fontWeight:600,color:sel?C.gold:'var(--tx)',letterSpacing:'-.2px'}}>{b.name_ar||b.name_en||'—'}</span>{b.name_ar&&b.name_en&&<span style={{fontSize:11,color:'var(--tx3)',fontWeight:600,opacity:.9}}>{b.name_en}</span>}</div>
 const boxes=<div style={{display:'flex',gap:8,flexShrink:0}}>{b.id_number&&infoBox(CreditCard,T('رقم الهوية','ID number'),b.id_number)}{b.phone&&infoBox(Phone,T('الجوال','Phone'),fmtPhone(b.phone))}</div>
@@ -4625,7 +4358,7 @@ const pages=Array.from({length:totalSteps},(_,i)=>({
 }))
 return <FKModal open onClose={onClose}
   title={svcMeta?svcName(svcMeta,isAr):T('فاتورة','Invoice')} Icon={svcMeta?.Icon||FileText}
-  variant="create" width={760}
+  variant="create" width={920} height="min(720px, 92vh)"
   page={displayStep-1}
   onNext={goNext}
   onBack={()=>{if(step===1&&showOthers){setShowOthers(false);return}goBack()}}

@@ -103,8 +103,14 @@ const baseSvcCode = (code) => (VISA_SVC_CODES.has(code) ? 'work_visa' : code)
 const RESIDENCE_VISA_CODES = new Set(['work_visa_permanent', 'work_visa_9m', 'work_visa_6m'])
 // خدمات «الفاتورة الصفرية» المبسّطة — طلب بلا تسعير/دفع، تأخذ نفس معاملة صفحة التفاصيل والكرت والطباعة
 // (رواتب سبلاير، المستندات). تُخفى الكروت المالية/التسعير/الدفع وزر الإلغاء، وتظهر كتلة حالة المعاملة.
-const ZERO_INVOICE_SVCS = new Set(['supplier_payroll', 'documents', 'external_transfer_approval'])
-const isZeroSvc = (code) => ZERO_INVOICE_SVCS.has(baseSvcCode(code))
+const ZERO_INVOICE_SVCS = new Set(['supplier_payroll', 'documents'])
+// الموافقة للنقل الخارجي: سعرها بند «رسوم» قابل للتعديل (افتراضي صفر) — فالفاتورة صفرية فقط عند بقاء المبلغ صفراً فعلاً.
+const isZeroSvc = (code, total) => {
+  const c = baseSvcCode(code)
+  if (ZERO_INVOICE_SVCS.has(c)) return true
+  if (c === 'external_transfer_approval') return !(Number(total) > 0)
+  return false
+}
 // خدمات تمرّ على بوّابة «موافقة المحاسب» قبل الإنجاز (النقل الخارجي · خروج وعودة · خروج نهائي) — من سجل الخدمات.
 const needsAcctApproval = (code) => !!TXN_SERVICES[baseSvcCode(code)]?.needs_accountant_approval
 
@@ -117,7 +123,7 @@ const SVC_DETAIL_SKIP = new Set(['chamber_subtype', 'chamber_text', 'chamber_fil
 // خدمات قيمها مجمّدة من الحسبة/التأشيرة — لا تُعدَّل حقولها من هنا.
 const SVC_FIELDS_FROZEN = new Set(['transfer', 'iqama_renewal', 'iqama_issuance', 'work_visa'])
 // خدمات تخزّن حقولها أعمدةً في جدولها المخصّص لا في details.
-const SVC_COLUMN_TBL = { supplier_payroll: 'supplier_payroll_applications', iqama_renewal: 'iqama_renewal_applications' }
+const SVC_COLUMN_TBL = { supplier_payroll: 'supplier_payroll_applications', iqama_renewal: 'iqama_renewal_applications', transfer: 'transfer_applications' }
 const SVC_COLUMN_FIELDS = {
   supplier_payroll: [
     { key: 'worker_phone', l_ar: 'رقم جوال العامل', l_en: 'Worker Mobile' },
@@ -131,11 +137,22 @@ const SVC_COLUMN_FIELDS = {
     { key: 'current_expire_date', l_ar: 'الانتهاء الحالي', l_en: 'Current Expiry', date: true },
     { key: 'new_expire_date', l_ar: 'الانتهاء الجديد', l_en: 'New Expiry', date: true },
   ],
+  // نقل الكفالة: نفس معاملة تجديد الإقامة — قيم عرض فقط على صفّ الطلب، لا تمسّ حسبة التنازل المعتمدة.
+  transfer: [
+    { key: 'expected_iqama_months', l_ar: 'مدة التجديد', l_en: 'Renewal Duration', months: true },
+    { key: 'iqama_expiry_date', l_ar: 'الانتهاء الحالي', l_en: 'Current Expiry', date: true },
+    { key: 'renewed_iqama_expiry_date', l_ar: 'الانتهاء الجديد', l_en: 'New Expiry', date: true },
+  ],
+}
+// تغيير «مدة التجديد» في تعديل تفاصيل الخدمة يُعيد حساب «الانتهاء الجديد» تلقائياً = «الانتهاء الحالي» + المدة.
+const SVC_NEW_EXPIRY_CALC = {
+  iqama_renewal: { durationKey: 'duration_months', currentKey: 'current_expire_date', newKey: 'new_expire_date' },
+  transfer: { durationKey: 'expected_iqama_months', currentKey: 'iqama_expiry_date', newKey: 'renewed_iqama_expiry_date' },
 }
 // أي من هذه الجداول يحمل عمود «الوصف» (description) — تجديد الإقامة لا يحمله.
 const SVC_COLUMN_DESC = { supplier_payroll: true }
 // خدمات مبنيّة على حسبة معتمدة — تعديل حقول الفاتورة هنا لا يمسّ الحسبة ولا التسعير.
-const SVC_QUOTE_DRIVEN = new Set(['iqama_renewal'])
+const SVC_QUOTE_DRIVEN = new Set(['iqama_renewal', 'transfer'])
 const svcEditFields = (code) => {
   const base = baseSvcCode(code)
   if (SVC_COLUMN_FIELDS[base]) return SVC_COLUMN_FIELDS[base].map(f => ({ ...f, col: true }))
@@ -414,7 +431,7 @@ function InvCard({ d, row, sb, T, isAr, toast, onClick, user }) {
     : (d.permVisaIssued ? 'progress' : 'new')
   // لون كل حالة — مصدر اللون الموحَّد (تستهلكه STAGE_META أدناه أيضاً).
   const STAGE_C = { done: C.ok, progress: C.gold, new: C.blue, cancelled: C.red, acct_rejected: C.red, acct_approved: C.gold, awaiting_acct: C.blue }
-  const isSP = isZeroSvc(d.svcCode)
+  const isSP = isZeroSvc(d.svcCode, d.total)
   // الخدمات الصفرية (بلا عمود مالي): لون الكرت = لون حالة المعاملة، فيُطابق التاق في الـ hover والبوتوم بار.
   // غيرها: لون حالة السداد (أو أحمر إن ملغاة).
   const statusColor = isSP ? STAGE_C[reqStage] : (d.cancelled ? C.red : d.payT.c)
@@ -1914,7 +1931,7 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user, onO
           visa_order_kind:visa_order_kind_id(value_ar,value_en),
           wakalah_status:wakalah_status_id(value_ar,value_en),
           editor:updated_by(person:person_id(name_ar,name_en))`,
-        transfer: `id,reference_number,unified_number,total_price_initial,total_price_final,discount,office_cost,iqama_expiry_date,transfer_qiwa_status,transfer_muqeem_status,
+        transfer: `id,reference_number,unified_number,total_price_initial,total_price_final,discount,office_cost,iqama_expiry_date,expected_iqama_months,renewed_iqama_expiry_date,transfer_qiwa_status,transfer_muqeem_status,
           worker:worker_id(name_ar,name_en,iqama_number,phone),
           main_facility:main_facility_id(name_ar,unified_number,gosi_number,qiwa_prefix,qiwa_number),
           new_occupation:new_occupation_id(name_ar,name_en),
@@ -2579,7 +2596,7 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user, onO
       )}
 
       {visaEditModal && (
-        <PermanentVisaEditModal sb={sb} toast={toast} T={T} isAr={isAr} inv={inv} data={data}
+        <PermanentVisaEditModal sb={sb} toast={toast} T={T} isAr={isAr} inv={inv} data={data} user={user}
           editorId={user?.id || null}
           editorName={user?.person?.name_ar || user?.person?.name_en || null}
           onClose={() => setVisaEditModal(false)}
@@ -5635,12 +5652,16 @@ const TransactionRows = ({ inv, isAr, T, svc, payT, data, user }) => {
     const trUnified = d?.main_facility?.unified_number || d?.unified_number
     if (trUnified) splCells.push({ label: T('الرقم الموحد','Unified No'), value: trUnified, mono: true })
     if (workerIqama && workerIqama !== '—') splCells.push({ label: T('رقم الإقامة','Iqama No'), value: workerIqama, mono: true })
-    if (tc.iqama_expiry_gregorian) splCells.push({ label: T('تاريخ انتهاء الإقامة','Iqama Expiry'), value: date(tc.iqama_expiry_gregorian), mono: true })
+    // القيم أدناه قابلة للتعديل من «تعديل تفاصيل الخدمة» (transfer_applications) — تُفضَّل على حسبة التنازل المجمَّدة للعرض فقط.
+    const trIqamaExpiry = d?.iqama_expiry_date || tc.iqama_expiry_gregorian
+    const trRenewalMonths = d?.expected_iqama_months != null ? d.expected_iqama_months : tc.renewal_months
+    const trNewExpiry = d?.renewed_iqama_expiry_date || tc.expected_expiry_date
+    if (trIqamaExpiry) splCells.push({ label: T('تاريخ انتهاء الإقامة','Iqama Expiry'), value: date(trIqamaExpiry), mono: true })
     // «نقل فقط»: العلَم transfer_only/renew_iqama يحسم القيمة حتى لو بقيت أشهر تجديد قديمة في renewal_months (نفس منطق كرت الحسبة في App.jsx).
     const transferOnly = tc.transfer_only === true || tc.renew_iqama === false
     if (transferOnly) { splCells.push({ label: T('مدة التجديد','Renewal Duration'), value: T('نقل فقط','Transfer Only'), gold: true }) }
-    else if (Number(tc.renewal_months) > 0) { const n = Number(tc.renewal_months); splCells.push({ label: T('مدة التجديد','Renewal Duration'), value: n + ' ' + (n >= 3 && n <= 10 ? T('أشهر','months') : T('شهر','month')), gold: true }) }
-    if (tc.expected_expiry_date) splCells.push({ label: T('تاريخ انتهاء الإقامة المتوقع','Expected Iqama Expiry'), value: date(tc.expected_expiry_date), mono: true })
+    else if (Number(trRenewalMonths) > 0) { const n = Number(trRenewalMonths); splCells.push({ label: T('مدة التجديد','Renewal Duration'), value: n + ' ' + (n >= 3 && n <= 10 ? T('أشهر','months') : T('شهر','month')), gold: true }) }
+    if (trNewExpiry) splCells.push({ label: T('تاريخ انتهاء الإقامة المتوقع','Expected Iqama Expiry'), value: date(trNewExpiry), mono: true })
   }
   if (!isTransfer && code === 'ajeer') {
     // عقد أجير: بياناته (الرقم الموحد للمنشأة المستعارة + المدينة + مدة العقد) تُخزَّن في
@@ -5741,7 +5762,7 @@ const TransactionRows = ({ inv, isAr, T, svc, payT, data, user }) => {
       <div style={boxStyle}>
         <span style={{ fontSize: 14, color: C.gold, fontWeight: 600, lineHeight: 1.4 }}>{svcName}</span>
         {/* خدمة عامة: نعرض الوصف المُدخل للفاتورة (يختلف بين الفواتير) بدل اسم العميل المكرَّر — الاسم يظهر أصلاً في كرت العميل. */}
-        {workerName && !isZeroSvc(code) && !SELF_PARTY_DONE_SVCS.includes(code) && code !== 'general' && (
+        {workerName && !isZeroSvc(code, inv?.total_amount) && !SELF_PARTY_DONE_SVCS.includes(code) && code !== 'general' && (
           <span style={{ fontSize: 13, color: 'var(--tx)', fontWeight: 600, lineHeight: 1.5, direction: 'rtl', marginTop: 4 }}>{workerName}</span>
         )}
         {/* نوع التصديق ونص الطلب صارا يُعرضان أسفل (بعد splCells) — مثل التأمين الطبي */}
@@ -6275,12 +6296,14 @@ const InstallmentTimeline = ({ insts, T, isAr, user, svcCode }) => {
 // التسعير — كرت مستقل: بنود التسعيرة المحفوظة وقت الإنشاء (إن وُجدت)، وإلا ملخّص الإجمالي/المسدّد/المتبقي للفواتير القديمة.
 // خروج وعودة: «إصدار خروج وعودة (مفردة)» → «خروج وعودة (إصدار-مفردة)» — دمج العملية مع نوع التأشيرة في القوس
 // (للفواتير القديمة المخزّنة بالصيغة السابقة؛ المولّد الجديد يحفظها بالصيغة الجديدة مباشرة).
-const fmtLineLabel = (label, T = (a) => a) => {
+const fmtLineLabel = (label, T = (a) => a, svcCode = null) => {
   const raw = String(label || '')
   // «رسوم كرت العمل» (الصيغة المخزّنة قديماً) تُعرض «رخصة العمل».
   if (raw === 'رسوم كرت العمل') return T('رخصة العمل', 'Work Permit')
-  // خروج نهائي: يُعرض بند الرسم كـ«رسوم المكتب».
-  if (raw === 'رسوم خروج نهائي') return T('رسوم المكتب', 'Office Fee')
+  // خروج نهائي: يُعرض بند الرسم كـ«الرسوم».
+  if (raw === 'رسوم خروج نهائي') return T('الرسوم', 'Fees')
+  // تغيير المهنة: بند «رسوم مكتب» يُعرض «رسوم السعودة» (التخزين يبقى «رسوم مكتب»).
+  if (svcCode === 'profession_change' && (raw === 'رسوم مكتب' || raw === 'رسوم المكتب')) return T('رسوم السعودة', 'Saudization Fee')
   const m = raw.match(/^(إصدار|تمديد)\s+خروج وعودة\s*\(([^)]+)\)\s*$/)
   return m ? `${T('خروج وعودة', 'Exit / Re-entry')} (${T(m[1], m[1] === 'إصدار' ? 'Issue' : 'Extend')}-${m[2].trim()})` : raw
 }
@@ -6433,7 +6456,7 @@ const PricingCard = ({ breakdown, total = 0, paid = 0, remaining = 0, absher = 0
               {/* عدد التأشيرات بجانب اسم البند — السطر يحمل قيمة كل التأشيرات مجتمعةً،
                   فبدون العدد يبدو المبلغ سعرَ تأشيرة واحدة. نفس شارة «×N» في كرت الخدمة. */}
               <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 6, minWidth: 0 }}>
-                <span style={{ color: 'var(--tx2)', fontWeight: 600, fontSize: 12.5 }}>{((l.label === 'رسوم عقد أجير' || l.label === 'رسوم أساسية') ? T('رسوم العقد', 'Contract Fee') : fmtLineLabel(l.label, T)) + monthSuffix(l.label)}</span>
+                <span style={{ color: 'var(--tx2)', fontWeight: 600, fontSize: 12.5 }}>{((l.label === 'رسوم عقد أجير' || l.label === 'رسوم أساسية') ? T('رسوم العقد', 'Contract Fee') : fmtLineLabel(l.label, T, svcCode)) + monthSuffix(l.label)}</span>
                 {visaLineQty(l.label, svcCode, qty) > 0 && (
                   <span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums', fontWeight: 600, color: C.gold, fontSize: 12.5, flexShrink: 0 }}>{visaLineQty(l.label, svcCode, qty) + '×'}</span>
                 )}
@@ -7504,10 +7527,37 @@ function ServiceEditModal({ sb, toast, T, isAr, srId, invId, svcName, svcCode, c
               <FKSelect key={f.key} label={label} value={String(v || '')} onChange={on} placeholder={T('— اختر —','— Select —')}
                 options={Object.entries(f.opts).map(([k, l]) => ({ k, l }))} getKey={o => o.k} getLabel={o => o.l} />
             )
-            if (f.date) return <DateField key={f.key} label={label} value={v || ''} onChange={on} />
+            if (f.date) return <DateField key={f.key} label={label} value={v || ''} onChange={val => {
+              setErr('')
+              const calc = SVC_NEW_EXPIRY_CALC[baseSvcCode(svcCode)]
+              setDyn(p => {
+                const next = { ...p, [f.key]: val }
+                // «الانتهاء الحالي» يُعيد حساب «الانتهاء الجديد» تلقائياً = القيمة الجديدة + مدة التجديد الحالية.
+                if (calc && f.key === calc.currentKey) {
+                  const cur = val ? new Date(val) : null
+                  const n = parseInt(p[calc.durationKey]) || 0
+                  if (cur && !isNaN(cur) && n > 0) { const d = new Date(cur); d.setMonth(d.getMonth() + n); next[calc.newKey] = d.toISOString().slice(0, 10) }
+                }
+                return next
+              })
+            }} />
             if (f.money) return <CurrencyField key={f.key} label={label} value={v === null ? '' : String(v)} onChange={on} unit={f.noUnit ? ' ' : undefined} />
             if (f.months) return (
-              <FKSelect key={f.key} label={label} value={String(v || '')} onChange={on} placeholder={T('— اختر —','— Select —')}
+              <FKSelect key={f.key} label={label} value={String(v || '')} placeholder={T('— اختر —','— Select —')}
+                // تغيير مدة التجديد يُعيد حساب «الانتهاء الجديد» تلقائياً = الانتهاء الحالي + المدة (تقويمي)، لهذه الخدمة فقط.
+                onChange={val => {
+                  setErr('')
+                  const calc = SVC_NEW_EXPIRY_CALC[baseSvcCode(svcCode)]
+                  setDyn(p => {
+                    const next = { ...p, [f.key]: val }
+                    if (calc && f.key === calc.durationKey) {
+                      const cur = p[calc.currentKey] ? new Date(p[calc.currentKey]) : null
+                      const n = parseInt(val) || 0
+                      if (cur && !isNaN(cur) && n > 0) { const d = new Date(cur); d.setMonth(d.getMonth() + n); next[calc.newKey] = d.toISOString().slice(0, 10) }
+                    }
+                    return next
+                  })
+                }}
                 options={Array.from({ length: 24 }, (_, i) => String(i + 1))} getKey={o => o} getLabel={o => o + ' ' + (Number(o) >= 3 && Number(o) <= 10 ? T('أشهر','months') : T('شهر','month'))} />
             )
             if (f.wide) return (
@@ -8655,11 +8705,12 @@ const vPackFiles = (groups) => {
   return files
 }
 
-function PermanentVisaEditModal({ sb, toast, T, isAr, inv, data, editorId, editorName, onClose, onSaved }) {
+function PermanentVisaEditModal({ sb, toast, T, isAr, inv, data, user, editorId, editorName, onClose, onSaved }) {
   const srId = inv.service_request?.id
   const MAX_VISAS = 4, MAX_FILES = 4
   const ORD_AR = ['الأول', 'الثاني', 'الثالث', 'الرابع', 'الخامس', 'السادس', 'السابع', 'الثامن']
   const ORD_AR_F = ['الأولى', 'الثانية', 'الثالثة', 'الرابعة']
+  const curSvcCode = data?.code || inv.service_type?.code
 
   const [loading, setLoading] = useState(true)
   const [lkCountries, setLkCountries] = useState([])
@@ -8667,6 +8718,21 @@ function PermanentVisaEditModal({ sb, toast, T, isAr, inv, data, editorId, edito
   const [lkOccupations, setLkOccupations] = useState([])
   const [branches, setBranches] = useState([])
   const [branchId, setBranchId] = useState(inv.branch?.id || '')
+  // مدة التأشيرة (نوع الخدمة) — للمدير العام فقط. لا يُعاد حساب التسعير أو خطة الدفعات عند التبديل.
+  const canSwitchDuration = isGM(user)
+  const [visaTypes, setVisaTypes] = useState([])
+  const [visaTypeId, setVisaTypeId] = useState('')
+  useEffect(() => {
+    if (!canSwitchDuration) return
+    sb.from('lookup_items').select('id,code,value_ar,value_en,category:lookup_categories!inner(category_key)')
+      .eq('category.category_key', 'service_type').eq('is_active', true)
+      .then(({ data: rows }) => setVisaTypes((rows || []).filter(x => VISA_SVC_CODES.has(x.code) && x.code !== 'work_visa').sort((a, b) => (a.value_ar || '').localeCompare(b.value_ar || '', 'ar'))))
+  }, [canSwitchDuration])
+  useEffect(() => {
+    if (!visaTypes.length || visaTypeId) return
+    const cur = visaTypes.find(x => x.code === curSvcCode)
+    if (cur) setVisaTypeId(cur.id)
+  }, [visaTypes])
   const [groups, setGroups] = useState([])
   const [files, setFiles] = useState([])
   const [origRows, setOrigRows] = useState([])
@@ -8674,9 +8740,7 @@ function PermanentVisaEditModal({ sb, toast, T, isAr, inv, data, editorId, edito
   const [origFiles, setOrigFiles] = useState([])     // لقطة توزيع الملفات الأصلي
   const [refIds, setRefIds] = useState(new Set())
   const [expanded, setExpanded] = useState(new Set())
-  const [autoMode, setAutoMode] = useState(true)
-  const [page, setPage] = useState(0)        // 0 المكتب · 1 المجموعات · 2 الملفات
-  const [dragInfo, setDragInfo] = useState(null)
+  const [page, setPage] = useState(0)        // 0 المكتب · 1 المجموعات (توزيع الملفات تلقائي عند الحفظ)
   const [err, setErr] = useState('')
   const [saving, setSaving] = useState(false)
   const [done, setDone] = useState(false)
@@ -8735,16 +8799,8 @@ function PermanentVisaEditModal({ sb, toast, T, isAr, inv, data, editorId, edito
   // ─── مشتقّات ───
   const totalVisas = groups.reduce((s, g) => s + (parseInt(g.count) || 0), 0)
   const fileCount = f => Object.values(f.assignments || {}).reduce((s, n) => s + (parseInt(n) || 0), 0)
-  const sumF = files.reduce((s, f) => s + fileCount(f), 0)
-  const remaining = totalVisas - sumF
-  const groupAssigned = gid => files.reduce((s, f) => s + (parseInt(f.assignments?.[gid]) || 0), 0)
-  const groupRem = gid => { const g = groups.find(x => x.id === gid); return (parseInt(g?.count) || 0) - groupAssigned(gid) }
-  const bucketOfFile = f => { for (const g of groups) { if ((parseInt(f.assignments?.[g.id]) || 0) > 0) return vBucketKey(g) } return null }
-  const groupBucket = gid => vBucketKey(groups.find(x => x.id === gid))
   const isGroupComplete = g => !!(g.nationality && g.embassy && g.profession && g.gender && (parseInt(g.count) || 0) >= 1)
   const groupsValid = groups.length > 0 && groups.every(isGroupComplete) && totalVisas >= 1 && totalVisas <= MAX_VISAS
-  const filesValid = vFilesValid(files, groups) && sumF === totalVisas && totalVisas > 0
-  const multiGroup = groups.length > 1
 
   // ─── محرّرات المجموعات ───
   const updateGroup = (id, patch) => setGroups(gs => gs.map(g => g.id === id ? { ...g, ...patch, sig: vBucketKey({ ...g, ...patch }) } : g))
@@ -8764,45 +8820,18 @@ function PermanentVisaEditModal({ sb, toast, T, isAr, inv, data, editorId, edito
     setFiles(fs => fs.map(f => { const a = { ...(f.assignments || {}) }; delete a[id]; return { ...f, assignments: a } }))
   }
 
-  // ─── محرّرات الملفات (نفس منطق الويزارد) ───
-  const incGroup = (fid, gid) => { if (remaining <= 0) return; setAutoMode(false); setFiles(fs => fs.map(f => {
-    if (f.id !== fid) return f
-    if (fileCount(f) >= 4) return f
-    const bk = bucketOfFile(f); if (bk && bk !== groupBucket(gid)) return f
-    return { ...f, assignments: { ...(f.assignments || {}), [gid]: (parseInt(f.assignments?.[gid]) || 0) + 1 } }
-  })) }
-  const decGroup = (fid, gid) => { setAutoMode(false); setFiles(fs => fs.map(f => {
-    if (f.id !== fid) return f
-    const cur = parseInt(f.assignments?.[gid]) || 0; if (cur <= 0) return f
-    const next = { ...(f.assignments || {}) }; next[gid] = cur - 1; if (next[gid] <= 0) delete next[gid]
-    return { ...f, assignments: next }
-  })) }
-  const addFile = () => { setAutoMode(false); setFiles(fs => fs.length >= MAX_FILES ? fs : [...fs, { id: Math.max(0, ...fs.map(f => f.id)) + 1, assignments: {} }]) }
-  const removeFile = (fid) => { setAutoMode(false); setFiles(fs => fs.filter(f => f.id !== fid)) }
-  const moveVisa = (fromFid, toFid, gid) => {
-    if (fromFid === toFid) return
-    const dest = files.find(f => f.id === toFid); if (!dest) return
-    if (fileCount(dest) >= 4) return
-    const destBk = bucketOfFile(dest); if (destBk && destBk !== groupBucket(gid)) return
-    setAutoMode(false)
-    setFiles(fs => fs.map(f => {
-      if (f.id === fromFid) { const cur = parseInt(f.assignments?.[gid]) || 0; if (cur <= 0) return f; const next = { ...(f.assignments || {}) }; next[gid] = cur - 1; if (next[gid] <= 0) delete next[gid]; return { ...f, assignments: next } }
-      if (f.id === toFid) { if (fileCount(f) >= 4) return f; return { ...f, assignments: { ...(f.assignments || {}), [gid]: (parseInt(f.assignments?.[gid]) || 0) + 1 } } }
-      return f
-    }))
-  }
-  const goFiles = () => { if (!groupsValid) { setErr(T('أكمل بيانات كل المجموعات', 'Complete every group')); return } if (!vFilesValid(files, groups)) setFiles(vPackFiles(groups)); setErr(''); setPage(2) }
-
   // ─── الحفظ: تسوية صفوف visa_applications مع الحفاظ على الصفوف القائمة ما أمكن ───
+  // توزيع الملفات صار تلقائياً دائماً (لا خطوة يدوية) — يُعاد حسابه هنا إن لم يعد صالحاً لمجموعات مُعدَّلة.
   const save = async () => {
     if (saving) return
     if (!groupsValid) { setErr(T('أكمل بيانات كل المجموعات', 'Complete every group')); setPage(1); return }
-    if (!filesValid) { setErr(T('وزّع جميع التأشيرات على الملفات', 'Distribute all visas across files')); setPage(2); return }
     setErr(''); setSaving(true)
     try {
+      // توزيع الملفات تلقائي دائماً — يُعاد حسابه إن لم يعد صالحاً (مثلاً بعد تعديل أعداد المجموعات).
+      const finalFiles = vFilesValid(files, groups) ? files : vPackFiles(groups)
       const groupById = Object.fromEntries(groups.map(g => [String(g.id), g]))
       // الشرائح المطلوبة: ملفات غير فارغة مُعاد ترقيمها 1..N، ولكل تأشيرة سمتها ورقم ملفها.
-      const nonEmpty = files.filter(f => fileCount(f) > 0)
+      const nonEmpty = finalFiles.filter(f => fileCount(f) > 0)
       const desiredBySig = {}, sigAttrs = {}
       nonEmpty.forEach((f, fi) => {
         const fileNo = fi + 1
@@ -8859,8 +8888,13 @@ function PermanentVisaEditModal({ sb, toast, T, isAr, inv, data, editorId, edito
       let nextOrder = Math.max(0, ...(liveInst || []).map(r => Number(r.installment_order) || 0))
       const newResRows = insertedIds.map(id => { nextOrder += 1; return { invoice_id: inv.id, service_request_id: srId, branch_id: bid, visa_application_id: id, installment_order: nextOrder, total_amount: unit, paid_amount: 0, expected_date: null, paid_date: null, payment_method_id: null, notes: 'عند إصدار الإقامة' } })
       if (newResRows.length) { const { error } = await sb.from('installments').insert(newResRows); if (error) throw error; totalDelta = r2v(totalDelta + unit * newResRows.length) }
-      // المكتب + الكمية على طلب الخدمة، والمكتب على الفاتورة (كرت «المكتب» يقرأ من الفاتورة).
-      if (srId) { const { error } = await sb.from('service_requests').update({ branch_id: bid, quantity: totalVisas }).eq('id', srId); if (error) throw error }
+      // مدة التأشيرة (نوع الخدمة) — تُكتب على طلب الخدمة والفاتورة معاً؛ لا تمسّ التسعير ولا خطة الدفعات.
+      const newVisaType = visaTypeChanged ? visaTypes.find(x => x.id === visaTypeId) : null
+      // المكتب + الكمية + مدة التأشيرة على طلب الخدمة، والمكتب على الفاتورة (كرت «المكتب» يقرأ من الفاتورة).
+      if (srId) {
+        const srPatch = { branch_id: bid, quantity: totalVisas, ...(newVisaType ? { service_type_id: newVisaType.id } : {}) }
+        const { error } = await sb.from('service_requests').update(srPatch).eq('id', srId); if (error) throw error
+      }
       // سجل تعديل التأشيرات — يُلحق بـ invoices.service_log (نفس نمط note_log/pricing_log) ويُعرض في كرت الخدمة.
       const brCode = id => branches.find(b => b.id === id)?.branch_code || null
       const gLabel = g => { const nat = lkCountries.find(c => c.id === g.nationality)?.nationality_ar || ''; const emb = lkEmbassies.find(e => e.id === g.embassy)?.city_ar || ''; const occ = lkOccupations.find(o => o.id === g.profession)?.value_ar || ''; const gen = g.gender === 'female' ? T('أنثى', 'Female') : T('ذكر', 'Male'); return [nat, emb, occ, gen].filter(Boolean).join(' · ') + ` ×${parseInt(g.count) || 0}` }
@@ -8868,9 +8902,10 @@ function PermanentVisaEditModal({ sb, toast, T, isAr, inv, data, editorId, edito
       const layoutStr = fls => fls.filter(f => fileCount(f) > 0).map((f, i) => `${T('ملف', 'F')}${i + 1}:${fileCount(f)}`).join(' · ')
       const changes = []
       if ((branchId || null) !== (inv.branch?.id || null)) changes.push({ field: 'office', from: brCode(inv.branch?.id), to: brCode(branchId) })
+      if (newVisaType) { const oldT = visaTypes.find(x => x.code === curSvcCode); changes.push({ field: 'visa_duration', from: oldT ? T(oldT.value_ar, oldT.value_en || oldT.value_ar) : curSvcCode, to: T(newVisaType.value_ar, newVisaType.value_en || newVisaType.value_ar) }) }
       { const oc = compStr(origGroups), nc = compStr(groups); if (oc !== nc) changes.push({ field: 'composition', from: oc, to: nc }) }
       { const ol = layoutStr(origFiles), nl = layoutStr(nonEmpty); if (ol !== nl) changes.push({ field: 'files', from: ol, to: nl }) }
-      const invPatch = { branch_id: bid, service_quantity: totalVisas }
+      const invPatch = { branch_id: bid, service_quantity: totalVisas, ...(newVisaType ? { service_type_id: newVisaType.id } : {}) }
       // أعِد عدد الدفعات المخزّن والتسعير والحالة عند تغيّر عدد التأشيرات (لتبقى متّسقة مع الصفوف الحيّة).
       invPatch.installments_count = Math.max(0, (liveInst || []).length - removedResCount + newResRows.length)
       if (Math.abs(totalDelta) > 0.005) {
@@ -8886,11 +8921,12 @@ function PermanentVisaEditModal({ sb, toast, T, isAr, inv, data, editorId, edito
       }
       if (inv.id) { const { error } = await sb.from('invoices').update(invPatch).eq('id', inv.id); if (error) throw error }
       onSaved?.(); setDone(true)
-    } catch { setErr(T('تعذر الحفظ', 'Save failed')); setPage(2) }
+    } catch { setErr(T('تعذر الحفظ', 'Save failed')); setPage(1) }
     finally { setSaving(false) }
   }
 
   // ─── المحتوى ───
+  const visaTypeChanged = canSwitchDuration && visaTypeId && visaTypes.find(x => x.id === visaTypeId)?.code !== curSvcCode
   const officePage = (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontFamily: F, width: '100%' }}>
       <ModalSection Icon={Building2} label={T('المكتب', 'Office')} style={{ marginTop: 6 }}>
@@ -8899,6 +8935,20 @@ function PermanentVisaEditModal({ sb, toast, T, isAr, inv, data, editorId, edito
             options={branches} getKey={b => b.id} getLabel={b => branchLabel(b)} getSub={b => b.branch_code || ''} />
         </div>
       </ModalSection>
+      {canSwitchDuration && !!visaTypes.length && (
+        <ModalSection Icon={CalendarRange} label={T('مدة التأشيرة', 'Visa Duration')}>
+          <div style={GRID}>
+            <FKSelect full label={T('مدة التأشيرة', 'Visa Duration')} value={visaTypeId} onChange={setVisaTypeId} placeholder={T('— اختر —', '— Select —')}
+              options={visaTypes} getKey={o => o.id} getLabel={o => T(o.value_ar, o.value_en || o.value_ar)} />
+          </div>
+          {visaTypeChanged && (
+            <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8, padding: '9px 11px', borderRadius: 9, background: 'rgba(176,125,0,.07)', border: '1px solid rgba(176,125,0,.25)', color: C.goldSoft, fontSize: 11, fontWeight: 600 }}>
+              <AlertCircle size={13} strokeWidth={2.2} style={{ flexShrink: 0 }} />
+              <span>{T('تغيير مدة التأشيرة لا يُعيد حساب التسعير أو خطة الدفعات — عدّلهما بعده إن لزم.', 'Changing the visa duration does not re-price the invoice or re-plan installments — edit them afterwards if needed.')}</span>
+            </div>
+          )}
+        </ModalSection>
+      )}
     </div>
   )
 
@@ -8973,131 +9023,19 @@ function PermanentVisaEditModal({ sb, toast, T, isAr, inv, data, editorId, edito
           </div>
         )
       })()}
-      {totalVisas > 1 && (
-        <div style={{ padding: '2px 2px' }}>
-          <Checkbox checked={autoMode} label={autoMode ? T('توزيع تلقائي', 'Auto distribute') : T('توزيع تلقائي (اضغط للعودة)', 'Auto distribute (click to revert)')}
-            onChange={() => { if (autoMode) { setAutoMode(false); goFiles() } else { setAutoMode(true) } }} />
-        </div>
-      )}
-    </div>
-  )
-
-  // ─── صفحة توزيع الملفات ───
-  const distPct = totalVisas > 0 ? Math.min(100, Math.round((sumF / totalVisas) * 100)) : 0
-  const isComplete = remaining === 0 && totalVisas > 0
-  const isOver = remaining < 0
-  const canAddMore = files.length < MAX_FILES
-  const filesPage = (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1, minHeight: 0, width: '100%', fontFamily: F }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, paddingBottom: 8, borderBottom: '1px solid var(--bd)' }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 600, color: isComplete ? '#2ea043' : isOver ? '#c0392b' : C.gold }}>
-          <span>{totalVisas}/{sumF}</span><span>·</span><span>{isComplete ? T('مكتمل', 'Done') : isOver ? T('زيادة', 'Over') : T('متبقي', 'Left')}</span>
-        </span>
-        <div style={{ flex: 1, minWidth: 40, height: 4, borderRadius: 2, background: 'rgba(255,255,255,.05)', overflow: 'hidden' }}>
-          <div style={{ height: '100%', width: `${distPct}%`, background: isComplete ? '#2ea043' : isOver ? '#c0392b' : C.gold, borderRadius: 2, transition: 'width .3s' }} />
-        </div>
-        {multiGroup && files.length > 1 && (
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#b497e8' }}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 9l4-4 4 4M9 5v14M19 15l-4 4-4-4M15 19V5"/></svg>
-            <span>{T('اسحب للنقل', 'Drag to move')}</span>
-          </span>
-        )}
-        <button type="button" onClick={() => { setFiles(vPackFiles(groups)); setAutoMode(true); setErr('') }} style={{ border: '1.3px dashed var(--accent-bd)', borderRadius: 9, color: 'var(--accent)', cursor: 'pointer', height: 30, padding: '0 13px', fontSize: 12, fontWeight: 600, fontFamily: F, background: 'var(--accent-soft)', boxShadow: '0 2px 8px var(--shadowClr)' }}>{T('تلقائي', 'Auto')}</button>
-        {canAddMore && (
-          <button type="button" onClick={addFile} style={{ border: '1.3px dashed var(--accent-bd)', borderRadius: 9, color: 'var(--accent)', cursor: 'pointer', height: 30, padding: '0 13px', fontSize: 12, fontWeight: 600, fontFamily: F, background: 'var(--accent-soft)', boxShadow: '0 2px 8px var(--shadowClr)', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            <span>{T('ملف', 'File')}</span>
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          </button>
-        )}
-      </div>
-      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', paddingLeft: 2 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${files.length}, minmax(0, ${multiGroup ? '230px' : '180px'}))`, justifyContent: 'center', gap: 12, alignItems: 'stretch', gridAutoRows: '1fr', minHeight: '100%' }}>
-          {files.map((f, i) => {
-            const c = fileCount(f), full = c >= 4
-            const fBk = bucketOfFile(f)
-            const isDragSource = !!dragInfo && dragInfo.fileId === f.id
-            const isValidDrop = !!dragInfo && dragInfo.fileId !== f.id && !full && (!fBk || fBk === groupBucket(dragInfo.groupId))
-            return (
-              <div key={f.id}
-                onDragOver={e => { if (isValidDrop) { e.preventDefault(); e.dataTransfer.dropEffect = 'move' } }}
-                onDrop={e => { if (!dragInfo || dragInfo.fileId === f.id) return; e.preventDefault(); moveVisa(dragInfo.fileId, f.id, dragInfo.groupId); setDragInfo(null) }}
-                style={{ position: 'relative', display: 'flex', flexDirection: 'column', maxHeight: 215, borderRadius: 12, border: `1.5px ${isValidDrop ? 'dashed' : 'solid'} ${isValidDrop ? 'rgba(52,152,219,.6)' : full ? 'rgba(46,160,67,.35)' : c > 0 ? 'rgba(176,125,0,.25)' : 'rgba(255,255,255,.08)'}`, background: isValidDrop ? 'rgba(52,152,219,.1)' : full ? 'rgba(46,160,67,.05)' : c > 0 ? 'rgba(176,125,0,.04)' : 'rgba(255,255,255,.015)', overflow: 'hidden', transition: '.2s', opacity: isDragSource ? .55 : 1 }}>
-                {files.length > 1 && (
-                  <button type="button" onClick={() => removeFile(f.id)} title={T('حذف', 'Delete')}
-                    style={{ position: 'absolute', top: 6, left: 6, width: 20, height: 20, borderRadius: 5, border: 'none', background: 'rgba(192,57,43,.15)', color: C.red, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, zIndex: 2 }}>
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                  </button>
-                )}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '6px 8px 4px', borderBottom: '1px solid var(--bd)', background: 'rgba(255,255,255,.02)' }}>
-                  <span style={{ fontSize: 10.5, fontWeight: 600, color: full ? '#2ea043' : C.gold }}>{T('الملف', 'File')} {(isAr ? ORD_AR[i] : null) || (i + 1)}</span>
-                  <span style={{ fontSize: 9, fontWeight: 600, color: 'var(--tx5)' }}>•</span>
-                  <span style={{ fontSize: 14, fontWeight: 600, color: full ? '#2ea043' : c > 0 ? C.gold : 'var(--tx5)', lineHeight: 1 }}><span style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--tx5)' }}>4/</span>{c}</span>
-                </div>
-                {multiGroup ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 3, padding: '6px 6px 8px', flex: 1, justifyContent: 'center', minHeight: 0 }}>
-                    {groups.map((g, gi) => {
-                      const cnt = parseInt(f.assignments?.[g.id]) || 0
-                      const natLbl = g.nationality ? (lkCountries.find(co => co.id === g.nationality)?.nationality_ar || `${T('المجموعة', 'Group')} ${gi + 1}`) : `${T('المجموعة', 'Group')} ${gi + 1}`
-                      const profLbl = g.profession ? (lkOccupations.find(o => o.id === g.profession)?.value_ar || '') : ''
-                      const gR = groupRem(g.id)
-                      const compatible = !fBk || vBucketKey(g) === fBk
-                      const canInc = !full && gR > 0 && compatible
-                      const canDec = cnt > 0
-                      if (cnt === 0 && (gR <= 0 || !compatible)) return null
-                      const isDraggingThis = !!dragInfo && dragInfo.fileId === f.id && dragInfo.groupId === g.id
-                      return (
-                        <div key={g.id} draggable={cnt > 0}
-                          onDragStart={e => { if (cnt <= 0) { e.preventDefault(); return } setDragInfo({ fileId: f.id, groupId: g.id }); e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', `visa:${f.id}:${g.id}`) } catch (_) {} }}
-                          onDragEnd={() => setDragInfo(null)}
-                          title={cnt > 0 ? T('اسحب لنقل تأشيرة', 'Drag to move a visa') : ''}
-                          style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '3px 5px', borderRadius: 6, background: isDraggingThis ? 'rgba(52,152,219,.15)' : cnt > 0 ? 'rgba(176,125,0,.08)' : 'rgba(255,255,255,.015)', border: `1px solid ${isDraggingThis ? 'rgba(52,152,219,.5)' : cnt > 0 ? 'rgba(176,125,0,.18)' : 'rgba(255,255,255,.04)'}`, cursor: cnt > 0 ? 'grab' : 'default', opacity: isDraggingThis ? .6 : 1 }}>
-                          <button type="button" onClick={() => decGroup(f.id, g.id)} disabled={!canDec} title={T('إنقاص', 'Decrease')}
-                            style={{ width: 20, height: 20, borderRadius: 5, border: 'none', background: canDec ? 'rgba(192,57,43,.12)' : 'transparent', color: canDec ? C.red : 'var(--tx6)', cursor: canDec ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, fontSize: 13, fontWeight: 600, flexShrink: 0 }}>−</button>
-                          <span style={{ fontSize: 12, fontWeight: 600, color: cnt > 0 ? C.gold : 'var(--tx5)', minWidth: 12, textAlign: 'center', flexShrink: 0 }}>{cnt}</span>
-                          <span style={{ fontSize: 10, fontWeight: 600, color: cnt > 0 ? 'var(--tx2)' : 'var(--tx4)', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }} title={profLbl ? `${natLbl} · ${profLbl}` : natLbl}>{natLbl}{profLbl && <span style={{ fontSize: 9, fontWeight: 500, color: 'var(--tx5)', marginRight: 4 }}> · {profLbl}</span>}</span>
-                          <button type="button" onClick={() => incGroup(f.id, g.id)} disabled={!canInc} title={T('إضافة', 'Add')}
-                            style={{ width: 20, height: 20, borderRadius: 5, border: 'none', background: canInc ? 'rgba(46,160,67,.12)' : 'transparent', color: canInc ? '#2ea043' : 'var(--tx6)', cursor: canInc ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, fontSize: 13, fontWeight: 600, flexShrink: 0 }}>+</button>
-                        </div>
-                      )
-                    })}
-                    {c === 0 && <div style={{ fontSize: 10, color: 'var(--tx5)', textAlign: 'center', padding: '8px 4px' }}>{T('أضف تأشيرات من المجموعات', 'Add visas from groups')}</div>}
-                  </div>
-                ) : (
-                  <>
-                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 4, padding: '10px 0 8px', flex: 1, minHeight: 0 }}>
-                      {[1, 2, 3, 4].map(n => { const filled = n <= c; const gid = groups[0]?.id; return (
-                        <button key={n} type="button" onClick={() => { if (!gid) return; const target = Math.min(n, c + Math.max(0, remaining)); if (target < 1) return; setAutoMode(false); setFiles(fs => fs.map(ff => ff.id === f.id ? { ...ff, assignments: { [gid]: target } } : ff)) }}
-                          style={{ width: 9, height: 9, borderRadius: '50%', border: 'none', background: filled ? (full ? '#2ea043' : C.gold) : 'rgba(255,255,255,.12)', cursor: 'pointer', padding: 0 }} title={`${T('اضبط على', 'Set to')} ${n}`} />
-                      ) })}
-                    </div>
-                    <div style={{ display: 'flex', borderTop: '1px solid var(--bd)', marginTop: 'auto' }}>
-                      <button type="button" onClick={() => { const gid = groups[0]?.id; if (gid) decGroup(f.id, gid) }} disabled={c <= 1}
-                        style={{ flex: 1, height: 28, border: 'none', background: 'transparent', color: 'var(--tx3)', fontSize: 16, fontWeight: 600, cursor: c <= 1 ? 'not-allowed' : 'pointer', opacity: c <= 1 ? .25 : 1, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
-                      <div style={{ width: 1, background: 'rgba(255,255,255,.05)' }} />
-                      <button type="button" onClick={() => { const gid = groups[0]?.id; if (gid) incGroup(f.id, gid) }} disabled={c >= 4 || remaining <= 0}
-                        style={{ flex: 1, height: 28, border: 'none', background: 'transparent', color: 'var(--tx3)', fontSize: 16, fontWeight: 600, cursor: (c >= 4 || remaining <= 0) ? 'not-allowed' : 'pointer', opacity: (c >= 4 || remaining <= 0) ? .25 : 1, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
-                    </div>
-                  </>
-                )}
-              </div>
-            )
-          })}
-        </div>
-      </div>
     </div>
   )
 
   const pages = [
     { title: T('المكتب', 'Office'), valid: true, content: officePage },
     { title: T('بيانات التأشيرات', 'Visa details'), valid: groupsValid, error: page === 1 ? err : '', content: groupsPage },
-    { title: T('توزيع الملفات', 'File distribution'), valid: filesValid, error: page === 2 ? err : '', content: filesPage },
   ]
 
   return (
     <Modal open onClose={onClose} title={T('تعديل التأشيرة والإقامة', 'Edit visa & iqama')} Icon={CalendarRange} width={760} accent={C.gold}
       success={done ? <SuccessView title={T('تم حفظ التعديلات', 'Changes saved')} /> : undefined}
       page={page} pages={loading ? [{ valid: false, content: <div style={{ padding: 40, textAlign: 'center', color: 'var(--tx4)', fontFamily: F }}>{T('جاري التحميل…', 'Loading…')}</div> }] : pages}
-      onNext={() => { if (page === 0) { setErr(''); setPage(1) } else if (page === 1) goFiles() }}
+      onNext={() => { if (page === 0) { setErr(''); setPage(1) } }}
       onBack={() => { setErr(''); setPage(p => Math.max(0, p - 1)) }}
       onSubmit={save} submitting={saving} submitIcon={CheckCircle2} submitLabel={T('حفظ التعديلات', 'Save changes')} />
   )
@@ -9525,10 +9463,10 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
         // The service detail is editable only for general-bucket services whose row lives
         // in other_applications (dedicated-table services carry their own gov-process model).
         const svcCode = baseSvcCode(data?.code || inv.service_type?.code)
-        const svcEditable = !!onEditService && !['transfer', 'iqama_issuance'].includes(svcCode) && canCardBtn(user, 'invoices', 'service', 'edit')
-        // الخدمات ذات الجداول المخصّصة (نقل/أجير/تجديد/إصدار إقامة) لا تستخدم نافذة تعديل تفاصيل الخدمة،
-        // لكن يبقى المكتب قابلاً للتعديل عبر نافذة مستقلة — يظهر زرّها فقط لهذه الخدمات.
-        const officeEditable = !!onEditOffice && ['transfer', 'iqama_issuance'].includes(svcCode) && fieldEditable(user, 'invoices', 'service_office') && canCardBtn(user, 'invoices', 'service', 'edit')
+        const svcEditable = !!onEditService && !['iqama_issuance'].includes(svcCode) && canCardBtn(user, 'invoices', 'service', 'edit')
+        // إصدار الإقامة لا يستخدم نافذة تعديل تفاصيل الخدمة (خدمة ذات جدول مخصّص بلا حقول عرض قابلة للتعديل هنا)،
+        // لكن يبقى المكتب قابلاً للتعديل عبر نافذة مستقلة — يظهر زرّها فقط لها. نقل الكفالة صار مثل تجديد الإقامة (svcEditable).
+        const officeEditable = !!onEditOffice && ['iqama_issuance'].includes(svcCode) && fieldEditable(user, 'invoices', 'service_office') && canCardBtn(user, 'invoices', 'service', 'edit')
         // سجلّ تعديل المكتب لهذه الخدمات يُخزَّن في invoices.service_log (نفس نمط نافذة تعديل التأشيرات).
         const officeChanges = officeEditable ? (Array.isArray(inv.service_log) ? inv.service_log : []) : []
         // سجلّ تعديل الخدمة (من other_applications.details.service_changes) — تغييرات الوصف/المكتب.
@@ -9603,7 +9541,7 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
           </div>
         )
       })())}
-      {cardVisible(user, 'invoices', 'pricing') && (!isZeroSvc(data?.code || inv.service_type?.code) || showEmpty) && (
+      {cardVisible(user, 'invoices', 'pricing') && (!isZeroSvc(data?.code || inv.service_type?.code, total) || showEmpty) && (
       <PricingCard breakdown={inv.pricing_breakdown} total={total} paid={paid} remaining={remaining} absher={data.absherDiscount || 0} tc={data.tc} T={T} onEdit={canCardBtn(user, 'invoices', 'pricing', 'edit') ? onEditPricing : undefined} discount={discountAmt} discountLog={discountLog} log={inv.pricing_log} svcCode={data?.code || inv.service_type?.code} qty={inv.service_quantity ?? inv.service_request?.quantity ?? (data?.det || []).length} user={user} />
       )}
       {cardVisible(user, 'invoices', 'installments_payments') && (total > 0 || showEmpty) && (
@@ -9629,7 +9567,7 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
           <div style={cardChrome}>
             <div style={cardHeader}>
               <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
-              <span style={cardTitle}>{isZeroSvc(data?.code || inv.service_type?.code) ? T('الملاحظة','Note') : T('ملاحظة الفاتورة','Invoice Note')}</span>
+              <span style={cardTitle}>{isZeroSvc(data?.code || inv.service_type?.code, total) ? T('الملاحظة','Note') : T('ملاحظة الفاتورة','Invoice Note')}</span>
               {onEditNote && canCardBtn(user, 'invoices', 'notes', 'edit') && (
                 <button onClick={onEditNote} title={T('تعديل الملاحظة','Edit note')}
                   style={{ marginInlineStart: 'auto', height: 32, padding: '0 14px', borderRadius: 9, background: 'rgba(176,125,0,.06)', border: '1px dashed var(--accent-bd)', color: 'var(--accent)', fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
@@ -9875,6 +9813,8 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
                   [T('العامل', 'Worker'), mk(w ? (isAr ? (w.name_ar || w.name_en) : (w.name_en || w.name_ar)) : tc.worker_name), false],
                   [T('المهنة الجديدة', 'New Occupation'), mk(d.new_occupation ? (isAr ? d.new_occupation.name_ar : d.new_occupation.name_en) : tc.new_occupation_name_ar), false],
                   [T('انتهاء الإقامة', 'Iqama Expiry'), (d.iqama_expiry_date || tc.iqama_expiry_gregorian) ? fmtGreg(d.iqama_expiry_date || tc.iqama_expiry_gregorian, isAr) : null, false, C.gold],
+                  [T('مدة التجديد', 'Renewal Months'), (d.expected_iqama_months != null ? d.expected_iqama_months : tc.renewal_months) ? `${d.expected_iqama_months != null ? d.expected_iqama_months : tc.renewal_months} ${T('شهر', 'months')}` : null, false],
+                  [T('الانتهاء الجديد', 'New Expiry'), (d.renewed_iqama_expiry_date || tc.expected_expiry_date) ? fmtGreg(d.renewed_iqama_expiry_date || tc.expected_expiry_date, isAr) : null, false, C.gold],
                   [T('حالة النقل', 'Transfer Status'), mk(d.status ? (isAr ? d.status.value_ar : d.status.value_en) : null), false],
                   [T('حالة العامل', 'Worker Status'), mk(d.worker_status ? (isAr ? d.worker_status.value_ar : d.worker_status.value_en) : null), false],
                   [T('حالة قوى', 'Qiwa Status'), mk(d.transfer_qiwa_status), false],
@@ -10376,7 +10316,7 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
         const invBranchCan = canTabBranch(user, 'invoices', inv.branch_id || inv.branch?.id || null)
         const canPay = !cancelled && invBranchCan && remaining > 0.005 && canPayPerm && modalAllowed(user, 'invoices', 'inv_action_payment')
         // رواتب سبلاير: لا يُعرض زر إلغاء الفاتورة (تُدار حالة الطلب من زر «تأكيد الإنجاز» فقط).
-        const canCancel = !cancelled && invBranchCan && canCancelPerm && !isZeroSvc(inv.service_type?.code) && modalAllowed(user, 'invoices', 'inv_action_cancel')
+        const canCancel = !cancelled && invBranchCan && canCancelPerm && !isZeroSvc(inv.service_type?.code, total) && modalAllowed(user, 'invoices', 'inv_action_cancel')
         if (!canPay && !canCancel) return null
         return (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>

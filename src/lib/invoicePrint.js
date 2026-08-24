@@ -242,8 +242,9 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
     exitReentryShort: { ar: 'خروج وعودة', en: 'Exit / Re-entry', hi: 'निकास / पुनः प्रवेश', ur: 'خروج و واپسی', bn: 'এক্সিট / রি-এন্ট্রি' },
     visaNo: { ar: 'رقم التأشيرة', en: 'Visa No', hi: 'वीज़ा नं', ur: 'ویزا نمبر', bn: 'ভিসা নং' },
     officeFee: { ar: 'رسوم المكتب (تشمل رسوم السجل التجاري وقوى ومقيم والغرفة التجارية والسعودة)', en: 'Office Fee (incl. Commercial Registration, Qiwa, Muqeem, Chamber of Commerce & Saudization)', hi: 'कार्यालय शुल्क (वाणिज्यिक रजिस्टर, क़िवा, मुक़ीम, वाणिज्य चैंबर और सऊदीकरण शुल्क सहित)', ur: 'دفتر فیس (تجارتی رجسٹریشن، قوی، مقیم، چیمبر آف کامرس اور سعودائزیشن کی فیسوں سمیت)', bn: 'অফিস ফি (বাণিজ্যিক রেজিস্ট্রেশন, কিওয়া, মুকিম, চেম্বার অফ কমার্স ও সৌদিকরণ ফি সহ)' },
-    officeFeeSaudization: { ar: 'رسوم المكتب (تشمل السعودة)', en: 'Office Fee (incl. Saudization)', hi: 'कार्यालय शुल्क (सऊदीकरण सहित)', ur: 'دفتر فیس (سعودائزیشن سمیت)', bn: 'অফিস ফি (সৌদিকরণ সহ)' },
+    officeFeeSaudization: { ar: 'رسوم السعودة', en: 'Saudization Fee', hi: 'सऊदीकरण शुल्क', ur: 'سعودائزیشن فیس', bn: 'সৌদিকরণ ফি' },
     officeFeeShort: { ar: 'رسوم المكتب', en: 'Office Fee', hi: 'कार्यालय शुल्क', ur: 'دفتر فیس', bn: 'অফিস ফি' },
+    feesLabel: { ar: 'الرسوم', en: 'Fees', hi: 'शुल्क', ur: 'فیس', bn: 'ফি' },
     professionChangeFee: { ar: 'رسم تغيير المهنة', en: 'Occupation Change Fee', hi: 'पेशा परिवर्तन शुल्क', ur: 'پیشہ تبدیلی فیس', bn: 'পেশা পরিবর্তন ফি' },
     salaryAdjFee: { ar: 'رسم تعديل الراتب', en: 'Salary Adjustment Fee', hi: 'वेतन समायोजन शुल्क', ur: 'تنخواہ ایڈجسٹمنٹ فیس', bn: 'বেতন সমন্বয় ফি' },
     contractFee: { ar: 'رسوم العقد', en: 'Contract Fee', hi: 'अनुबंध शुल्क', ur: 'معاہدہ فیس', bn: 'চুক্তি ফি' },
@@ -662,8 +663,9 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
   // شارة حالة منفردة (حد جانبي + خلفية خفيفة + نقطة + نص بلون الحالة)، مع وسم مرحلة اختياري.
   const statusTag = (t, c, bg, phase, full, endText) =>
     `<span class="status-bar${full ? ' status-bar-full' : ''}" style="border-inline-start:3px solid ${c};background:${bg};color:${c}"><span class="status-dot" style="background:${c}"></span>${phase ? `<span class="phase-chip" style="color:${c}">${phase}</span>` : ''}${t}${endText ? `<span class="status-when">${endText}</span>` : ''}</span>`
-  // الخدمات الصفرية (رواتب سبلاير · مستندات · موافقة النقل الخارجي): حالتها وبياناتها في قسم «المعاملة» المستقل.
-  const isZeroPrint = code === 'supplier_payroll' || code === 'documents' || code === 'external_transfer_approval' || SELF_PARTY_DONE_SVCS.includes(code)
+  // الخدمات الصفرية (رواتب سبلاير · مستندات): حالتها وبياناتها في قسم «المعاملة» المستقل.
+  // الموافقة للنقل الخارجي: بند «رسوم» قابل للتعديل (افتراضي صفر) — صفرية فقط إن بقي الإجمالي صفراً فعلاً.
+  const isZeroPrint = code === 'supplier_payroll' || code === 'documents' || (code === 'external_transfer_approval' && !(totalA > 0)) || SELF_PARTY_DONE_SVCS.includes(code)
   const reqStatusTag = (() => {
     // بقية الخدمات: «منجز» (أخضر) · «ملغي» (أحمر) · وإلا «جديد» (أزرق).
     const m = reqStatusCode === 'done' ? { t: lab('stDone'), c: 'var(--ok)', bg: 'var(--ok-bg)' }
@@ -869,7 +871,9 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
     if (s.includes('رسوم مكتب') || s.includes('رسوم المكتب')) return lab(code === 'profession_change' ? 'officeFeeSaudization' : (code === 'exit_reentry_visa' || code === 'other') ? 'officeFeeShort' : 'officeFee')
     if (s.includes('رسم تغيير المهنة')) return lab('professionChangeFee')
     if (s.includes('تعديل الراتب')) return lab('salaryAdjFee')
-    if (s.includes('خروج نهائي')) return lab('officeFeeShort')
+    if (s.includes('خروج نهائي')) return lab('feesLabel')
+    // الموافقة للنقل الخارجي: بند «رسوم» (تطابق تام كي لا يصطدم مع «رسوم مكتب/النقل/العقد» أعلاه).
+    if (s === 'رسوم') return lab('feesLabel')
     if (s.includes('نقل الكفالة') || s.includes('رسوم النقل')) return lab('transferFee')
     if (s.includes('تجديد الإقامة') || s.includes('تجديد الاقامة')) return lab('iqamaRenewal')
     if (s.includes('كرت العمل') || s.includes('رخصة العمل')) return lab('workPermit')
@@ -967,7 +971,8 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
     : (fullyPaid ? `<div class="paid-wm">${lab('fullyPaid')}</div>` : '')
 
   // رواتب سبلاير: فاتورة صفرية تُطبع في صفحة واحدة — ترويسة + شارة «صفرية» + الأطراف والمنشأة وتفاصيل الطلب.
-  const isSupplierPayroll = code === 'supplier_payroll' || code === 'documents' || code === 'external_transfer_approval'
+  // الموافقة للنقل الخارجي: صفحة واحدة فقط إن بقي إجمالي «رسوم»ها صفراً فعلاً.
+  const isSupplierPayroll = code === 'supplier_payroll' || code === 'documents' || (code === 'external_transfer_approval' && !(totalA > 0))
   const mastheadHtml = `
   <header class="masthead">
     <span class="corner tl"></span><span class="corner tr"></span>
