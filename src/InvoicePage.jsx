@@ -4003,119 +4003,56 @@ const ActionModal = ({ type, stage = null, onClose, sb, T, isAr, inv, total, pai
         // الفاتورة تحمل أكثر من تأشيرة، فيُلغى ما اختاره المستخدم فقط: تُحذف صفوف التأشيرات
         // ودفعاتُ إقامتها كاملةً، ويُنقَص من كل دفعة مشتركة ما وزّعه المستخدم (الافتراضي حصّة
         // التأشيرات المختارة). ما دُفع ضمن ذلك النقص يُعاد للعميل كدفعة سالبة واحدة.
-        // الثوابت المحفوظة: الإجمالي = مجموع إجمالي الدفعات · المدفوع = مجموع مدفوعها · لا تقل
-        // دفعة عن مسدّدها. وإن لم تبقَ تأشيرة تُلغى الفاتورة كاملةً بنفس السبب.
+        //
+        // العملية كلها تُنفَّذ في **نداء واحد** إلى `cancel_invoice_visas` (معاملة واحدة في
+        // قاعدة البيانات): الأقساط + دفعة الاسترجاع + حذف صفوف التأشيرات + كمية الطلب +
+        // الفاتورة وسجلّ الإلغاء. كان هذا سابقاً أربع كتابات متتابعة من المتصفّح، فأي انقطاع
+        // بينها — أو كتابةٌ يُسقطها RLS بصمت (تعود بصفر صفوف بلا خطأ) — يترك الفاتورة نصف
+        // معدَّلة: تأشيرات محذوفة وإجماليٌّ لم يتغيّر (حدث فعلياً في الفاتورة 5525809956).
+        // الدالة تفحص الصلاحية وترفع خطأً بدل السقوط الصامت، وتتحقّق من الثوابت قبل الالتزام:
+        // الإجمالي = مجموع إجمالي الأقساط الحيّة، ولا يتجاوز مسدَّد قسطٍ إجماليَه، والمُعاد ≤ المدفوع.
         if (!cancelCount) { setActErr(T('اختر تأشيرة واحدة على الأقل', 'Pick at least one visa')); return }
-        const nowIsoV = new Date().toISOString()
-        const { data: invFreshV, error: erF } = await sb.from('invoices')
-          .select('total_amount, paid_amount, cancel_log, status:status_id(code)').eq('id', inv.id).maybeSingle()
-        if (erF) throw erF
-        if (invFreshV?.status?.code === 'cancelled') { setActErr(T('الفاتورة ملغاة بالفعل', 'Invoice is already cancelled')); return }
-        const totalNumV = Number(invFreshV?.total_amount) || 0
-        const curPaidV = Number(invFreshV?.paid_amount) || 0
-        const { data: liveRowsV, error: erLV } = await sb.from('installments')
-          .select('id, total_amount, paid_amount, installment_order, notes, visa_application_id, payment_milestone:payment_milestone_id(value_ar,value_en)')
-          .eq('invoice_id', inv.id).is('deleted_at', null).order('installment_order')
-        if (erLV) throw erLV
-        const isResV = it => { if (it.visa_application_id) return true; const m = it.payment_milestone ? (it.payment_milestone.value_ar || it.payment_milestone.value_en) : ''; return /إقامة|اقامة|iqama|residence/i.test(m || it.notes || '') }
-        const resRowsV = (liveRowsV || []).filter(isResV)
-        const sharedRowsV = (liveRowsV || []).filter(it => !isResV(it))
-        // دفعة إقامة كل تأشيرة مختارة (بالربط المباشر)؛ وللبيانات القديمة بلا ربط نأخذ أقدم
-        // دفعة إقامة غير مربوطة لكل تأشيرة مختارة — فيبقى العدد = عدد التأشيرات المتبقّية.
-        const unlinkedRes = resRowsV.filter(it => !it.visa_application_id)
-        const resToRemove = []
-        for (const vid of cancelVisaIds) {
-          const linked = resRowsV.find(it => it.visa_application_id === vid && !resToRemove.includes(it))
-          if (linked) { resToRemove.push(linked); continue }
-          const spare = unlinkedRes.find(it => !resToRemove.includes(it))
-          if (spare) resToRemove.push(spare)
+        if (!cancelInstOps.length) { setActErr(T('حدّد مبلغًا للحذف من الدفعات', 'Specify an amount to deduct from installments')); return }
+        let cpmIdV = null
+        if (cancelRefundAmt > 0.005) {
+          cpmIdV = cancelRefundMethod === 'bank' ? payMethodIds.bank : payMethodIds.cash
+          if (!cpmIdV) { setActErr(T('تعذر تحديد طريقة إعادة المبلغ', 'Cannot resolve the refund method')); return }
         }
-        let totalDeductV = 0, totalRefundV = 0
-        const instOpsV = []
-        for (const it of sharedRowsV) {
-          const ded = cancelDistVal(it); if (ded <= 0.005) continue
-          const tot = Number(it.total_amount) || 0, pd = Number(it.paid_amount) || 0
-          const refund_i = Math.max(0, Math.round((ded - (tot - pd)) * 100) / 100)
-          const newTot = Math.round((tot - ded) * 100) / 100
-          const newPaid = Math.round((pd - refund_i) * 100) / 100
-          totalDeductV += ded; totalRefundV += refund_i
-          instOpsV.push({ id: it.id, newTot, newPaid, del: newTot <= 0.005 && newPaid <= 0.005 })
-        }
-        for (const it of resToRemove) { totalDeductV += Number(it.total_amount) || 0; totalRefundV += Number(it.paid_amount) || 0 }
-        totalDeductV = Math.round(totalDeductV * 100) / 100
-        totalRefundV = Math.round(Math.min(totalRefundV, curPaidV) * 100) / 100
-        if (totalDeductV <= 0.005) { setActErr(T('حدّد مبلغًا للحذف من الدفعات', 'Specify an amount to deduct from installments')); return }
-
-        // 1) إعادة المبلغ المدفوع على التأشيرات الملغاة — دفعة سالبة واحدة تحمل هوية التأشيرات.
         const reasonTxt = (cancelReason || '').trim()
-        if (totalRefundV > 0.005) {
-          const cpmId = cancelRefundMethod === 'bank' ? payMethodIds.bank : payMethodIds.cash
-          if (!cpmId) { setActErr(T('تعذر تحديد طريقة إعادة المبلغ', 'Cannot resolve the refund method')); return }
-          const refTxt = cancelVisas.map(v => v.border_number || v.file_number || '').filter(Boolean).join('،')
-          const noteV = [isAr ? `إلغاء ${cancelCount} تأشيرة` : `Cancelled ${cancelCount} visa(s)`, refTxt ? `visa_ref:${refTxt}` : '', reasonTxt].filter(Boolean).join(' — ')
-          const { error: erP } = await sb.from('payments').insert({
-            invoice_id: inv.id, installment_id: sharedRowsV[0]?.id || null,
-            service_request_id: inv.service_request?.id || null, branch_id: inv.branch_id || inv.branch?.id || null,
-            amount: -totalRefundV, payment_method_id: cpmId, bank_reference: null, bank_account_id: null,
-            is_valid: true, notes: noteV, created_by: user?.id || null,
-          })
-          if (erP) throw erP
-        }
-        // 2) تطبيق التوزيع على الدفعات المشتركة، وحذف دفعات الإقامة الخاصة بالتأشيرات الملغاة.
-        for (const op of instOpsV) {
-          if (op.del) await sb.from('installments').update({ deleted_at: nowIsoV }).eq('id', op.id)
-          else await sb.from('installments').update({ total_amount: op.newTot, paid_amount: op.newPaid, ...(op.newPaid <= 0.005 ? { paid_date: null } : {}) }).eq('id', op.id)
-        }
-        for (const it of resToRemove) await sb.from('installments').update({ deleted_at: nowIsoV }).eq('id', it.id)
-        // 3) فكّ ارتباط الدفعات ثم حذف صفوف التأشيرات وإنقاص كمية الطلب.
-        await sb.from('installments').update({ visa_application_id: null }).in('visa_application_id', cancelVisaIds)
-        const { error: erDelV } = await sb.from('visa_applications').delete().in('id', cancelVisaIds)
-        if (erDelV) throw erDelV
-        const srIdV = inv.service_request?.id
-        if (srIdV) {
-          const { data: srRowV } = await sb.from('service_requests').select('quantity').eq('id', srIdV).maybeSingle()
-          await sb.from('service_requests').update({ quantity: Math.max(0, (Number(srRowV?.quantity) || 0) - cancelCount) }).eq('id', srIdV)
-        }
-        // 4) تحديث الفاتورة + سجلّ الإلغاء (قيد لكل عملية إلغاء جزئي، يذكر عدد التأشيرات والمبالغ).
-        const newTotalV2 = Math.max(0, Math.round((totalNumV - totalDeductV) * 100) / 100)
-        const newPaidV2 = Math.max(0, Math.round((curPaidV - totalRefundV) * 100) / 100)
-        const survivingV = Math.max(0, (liveRowsV?.length || 0) - instOpsV.filter(op => op.del).length - resToRemove.length)
-        const prevLogV = Array.isArray(invFreshV?.cancel_log) ? invFreshV.cancel_log : []
+        const refTxt = cancelVisas.map(v => v.border_number || v.file_number || '').filter(Boolean).join('،')
+        const noteV = [isAr ? `إلغاء ${cancelCount} تأشيرة` : `Cancelled ${cancelCount} visa(s)`, refTxt ? `visa_ref:${refTxt}` : '', reasonTxt].filter(Boolean).join(' — ')
+        // `at`/`by` تُضيفهما الدالة من وقت الخادم وهويّة الجلسة.
         const logEntryV = {
-          at: nowIsoV, by: user?.id || null, by_name: user?.person?.name_ar || user?.person?.name_en || null,
+          by_name: user?.person?.name_ar || user?.person?.name_en || null,
           reason: reasonTxt, visas_cancelled: cancelCount,
           visa_refs: cancelVisas.map(v => v.border_number || v.file_number || null).filter(Boolean),
-          deducted: totalDeductV, refunded: totalRefundV, total: { from: totalNumV, to: newTotalV2 },
+          deducted: cancelDeduct, refunded: cancelRefundAmt,
+          total: { from: Number(total) || 0, to: cancelNewTotal },
         }
-        const invPatchV2 = {
-          total_amount: newTotalV2, paid_amount: newPaidV2, last_activity_at: nowIsoV,
-          installments_count: survivingV, service_quantity: Math.max(0, visaCount - cancelCount),
-          cancel_log: [...prevLogV, logEntryV],
-        }
-        // لم تبقَ تأشيرة → تُلغى الفاتورة نفسها؛ وإلا تُشتقّ حالة السداد من الأرقام الجديدة.
-        const allGone = cancelCount >= visaCount || newTotalV2 <= 0.005
-        if (allGone) {
-          let cidV = cancelledStatusId
-          if (!cidV) {
-            const { data: stV } = await sb.from('lookup_items')
-              .select('id,category:lookup_categories!inner(category_key)')
-              .eq('category.category_key', 'invoice_status').eq('code', 'cancelled').maybeSingle()
-            cidV = stV?.id || null
-          }
-          if (cidV) invPatchV2.status_id = cidV
-        } else if (newTotalV2 > 0.005 && newPaidV2 >= newTotalV2 - 0.005 && fullyPaidStatusId) invPatchV2.status_id = fullyPaidStatusId
-        else if (activeStatusId) invPatchV2.status_id = activeStatusId
-        const { error: erIV } = await sb.from('invoices').update(invPatchV2).eq('id', inv.id)
-        if (erIV) throw erIV
+        const { data: rpcRes, error: erRpc } = await sb.rpc('cancel_invoice_visas', {
+          p_invoice_id: inv.id,
+          p_visa_ids: cancelVisaIds,
+          p_reason: reasonTxt,
+          p_inst_ops: cancelInstOps,
+          p_refund_amount: cancelRefundAmt,
+          p_refund_method_id: cpmIdV,
+          p_refund_note: noteV,
+          p_expected_total: Number(total) || 0,
+          p_new_total: cancelNewTotal,
+          p_cancel_log_entry: logEntryV,
+        })
+        if (erRpc) throw erRpc
+        if (!rpcRes) { setActErr(T('تعذّر إلغاء التأشيرات — أعد المحاولة', 'Could not cancel the visas — try again')); return }
+        const allGone = !!rpcRes.all_gone
         successInfo = {
           title: allGone ? T('تم إلغاء الفاتورة', 'Invoice cancelled') : T('تم إلغاء التأشيرات المحدّدة', 'Selected visas cancelled'),
           desc: allGone
             ? T('أُلغيت جميع التأشيرات فأُلغيت الفاتورة معها.', 'All visas were cancelled, so the invoice was cancelled too.')
             : T('أُزيلت التأشيرات المختارة من الفاتورة وبقيت الفاتورة سارية ببقيّتها.', 'The selected visas were removed; the invoice remains active with the rest.'),
           rows: [
-            { label: T('التأشيرات الملغاة', 'Visas cancelled'), value: num(cancelCount), color: C.red },
-            { label: T('المبلغ المُعاد', 'Returned'), value: num(totalRefundV), color: C.red },
-            { label: T('الإجمالي الجديد', 'New total'), value: num(newTotalV2), color: C.ok },
+            { label: T('التأشيرات الملغاة', 'Visas cancelled'), value: num(Number(rpcRes.visas_cancelled) || cancelCount), color: C.red },
+            { label: T('المبلغ المُعاد', 'Returned'), value: num(Number(rpcRes.refunded) || 0), color: C.red },
+            { label: T('الإجمالي الجديد', 'New total'), value: num(Number(rpcRes.total) || 0), color: C.ok },
           ],
         }
       } else if (type === 'cancel') {
@@ -4786,7 +4723,20 @@ const ActionModal = ({ type, stage = null, onClose, sb, T, isAr, inv, total, pai
   const cancelSharedInsts = (insts || []).filter(it => !isVisaOwnInst(it))
   const cancelVisas = visaList.filter(v => cancelVisaIds.includes(v.id))
   const cancelCount = cancelVisas.length
-  const cancelResInsts = (insts || []).filter(it => isVisaOwnInst(it) && cancelVisaIds.includes(it.visa_application_id))
+  // دفعات إقامة التأشيرات المختارة: بالربط المباشر أولاً، ثم — للبيانات القديمة بلا ربط —
+  // أقدم دفعة إقامة غير مربوطة لكل تأشيرة مختارة. تُحسب هنا مرّة واحدة ويستعملها العرض
+  // والحفظ معاً؛ كان الحفظ يطبّق الاحتياطي والعرض لا، فيختلف ما يُكتب عمّا رآه المستخدم.
+  const cancelResInsts = (() => {
+    const resRows = (insts || []).filter(isVisaOwnInst)
+    const picked = []
+    for (const vid of cancelVisaIds) {
+      const linked = resRows.find(it => it.visa_application_id === vid && !picked.includes(it))
+      if (linked) { picked.push(linked); continue }
+      const spare = resRows.find(it => !it.visa_application_id && !picked.includes(it))
+      if (spare) picked.push(spare)
+    }
+    return picked
+  })()
   const cancelSuggest = it => Math.min(Number(it.total_amount) || 0, Math.round((Number(it.total_amount) * cancelCount / Math.max(1, visaCount)) * 100) / 100)
   const cancelDistVal = it => { const v = cancelDist[it.id]; let n = v === undefined ? cancelSuggest(it) : Number(v || 0); if (isNaN(n)) n = 0; return Math.max(0, Math.min(Number(it.total_amount) || 0, Math.round(n * 100) / 100)) }
   const cancelDistDisplay = it => { const v = cancelDist[it.id]; return v === undefined ? String(cancelSuggest(it)) : v }
@@ -4795,6 +4745,18 @@ const ActionModal = ({ type, stage = null, onClose, sb, T, isAr, inv, total, pai
   const cancelDeduct = Math.round((cancelSharedInsts.reduce((s, it) => s + cancelDistVal(it), 0) + cancelResInsts.reduce((s, it) => s + (Number(it.total_amount) || 0), 0)) * 100) / 100
   const cancelRefundAmt = Math.round(Math.min(cancelSharedInsts.reduce((s, it) => s + cancelDistRefund(it), 0) + cancelResInsts.reduce((s, it) => s + (Number(it.paid_amount) || 0), 0), Number(paid) || 0) * 100) / 100
   const cancelNewTotal = Math.max(0, Math.round(((Number(total) || 0) - cancelDeduct) * 100) / 100)
+  // خطّة الأقساط الحرفية التي ستُكتب — مبنيّة من نفس الأرقام المعروضة في الملخّص أعلاه،
+  // وتُرسَل كما هي إلى الدالة الذرّية `cancel_invoice_visas` فلا تُعاد اشتقاقها عند الحفظ.
+  const cancelInstOps = [
+    ...cancelSharedInsts.map(it => {
+      const ded = cancelDistVal(it); if (ded <= 0.005) return null
+      const tot = Number(it.total_amount) || 0, pd = Number(it.paid_amount) || 0
+      const newTot = Math.round((tot - ded) * 100) / 100
+      const newPaid = Math.round((pd - cancelDistRefund(it)) * 100) / 100
+      return { id: it.id, new_total: newTot, new_paid: newPaid, del: newTot <= 0.005 && newPaid <= 0.005 }
+    }).filter(Boolean),
+    ...cancelResInsts.map(it => ({ id: it.id, new_total: 0, new_paid: 0, del: true })),
+  ]
   // خطوة النطاق تظهر فقط حين تحمل الفاتورة أكثر من تأشيرة؛ التأشيرة الواحدة = الفاتورة كاملة.
   const cancelHasVisaScope = isWorkVisa && visaCount >= 2
   const pages = type === 'payment'

@@ -366,11 +366,16 @@ export default function Jub1ReceiptsPage({ sb, user, toast, lang = 'ar', emptyIc
     return () => { alive = false }
   }, [sb, viewId, entries, attsTick])
 
+  // نطلب الصف المعدَّل صراحةً: تحديثٌ لا يطابق أي صف (صلاحية، معرّف قديم، صف محذوف)
+  // يرجع بلا خطأ وبصفر صفوف — فكانت الواجهة تعرض «تم» والحالة لم تتغيّر. الآن صفر
+  // صفوف = فشل معلَن. وتُحدَّث كروت الإحصاء أيضاً لا القائمة وحدها.
   const setReviewStatus = useCallback(async (id, s) => {
-    const { error } = await sb.from('jub1_receipts').update({ review_status: s }).eq('id', id)
-    if (error) tt(T('فشل تحديث الحالة: ', 'Status update failed: ') + error.message)
-    else loadEntries()
-  }, [sb, loadEntries])
+    const { data, error } = await sb.from('jub1_receipts').update({ review_status: s }).eq('id', id).select('id')
+    if (error) { tt(T('فشل تحديث الحالة: ', 'Status update failed: ') + error.message); return false }
+    if (!data || !data.length) { tt(T('لم تتغيّر الحالة — لا صلاحية أو السند غير موجود', 'Status unchanged — no permission, or receipt not found')); return false }
+    await Promise.all([loadEntries(), loadStats()])
+    return true
+  }, [sb, loadEntries, loadStats])
 
   // حفظ التحرير المباشر من صفحة التفاصيل — تحديث السند + استبدال صفوف المدفوعات
   const saveInline = useCallback(async (id, patch, payRows) => {
@@ -1031,13 +1036,16 @@ function ReceiptDetail({ e, atts, services, methods, agents, flags, excelMatch, 
   // لذا نحفظ التعديلات غير المحفوظة أولاً (إن وُجدت وكان يملك صلاحية التعديل) ثم نغيّر الحالة.
   const commitThenStatus = async (to) => {
     if (dirty && canEditReceipt) await doSave()
-    await onStatus(to)
+    return await onStatus(to)
   }
   const applyStatus = async (to) => {
     if (statusBusy) return
     setStatusBusy(true)
-    await commitThenStatus(to)
+    const ok = await commitThenStatus(to)
     setStatusBusy(false)
+    // علامة النجاح كانت تظهر دائماً حتى حين لا يتغيّر شيء. الآن تظهر فقط عند تغيّر فعلي،
+    // وعند الفشل تبقى النافذة مفتوحة مع رسالة الخطأ بدل إيهام المستخدم بالنجاح.
+    if (ok === false) return
     setStatusOk(true)
     setTimeout(() => { setStatusOk(false); setStatusModal(false); setStatusPick(null) }, 1000)
   }
