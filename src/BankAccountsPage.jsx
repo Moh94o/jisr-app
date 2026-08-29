@@ -578,7 +578,7 @@ export default function BankAccountsPage({ sb, user, toast, lang }) {
 
   useEffect(() => {
     if (!sb) return
-    sb.from('branches').select('id, branch_code, name_ar').is('deleted_at', null).order('branch_code').then(({ data }) => setBranches(data || []))
+    sb.from('branches').select('id, branch_code, name_ar').is('deleted_at', null).eq('is_active', true).order('branch_code').then(({ data }) => setBranches(data || []))
   }, [sb])
 
   const totalBalance = useMemo(() => accounts.reduce((s, a) => s + Number(a.current_balance || 0), 0), [accounts])

@@ -37,11 +37,19 @@ export default function RolesAdminPage({ sb, user, toast, lang, emptyIcon, nav, 
   const selected = selectedId ? roles.find(r => r.id === selectedId) : null
 
   if (selected) {
-    return <RoleEditor sb={sb} role={selected} catalog={catalog} canManage={canManage} toast={toast}
-      nav={nav} hubTabs={hubTabs}
-      onBack={() => setSelectedId(null)} onChanged={load}
-      onEdit={() => setModal({ mode: 'edit', role: selected })}
-      onDeleted={() => { setSelectedId(null); load() }} />
+    // نافذة تعديل الاسم واللون تُعرض هنا أيضاً — هذا الفرع يخرج مبكراً قبل نافذة القائمة، فبدونها لا يفتح زر التعديل شيئاً.
+    return (<>
+      <RoleEditor sb={sb} role={selected} catalog={catalog} canManage={canManage} toast={toast}
+        nav={nav} hubTabs={hubTabs}
+        onBack={() => setSelectedId(null)} onChanged={load}
+        onEdit={() => setModal({ mode: 'edit', role: selected })}
+        onDeleted={() => { setSelectedId(null); load() }} />
+      {modal && (
+        <RoleFormModal mode={modal.mode} role={modal.role} toast={toast}
+          onClose={() => setModal(null)}
+          onSaved={async () => { setModal(null); await load() }} />
+      )}
+    </>)
   }
 
   const totalPerms = catalog.reduce((s, m) => s + m.perms.length, 0)

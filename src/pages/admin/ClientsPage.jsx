@@ -228,7 +228,7 @@ export default function ClientsPage({ sb, lang, user, toast, emptyIcon }) {
 
   /* ─── Bootstrap: branches, nationalities, headline stats ─── */
   useEffect(() => {
-    sb.from('branches').select('id,branch_code,name_ar').order('branch_code').then(({ data }) => {
+    sb.from('branches').select('id,branch_code,name_ar').is('deleted_at', null).eq('is_active', true).order('branch_code').then(({ data }) => {
       // المستخدم المقيّد بمكاتب لا يرى في التصفية إلا مكاتبه.
       const all = data || []
       setBranches(officeScope ? all.filter(b => officeScope.includes(b.id)) : all)

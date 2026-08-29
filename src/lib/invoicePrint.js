@@ -853,8 +853,11 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
     const method = localize(p.payment_method) || lab('payment')
     const isLast = i === pays.length - 1
     const inst = insts.find(x => x.id === p.installment_id)
+    // رقم السند الورقي: سند الدفعة نفسها إن كان رقماً صرفاً (ما فيه شرطة مرجع إلكتروني لا سند ورقي)،
+    // وإلا سندات القسط الورقية (قد تكون عدّة أرقام بنص واحد).
+    const ownSlip = /^\d+$/.test(String(p.receipt_no || '').trim()) ? String(p.receipt_no).trim() : ''
     const slips = slipTokens(inst?.paper_slip_no)
-    const slipCell = slips.length ? slips.map(s => num2(s)).join(' · ') : '—'
+    const slipCell = ownSlip ? num2(ownSlip) : (slips.length ? slips.map(s => num2(s)).join(' · ') : '—')
     return `<tr class="${isLast ? 'row-latest' : ''}"><td class="c">${num2(i + 1)}</td><td class="c"><span class="amt"${refund ? ' style="color:var(--no)"' : ''}>${num2(nm(p.amount))} ${cur}</span></td><td class="c">${num2(fmtD(p.payment_date))}</td><td class="c">${slipCell}</td><td class="c">${esc(method)}${refund ? ` <span class="latest-tag no">${lab('refund')}</span>` : (isLast ? ` <span class="latest-tag">${lab('latest')}</span>` : '')}</td></tr>`
   }).join('')}</tbody></table>` : ''
 

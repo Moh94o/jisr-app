@@ -1562,7 +1562,7 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
     if (!sb) return
     let cancelled = false
     ;(async () => {
-      const { data } = await sb.from('branches').select('id,branch_code,name_ar,city:cities(name_ar,name_en)').is('deleted_at', null).order('branch_code', { ascending: true })
+      const { data } = await sb.from('branches').select('id,branch_code,name_ar,is_active,city:cities(name_ar,name_en)').is('deleted_at', null).order('branch_code', { ascending: true })
       if (!cancelled) setBranches(data || [])
     })()
     return () => { cancelled = true }
@@ -2187,7 +2187,7 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
       {/* تعديل فرع العامل المؤقت — «تلقائي (حسب المنشأة)» يمسح التخصيص فيعود العامل لفرع منشأته. */}
       {brEdit && (() => {
         const AUTO = '__auto__'
-        const brOptions = [{ id: AUTO, _auto: true }, ...branches]
+        const brOptions = [{ id: AUTO, _auto: true }, ...branches.filter(b => b.is_active !== false)]
         return (
           <FKModal open width={480} Icon={MapPin} accent={C.gold}
             onClose={() => { if (!brBusy) { setBrEdit(false); setBrErr(null); setBrDone(false) } }}

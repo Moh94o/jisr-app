@@ -3766,6 +3766,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
     sb.from('branches')
       .select('id, branch_code, name_ar, city:cities(name_ar, name_en)')
       .is('deleted_at', null)
+      .eq('is_active', true)
       .order('branch_code')
       .then(({ data }) => {
         const all = data || []
@@ -3989,7 +3990,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
           .order('name_ar', { ascending: true }),
         sb.from('sbc_facilities').select('id, cr_national_number, hrsd_nitaq_name, managers:raw_cr_data->mangmentInformation->managerList'),
         // كل الفروع (غير مفلترة) لحل branch_ids → أكواد الفروع؛ منشأة قد تتبع أكثر من فرع.
-        sb.from('branches').select('id, branch_code, name_ar, city:cities(name_ar,name_en)').is('deleted_at', null),
+        sb.from('branches').select('id, branch_code, name_ar, city:cities(name_ar,name_en)').is('deleted_at', null).eq('is_active', true),
       ])
       if (error) throw error
       const branchById = {}

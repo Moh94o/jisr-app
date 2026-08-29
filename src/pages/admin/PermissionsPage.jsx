@@ -95,7 +95,7 @@ export default function PermissionsPage({ sb, user, toast, lang, nav, hubTabs, v
       sb.from('users')
         .select('id,role_id,primary_branch_id,branch_ids,is_active,personal_phone,email,plain_password,ui_visibility,created_at,last_login_at,person:persons(id,name_ar,name_en,id_number,id_type_id,nationality_id,phone_primary,birth_date,email),branch:branches!users_primary_branch_id_fkey(id,branch_code),role:roles!users_role_id_fkey(id,name_ar,name_en,color)')
         .is('deleted_at', null).order('created_at'),
-      sb.from('branches').select('id,branch_code,name_ar').is('deleted_at', null).order('branch_code'),
+      sb.from('branches').select('id,branch_code,name_ar').is('deleted_at', null).eq('is_active', true).order('branch_code'),
       sb.from('roles').select('id,name_ar,name_en,color').order('name_ar'),
       sb.from('nationalities').select('id,name_ar,name_en,flag_url').eq('is_active', true).order('name_ar'),
       sb.from('permissions').select('*').eq('is_active', true).order('module_sort').order('sort_order'),

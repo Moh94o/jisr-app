@@ -73,7 +73,7 @@ export default function ExternalPaymentsPage({ sb, user, toast, lang = 'ar', bra
   }, [sb, branchId, tick])
 
   useEffect(() => {
-    sb.from('branches').select('id,branch_code,name_ar').then(({ data }) => setBranches(data || []))
+    sb.from('branches').select('id,branch_code,name_ar').is('deleted_at', null).eq('is_active', true).then(({ data }) => setBranches(data || []))
   }, [sb])
 
   const rows = useMemo(() => {

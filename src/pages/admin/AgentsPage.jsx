@@ -217,7 +217,7 @@ export default function AgentsPage({ sb, lang, user, toast, emptyIcon }) {
 
   /* ─── Bootstrap: branches, nationalities, agents + commission roll-up ─── */
   useEffect(() => {
-    sb.from('branches').select('id,branch_code,name_ar').order('branch_code').then(({ data }) => setBranches(data || []))
+    sb.from('branches').select('id,branch_code,name_ar').is('deleted_at', null).eq('is_active', true).order('branch_code').then(({ data }) => setBranches(data || []))
     sb.from('nationalities').select('id,name_ar,name_en').eq('is_active', true).order('name_ar').then(({ data }) => setNationalities(data || []))
 
     setLoading(true)

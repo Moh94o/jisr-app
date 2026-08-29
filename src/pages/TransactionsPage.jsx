@@ -266,7 +266,7 @@ export default function TransactionsPage({ sb, lang, user, tabId, branchId, toas
   useEffect(() => {
     let alive = true
     Promise.all([
-      sb.from('branches').select('id,branch_code,name_ar').order('branch_code'),
+      sb.from('branches').select('id,branch_code,name_ar').is('deleted_at', null).eq('is_active', true).order('branch_code'),
       sb.from('lookup_items').select('id,code,value_ar,value_en,category:lookup_categories!inner(category_key)').eq('is_active', true).in('category.category_key', ['service_type', 'request_status']),
     ]).then(([b, l]) => {
       if (!alive) return

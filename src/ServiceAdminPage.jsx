@@ -15,13 +15,14 @@ export const KAFALA_DEFAULTS={
   transferBumpOccupations:['6d7ccefc-1647-4a36-9a80-ad1f9138db84','f3163bc5-a3e1-4e93-a620-7421db3abc68','8152564f-7a31-430c-9cb3-a76f5df77c04','0394376f-b7e0-455c-8466-0555d477cc42','ebd99f6b-ae4c-453c-9cf5-19099b7f35a3','a4cbe92d-69f8-4129-a876-0dc035fb9bf7','efd9f7af-7ac6-4f3e-9fda-efbc7d95ea61','5a20783b-8a28-4364-bbb8-85fbc71fc291','5ec4a1ba-64e9-4df7-badf-bf12eaf005ba','2feff711-f1d2-489c-870b-ab82b7de9cbd','0e6cd55b-1ced-4d88-ac37-ccfcafd244ec','01f7dcd3-1b72-4ade-bf21-95dc7f819463','09858dcd-0057-4857-a225-ce626313d457'],
   iqamaPerMonth:54.17,iqamaGovCover:650,iqamaFine1:500,iqamaFine2:1000,iqamaGraceDays:7,iqamaProcessingDays:7,iqamaExpiredThresholdDays:30,procDaysCase1:7,procDaysCase2:7,procDaysCase3:7,thresholdCase2:30,transferOnlyMinDays:30,
   workPermit3M:25,workPermit6M:50,workPermit9M:75,workPermit12M:100,
-  workPermitNoExempt3M:2450,workPermitNoExempt6M:4850,workPermitNoExempt9M:7275,workPermitNoExempt12M:9700,
+  workPermitNoExempt3M:2425,workPermitNoExempt6M:4850,workPermitNoExempt9M:7275,workPermitNoExempt12M:9700,
   workPermitDailyAfter:22,workPermitCutoffDate:'2027-02-20',
   workPermitProcDays:7,workPermitExpiredThreshold:30,workPermitExpiredProcDays:7,
   iqamaWpResetEnabled:false,iqamaWpResetAfterDays:365,iqamaWpIssuanceDays:5,iqamaWpBasis:'iqama',iqamaOfficeDiscountEnabled:true,
   iqamaApprovalDiscountCap3M:25,iqamaApprovalDiscountCap6M:51,iqamaApprovalDiscountCap9M:76,iqamaApprovalDiscountCap12M:102,
   kafalaWpBasis:'iqama',kafalaWpResetEnabled:false,kafalaWpResetAfterDays:365,kafalaWpIssuanceDays:5,kafalaOfficeFeeMode:'flat',kafalaOfficeDiscountEnabled:true,
-  kafalaFloorMode:'daily',kafalaFloorFixed:0,
+  kafalaFloorMode:'daily',kafalaFloorFixed:0,kafalaFloorFixedNoExempt:0,kafalaFloorDailyNoExempt:0,
+  kafalaPeriodsExempt:[3,6,9,12],kafalaPeriodsNoExempt:[3,6,9,12],
   // حاسبة تاريخ الانتهاء — أيام تُضاف على تاريخ الانتهاء الحالي لكل مدة (مطابقة قوى).
   expiryDays3:90,expiryDays6:178,expiryDays9:267,expiryDays12:355,
   // الإقامات المنتهية: تعويض التأخير = floor(أيام التأخير ÷ overdueQuarterDays) ربع، يُضاف هجرياً قبل المدة.
@@ -224,13 +225,18 @@ const KAFALA_SECTIONS=[
     {k:'workPermitCutoffDate',l:'تاريخ تفعيل التسعير اليومي',d:'2027-02-20',t:'date'},
     {k:'workPermitProcDays',l:'أيام معالجة الطلب',d:7,sfx:'يوم'},
     {k:'workPermitExpiredThreshold',l:'حد الإقامة المنتهية من مدة',d:30,sfx:'يوم'},
-    {k:'workPermitExpiredProcDays',l:'أيام معالجة الطلب (إقامة منتهية من مدة)',d:7,sfx:'يوم'}
+    {k:'workPermitExpiredProcDays',l:'أيام معالجة الطلب (إقامة منتهية من مدة)',d:7,sfx:'يوم'},
+    {k:'workPermitNoExempt3M',l:'كل 3 أشهر (بدون إعفاء)',d:2425,sfx:'ريال'},
+    {k:'workPermitNoExempt6M',l:'كل 6 أشهر (بدون إعفاء)',d:4850,sfx:'ريال'},
+    {k:'workPermitNoExempt9M',l:'كل 9 أشهر (بدون إعفاء)',d:7275,sfx:'ريال'},
+    {k:'workPermitNoExempt12M',l:'كل 12 شهر (بدون إعفاء)',d:9700,sfx:'ريال'}
   ]},
   {title:'رسوم تغيير المهنة',fields:[
     {k:'profChange',l:'رسوم تغيير المهنة',d:1000,sfx:'ريال'}
   ]},
   {title:'رسوم المكتب',note:'السعر العام يُعرض ثابتاً عند رفع الطلب. سعر اليوم يُستخدم لحساب الحد الأدنى المسموح للخصم عند التصديق — هذا الحد لا يظهر للموظف المُصدِّق (يُرفض الطلب فقط عند النزول تحته).',fields:[
-    {k:'officeFee',l:'السعر العام (عند رفع الطلب)',d:6500,sfx:'ريال'},
+    {k:'officeFee',l:'السعر العام — بإعفاء',d:6500,sfx:'ريال'},
+    {k:'officeFeeNoExempt',l:'السعر العام — بدون إعفاء',d:6500,sfx:'ريال'},
     {k:'officeDailyRate',l:'سعر اليوم (الحد الأدنى للخصم)',d:18.06,sfx:'ريال/يوم'}
   ]}
 ]
@@ -469,6 +475,10 @@ if(svcId==='kafala_transfer'){
   out.kafalaOfficeDiscountEnabled=src.kafalaOfficeDiscountEnabled!==false
   out.kafalaFloorMode=src.kafalaFloorMode||'daily'
   out.kafalaFloorFixed=src.kafalaFloorFixed!==undefined?src.kafalaFloorFixed:0
+  out.kafalaFloorFixedNoExempt=src.kafalaFloorFixedNoExempt!==undefined?src.kafalaFloorFixedNoExempt:0
+  out.kafalaFloorDailyNoExempt=src.kafalaFloorDailyNoExempt!==undefined?src.kafalaFloorDailyNoExempt:0
+  out.kafalaPeriodsExempt=Array.isArray(src.kafalaPeriodsExempt)?src.kafalaPeriodsExempt:[3,6,9,12]
+  out.kafalaPeriodsNoExempt=Array.isArray(src.kafalaPeriodsNoExempt)?src.kafalaPeriodsNoExempt:[3,6,9,12]
 }
 return out
 }
@@ -775,7 +785,7 @@ const renderInlineOverrideEditor=(svc)=>{
     </div>
   )
 }
-const ALL_KAFALA_SECTIONS=['رسوم نقل الكفالة','تجديد الإقامة','كرت العمل','رسوم تغيير المهنة','رسوم المكتب','خصم تصديق الحسبة','المدة المتوقعة في الإقامة','التأمين الطبي','الرسوم الحكومية لتجديد الإقامة','المهلة والغرامات','كرت العمل (رخصة العمل)']
+const ALL_KAFALA_SECTIONS=['رسوم نقل الكفالة','تجديد الإقامة','كرت العمل','رسوم تغيير المهنة','رسوم المكتب','مدد التجديد المتاحة','خصم تصديق الحسبة','المدة المتوقعة في الإقامة','التأمين الطبي','الرسوم الحكومية لتجديد الإقامة','المهلة والغرامات','كرت العمل (رخصة العمل)']
 const [collapsed,setCollapsed]=useState(Object.fromEntries(ALL_KAFALA_SECTIONS.map(t=>[t,true])))// key: section title → true means collapsed (all collapsed by default)
 const toggleSection=(title)=>setCollapsed(p=>({...p,[title]:!p[title]}))
 const [editing,setEditing]=useState({})// key: section title → true means in edit mode
@@ -1248,6 +1258,10 @@ return<div className="svc-admin-pricing" style={{display:'flex',flexDirection:'c
                   const fProc=sec.fields.find(f=>f.k==='workPermitProcDays')
                   const fExpThr=sec.fields.find(f=>f.k==='workPermitExpiredThreshold')
                   const fExpProc=sec.fields.find(f=>f.k==='workPermitExpiredProcDays')
+                  const fNo3=sec.fields.find(f=>f.k==='workPermitNoExempt3M')
+                  const fNo6=sec.fields.find(f=>f.k==='workPermitNoExempt6M')
+                  const fNo9=sec.fields.find(f=>f.k==='workPermitNoExempt9M')
+                  const fNo12=sec.fields.find(f=>f.k==='workPermitNoExempt12M')
                   const caseBox=(num,heading,formula,example,fields,fieldCols)=>(
                     <div style={{display:'flex',flexDirection:'column',gap:6,padding:'10px 12px',borderRadius:9,background:'var(--bd2)',border:'1px solid var(--bd)'}}>
                       <div style={{fontSize:11.5,fontWeight:600,color:C.gold,display:'flex',alignItems:'center',gap:8}}>
@@ -1296,18 +1310,22 @@ return<div className="svc-admin-pricing" style={{display:'flex',flexDirection:'c
                         {renderField(fExpProc,!isEdit)}
                       </div>
                     </div>
-                    {caseBox(1,'كامل الفترة قبل تاريخ التفعيل — سعر ثابت',
+                    {caseBox(1,'بإعفاء · كامل الفترة قبل تاريخ التفعيل — سعر ثابت',
                       `إذا كانت فترة التجديد (3/6/9/12 شهر) تنتهي قبل ${cutoff} ← يُستخدم السعر الثابت من الجدول.`,
                       `مثال: تجديد 12 شهر ينتهي قبل ${cutoff} ← ${fmtNum(w12)} ريال`,
                       [fW3,fW6,fW9,fW12],'1fr 1fr')}
-                    {caseBox(2,'كامل الفترة بعد تاريخ التفعيل — تسعير يومي',
+                    {caseBox(2,'بإعفاء · كامل الفترة بعد تاريخ التفعيل — تسعير يومي',
                       `إذا كانت فترة التجديد تبدأ بعد ${cutoff} ← عدد أيام الفترة × ${daily} ريال/يوم.`,
                       `مثال: تجديد 12 شهر (≈365 يوم) × ${daily} = ${fmtNum(365*daily)} ريال`,
                       [fDaily])}
-                    {caseBox(3,'فترة مختلطة — تمر على تاريخ التفعيل',
+                    {caseBox(3,'بإعفاء · فترة مختلطة — تمر على تاريخ التفعيل',
                       `إذا بدأت قبل ${cutoff} وانتهت بعده: السعر الثابت + (عدد الأيام بعد ${cutoff} × ${daily} ريال/يوم).`,
                       `مثال: تجديد 12 شهر يبدأ قبل التاريخ بشهرين، 10 أشهر بعده (≈300 يوم) ← ${fmtNum(w12)} + (300 × ${daily}) = ${fmtNum(w12 + 300*daily)} ريال`,
                       [])}
+                    {caseBox(4,'بدون إعفاء — سعر ثابت لكل مدة (بلا تسعير يومي)',
+                      'عند اختيار «لا» في سؤال الإعفاء داخل الحاسبة ← يُستخدم السعر الثابت أدناه للمدة المختارة، ولا يدخل التسعير اليومي ولا تاريخ التفعيل في الحساب إطلاقاً.',
+                      `مثال: تجديد 3 أشهر بدون إعفاء ← ${fmtNum(Number(priceState.workPermitNoExempt3M)||2425)} ريال`,
+                      [fNo3,fNo6,fNo9,fNo12],'1fr 1fr')}
                   </div>)
                 })()
               : sec.title==='رسوم تغيير المهنة'
@@ -1385,6 +1403,42 @@ return<div className="svc-admin-pricing" style={{display:'flex',flexDirection:'c
           </>}
         </div>)
       })}
+      {/* مدد التجديد المتاحة — أي مدة تُعطَّل في الحاسبة حسب حالة الإعفاء (بلا كود) */}
+      {(() => {
+        const title='مدد التجديد المتاحة'
+        const isCol=!!collapsed[title]
+        const isEdit=!!editing[title]
+        const subHead=(t)=>(<div style={{fontSize:11,fontWeight:600,color:C.gold,padding:'2px 8px',borderRight:`2px solid ${C.gold}55`}}>{t}</div>)
+        const listOf=(key)=>{const v=priceState[key];return Array.isArray(v)?v.map(Number):[3,6,9,12]}
+        const toggle=(key,m)=>{const cur=listOf(key);const next=cur.includes(m)?cur.filter(x=>x!==m):[...cur,m].sort((a,b)=>a-b);setPriceState(p=>({...p,[key]:next}))}
+        const row=(key)=>(
+          <div style={{display:'flex',gap:6}}>
+            {[3,6,9,12].map(m=>{
+              const on=listOf(key).includes(m)
+              return(<button key={m} type="button" disabled={!isEdit} onClick={isEdit?()=>toggle(key,m):undefined}
+                style={{flex:1,height:38,borderRadius:9,border:`1px solid ${on?C.gold:'var(--bd)'}`,background:on?'rgba(176,125,0,.12)':'var(--bd2)',color:on?C.gold:'var(--tx4)',fontFamily:F,fontSize:12,fontWeight:600,cursor:isEdit?'pointer':'default',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:1,textDecoration:on?'none':'line-through'}}>
+                <span>{m} شهر</span>
+                <span style={{fontSize:9,opacity:.8}}>{on?'متاح':'معطّل'}</span>
+              </button>)
+            })}
+          </div>
+        )
+        return(
+          <div {...secCardProps(isCol)}>
+            {cardEditAllowed&&!isCol&&!isEdit&&<EditTab onClick={()=>startEdit(title)}/>}
+            {!isCol&&isEdit&&<EditActionTabs onSave={()=>{saveSection(s.id,[],title,['kafalaPeriodsExempt','kafalaPeriodsNoExempt']);finishEdit(title)}} onCancel={()=>cancelEdit(title)}/>}
+            <SectionHead title={title} isCollapsed={isCol} onToggle={()=>toggleSection(title)}/>
+            {!isCol&&<div style={{padding:'2px 4px 4px',display:'flex',flexDirection:'column',gap:12}}>
+              <div style={secNote}>تحديد مدد التجديد التي يستطيع الموظف اختيارها في حاسبة نقل الكفالة، لكل حالة إعفاء على حدة. المدة المعطّلة يظهر زرّها باهتاً وغير قابل للضغط، وإن كانت مختارة تنتقل الحاسبة تلقائياً لأقرب مدة متاحة.</div>
+              {subHead('بإعفاء')}
+              {row('kafalaPeriodsExempt')}
+              {subHead('بدون إعفاء')}
+              {row('kafalaPeriodsNoExempt')}
+              <div style={{fontSize:10,color:'var(--tx4)',fontWeight:600,lineHeight:1.7}}>تعطيل كل المدد في حالة ما = إتاحتها كلها (لا يمكن ترك الموظف بلا خيار).</div>
+            </div>}
+          </div>
+        )
+      })()}
       {/* خصم تصديق الحسبة — قسم مستقل: تفعيل خصم المكتب + أرضية الخصم الافتراضية (تُملأ في نافذة التصديق وتُفرض على كل مُصدِّق). */}
       {(() => {
         const title='خصم تصديق الحسبة'
@@ -1399,7 +1453,7 @@ return<div className="svc-admin-pricing" style={{display:'flex',flexDirection:'c
         return(
           <div {...secCardProps(isCol)}>
             {cardEditAllowed&&!isCol&&!isEdit&&<EditTab onClick={()=>startEdit(title)}/>}
-            {!isCol&&isEdit&&<EditActionTabs onSave={()=>{saveSection(s.id,[{k:'kafalaFloorFixed',d:0}],title,['kafalaOfficeDiscountEnabled','kafalaFloorMode']);finishEdit(title)}} onCancel={()=>cancelEdit(title)}/>}
+            {!isCol&&isEdit&&<EditActionTabs onSave={()=>{saveSection(s.id,[{k:'kafalaFloorFixed',d:0},{k:'kafalaFloorFixedNoExempt',d:0},{k:'kafalaFloorDailyNoExempt',d:0}],title,['kafalaOfficeDiscountEnabled','kafalaFloorMode']);finishEdit(title)}} onCancel={()=>cancelEdit(title)}/>}
             <SectionHead title={title} isCollapsed={isCol} onToggle={()=>toggleSection(title)}/>
             {!isCol&&<div style={{padding:'2px 4px 4px',display:'flex',flexDirection:'column',gap:12}}>
               <div style={secNote}>خصم رسوم المكتب الذي يُطبَّق عند تصديق الحسبة، والحدّ الأدنى (الأرضية) الذي لا ينزل تحته.</div>
@@ -1421,7 +1475,8 @@ return<div className="svc-admin-pricing" style={{display:'flex',flexDirection:'c
                   {floorBtn('fixed','مبلغ ثابت')}
                   {floorBtn('daily','يومي')}
                 </div>
-                {fMode==='fixed'&&<div style={{display:'grid',gridTemplateColumns:'1fr',gap:10}}>{renderField({k:'kafalaFloorFixed',l:'أقل مبلغ لرسوم المكتب',d:0,sfx:'ريال'},!isEdit)}</div>}
+                {fMode==='fixed'&&<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>{renderField({k:'kafalaFloorFixed',l:'أقل مبلغ — بإعفاء',d:0,sfx:'ريال'},!isEdit)}{renderField({k:'kafalaFloorFixedNoExempt',l:'أقل مبلغ — بدون إعفاء',d:0,sfx:'ريال'},!isEdit)}</div>}
+                {fMode==='daily'&&<div style={{display:'grid',gridTemplateColumns:'1fr',gap:10}}>{renderField({k:'kafalaFloorDailyNoExempt',l:'سعر اليوم — بدون إعفاء (0 = نفس سعر اليوم)',d:0,sfx:'ريال'},!isEdit)}</div>}
                 <div style={{fontSize:10,color:'var(--tx4)',fontWeight:600,lineHeight:1.7}}>{fMode==='none'?'بدون أرضية — يُسمح بخصم رسوم المكتب بالكامل.':fMode==='fixed'?'الأرضية = المبلغ الثابت أعلاه؛ أقصى خصم = رسوم المكتب − الأرضية.':'الأرضية = سعر اليوم (من «رسوم المكتب») × أيام التجديد (شهور التجديد × 30)؛ أقصى خصم = رسوم المكتب − الأرضية.'}</div>
               </>}
             </div>}

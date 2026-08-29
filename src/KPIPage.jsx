@@ -54,7 +54,7 @@ export default function KPIPage({ sb, toast, user, lang, branchId }) {
     setTargets(data || [])
 
     // تحميل الفروع
-    const { data: br } = await sb.from('branches').select('id,name_ar').is('deleted_at', null).order('name_ar')
+    const { data: br } = await sb.from('branches').select('id,name_ar').is('deleted_at', null).eq('is_active', true).order('name_ar')
     setBranches(br || [])
 
     // تحميل بيانات آخر 6 أشهر للرسم البياني (snap to the 1st so we don't drop early days of the start month).

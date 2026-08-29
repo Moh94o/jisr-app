@@ -4,15 +4,21 @@
 // Display/copy only — the stored value keeps its dashes for navigation, search and DB lookups.
 export const noDash = (v) => String(v ?? '').replace(/-/g, '');
 
-// ═══ اسم المكتب في القوائم — «النك نيم — الكود» (أو الكود وحده إن لا يوجد نك نيم) ═══
+// ═══ اسم المكتب في القوائم — «النك نيم · الكود» (أو أحدهما إن نقص الآخر) ═══
 // b: صف مكتب فيه branch_code و name_ar (النك نيم). يُستخدم في كل دروب داون للمكاتب/الفروع.
+// النك نيم أولاً كي يستقرّ يميناً في الواجهة العربية، والكود بعده على اليسار.
+// يُنظَّف النك نيم من بادئة «مكتب» ولاحقة «[n]» لأن رقمها مكرّر داخل الكود نفسه.
+// النك نيم وحده بعد التنظيف — لعرضه بجانب الكود في الكروت والعناوين.
+export const branchNick = (b) => String(b?.name_ar || b?.nickname || '').trim()
+  .replace(/^مكتب\s+/, '').replace(/\s*\[\d+\]\s*$/, '').trim();
+
 export const branchLabel = (b) => {
   if (!b) return '—';
-  const nick = String(b.name_ar || b.nickname || '').trim();
+  const nick = branchNick(b);
   const code = String(b.branch_code || '').trim();
-  const base = nick && code ? `${nick} — ${code}` : (nick || code || String(b.id || '—'));
+  const base = nick && code ? `${nick} | ${code}` : (nick || code || String(b.id || '—'));
   // مكتب تجريبي/تعليمي: وسم واضح حيثما توفّرت الراية (لا أثر لها إن لم تُجلب).
-  return b.is_test ? `${base} — تجريبي` : base;
+  return b.is_test ? `${base} | تجريبي` : base;
 };
 
 // ═══ UI-9: تصدير Excel ═══

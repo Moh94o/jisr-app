@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react'
 import ReactDOM from 'react-dom'
-import { User, FileText, Calculator, Tag, ChevronRight, ChevronLeft, Plus, Trash2, Check, X, AlertCircle, Briefcase, Phone, Calendar, ArrowLeftRight, Search, Shield, CreditCard, Clock, Building2, CheckCircle2, Circle, Info, Printer, Database, FileCheck, Send, Lock, RefreshCw, Wallet, Copy } from 'lucide-react'
+import { User, FileText, Calculator, Tag, ChevronRight, ChevronLeft, Plus, Trash2, Check, X, AlertCircle, Briefcase, Phone, Calendar, ArrowLeftRight, Search, Shield, CreditCard, Clock, Building2, CheckCircle2, Circle, Info, Printer, Database, FileCheck, Send, Lock, RefreshCw, Wallet, Copy, BadgeCheck } from 'lucide-react'
 import { getSupabase } from '../lib/supabase.js'
 import { getKafalaPricingConfig } from '../lib/kafalaPricing.js'
 import { computeRenewalExpiryYMD, overdueQuarters } from '../lib/expiryDuration.js'
@@ -533,8 +533,8 @@ const KCard = ({ Icon, label, hint, children, span, style, bodyStyle }) => (
   </div>
 )
 
-const RenewalPill = ({ selected, onClick, children, flex }) => (
-  <button type="button" onClick={onClick}
+const RenewalPill = ({ selected, onClick, children, flex, disabled }) => (
+  <button type="button" onClick={disabled ? undefined : onClick} disabled={disabled}
     style={{
       flex: flex || 1,
       height: 42,
@@ -545,7 +545,8 @@ const RenewalPill = ({ selected, onClick, children, flex }) => (
       fontFamily: F,
       fontSize: 14,
       fontWeight: selected ? 600 : 500,
-      cursor: 'pointer',
+      cursor: disabled ? 'not-allowed' : 'pointer',
+      opacity: disabled ? .4 : 1,
       transition: '.18s',
       display: 'flex',
       flexDirection: 'row',
@@ -554,7 +555,7 @@ const RenewalPill = ({ selected, onClick, children, flex }) => (
       gap: 7,
       boxShadow: 'none'
     }}
-    onMouseEnter={e => { if (!selected) { e.currentTarget.style.borderColor = 'rgba(176,125,0,.35)'; e.currentTarget.style.color = 'var(--tx)' } }}
+    onMouseEnter={e => { if (!selected && !disabled) { e.currentTarget.style.borderColor = 'rgba(176,125,0,.35)'; e.currentTarget.style.color = 'var(--tx)' } }}
     onMouseLeave={e => { if (!selected) { e.currentTarget.style.borderColor = 'var(--bd)'; e.currentTarget.style.color = 'var(--tx3)' } }}>
     {selected ? <CheckCircle2 size={16} strokeWidth={2} style={{ flexShrink: 0 }} /> : <Circle size={16} strokeWidth={2} style={{ flexShrink: 0, opacity: .5 }} />}
     <span style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 4 }}>{children}</span>
@@ -663,7 +664,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
     return {
       name: '', iqama: '', phone: '', iqamaExpiry: '', dob: '', nationality: 'بنغلاديشي', gender: 'ذكر', occupation: '', legalStatus: 'صالح',
       workerType: 'facility', currentEmployer: '', currentEmployerId: '', newOccupation: '', newOccupationId: null, occupationId: null, wpExpiry: '',
-      hasNoticePeriod: false, employerConsent: false, changeProfession: false, renewIqama: true, transferOnly: false,
+      hasNoticePeriod: false, employerConsent: false, changeProfession: false, renewIqama: true, transferOnly: false, exemption: true,
       transferCount: '0', renewalMonths: '12', iqamaFineCount: '1',
       transferFeeInput: String(cfg.transferFee1),
       iqamaRenewalFee: String(Math.round(cfg.iqamaPerMonth * 12)),
@@ -877,8 +878,35 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
     // سعر «بدون إعفاء» لهذه المدة هو الحد الأعلى الممكن لرخصة العمل — احتساب اليومي/التأخير لا يتجاوزه.
     const noExemptCap = parseFloat(cfg[`workPermitNoExempt${months}M`])
     if (noExemptCap > 0) total = Math.min(total, noExemptCap)
+    // بدون إعفاء: سعر الشريحة الثابت للمدة (3/6/9/12)، وإلا عدد الأشهر × (سعر 12 شهر ÷ 12) — نفس قاعدة تجديد الإقامة.
+    if (f.exemption === false) {
+      const noExBracket = Number(cfg['workPermitNoExempt' + months + 'M']) || 0
+      const noExPerMonth = (Number(cfg.workPermitNoExempt12M) || 0) / 12
+      if (noExBracket > 0 || noExPerMonth > 0) total = noExBracket > 0 ? noExBracket : months * noExPerMonth
+    }
     setF(p => ({ ...p, workPermitRate: String(Math.round(total)) }))
-  }, [f.renewalMonths, f.iqamaExpiry, f.wpExpiry, cfg])
+  }, [f.renewalMonths, f.iqamaExpiry, f.wpExpiry, f.exemption, cfg])
+
+  // مدد التجديد المسموحة حسب حالة الإعفاء (تُضبط من تبويب الخدمات). قائمة فارغة ⇒ الكل مسموح.
+  const allowedPeriods = useMemo(() => {
+    const raw = f.exemption === false ? cfg.kafalaPeriodsNoExempt : cfg.kafalaPeriodsExempt
+    const list = (Array.isArray(raw) ? raw : []).map(Number).filter(n => [3, 6, 9, 12].includes(n))
+    return list.length ? list : [3, 6, 9, 12]
+  }, [f.exemption, cfg])
+  // المدة المختارة صارت معطّلة (بعد قلب الإعفاء) ⇒ ننتقل لأقرب مدة مسموحة.
+  useEffect(() => {
+    if (f.transferOnly) return
+    if (allowedPeriods.includes(Number(f.renewalMonths))) return
+    const next = [...allowedPeriods].sort((a, b) => a - b)[0]
+    if (next) setF(p => ({ ...p, renewalMonths: String(next) }))
+  }, [allowedPeriods, f.renewalMonths, f.transferOnly])
+
+  // تبديل الإعفاء يُعيد تعبئة رسوم المكتب بسعر الحالة المطابق (الوضع الثابت).
+  useEffect(() => {
+    if (cfg.kafalaOfficeFeeMode === 'daily') return
+    const v = (f.exemption === false ? (parseFloat(cfg.officeFeeNoExempt) || parseFloat(cfg.officeFee)) : parseFloat(cfg.officeFee)) || 0
+    setF(p => ({ ...p, officeFee: String(Math.round(v)) }))
+  }, [f.exemption, cfg])
 
   // وضع رسوم المكتب (سياسة الأدمن): في الوضع اليومي يُحسب رسم المكتب تلقائياً = سعر اليوم × أيام التجديد (الشهور × 30)
   useEffect(() => {
@@ -972,7 +1000,8 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
   // Office fee: flat general price (no monthly cap / daily excess). The daily rate
   // is kept only for the hidden discount floor used at approval time.
   const officeDailyRate = parseFloat(cfg.officeDailyRate) || 0
-  const baseOfficeFee = parseFloat(cfg.officeFee) || 0
+  // السعر العام لرسوم المكتب يختلف بحالة الإعفاء (بدون إعفاء له سعره الخاص؛ إن لم يُضبط يُستخدم سعر الإعفاء).
+  const baseOfficeFee = (f.exemption === false ? (parseFloat(cfg.officeFeeNoExempt) || parseFloat(cfg.officeFee)) : parseFloat(cfg.officeFee)) || 0
   const officeAutoFee = baseOfficeFee
   const officeFee = parseFloat(f.officeFee) || officeAutoFee
   // Hidden discount floor — daily rate × expected iqama duration (calendar days). Stored for the approval-side logic.
@@ -1250,6 +1279,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
       chi_verified_at: null,
       transfer_only: !!f.transferOnly,
       renew_iqama: !!f.renewIqama,
+      exemption: f.exemption !== false,
       renewal_months: renewalMos,
       change_profession: !!f.changeProfession,
       new_occupation_id: f.newOccupationId || null,
@@ -1537,13 +1567,13 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
             </div>
           </div>
         )
-        const Group = ({ title, Icon, children }) => (
+        const Group = ({ title, Icon, children, cols = 2, template }) => (
           <div style={{ borderRadius: 12, border: `1.5px solid ${C.gold}59`, padding: '16px 12px 12px', position: 'relative' }}>
             <div style={{ position: 'absolute', top: -9, insetInlineStart: 14, background: 'var(--modal-bg)', padding: '0 8px', fontSize: 12, fontWeight: 600, color: C.gold, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
               {Icon && <Icon size={12} strokeWidth={2.2} />}
               <span>{title}</span>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>{children}</div>
+            <div style={{ display: 'grid', gridTemplateColumns: template || `repeat(${cols}, minmax(0, 1fr))`, gap: 8 }}>{children}</div>
           </div>
         )
 
@@ -1566,15 +1596,15 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
           if (today.getDate() < dob.getDate()) months -= 1
           if (months < 0) { years -= 1; months += 12 }
           ageStr = lang === 'en'
-            ? `${years} years ${months} months`
-            : (<span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 5, direction: 'rtl' }}><span>{years}</span><span>سنة</span><span>{months}</span><span>شهر</span></span>)
+            ? `${years} years`
+            : (<span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 5, direction: 'rtl' }}><span>{years}</span><span>سنة</span></span>)
         }
         return (<div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <Group title={T('هوية العامل','Worker Identity')} Icon={User}>
+          <Group title={T('هوية العامل','Worker Identity')} Icon={User} template="minmax(0,1.05fr) minmax(0,.7fr) minmax(0,1.6fr)">
             {stageVisible(user,'transfer_calc','w_worker_details') && fieldVisible(user,'transfer_calc','w_d_name') && <Field label={T('الإسم','Name')} value={hrsdCheck.result?.name || f.name} span={2} ltr />}
             {stageVisible(user,'transfer_calc','w_worker_details') && fieldVisible(user,'transfer_calc','w_d_iqama') && <Field label={T('رقم الإقامة','Iqama Number')} value={f.iqama} ltr />}
             {stageVisible(user,'transfer_calc','w_worker_details') && fieldVisible(user,'transfer_calc','w_d_age') && <Field label={T('العمر','Age')} value={ageStr} />}
-            {stageVisible(user,'transfer_calc','w_worker_details') && fieldVisible(user,'transfer_calc','w_d_occupation') && <Field label={T('المهنة','Occupation')} value={f.occupation} span={2} />}
+            {stageVisible(user,'transfer_calc','w_worker_details') && fieldVisible(user,'transfer_calc','w_d_occupation') && <Field label={T('المهنة','Occupation')} value={f.occupation} />}
           </Group>
 
           <Group title={T('الإقامة والحالة','Iqama & Status')} Icon={Building2}>
@@ -1614,6 +1644,14 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
         const Card = KCard
         return <div style={{display:'flex',flexDirection:'column',gap:8, flex:1, minHeight:0}}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '13px 10px', flexShrink: 0 }}>
+            {/* إعفاء رخصة العمل (حسب المنشأة): «نعم» ← الشرائح/التسعير اليومي، «لا» ← سعر «بدون إعفاء» الثابت للمدة */}
+            {!f.transferOnly && stageVisible(user,'transfer_calc','w_pricing') && (
+            <Card Icon={BadgeCheck} label={T('هل يوجد إعفاء؟','Exemption?')}
+              hint={f.exemption === false ? T('رخصة العمل بسعر بدون إعفاء','no-exemption work-permit rate') : T('حساب رخصة العمل الاعتيادي','standard work-permit calc')} span={2}>
+              <YesNo value={f.exemption !== false} onChange={v => set('exemption', v)} lang={lang} height={42} />
+            </Card>
+            )}
+
             {/* فترة التجديد — «نقل فقط» يختفي إذا المتبقي في الإقامة أقل من الحد الأدنى أو منتهية */}
             {(() => {
               const transferOnlyAllowed = (() => {
@@ -1640,8 +1678,9 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
                     )}
                     {['3', '6', '9', '12'].map(m => {
                       const sel = !f.transferOnly && f.renewalMonths === m
+                      const off = !allowedPeriods.includes(Number(m))
                       return (
-                        <RenewalPill key={m} selected={sel} onClick={() => { set('renewalMonths', m); set('renewIqama', true); set('transferOnly', false) }}>
+                        <RenewalPill key={m} selected={sel} disabled={off} onClick={() => { set('renewalMonths', m); set('renewIqama', true); set('transferOnly', false) }}>
                           <span style={{ fontSize: 14 }}>{m}</span>
                           <span style={{ fontSize: 14, fontWeight: 500, opacity: .75 }}>{T('شهر','mo')}</span>
                         </RenewalPill>
@@ -1683,30 +1722,6 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
             )}
           </div>
 
-          {/* رسوم إضافية — تملأ المساحة المتبقية، والبنود المضافة تمرّر داخليًا فقط (فلا يظهر تمرير خارجي مهما زادت) */}
-          {stageVisible(user,'transfer_calc','w_pricing') && fieldVisible(user,'transfer_calc','w_extras') && (
-          <Card Icon={Plus} label={T('رسوم إضافية','Additional Fees')} hint={f.extras.length ? (lang === 'en' ? `${f.extras.length} items added` : `${f.extras.length} بنود مضافة`) : T('اختياري','Optional')} span={2} style={{ flex: 1, minHeight: 96, display: 'flex', flexDirection: 'column' }} bodyStyle={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-            <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-              <input value={extraName} onChange={e => setExtraName(e.target.value)} placeholder={T('اسم الرسوم (مثال: إلغاء خروج نهائي)','Fee name (e.g., Cancel Final Exit)')} style={{ ...sF, flex: 2, height: 38, fontSize: 12 }} />
-              <input type="text" inputMode="decimal" value={extraAmount ? Number(extraAmount.replace(/,/g,'')).toLocaleString('en-US') : ''} onChange={e => setExtraAmount(e.target.value.replace(/[^0-9.]/g, ''))} placeholder={T('المبلغ','Amount')} style={{ ...sF, flex: 1, height: 38, fontSize: 12, direction: 'ltr', textAlign: 'center' }} />
-              <button onClick={addExtra} disabled={!extraName || !extraAmount} title={T('إضافة','Add')} style={{ height: 38, width: 42, borderRadius: 8, border: '1px solid rgba(176,125,0,.35)', background: 'linear-gradient(180deg, rgba(176,125,0,.18), rgba(176,125,0,.08))', color: C.gold, fontFamily: F, cursor: 'pointer', opacity: (!extraName||!extraAmount)?0.4:1, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: '.18s', boxShadow: 'inset 0 1px 0 var(--bd)' }}><Plus size={17} strokeWidth={2.6} /></button>
-            </div>
-            {f.extras.length > 0 && (
-              <div className="kc-scroll" style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 8, direction: dir, flex: 1, minHeight: 0, overflowY: 'auto', alignContent: 'flex-start' }}>
-                {f.extras.map((ex, i) => (
-                  <div key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '5px 9px', borderRadius: 8, background: 'rgba(176,125,0,.06)', border: '1px solid rgba(176,125,0,.25)', direction: dir, height: 'fit-content' }}>
-                    <span style={{ color: 'var(--tx)', fontWeight: 500, fontSize: 12 }}>{ex.name}</span>
-                    <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 3, direction: 'ltr', color: C.gold, fontWeight: 500, fontSize: 12 }}>
-                      <span style={{ fontSize: 12, fontWeight: 500 }}>{T('ريال','SAR')}</span>
-                      <span>{Number(ex.amount).toLocaleString('en-US')}</span>
-                    </span>
-                    <button onClick={() => removeExtra(i)} title={T('حذف','Remove')} style={{ width: 18, height: 18, borderRadius: 5, color: C.red, cursor: 'pointer', background: 'rgba(192,57,43,.12)', border: '1px solid rgba(192,57,43,.3)', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: '.15s' }}><X size={10} strokeWidth={2} /></button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Card>
-          )}
 
           {/* Total — hero (مثبّت أسفل، دائمًا ظاهر) */}
           <div style={{ flexShrink: 0, padding: '14px 18px', borderRadius: 14, background: 'linear-gradient(135deg, rgba(176,125,0,.17) 0%, rgba(176,125,0,.05) 100%)', border: '1px solid rgba(176,125,0,.45)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: 'inset 0 1px 0 var(--bd), 0 4px 16px rgba(176,125,0,.08)' }}>
