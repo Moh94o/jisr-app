@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import ReactDOM from 'react-dom'
 import { can as canPerm, cardVisible, canCardBtn, hasPerm, isGM as isGmUser } from '../lib/permissions.js'
+import { registerOpsColumns, opsFieldKey } from '../lib/permCatalog.js'
 import { Modal, ActionButton, Dropdown, CalendarPopup, TextField, TextArea, DateField, FileField } from '../components/ui/FormKit.jsx'
 import OpsChatPanel, { useOpsChat, cellMarkKey } from '../components/OpsChat.jsx'
 import { buildAjeerContractBookmarklet, buildAjeerNoticeBookmarklet, buildAjeerSecondmentBookmarklet, buildAjeerSecondmentInvoiceBookmarklet, buildAjeerEligibilityScanBookmarklet, buildAjeerTraceBookmarklet } from './ajeerRequestBookmarklet.js'
@@ -313,6 +314,28 @@ const branchCol = (base) => ({
   fg: () => 'var(--tx)',
 })
 
+/* رمز الفرع من أي صورة للقيمة: العرض سطران (الرمز ثم الاسم) والخيار رمزٌ مفرد
+   والعمود المتعدّد «JUB1، KHB1» يأخذ أوّله — فتصحّ الألوان في الخليّة والقائمة معاً. */
+const branchKey = (v) => String(v ?? '').split('\n')[0].split(/[،,]/)[0].trim()
+
+/* ── عمود فرعٍ **يُختار** ─────────────────────────────────────────────────────
+   الفرع قيمةٌ من قائمةٍ مغلقة (فروع المكتب العاملة) لا نصٌّ حرّ: كتابته باليد
+   تُنتج رموزاً لا يعرفها النظام فتسقط من التصفية والتجميع بلا أن يُنتبه.
+   والقيمة الخام هنا **الرمز وحده** — لأن التجاوز المحفوظ يسبق `get` في القراءة،
+   فلو كان `get` يُخرج السطرين لصار المخزَّن سطرين لا رمزاً. والسطران يعودان في
+   `fmt` (تزيين عرضٍ يشمل التجاوز) و`optLabel` (خيارات القائمة). */
+const branchSelectCol = (base) => ({
+  kind: 'text', w: 150, ...base,
+  get: (r) => String(r[base.key] ?? '').trim(),
+  fmt: (v) => srBranchText(v),
+  /* ⚠️ كل إشارةٍ لِما هو مُعرَّف أسفل الملف تبقى **داخل دالّة**: هذا المصنع
+     يُستدعى لحظة بناء `WFC` (قبل `srBranchText` و`SR_REF`)، فتمريرُ الدالّة
+     نفسها `optLabel: srBranchText` يقرأها وقتَها فيسقط الملف كلّه (TDZ). */
+  select: true, options: () => SR_REF.branches, optLabel: (v) => srBranchText(v),
+  bg: (v) => srBranchBg(branchKey(v)),
+  fg: () => 'var(--tx)',
+})
+
 /* ── الجوال في عشر خانات ────────────────────────────────────────────────────
    الأرقام تصل من الحسبات ومركز المزامنة بتسع خانات «5xxxxxxxx» بلا الصفر،
    والمعروف عند الناس والمكتوب في كل ورقة هو «05xxxxxxxx». نُطبّع **العرض** ولا
@@ -463,6 +486,11 @@ const DATE_PRESETS = [
 ]
 const presetLabel = (v, isAr) => { const p = DATE_PRESETS.find((x) => x.v === v); return p ? (isAr ? p.ar : p.en) : v }
 const opNeedsValue = (op) => op !== 'empty' && op !== 'nempty'
+/* شرطٌ صالحٌ للتطبيق. و«بين» يكفيه **طرفٌ واحد**: مدىً مفتوح من تاريخٍ إلى ما
+   بعده (أو إلى تاريخٍ من قبله) طلبٌ مشروع، وكان يُسقَط صامتاً فتُعرض كل الصفوف
+   كأن لا فلتر — والمستخدم يظنّ أنه صفّى. */
+const condUsable = (c) => !!(c && c.op && (!opNeedsValue(c.op) || c.op === 'preset'
+  || String(c.a ?? '') !== '' || (c.op === 'between' && String(c.b ?? '') !== '')))
 function evalDatePreset(dTs, key, now) {
   const day = 86400000
   const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
@@ -481,6 +509,13 @@ function evalDatePreset(dTs, key, now) {
     default: return false
   }
 }
+/* «بين» بطرفٍ مفتوح: الطرف الغائب لا يحدّ. يقبل الطرفين مقلوبين (من ٢٠٢٦ إلى
+   ٢٠٢٥) فيقرأهما مدىً واحداً — خطأُ ترتيبٍ لا يستحقّ جدولاً فارغاً. */
+const btwn = (n, a, b) => {
+  if (a === null && b === null) return false
+  if (a !== null && b !== null) return n >= Math.min(a, b) && n <= Math.max(a, b)
+  return a !== null ? n >= a : n <= b
+}
 function evalCond(cell, cond, family, now) {
   const op = cond.op
   const s = String(cell ?? '')
@@ -497,7 +532,7 @@ function evalCond(cell, cond, family, now) {
       case 'gte': return a !== null && n >= a
       case 'lt': return a !== null && n < a
       case 'lte': return a !== null && n <= a
-      case 'between': return a !== null && b !== null && n >= Math.min(a, b) && n <= Math.max(a, b)
+      case 'between': return btwn(n, a, b)
       default: return false
     }
   }
@@ -508,7 +543,7 @@ function evalCond(cell, cond, family, now) {
       case 'eq': return a !== null && new Date(d).toISOString().slice(0, 10) === new Date(a).toISOString().slice(0, 10)
       case 'before': return a !== null && d < a
       case 'after': return a !== null && d > a
-      case 'between': return a !== null && b !== null && d >= Math.min(a, b) && d <= Math.max(a, b)
+      case 'between': return btwn(d, a, b)
       default: return false
     }
   }
@@ -690,13 +725,71 @@ async function loadSyncWorkforce(sb, { invoices = false } = {}) {
       }
     }
   }
+  /* ── تأشيرات الخروج السارية ───────────────────────────────────────────────
+     من `v_muqeem_exit_visas` (الطبقة الموحّدة لأربعة مصادر في مقيم) — **السارية
+     وحدها** (`is_valid`)، صفٌّ لكل نوع كي يُجاب عن النوعين استقلالاً: العامل قد
+     يحمل خروجاً وعودة ونهائياً معاً، فعمودٌ واحد يُخفي أحدهما.
+     ملاحظة: `is_valid` تقول ما قالته المنصّة وقت المزامنة، والانقضاء بالنسبة
+     لليوم يُحسب في العمود من التاريخ نفسه — فالقديمة تظهر حمراء لا مخفيّة. */
+  const exitMap = {}
+  try {
+    const vs = await fetchAll(sb, 'v_muqeem_exit_visas', 'alien_id,kind,visa_number,valid_until,is_valid',
+      (q) => q.eq('is_valid', true))
+    for (const v of (vs || [])) {
+      const k = String(v.alien_id || '').trim(); if (!k) continue
+      const tag = v.kind === 'خروج نهائي' ? 'fe' : 'er'
+      const m = exitMap[k] || (exitMap[k] = {})
+      // الأبعد انتهاءً هي الحاكمة عند تعدّد السارية من مصادر مختلفة
+      if (!m[tag] || String(v.valid_until || '') > String(m[tag].valid_until || '')) m[tag] = v
+    }
+  } catch { /* تعذّر جلب التأشيرات — العمودان يظهران «لا» بدل كسر الشيت */ }
+  /* التأمين الطبي: ليس في مركز المزامنة (منصّة CHI بكابتشا) — يُقرأ من سجلّ
+     العامل حيث يكتبه زرّ الاستعلام، ويُربط برقم الإقامة كبقيّة الاستكمالات. */
+  const insMap = {}
+  try {
+    const ws = await fetchAll(sb, 'workers', 'iqama_number,insurance_expiry_date,insurance_company',
+      (q) => q.is('deleted_at', null).not('iqama_number', 'is', null))
+    for (const x of (ws || [])) insMap[String(x.iqama_number).trim()] = x
+  } catch { /* العمود يظهر فارغاً بزرّه، وهو حاله الغالب أصلاً */ }
+  /* ملفّا مقيم (عربي/إنجليزي): تحفظهما المزامنة في نفس دلو الصور، وليسا في
+     `v_ops_sync_workforce` — فيُقرآن من مصدرهما مباشرةً كبقيّة الاستكمالات. */
+  const pdfMap = {}
+  try {
+    const ps = await fetchAll(sb, 'muqeem_residents', 'iqama_number,profile_pdf_path,profile_pdf_en_path,vehicles:detail_raw->vehicles',
+      (q) => q.not('iqama_number', 'is', null))
+    for (const x of (ps || [])) {
+      const k = String(x.iqama_number).trim(); if (!k) continue
+      // صفوفٌ متكرّرة لنفس الإقامة: أوّل صفٍّ يحمل ملفاً يكفي
+      if (!pdfMap[k] || (!pdfMap[k].profile_pdf_path && x.profile_pdf_path)) pdfMap[k] = x
+    }
+  } catch { /* العمود يظهر «—» بدل كسر الشيت */ }
   return rows.map((r) => {
     const inv = invMap[r.worker_id]
+    const ex = exitMap[String(r.iqama_number || '').trim()] || {}
+    const ins = insMap[String(r.iqama_number || '').trim()]
+    const pdf = pdfMap[String(r.iqama_number || '').trim()]
+    const nm = r.name_ar || r.name_en || r.iqama_number
+    /* شكل خليّة الملفات `{n:اسم, u:رابط, m:نوع, t:وسم}` — والوسم «ع/EN» بديلُ
+       الترقيم: «١ ٢» لا يقول أيّهما العربي، والفرق هو كلّ فائدة العمود. */
+    const mqFiles = [
+      pdf?.profile_pdf_path && { n: `${nm} — ملف مقيم (عربي)`, u: workerPhotoUrl(pdf.profile_pdf_path), m: 'application/pdf', t: 'ع' },
+      pdf?.profile_pdf_en_path && { n: `${nm} — Muqeem profile (EN)`, u: workerPhotoUrl(pdf.profile_pdf_en_path), m: 'application/pdf', t: 'EN' },
+    ].filter(Boolean)
     return {
       ...r, _id: r.iqama_number,
       _inv_nos: inv ? inv.nos.join('، ') : '',
       _inv_services: inv ? inv.services.join('، ') : '',
       _inv_remaining: inv ? inv.remaining : '',
+      _fe_until: ex.fe ? ymd(ex.fe.valid_until) : '',
+      _fe_no: ex.fe ? (ex.fe.visa_number || '') : '',
+      _er_until: ex.er ? ymd(ex.er.valid_until) : '',
+      _er_no: ex.er ? (ex.er.visa_number || '') : '',
+      insurance_expiry_date: ins ? ymd(ins.insurance_expiry_date) : '',
+      insurance_company: (ins && ins.insurance_company) || '',
+      _mq_files: mqFiles,
+      // لوحات المركبات لتلميح الخليّة — «نعم» وحدها لا تقول أيّ مركبة
+      _veh_plates: (Array.isArray(pdf?.vehicles?.vehiclesList) ? pdf.vehicles.vehiclesList : [])
+        .map((v) => String(v?.plateNumber || '').trim()).filter(Boolean).join(' · '),
     }
   })
 }
@@ -710,6 +803,8 @@ async function loadSyncWorkforce(sb, { invoices = false } = {}) {
    حقيقياً (رصيد الجوازات، المركبات، الفواتير…) يبقى تجاوزَ عرضٍ كما هو.
    ملاحظة: عمود العرض قد يختلف اسمه عن عمود القاعدة، فالخريطة صريحة. */
 const WF_SOURCE_COLS = {
+  branch_code: 'branch_id',
+  insurance_expiry_date: 'insurance_expiry_date',
   birth_date: 'birth_date',
   iqama_expiry_date: 'iqama_expiry_date',
   work_permit_expiry: 'work_permit_expiry',
@@ -737,6 +832,14 @@ async function wfPostToWorkers(sb, saved, ctx = {}) {
       if (!data || !(colKey in data)) continue
       const raw = data[colKey]
       const empty = raw === '' || raw == null
+      /* الفرع يُختار برمزه ويُخزَّن بمعرّفه. ورمزٌ لا يقابله سجلُّ فرعٍ لا يُكتب
+         أصلاً: كتابة null هنا تعني **محو** فرع العامل بسبب رمزٍ لم يُعرَف. */
+      if (dbCol === 'branch_id') {
+        const bid = empty ? null : (SR_REF.branchId.get(String(raw).trim()) || null)
+        if (!empty && !bid) continue
+        patch[dbCol] = bid
+        continue
+      }
       patch[dbCol] = empty ? null
         : dbCol === 'official_mobile' ? wfNormMobile(raw)
         : WF_NUM_COLS.has(dbCol) ? (Number(String(raw).replace(/,/g, '')) || null)
@@ -769,6 +872,36 @@ const WF_ADD = [
   { key: 'iqama_number', ar: 'رقم الإقامة', en: 'Iqama no.' },
 ]
 const wfSearch = (r) => [r.name_ar, r.name_en, r.iqama_number, r.border_number, r.passport_number, r.nationality_ar, r.facility_ar, r.branch_code]
+/* ── سُلَّم تواريخ الانتهاء في شيتات العمالة ─────────────────────────────────
+   ثلاث درجات بالنسبة **لليوم**، تتصاعد بتصاعد الخطر:
+     · بقي أكثر من شهر    → بلا لون (لا خبر فيه)
+     · بقي شهرٌ أو أقلّ    → خطٌّ أصفر (تنبيه)
+     · بقي عشرة أيام أو أقلّ → **خلفية حمراء** (يستدعي عملاً هذا الأسبوع)
+   والمنقضي داخلٌ في الدرجة الأخيرة عمداً: أخطر من «يبقى تسعة أيام»، فلو تُرك
+   بخطٍّ أحمر وحده لصار الأشدّ خطراً أخفتَ الصفَّين — عينٌ تقرأ الشيت لمحةً
+   ستمرّ عليه. (لو أردته خطّاً أحمر بلا خلفية فالتغيير سطرٌ واحد.)
+   تنطبق على أعمدة الانتهاء وحدها — لا على تاريخ الميلاد: ماضٍ دائماً بطبعه. */
+const wfExpDays = (v) => { const d = ymd(v); if (!d) return null
+  return Math.round((new Date(d) - new Date(todayYmd())) / 86400000) }
+const wfExpFg = (v) => { const n = wfExpDays(v); if (n == null) return null
+  return n <= 10 ? C.red : n <= 30 ? '#eab308' : null }
+const wfExpBg = (v) => { const n = wfExpDays(v); if (n == null) return null
+  return n <= 10 ? 'rgba(232,114,101,.26)' : null }
+/* ── عمود تأشيرة خروج (نهائي / وعودة) ────────────────────────────────────────
+   يُجيب عن **السارية وحدها**: «لا» تعني لا تأشيرة سارية من هذا النوع، لا أنه لم
+   يسافر قطّ. و«نعم» يتبعها تاريخ الانتهاء سنداً — والانقضاء بالنسبة لليوم يُصبغ
+   أحمر: تأشيرةٌ قالت المنصّة إنها سارية ومضى تاريخها خبرٌ يُلاحَق لا يُخفى. */
+const exitVisaCol = (tag, ar, en) => ({
+  key: tag, ar, en, w: 145, kind: 'text', readOnly: true, noTint: true,
+  get: (r, isAr) => (r[tag + '_until'] || r[tag + '_no'] ? (isAr === false ? 'Yes' : 'نعم') : (isAr === false ? 'No' : 'لا')),
+  fmt: (v, r) => (r[tag + '_until'] ? `${v}\n${r[tag + '_until']}` : v),
+  bg: (v, r) => {
+    const u = r[tag + '_until']
+    if (!u && !r[tag + '_no']) return null                       // «لا» بلا لون: الحال الغالب لا خبر فيه
+    return u && u < todayYmd() ? 'rgba(232,114,101,.30)' : 'rgba(234,179,8,.28)'
+  },
+  cellTip: (v, r) => (r[tag + '_no'] ? `رقم التأشيرة: ${r[tag + '_no']}` : null),
+})
 const WFC = {
   // بيانات المنشأة — تُدمج رأسياً عبر صفوف عمّال نفس المنشأة (mergeCols)
   fac_branch: branchCol({ key: 'facility_branches', ar: 'فرع المنشأة', en: 'Facility branch', w: 150 }),
@@ -783,21 +916,64 @@ const WFC = {
   nationality: { key: 'nationality_ar', ar: 'الجنسية', en: 'Nationality', w: 120, kind: 'text' },
   birth_date: { key: 'birth_date', ar: 'تاريخ الميلاد', en: 'Birth date', w: 125, kind: 'date' },
   occupation: { key: 'occupation_ar', ar: 'المهنة الرسمية', en: 'Official Occupation', w: 170, kind: 'text' },
-  iqama_expiry: { key: 'iqama_expiry_date', ar: 'الإقامة', en: 'Iqama', w: 130, kind: 'date' },
+  iqama_expiry: { key: 'iqama_expiry_date', ar: 'الإقامة', en: 'Iqama', w: 130, kind: 'date', fg: (v) => wfExpFg(v), bg: (v) => wfExpBg(v) },
   /* نفس العمود بزرّ جلبٍ من مقيم (كخليّة «انتهاء الإقامة (مقيم)» في شيت نقل
      الكفالة): يعرض المُزامَن، وبضغطة يُحدَّث من مقيم ويُحفظ تجاوزاً على الصفّ.
      `family:'date'` تُبقي الفرز والتصفية تاريخيَّين رغم أن `kind` صار 'fetch'. */
   iqama_expiry_fetch: { key: 'iqama_expiry_date', ar: 'الإقامة', en: 'Iqama', w: 150, kind: 'fetch', family: 'date',
     fetchTip: { ar: 'جلب تاريخ انتهاء الإقامة من مقيم', en: 'Fetch iqama expiry from Muqeem' },
+    fg: (v) => wfExpFg(v), bg: (v) => wfExpBg(v),
     fetch: (r, ctx) => muqeemExpiry(r.iqama_number, ctx.isAr) },
   salary: { key: 'wage_total', ar: 'الراتب', en: 'Salary', w: 100, kind: 'num' },
   balance: { key: 'jawazat_balance', ar: 'الرصيد', en: 'Balance', w: 100, kind: 'num' },
-  branch: branchCol({ key: 'branch_code', ar: 'الفرع', en: 'Branch', w: 150 }),
-  worker_branch: branchCol({ key: 'branch_code', ar: 'فرع العامل', en: 'Worker branch', w: 150 }),
-  work_permit_expiry: { key: 'work_permit_expiry', ar: 'الرخصة', en: 'Work Permit', w: 120, kind: 'date' },
+  /* فرع العامل يُختار من قائمة الفروع العاملة ويُكتب في `workers.branch_id` —
+     مصدرُه هناك لا في الشيت (v_ops_workers يقرؤه من branch_id لا من المنشأة). */
+  branch: branchSelectCol({ key: 'branch_code', ar: 'الفرع', en: 'Branch', w: 150 }),
+  worker_branch: branchSelectCol({ key: 'branch_code', ar: 'فرع العامل', en: 'Worker branch', w: 150 }),
+  work_permit_expiry: { key: 'work_permit_expiry', ar: 'الرخصة', en: 'Work Permit', w: 120, kind: 'date', fg: (v) => wfExpFg(v), bg: (v) => wfExpBg(v) },
   // نفس حقل قوى بمسمّى كامل — في شيت «البيانات الأساسية» لا يجاوره عمودا الإقامة والجواز فيحتاج التوضيح
-  work_permit: { key: 'work_permit_expiry', ar: 'رخصة العمل', en: 'Work permit', w: 130, kind: 'date' },
-  passport_expiry: { key: 'passport_expiry', ar: 'الجواز', en: 'Passport', w: 120, kind: 'date' },
+  work_permit: { key: 'work_permit_expiry', ar: 'رخصة العمل', en: 'Work permit', w: 130, kind: 'date', fg: (v) => wfExpFg(v), bg: (v) => wfExpBg(v) },
+  passport_expiry: { key: 'passport_expiry', ar: 'الجواز', en: 'Passport', w: 120, kind: 'date', fg: (v) => wfExpFg(v), bg: (v) => wfExpBg(v) },
+  // رقم الحدود من قوى ثم التأمينات (مقيم لا يحمله) — لا يُنسَخ إلا وهو معروف
+  border: { key: 'border_number', ar: 'رقم الحدود', en: 'Border no.', w: 140, kind: 'mono', copy: true },
+  /* ملفّا مقيم — نسختان لملفٍّ واحد لا ملفّان مختلفان، فعمودٌ واحد يحمل زرَّين
+     موسومَين «ع» و«EN» أصدق من عمودين متطابقَي العنوان. يُفتحان في الصفحة
+     (عارض PDF) فلا يُفقد الموضع في الشيت. القيمة النصّية للتصدير والبحث. */
+  muqeem_pdf: { key: '_mq_files', ar: 'ملف مقيم', en: 'Muqeem profile', w: 110, kind: 'files',
+    readOnly: true, noTint: true,
+    files: (r) => r._mq_files,
+    get: (r, isAr) => (r._mq_files || []).map((f) => (f.t === 'EN' ? (isAr === false ? 'English' : 'إنجليزي') : (isAr === false ? 'Arabic' : 'عربي'))).join(' · ') },
+  passport_no: { key: 'passport_number', ar: 'رقم الجواز', en: 'Passport no.', w: 140, kind: 'mono', copy: true },
+  passport_exp_full: { key: 'passport_expiry', ar: 'انتهاء الجواز', en: 'Passport expiry', w: 135, kind: 'date', fg: (v) => wfExpFg(v), bg: (v) => wfExpBg(v) },
+  /* التأمين الطبي — لا يأتي من مركز المزامنة: منصّة CHI تسأل كابتشا لكل استعلام
+     فلا تُزامَن دفعةً واحدة. فالعمود يعرض ما في سجلّ العامل، وبجانبه زرٌّ يفتح
+     نافذة الكابتشا ويكتب ما يعود. الأحمر: انقضى بالنسبة لليوم. */
+  insurance: { key: 'insurance_expiry_date', ar: 'التأمين الطبي', en: 'Medical insurance', w: 175, kind: 'fetch', family: 'date',
+    /* لا شعار لـCHI في المشروع، ووضعُ شعار مقيم كذبٌ بصريّ — فرمزُ استعلامٍ محايد */
+    fetchGlyph: '🔎',
+    fetchTip: { ar: 'استعلام التأمين الطبي من منصة CHI', en: 'Check medical insurance on CHI' },
+    fetchBlock: (r, isAr2) => (/^[12]\d{9}$/.test(String(r.iqama_number || '').replace(/\D/g, ''))
+      ? null : (isAr2 === false ? 'No iqama number on this row' : 'لا رقم إقامة في هذا الصفّ')),
+    fg: (v) => wfExpFg(v), bg: (v) => wfExpBg(v),
+    fetch: (r, ctx) => ctx.chi(r.iqama_number, ctx.isAr) },
+  /* تأشيرتا الخروج — سؤالٌ يُجاب بـ«نعم/لا» عن **السارية وحدها**، والتاريخ سندُه
+     في السطر الثاني. القيمة الخام تبقى «نعم/لا» فتُصفّى وتُعدّ بها، والتاريخ
+     تزيينُ عرضٍ (`fmt`) كعمود الفرع. */
+  /* ── مركبة: هل يملك؟ ────────────────────────────────────────────────────
+     ثلاث حالات لا حالتان: «نعم» · «لا» · **وفراغٌ لمن لم يُجلب تفصيله من مقيم**
+     (١١٣٣ صفّاً من ٣٦٠٨). كتابة «لا» لهؤلاء دعوى بلا علم — والشيت يُقرأ على أنه
+     يعلم. والعدد يُذكر متى زاد على واحدة، واللوحات في التلميح: «نعم» وحدها لا
+     تقول أيّ مركبة. واللون أزرق لا أحمر — هذه معلومةٌ لا خطر. */
+  vehicle: { key: '_veh', ar: 'مركبة', en: 'Vehicle', w: 105, kind: 'text', readOnly: true, noTint: true,
+    get: (r, isAr) => (r.vehicles_count == null ? ''
+      : r.vehicles_count > 0 ? (isAr === false ? 'Yes' : 'نعم') : (isAr === false ? 'No' : 'لا')),
+    fmt: (v, r) => ((r.vehicles_count > 1) ? `${v}\n${r.vehicles_count}` : v),
+    bg: (v, r) => (r.vehicles_count > 0 ? 'rgba(93,173,226,.26)' : null),
+    cellTip: (v, r, isAr2) => (r._veh_plates
+      ? (isAr2 === false ? `Plates: ${r._veh_plates}` : `اللوحات: ${r._veh_plates}`)
+      : (r.vehicles_count == null ? (isAr2 === false ? 'Not fetched from Muqeem' : 'لم تُجلب تفاصيله من مقيم') : null)) },
+  final_exit: exitVisaCol('_fe', 'خروج نهائي', 'Final exit'),
+  exit_return: exitVisaCol('_er', 'خروج وعودة', 'Exit & re-entry'),
   vehicles: { key: 'vehicles_count', ar: 'المركبة', en: 'Vehicle', w: 90, kind: 'num' },
   absher_mobile: { key: 'official_mobile', ar: 'رقم ابشر', en: 'Absher Mobile', w: 130, kind: 'mono', get: (r) => fmtMobile(r.official_mobile) },
   hq_city: { key: 'hq_city_ar', ar: 'المدينة', en: 'City', w: 120, kind: 'text' },
@@ -833,7 +1009,8 @@ function PhotoCell({ path, name, size, onOpen }) {
   const initial = String(name || '؟').trim().charAt(0) || '؟'
   if (url && !err) return (
     <img src={url} alt="" loading="lazy" onError={() => setErr(true)}
-      onClick={(e) => { e.stopPropagation(); onOpen && onOpen({ url, name }) }}
+      /* `mime` صريحٌ هنا: هذه صورةٌ يقيناً، فلا يُترك تصنيفُها لتخمين الامتداد */
+      onClick={(e) => { e.stopPropagation(); onOpen && onOpen({ url, name, mime: 'image/jpeg' }) }}
       title={name || ''}
       style={{ width: s, height: s, borderRadius: '50%', objectFit: 'cover', objectPosition: 'top', border: '1px solid rgba(176,125,0,.4)', background: 'var(--inputBg)', cursor: 'zoom-in', flexShrink: 0 }} />
   )
@@ -882,11 +1059,17 @@ const fileNameOf = (url) => {
 /* عارض المرفقات: المرفق يُفتح **داخل الصفحة** لا في تبويب جديد — الخروج من
    الشيت لرؤية إيصال يعني فقدان مكانك فيه والرجوع بإعادة تحميل. النوع يُعرف من
    الـmime أو من امتداد الاسم (الرفع القديم قد لا يحمل mime). */
+/* ⚠️ يُفحص **الاسم والرابط معاً** لا أحدهما: كان `f.name || f.url` يُسقط الرابط
+   متى وُجد اسم، واسمُ المرفق قد لا يحمل امتداداً أصلاً — صورة العامل تُسمّى
+   باسمه («SAIDUL ISLAM») فيُفحص اسمٌ بلا امتداد ويُهمَل رابطٌ ينتهي بـ.jpg،
+   فتقول النافذة «هذا النوع لا يُعرض داخل الصفحة» عن صورةٍ صالحة. */
 const fvKind = (f) => {
   const m = String((f && f.mime) || '').toLowerCase()
-  const n = String((f && (f.name || f.url)) || '').toLowerCase().split('?')[0]
-  if (m.startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp|svg)$/.test(n)) return 'image'
-  if (m === 'application/pdf' || /\.pdf$/.test(n)) return 'pdf'
+  if (m.startsWith('image/')) return 'image'
+  if (m === 'application/pdf') return 'pdf'
+  const cand = [f && f.name, f && f.url].map((x) => String(x || '').toLowerCase().split('?')[0])
+  if (cand.some((n) => /\.(png|jpe?g|gif|webp|bmp|svg)$/.test(n))) return 'image'
+  if (cand.some((n) => /\.pdf$/.test(n))) return 'pdf'
   return 'other'
 }
 /* النقر يفتح العارض، لكن `href` يبقى موضوعاً: Ctrl/الوسطى/«فتح في تبويب» تعمل
@@ -912,7 +1095,7 @@ function FilesCell({ files, isAr, onView }) {
             style={{ display: 'inline-flex', alignItems: 'center', gap: 3, height: 21, padding: '0 7px',
               borderRadius: 999, fontSize: 11, fontWeight: 600, fontFamily: F, textDecoration: 'none',
               whiteSpace: 'nowrap', border: '1px solid rgba(93,173,226,.35)', background: 'rgba(93,173,226,.12)', color: '#5dade2' }}>
-            {img ? '🖼' : '📄'}{list.length > 1 && <span style={{ fontFamily: MONO, opacity: .75 }}>{i + 1}</span>}
+            {img ? '🖼' : '📄'}{(f.t || list.length > 1) && <span style={{ fontFamily: f.t ? F : MONO, opacity: .85 }}>{f.t || (i + 1)}</span>}
           </a>
         )
       })}
@@ -1179,6 +1362,45 @@ async function loadAbsherBal(sb) {
   ABSHER_BAL.by = m
 }
 const absherBalOf = (uni) => { const k = facNumKey(uni); return k ? (ABSHER_BAL.by.get(k) || null) : null }
+
+/* ── المالك والمشرف لكل منشأة (التأمينات الاجتماعية) ───────────────────────
+   الجسر: الرقم الموحّد في قوى → gosi_establishments.unified_national_number →
+   registration_no → الملّاك (gosi_establishment_owners) والمشرف (gosi_establishment_admins).
+   المالك: فردٌ ⇒ الاسم الرباعي + رقم الهوية؛ شركةٌ ⇒ اسم الشركة + رقمها الموحّد من raw.estOwner.
+   المشرف: صاحب الدور 2 (المسؤول المسجَّل في التأمينات). */
+const GOSI_PARTIES = { owners: new Map(), admins: new Map() }
+async function loadGosiParties(sb) {
+  const [ests, owners, admins] = await Promise.all([
+    fetchAll(sb, 'gosi_establishments', 'registration_no,unified_national_number'),
+    fetchAll(sb, 'gosi_establishment_owners', 'registration_no,national_id,first_name_ar,second_name_ar,third_name_ar,family_name_ar,full_name_en,individual,raw'),
+    fetchAll(sb, 'gosi_establishment_admins', 'registration_no,national_id,first_name_ar,second_name_ar,third_name_ar,family_name_ar,full_name_en,roles'),
+  ])
+  const uniOf = new Map()   // registration_no → الرقم الموحّد
+  for (const e of ests) { const u = facNumKey(e.unified_national_number); if (u && e.registration_no) uniOf.set(String(e.registration_no), u) }
+  const arName = (r) => [r.first_name_ar, r.second_name_ar, r.third_name_ar, r.family_name_ar].map(x => String(x || '').trim()).filter(Boolean).join(' ')
+  const push = (map, key, val) => { if (!key || !val.name && !val.id) return; const cur = map.get(key) || []; cur.push(val); map.set(key, cur) }
+  const ow = new Map()
+  for (const o of owners) {
+    const u = uniOf.get(String(o.registration_no)); if (!u) continue
+    if (o.individual === false) {
+      const eo = (o.raw && typeof o.raw === 'object') ? (o.raw.estOwner || {}) : {}
+      push(ow, u, { name: String(eo.name || '').trim(), id: String(eo.partyId || '').trim() })
+    } else {
+      push(ow, u, { name: arName(o) || String(o.full_name_en || '').trim(), id: String(o.national_id || '').trim() })
+    }
+  }
+  const ad = new Map()
+  for (const a of admins) {
+    const u = uniOf.get(String(a.registration_no)); if (!u) continue
+    const roles = Array.isArray(a.roles) ? a.roles.map(Number) : []
+    if (roles.length && !roles.includes(2)) continue            // 2 = المسؤول/المشرف المسجَّل
+    push(ad, u, { name: arName(a) || String(a.full_name_en || '').trim(), id: String(a.national_id || '').trim() })
+  }
+  GOSI_PARTIES.owners = ow; GOSI_PARTIES.admins = ad
+}
+const partyList = (map, uni) => { const k = facNumKey(uni); return k ? (map.get(k) || []) : [] }
+const partyNames = (map, uni) => partyList(map, uni).map(x => x.name).filter(Boolean).join(' · ')
+const partyIds = (map, uni) => partyList(map, uni).map(x => x.id).filter(Boolean).join(' · ')
 /* الرقم الموحّد للصفّ: المكتوب فيه، وإلا موحّد المنشأة التي دلّ عليها أيّ رقم. */
 const absherOf = (r, e) => {
   const uni = effOf(r, e, 'unified_number') || (facNumRow(r, e) || {}).unified || ''
@@ -2483,7 +2705,7 @@ const sdDerive = (rows, edits) => {
    بالفاتورة والعميل والمنشأة والفرع، وتُقفل الحلقة بين المعاملة والمصروف.
    المنشأة والرقم الموحّد كانا مملوءين في ٣.٦٪ فقط، فبعد تعبئة
    `service_requests.facility_id` من جداول الطلبات صارا ٦٠٪ وأُدرجا هنا. */
-const SR_REF = { inv: new Map(), days: new Map(), grp: new Map(), dup: new Map(), day: '', tab: '', prices: {}, fac: new Map(), branchLabel: new Map(), branches: [], muqRes: new Map(), muqCo: new Map(), wf: new Map() }
+const SR_REF = { inv: new Map(), days: new Map(), grp: new Map(), dup: new Map(), day: '', tab: '', prices: {}, fac: new Map(), branchLabel: new Map(), branchId: new Map(), branches: [], muqRes: new Map(), muqCo: new Map(), wf: new Map() }
 // المنشأة بالرقم الموحّد — منها يُملأ رقما التأمينات والموارد في طلبات التجديد
 const srFac = (v) => SR_REF.fac.get(String(v ?? '').replace(/\D/g, ''))
 /* اسم المكتب مع رمزه (`JUB5 · الجبيل - المدرسة`) — الرمز وحده لا يقول لمن الفاتورة.
@@ -4562,7 +4784,7 @@ const VIEWS = [
          ⚠️ بلا `readOnly`: زرّ الجلب مشروطٌ بـ`editable`، و`readOnly` تُسقط قابلية
          الكتابة فيختفي الزرّ صامتاً. والحجب صريحٌ برسالته حين لا رقم إقامة في
          الصفّ — نداء مقيم مكلف (يمرّ بجلسةٍ حيّة)، فلا يُطلق على رقمٍ لا يصلح. */
-      { key: '_iqama_expiry', ar: 'انتهاء الإقامة', en: 'Iqama expiry', w: 165, kind: 'fetch', ops: true,
+      { key: '_iqama_expiry', ar: 'انتهاء الإقامة', en: 'Iqama expiry', w: 165, kind: 'fetch', family: 'date', ops: true,
         get: (r) => ymd(colWho(r, 'iqe')), fg: (v) => colIqExpFg(v),
         fetchTip: { ar: 'جلب تاريخ انتهاء الإقامة من مقيم', en: 'Fetch iqama expiry from Muqeem' },
         fetchBlock: (r, isAr2) => (/^[12]\d{9}$/.test(String(colWho(r, 'iq') || '').replace(/\D/g, ''))
@@ -5672,7 +5894,7 @@ const VIEWS = [
       { key: 'tr_muq_file', ar: 'مرفق مقيم', en: 'Muqeem file', w: 140, kind: 'file', ops: true },
       /* انتهاء الإقامة كما يقوله **مقيم** الآن — يُجلب بالزر ويُخزَّن في الشيت،
          فيُقارَن بما أُدخل في المرحلة وبما في الحسبة. */
-      { key: 'mq_iqama_expiry', ar: 'انتهاء الإقامة (مقيم)', en: 'Iqama expiry (Muqeem)', w: 165, kind: 'fetch', ops: true,
+      { key: 'mq_iqama_expiry', ar: 'انتهاء الإقامة (مقيم)', en: 'Iqama expiry (Muqeem)', w: 165, kind: 'fetch', family: 'date', ops: true,
         fetchTip: { ar: 'جلب تاريخ انتهاء الإقامة من مقيم', en: 'Fetch iqama expiry from Muqeem' },
         fetch: (r, ctx) => muqeemExpiry(r.iqama_number, ctx.isAr) },
       /* توصيل الإقامة — متابعة مكتبٍ بعد الإنجاز، لا تُرحَّل للمعاملة */
@@ -5729,12 +5951,14 @@ const VIEWS = [
     hintAr: 'نطاقات المنشآت ونسبة السعودة وأرصدة التأشيرات وحدود الاستقطاب',
     hintEn: 'Establishment nitaqat, saudization & visa/recruitment balances',
     async load(sb) {
+      await loadGosiParties(sb)   // المالك والمشرف من التأمينات
       const src = await fetchAll(sb, 'qiwa_companies',
-        'company_id,establishment_name,cr_number,cr_national_number,entity_number,nitaqat_color_ar,nitaqat_next_color_ar,nitaqat_nationalization_rate,nitaq_saudis,nitaq_foreigners,nitaq_total_laborers,nitaqat_saudis_to_be_hired,size_name,nitaqat_activity_name,visa_work_quota,visa_work_unused,visa_visit_quota,visa_visit_unused,transfer_available_balance,absher_balance,work_permits_valid,work_permits_expired,subscription_expiry_date,city_name_ar,synced_at',
+        'company_id,establishment_name,cr_number,cr_national_number,entity_number,nitaqat_color_ar,nitaqat_next_color_ar,nitaqat_nationalization_rate,nitaq_saudis,nitaq_foreigners,nitaq_total_laborers,nitaqat_saudis_to_be_hired,size_name,nitaqat_activity_name,visa_work_quota,visa_work_unused,visa_visit_quota,visa_visit_unused,transfer_available_balance,absher_balance,work_permits_valid,work_permits_expired,subscription_expiry_date,city_name_ar,indicator_quota_allowed,est_phase_status,synced_at',
         (q) => q.order('establishment_name', { nullsFirst: false }))
       return src.map((r) => ({ ...r, _id: String(r.company_id) }))
     },
-    search: (r) => [r.establishment_name, r.cr_number, r.entity_number],
+    /* البحث يشمل المالك والمشرف (اسماً ورقماً) — سؤال «منشآت فلان» شائع */
+    search: (r) => [r.establishment_name, r.cr_number, r.entity_number, partyNames(GOSI_PARTIES.owners, r.cr_national_number), partyIds(GOSI_PARTIES.owners, r.cr_national_number), partyNames(GOSI_PARTIES.admins, r.cr_national_number), partyIds(GOSI_PARTIES.admins, r.cr_national_number)],
     addFields: [{ key: 'establishment_name', ar: 'اسم المنشأة', en: 'Establishment', required: true }],
     columns: [
       { key: 'establishment_name', ar: 'اسم المنشأة', en: 'Establishment', w: 240, kind: 'text', manual: true },
@@ -5756,10 +5980,18 @@ const VIEWS = [
       { key: 'visa_visit_unused', ar: 'زيارة متبقّي', en: 'Visit unused', w: 110, kind: 'num' },
       { key: 'transfer_available_balance', ar: 'رصيد النقل', en: 'Transfer bal.', w: 120, kind: 'num' },
       { key: 'absher_balance', ar: 'رصيد أبشر', en: 'Absher bal.', w: 120, kind: 'num' },
+      /* من قوى: الكوتا المسموحة ومرحلة المنشأة (نفس حقلي كرت قوى في مركز المزامنة) */
+      { key: 'indicator_quota_allowed', ar: 'الكوتا المسموحة', en: 'Allowed quota', w: 130, kind: 'num' },
+      { key: 'est_phase_status', ar: 'مرحلة المنشأة', en: 'Establishment phase', w: 140, kind: 'text' },
       { key: 'work_permits_valid', ar: 'رخص سارية', en: 'Valid WP', w: 110, kind: 'num' },
       { key: 'work_permits_expired', ar: 'رخص منتهية', en: 'Expired WP', w: 110, kind: 'num' },
       { key: 'subscription_expiry_date', ar: 'انتهاء الاشتراك', en: 'Sub. expiry', w: 130, kind: 'date' },
       { key: 'city_name_ar', ar: 'المدينة', en: 'City', w: 110, kind: 'text' },
+      /* المالك والمشرف — من التأمينات الاجتماعية عبر الرقم الموحّد (عدّة ملّاك تُفصل بـ«·») */
+      { key: 'owner_name', ar: 'المالك', en: 'Owner', w: 200, kind: 'text', get: (r) => partyNames(GOSI_PARTIES.owners, r.cr_national_number) },
+      { key: 'owner_id', ar: 'هوية/موحّد المالك', en: 'Owner ID', w: 150, kind: 'mono', get: (r) => partyIds(GOSI_PARTIES.owners, r.cr_national_number) },
+      { key: 'admin_name', ar: 'المشرف', en: 'Supervisor', w: 200, kind: 'text', get: (r) => partyNames(GOSI_PARTIES.admins, r.cr_national_number) },
+      { key: 'admin_id', ar: 'هوية المشرف', en: 'Supervisor ID', w: 140, kind: 'mono', get: (r) => partyIds(GOSI_PARTIES.admins, r.cr_national_number) },
       { key: 'src', ar: 'المصدر', en: 'Source', w: 90, kind: 'text', get: (r, isAr) => (isAr ? 'قوى' : 'Qiwa') },
       { key: 'src_synced', ar: 'آخر مزامنة', en: 'Last sync', w: 120, kind: 'date', get: (r) => ymd(r.synced_at) },
       ...OPS_COLS,
@@ -5781,7 +6013,9 @@ const VIEWS = [
     search: wfSearch,
     addFields: WF_ADD,
     columns: [
-      ...WF_FAC, WFC.photo, WFC.name, WFC.iqama, WFC.nationality, WFC.birth_date, WFC.occupation, WFC.iqama_expiry_fetch, WFC.work_permit, WFC.salary, WFC.balance, WFC.branch,
+      ...WF_FAC, WFC.photo, WFC.muqeem_pdf, WFC.name, WFC.iqama, WFC.border, WFC.nationality, WFC.birth_date, WFC.occupation, WFC.iqama_expiry_fetch, WFC.work_permit,
+      WFC.insurance, WFC.final_exit, WFC.exit_return, WFC.vehicle, WFC.passport_no, WFC.passport_exp_full,
+      WFC.salary, WFC.balance, WFC.branch,
       WFC.src, WFC.src_synced, ...OPS_COLS,
     ],
   },
@@ -5798,7 +6032,8 @@ const VIEWS = [
     search: wfSearch,
     addFields: WF_ADD,
     columns: [
-      ...WF_FAC, WFC.photo, WFC.name, WFC.iqama, WFC.nationality, WFC.iqama_expiry, WFC.work_permit_expiry, WFC.passport_expiry, WFC.vehicles, WFC.branch,
+      ...WF_FAC, WFC.photo, WFC.name, WFC.iqama, WFC.border, WFC.nationality, WFC.iqama_expiry, WFC.work_permit_expiry,
+      WFC.passport_no, WFC.passport_expiry, WFC.insurance, WFC.final_exit, WFC.exit_return, WFC.vehicles, WFC.branch,
       WFC.src, WFC.src_synced, ...OPS_COLS,
     ],
   },
@@ -5850,6 +6085,8 @@ const VIEWS = [
     hintEn: 'Balance recovery tracking — Qiwa Absher balance with its status, and each worker balance with its status',
     mergeKey: WF_MERGE_KEY, mergeCols: WF_MERGE_COLS,
     load: (sb) => loadSyncWorkforce(sb),
+    // فرع العامل يُختار هنا أيضاً — فيلزم نفس الترحيل لسجلّ العامل
+    afterSave: wfPostToWorkers,
     search: wfSearch,
     addFields: WF_ADD,
     columns: [
@@ -7133,6 +7370,21 @@ const VIEWS = [
   },
 ]
 
+/* تسجيل أعمدة كل جدول في كتالوج الصلاحيات — من `VIEWS` نفسها لا من قائمةٍ
+   تُكتب باليد، فالعمود الجديد يظهر تحت جدوله في «الأدوار والصلاحيات» لحظة
+   إضافته هنا. تُستثنى أعمدة التخزين (`hiddenCols`) — خاناتُ نافذةٍ لا أعمدة
+   تُرى، فصلاحية إظهارها لغو. */
+registerOpsColumns(Object.fromEntries(VIEWS.map((v) => {
+  const stash = new Set(v.hiddenCols || [])
+  return [v.key, (v.columns || [])
+    .filter((c) => c && c.key && !stash.has(c.key))
+    /* `readOnly` هنا = «لا مبدّل تعديلٍ لهذا العمود»: الأنواع التي يرفضها
+       `colWritable` أصلاً (صورة · رابط · دفعة · بوكماركت · ترقيم) مبدّلُ قفلها
+       وعدٌ كاذب — يوهم المديرَ أنه منح تعديلاً لا وجود له. */
+    .map((c) => ({ key: c.key, label: c.ar || c.en || c.key,
+      readOnly: !!(c.readOnly || c.auto || ['rownum', 'photo', 'bmk', 'link', 'pay', 'open'].includes(c.kind)) }))]
+})))
+
 const ROW_COL = { key: '_row', ar: '#', en: '#', w: 66, kind: 'rownum' }
 
 /* `col.sectionStart` — حدّ قسمٍ في الجدول: خطّ ذهبي عريض على حافة العمود يفصل
@@ -7373,7 +7625,9 @@ const cellStamp = (row, col, isAr) => {
    مقيماً ولا غيره — أي عمود يحتاج جلباً خارجياً يأخذ نفس الخليّة. */
 /* `glyph` بديلُ الشعار: أزرارٌ لا تجلب من منصّة (شحن رصيد أبشر مثلاً) لا شعار
    لها، ووضعُ شعار مقيم عليها كذبٌ بصريّ يقول إن النداء ذاهبٌ إليه. */
-function FetchCell({ value, busy, tip, icon, glyph, onFetch, canEdit, blocked, label, tone, sub }) {
+/* `valTone`: لون القيمة متى اشتقّه العمود (`col.fg`) — سُلّم تواريخ الانتهاء
+   مثلاً. الخليّة كانت تفرض لونها على الرقم فتسقط ألوان العمود صامتةً. */
+function FetchCell({ value, busy, tip, icon, glyph, onFetch, canEdit, blocked, label, tone, sub, valTone }) {
   /* `blocked` = سببٌ يمنع الإجراء الآن (بيانات ناقصة): الزرّ يبقى **ظاهراً**
      مطفأً وسببُه في تلميحه — إخفاؤه يترك الموظف يبحث عن زرٍّ يراه في صفٍّ آخر
      ولا يجده هنا بلا تفسير. */
@@ -7389,7 +7643,7 @@ function FetchCell({ value, busy, tip, icon, glyph, onFetch, canEdit, blocked, l
           {sub && <span style={{ fontSize: 10, fontWeight: 500, color: 'var(--tx4)', opacity: .7, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{sub}</span>}
         </span>
       ) : (
-        <span style={{ fontVariantNumeric: 'tabular-nums', direction: 'ltr', color: value ? 'var(--tx)' : 'var(--tx4)', fontWeight: value ? 600 : 400 }}>
+        <span style={{ fontVariantNumeric: 'tabular-nums', direction: 'ltr', color: (value && valTone) || (value ? 'var(--tx)' : 'var(--tx4)'), fontWeight: value ? 600 : 400 }}>
           {value || '—'}
         </span>
       )}
@@ -7409,6 +7663,112 @@ function FetchCell({ value, busy, tip, icon, glyph, onFetch, canEdit, blocked, l
         </button>
       )}
     </span>
+  )
+}
+
+/* ── استعلام التأمين الطبي (CHI) ─────────────────────────────────────────────
+   وحدها بين مصادرنا لا تُزامَن دفعةً واحدة: المنصّة تسأل **كابتشا لكل استعلام**،
+   فلا سبيل لجلب ألف عامل في نداء. لذلك زرُّ الخليّة لا «يجلب» بل يفتح نافذةً
+   تعرض صورة الكابتشا ويكتبها الموظف، ثم تُعيد التاريخ إلى الخليّة كأي جلبة.
+   الآلية نسخةٌ من صفحة العمالة (نفس دالّة Netlify ونفس الحدّ الثلاثيّ للمحاولات)
+   — ومتى تغيّرت هناك يجب أن تتغيّر هنا. */
+const CHI_FN_URL = '/.netlify/functions/check-chi-insurance'
+const CHI_MAX_ATTEMPTS = 3
+// CHI قد يعيد YYYY/M/D أو D/M/YYYY — يُوحَّد إلى YYYY-MM-DD كبقيّة تواريخ البرنامج
+const chiNormDate = (s) => {
+  if (!s) return ''
+  const t = String(s).trim()
+  let m = t.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/)
+  if (m) return `${m[1]}-${String(m[2]).padStart(2, '0')}-${String(m[3]).padStart(2, '0')}`
+  m = t.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/)
+  if (m) return `${m[3]}-${String(m[2]).padStart(2, '0')}-${String(m[1]).padStart(2, '0')}`
+  return ''
+}
+const chiCall = async (body, timeoutMs = 25000) => {
+  const ctrl = new AbortController(); const tid = setTimeout(() => ctrl.abort(), timeoutMs)
+  try {
+    const res = await fetch(CHI_FN_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: ctrl.signal })
+    const json = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(json?.error || `HTTP ${res.status}`)
+    return json
+  } finally { clearTimeout(tid) }
+}
+function ChiModal({ ask, onDone, isAr, lang, sb, user }) {
+  const T2 = (a, e) => (isAr === false ? e : a)
+  const [st, setSt] = useState({ phase: 'loading', session: null, img: null, code: '', err: null, tries: 0 })
+  const init = useCallback(async () => {
+    setSt((s) => ({ ...s, phase: 'loading', img: null, code: '', err: null }))
+    try { const r = await chiCall({ action: 'init' }); setSt((s) => ({ ...s, phase: 'captcha', session: r.session, img: r.captchaImage, code: '' })) }
+    catch (e) { setSt((s) => ({ ...s, phase: 'error', err: (e && e.message) || T2('تعذّر الاتصال بمنصة التأمين', 'CHI connection failed') })) }
+  }, [])
+  useEffect(() => { init() }, [init])
+  const submit = async () => {
+    if (!st.code || st.code.length < 3) return
+    setSt((s) => ({ ...s, phase: 'verifying', err: null }))
+    try {
+      const r = await chiCall({ action: 'verify', iqama: ask.iqama, captcha: st.code, session: st.session })
+      if (r.status === 'invalid_captcha' || r.code === 'SESSION_EXPIRED' || /expired/i.test(r.error || '')) {
+        const tries = r.status === 'invalid_captcha' ? (st.tries || 0) + 1 : (st.tries || 0)
+        if (tries >= CHI_MAX_ATTEMPTS) { setSt((s) => ({ ...s, phase: 'error', err: T2('تعذّر التحقق من الرمز بعد عدة محاولات', 'Captcha failed after several attempts') })); return }
+        const fresh = await chiCall({ action: 'init' })
+        setSt({ phase: 'captcha', session: fresh.session, img: fresh.captchaImage, code: '', tries,
+          err: r.status === 'invalid_captcha' ? T2(`رمز التحقق غير صحيح — المحاولة ${tries + 1} من ${CHI_MAX_ATTEMPTS}`, `Wrong code — attempt ${tries + 1}/${CHI_MAX_ATTEMPTS}`)
+            : T2('انتهت الجلسة — رمزٌ جديد', 'Session expired — new code') })
+        return
+      }
+      if (r.status !== 'insured') { setSt((s) => ({ ...s, phase: 'none' })); return }
+      const end = chiNormDate(r.expiryDate)
+      /* يُكتب في سجلّ العامل مباشرةً (لا في الشيت وحده): بقيّة النظام تقرأ التأمين
+         من `workers` — وشركة التأمين ورقم البوليصة لا عمود لهما في الشيت فلا
+         موضع لهما إلا هناك. والخليّة تأخذ التاريخ من العائد كأي جلبة. */
+      try {
+        const iq = String(ask.iqama || '').trim()
+        const { data: w } = await sb.from('workers').select('id').eq('iqama_number', iq).is('deleted_at', null).maybeSingle()
+        if (w?.id) {
+          await sb.from('workers').update({
+            insurance_expiry_date: end || null,
+            insurance_company: r.company || null,
+            insurance_policy_number: r.policyNumber || null,
+            insurance_checked_at: new Date().toISOString(),
+            updated_by: user?.id || null,
+          }).eq('id', w.id)
+        }
+      } catch { /* الخليّة تُكتب على أي حال — الترحيل يُعاد بضغطة أخرى */ }
+      onDone(end || '', { company: r.company || '', policy: r.policyNumber || '' })
+    } catch (e) {
+      setSt((s) => ({ ...s, phase: 'error', err: (e && e.name === 'AbortError') ? T2('انتهت مهلة الاستعلام', 'Check timed out') : ((e && e.message) || T2('خطأ في الاستعلام', 'Check error')) }))
+    }
+  }
+  const busy = st.phase === 'loading' || st.phase === 'verifying'
+  return (
+    <Modal open onClose={() => onDone('')} closeOnOverlay lang={lang} width={420} accent="#3bb27a"
+      title={T2('استعلام التأمين الطبي', 'Medical insurance check')}
+      subtitle={`${T2('رقم الإقامة', 'Iqama')} ${ask.iqama}`}
+      footer={st.phase === 'captcha' || st.phase === 'verifying'
+        ? <ActionButton disabled={busy || !st.code || st.code.length < 3} onClick={submit}>
+            {st.phase === 'verifying' ? T2('يُستعلم…', 'Checking…') : T2('استعلام', 'Check')}</ActionButton>
+        : <ActionButton onClick={() => (st.phase === 'error' ? init() : onDone(''))}>
+            {st.phase === 'error' ? T2('إعادة المحاولة', 'Retry') : T2('إغلاق', 'Close')}</ActionButton>}>
+      {st.err && <div style={{ marginBottom: 12, padding: '9px 12px', borderRadius: 9, fontSize: 12, fontWeight: 600,
+        color: C.red, background: 'rgba(232,114,101,.12)', border: '1px solid rgba(232,114,101,.4)' }}>{st.err}</div>}
+      {st.phase === 'none' && <div style={{ padding: 16, textAlign: 'center', fontSize: 13, fontWeight: 600, color: 'var(--tx2)' }}>
+        {T2('لا يوجد تأمين طبي ساري على هذا الرقم', 'No active medical insurance for this ID')}</div>}
+      {(st.phase === 'loading' || st.phase === 'verifying') && !st.img && (
+        <div style={{ padding: 22, textAlign: 'center', fontSize: 12.5, color: 'var(--tx3)' }}>{T2('جارٍ الاتصال بمنصة التأمين…', 'Contacting CHI…')}</div>
+      )}
+      {(st.phase === 'captcha' || st.phase === 'verifying') && st.img && (
+        <>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+            <img src={st.img} alt="captcha" style={{ height: 46, borderRadius: 8, background: '#fff', flex: 1, objectFit: 'contain' }} />
+            <button className="ox-btn" style={{ height: 34, padding: '0 10px' }} onClick={init} disabled={busy}
+              title={T2('رمز جديد', 'New code')}>↻</button>
+          </div>
+          {/* TextField لا يمرّر onKeyDown — الإرسال بزرّ «استعلام» وحده */}
+          <TextField label={T2('رمز التحقق', 'Verification code')} value={st.code} dir="ltr"
+            onChange={(v) => setSt((s) => ({ ...s, code: String(v || '').trim() }))} />
+        </>
+      )}
+    </Modal>
   )
 }
 
@@ -7638,6 +7998,17 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange }) {
   }, [view, syncRows, isAr])
   // مقترن بالعرض (كاختيار الأسبوع) كي لا يُطبَّق زر عرضٍ على عرض آخر
   const [tabPick, setTabPick] = useState({ k: '', t: '' })
+  /* ── صلاحيّة العمود الواحد ────────────────────────────────────────────────
+     تحت كل جدول قائمةُ أعمدته في «الأدوار والصلاحيات»، ولكل عمود مبدّلان:
+     **إظهار** (يخرج من الشبكة والتصدير معاً) و**تعديل** (يبقى ظاهراً ويُقفل).
+     المبدأ كبقيّة الإطار: مسموحٌ ما لم يُستثنَ صراحةً (`=== false`) — فلا ينكسر
+     دورٌ قائم لحظة النشر، ويسحب المدير ما يشاء عموداً عموداً.
+     ولا نمرّ بـ`fieldVisible` من `permissions.js`: تشترط `sectionViewable`
+     (منح `ops_excels.view`) ولا دورَ يملكه اليوم — فكانت ستُخفي كل عمود عن
+     الجميع. نفس سبب وجود `sheetShown`/`sheetCan` هنا. */
+  const colShown = useCallback((k) => isGM || uvis[`field:ops_excels:${opsFieldKey(viewKey, k)}`] !== false, [isGM, uvis, viewKey])
+  const colEditOk = useCallback((k) => isGM || (uvis[`fieldedit:ops_excels:${opsFieldKey(viewKey, k)}`] !== false
+    && uvis[`field:ops_excels:${opsFieldKey(viewKey, k)}`] !== false), [isGM, uvis, viewKey])
   const tabSel = (view.tabs && tabPick.k === viewKey && tabDefs.some((t) => t.key === tabPick.t))
     ? tabPick.t
     : (tabDefs[0]?.key || '')
@@ -7695,7 +8066,10 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange }) {
     return base.filter((k) => colDefs.has(k) && !removed.has(k))
   }, [layout, view, colDefs])
   // الأعمدة الظاهرة (عمود الترقيم أولاً دائماً)
-  const COLS = useMemo(() => [ROW_COL, ...orderKeys.filter((k) => !hiddenCols.has(k)).map((k) => colDefs.get(k))], [orderKeys, hiddenCols, colDefs])
+  /* العمود الممنوع عن هذا الدور يسقط من الشبكة **ومن التصدير والنسخ معاً**:
+     `COLS` هي مصدر الثلاثة، فلا يتسرّب المحجوب من بابٍ خلفي. ولا يُدرَج في
+     «أعمدة مخفية» — تلك اختيارُ المستخدم يُرجعه متى شاء، وهذا منعٌ لا يُرجَع. */
+  const COLS = useMemo(() => [ROW_COL, ...orderKeys.filter((k) => !hiddenCols.has(k) && colShown(k)).map((k) => colDefs.get(k))], [orderKeys, hiddenCols, colDefs, colShown])
   const firstEditable = useMemo(() => { const i = COLS.findIndex((c) => c.ops || c.manual); return i < 0 ? 1 : i }, [COLS])
   // أعمدة مثبَّتة (تبقى ظاهرة عند التمرير الأفقي) + أعمدة مقفلة (للقراءة فقط)
   const frozenCount = Math.max(0, Math.min(layout.frozenCount || 0, COLS.length))
@@ -7729,6 +8103,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange }) {
      ويستأذن، وهذا يسأل. والنتيجة تمرّ من الطريق نفسه (writeCells ← حفظ) فلا
      مسار كتابةٍ ثانٍ يُصان على حدة. */
   const [runForm, setRunForm] = useState(null)      // {row, col, spec, vals}
+  const [chiAsk, setChiAsk] = useState(null)        // {iqama, resolve} — نافذة كابتشا التأمين
   const [formBusy, setFormBusy] = useState(false)   // رفع مرفقات النموذج جارٍ
   const [findState, setFindState] = useState({ find: '', replace: '', matchCase: false, colOnly: false })
   const [detailRow, setDetailRow] = useState(null)  // rowId لبطاقة تفاصيل الصف
@@ -8010,10 +8385,12 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange }) {
     let alive = true
     ;(async () => {
       try {
-        const brs = await fetchAll(sb, 'branches', 'branch_code,name_ar,is_active,is_test',
+        const brs = await fetchAll(sb, 'branches', 'id,branch_code,name_ar,is_active,is_test',
           (q) => q.is('deleted_at', null).order('branch_code'))
         if (!alive) return
         SR_REF.branchLabel = new Map((brs || []).map((b) => [String(b.branch_code || '').trim(), b.name_ar || '']))
+        // رمز ← معرّف: عمود الفرع يُختار برمزه ويُكتب في workers.branch_id بمعرّفه
+        SR_REF.branchId = new Map((brs || []).filter((b) => String(b.branch_code || '').trim()).map((b) => [String(b.branch_code).trim(), b.id]))
         // قوائم الاختيار تقتصر على العامل من الفروع (المغلق والتجريبي لا يُختاران)
         SR_REF.branches = (brs || []).filter((b) => b.is_active && !b.is_test)
           .map((b) => String(b.branch_code || '').trim()).filter(Boolean)
@@ -8407,7 +8784,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange }) {
       // 3) الشروط
       if (Array.isArray(f.conds) && f.conds.length) {
         const fam = familyOf(col)
-        const usable = f.conds.filter((c) => c && c.op && (!opNeedsValue(c.op) || c.op === 'preset' || String(c.a ?? '') !== ''))
+        const usable = f.conds.filter(condUsable)
         if (usable.length) {
           const results = usable.map((c) => evalCond(v, c, fam, now))
           const ok = f.join === 'or' ? results.some(Boolean) : results.every(Boolean)
@@ -8502,15 +8879,20 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange }) {
      منه المدير العام (هويّة المنشأة بعد طلب شحن الرصيد). */
   const lockCtx = useMemo(() => ({ isGM, isAr, user }), [isGM, isAr, user])
   const cellLockWhy = useCallback((row, col) => {
-    if (!view.cellLocked || !row || !col) return null
+    if (!row || !col) return null
+    /* قفلُ الصلاحية يُقال هنا لا في `isEditable` وحدها: هذا الطريق يعطي الخليّة
+       غسلتَها الرمادية وتلميحَها معاً — فيُقرأ المنعُ من الشبكة، ولا يبقى
+       الموظف ينقر خليّةً لا تستجيب ولا تشرح. */
+    if (!colEditOk(col.key)) return T('هذا العمود للقراءة فقط بصلاحيتك', 'This column is read-only for your role')
+    if (!view.cellLocked) return null
     const v = view.cellLocked(row, col, lockCtx)
     if (!v) return null
     return typeof v === 'string' ? v : T('هذه الخليّة مقفولة', 'This cell is locked')
-  }, [view, lockCtx, T])
+  }, [view, lockCtx, T, colEditOk])
   const isEditable = useCallback((row, col) => !!(canEdit && row && col && colWritable(col)
     && srcOf(col) !== 'fetched'
     && !(layout.protected?.[col.key] && !unlockedCols.has(col.key)) && !cellLockWhy(row, col)
-    && !(isRowLocked(row) && !(view.lockExempt && view.lockExempt(row, col)))), [canEdit, colWritable, srcOf, layout, unlockedCols, isRowLocked, view, cellLockWhy])
+    && !(isRowLocked(row) && !(view.lockExempt && view.lockExempt(row, col)))), [canEdit, colWritable, srcOf, layout, unlockedCols, isRowLocked, view, cellLockWhy, colEditOk])
 
   const dispOf = useCallback((row, col) => {
     if (!row || !col) return ''
@@ -8706,12 +9088,22 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange }) {
     return { url: pub?.publicUrl || path, path }
   }, [sb, viewKey])
 
+  /* جلبةٌ لا تنتهي بنداءٍ واحد: التأمين يمرّ بكابتشا يقرأها إنسان. فتُقدَّم للعمود
+     دالّةٌ تفتح النافذة وتَعِد بالنتيجة — والخليّة تبقى «تعمل» حتى تُغلق النافذة،
+     فيرى الموظف أن الصفّ مشغول ولا يضغط الزرّ مرّتين. الإلغاء يردّ فراغاً
+     فتُقال «لا نتيجة» ولا يُكتب شيء. */
+  const askChi = useCallback((iqama) => new Promise((resolve) => {
+    const iq = String(iqama || '').replace(/\D/g, '')
+    if (!/^[12]\d{9}$/.test(iq)) { resolve(''); return }
+    setChiAsk({ iqama: iq, resolve })
+  }), [])
+
   const runColFetch = useCallback(async (row, col, form) => {
     if (!sb || !col.fetch) return
     const key = `${row._id}|${col.key}`
     setFetchBusy(key)
     try {
-      const out = await col.fetch(row, { sb, isAr, user: userName, form, rows: allRows })
+      const out = await col.fetch(row, { sb, isAr, user: userName, form, rows: allRows, chi: askChi })
       /* `noWrite`: زرُّ **إجراء** لا جلبِ قيمة (إرسال طلب سداد) — نتيجته رسالةٌ
          تُقال، والخليّة تقرأ حالتها من مصدرها لا من ختمٍ يُكتب عليها. */
       if (col.noWrite) { toast && toast(out || T('تم', 'Done')); return }
@@ -8746,7 +9138,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange }) {
     } catch (e) {
       toast && toast((e && e.message) || T('تعذّر الجلب', 'Fetch failed'), 'error')
     } finally { setFetchBusy('') }
-  }, [sb, isAr, userName, colDefs, writeCells, toast, T, allRows])
+  }, [sb, isAr, userName, colDefs, writeCells, toast, T, allRows, askChi])
 
   const uploadCellFile = useCallback(async (row, col, file) => {
     if (!sb || !file || !canEdit) return
@@ -9592,7 +9984,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange }) {
   }, [layout, persistLayout])
   const setColFilter = useCallback((key, f) => {
     const filters = { ...(layout.filters || {}) }
-    const conds = (f?.conds || []).filter((c) => c && c.op && (!opNeedsValue(c.op) || c.op === 'preset' || String(c.a ?? '') !== ''))
+    const conds = (f?.conds || []).filter(condUsable)
     const hasVals = Array.isArray(f?.values) && f.values.length
     const hasText = f?.text && String(f.text).trim() !== ''
     if (f && (hasVals || conds.length || hasText)) filters[key] = { values: hasVals ? f.values : null, conds, join: f.join === 'or' ? 'or' : 'and', text: hasText ? f.text : '' }
@@ -10585,6 +10977,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange }) {
                               onNo={() => runColFetch(row, col, { __no: true })} />
                           ) : col.kind === 'fetch' ? (
                             <FetchCell value={raw} icon={col.fetchIcon} glyph={col.fetchGlyph}
+                              valTone={fgColor}
                               // زرٌّ يُخفى بشرط الصفّ (طلبٌ أُرسل بالفعل) — لا يُضغط مرّتين
                               canEdit={editable && !(col.fetchHide && col.fetchHide(row))}
                               blocked={col.fetchBlock ? col.fetchBlock(row, isAr) : null}
@@ -10611,7 +11004,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange }) {
                               <PayCell {...(col.pay ? col.pay(row) : {})}
                                 tip={col.cellTip ? col.cellTip(raw, row, isAr) : null} isAr={isAr} />)
                           ) : col.kind === 'files' ? (
-                            <FilesCell files={row.bank_files} isAr={isAr} onView={setFileView} />
+                            <FilesCell files={col.files ? col.files(row) : row.bank_files} isAr={isAr} onView={setFileView} />
                           ) : col.kind === 'longtext' ? (
                             mSpanWrap(mSpan, mSpanH,
                               <LongTextCell value={raw} isAr={isAr} unit={col.longUnit} />)
@@ -10989,6 +11382,11 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange }) {
       })()}
 
       {/* ── نافذة نموذج إجراء الخليّة (col.form) ── */}
+      {/* نافذة كابتشا التأمين — تُغلق بردّ الوعد فتستأنف `runColFetch` بالنتيجة */}
+      {chiAsk && (
+        <ChiModal ask={chiAsk} isAr={isAr} lang={lang} sb={sb} user={user}
+          onDone={(date) => { const f = chiAsk.resolve; setChiAsk(null); f(date || '') }} />
+      )}
       {runForm && (() => {
         const { row, col, spec, vals } = runForm
         const set = (k, v) => setRunForm((st) => (st ? { ...st, vals: { ...st.vals, [k]: v } } : st))
@@ -11489,6 +11887,22 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange }) {
         const updCond = (i, patch) => setFilterDraft((d) => { const cc = (d.conds || []).slice(); cc[i] = { ...cc[i], ...patch }; return { ...d, conds: cc } })
         const rmCond = (i) => setFilterDraft((d) => ({ ...d, conds: (d.conds || []).filter((_, j) => j !== i) }))
         const addPreset = (key) => setFilterDraft((d) => { const cc = (d.conds || []); if (cc.some((c) => c.op === 'preset' && c.a === key)) return d; return { ...d, conds: [...cc, { op: 'preset', a: key }] } })
+        /* ── المدى «من … إلى …» ────────────────────────────────────────────
+           شرط `between` موجودٌ أصلاً، لكنه كان مدفوناً خلف «أضف شرطاً» ثم تبديل
+           المُعامِل من «قبل» — والسؤال الأوّل عن أي عمود تاريخ هو المدى. فيُرفع
+           إلى أعلى النافذة حقلَين ظاهرَين، وهما **نفس** الشرط لا شرطٌ ثانٍ:
+           يُحرَّر هنا ويُخفى من قائمة الشروط أدناه كي لا يُعدَّل من موضعين. */
+        const rangeIdx = conds.findIndex((c) => c.op === 'between')
+        const range = rangeIdx >= 0 ? conds[rangeIdx] : null
+        const setRange = (patch) => setFilterDraft((d) => {
+          const cc = (d.conds || []).slice()
+          const i = cc.findIndex((c) => c.op === 'between')
+          const next = { op: 'between', a: '', b: '', ...(i >= 0 ? cc[i] : {}), ...patch }
+          if (!next.a && !next.b) { if (i >= 0) cc.splice(i, 1) }
+          else if (i >= 0) cc[i] = next
+          else cc.push(next)
+          return { ...d, conds: cc }
+        })
         const valInput = family === 'date' ? 'date' : 'text'
         const sortLabel = family === 'date' ? [T('الأقدم أولاً', 'Oldest first'), T('الأحدث أولاً', 'Newest first')] : family === 'number' ? [T('الأصغر أولاً', 'Smallest first'), T('الأكبر أولاً', 'Largest first')] : [T('أ ← ي', 'A → Z'), T('ي ← أ', 'Z → A')]
         const sortActive = sortCfg?.key === filterModal ? sortCfg.dir : null
@@ -11509,6 +11923,27 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange }) {
                     onClick={() => persistLayout({ ...layout, sort: { key: filterModal, dir: 'desc' } })}>▼ {sortLabel[1]}</button>
                   {sortActive && <button className="ox-btn" style={{ width: 40, height: 36, justifyContent: 'center' }} title={T('إلغاء الفرز', 'Clear sort')} onClick={() => persistLayout({ ...layout, sort: null })}>✕</button>}
                 </div>
+
+                {/* المدى: من تاريخ ← إلى تاريخ (الطرف المتروك يعني «بلا حدّ») */}
+                {family === 'date' && (
+                  <>
+                    <div style={secLbl}>📅 {T('من تاريخ — إلى تاريخ', 'Date range')}</div>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
+                      <input className="ox-fld" type="date" style={{ flex: 1, height: 34 }} value={range?.a || ''}
+                        onChange={(e) => setRange({ a: e.target.value })} />
+                      <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx3)' }}>←</span>
+                      <input className="ox-fld" type="date" style={{ flex: 1, height: 34 }} value={range?.b || ''}
+                        onChange={(e) => setRange({ b: e.target.value })} />
+                      {(range?.a || range?.b) && (
+                        <button className="ox-btn" style={{ width: 32, height: 34, justifyContent: 'center', color: C.red }}
+                          title={T('مسح المدى', 'Clear range')} onClick={() => setRange({ a: '', b: '' })}>✕</button>
+                      )}
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--tx4)', marginBottom: 16 }}>
+                      {T('اترك أحد الطرفين فارغاً لمدىً مفتوح', 'Leave one side empty for an open range')}
+                    </div>
+                  </>
+                )}
 
                 {/* اختصارات التاريخ */}
                 {family === 'date' && (
@@ -11534,7 +11969,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange }) {
                     </div>
                   )}
                 </div>
-                {conds.map((c, i) => c.op === 'preset' ? (
+                {conds.map((c, i) => (family === 'date' && i === rangeIdx) ? null : c.op === 'preset' ? (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                     <span style={{ flex: 1, height: 34, display: 'flex', alignItems: 'center', padding: '0 10px', borderRadius: 8, background: 'var(--accent-soft)', color: 'var(--accent)', fontSize: 12.5, fontWeight: 600 }}>⚡ {presetLabel(c.a, isAr)}</span>
                     <button className="ox-btn" style={{ width: 32, height: 34, justifyContent: 'center', color: C.red }} onClick={() => rmCond(i)}>✕</button>

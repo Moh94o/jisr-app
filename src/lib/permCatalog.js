@@ -841,6 +841,36 @@ export const TAB_STAGES = {
   ],
 }
 
+/* ── أعمدة «جداول العمل» = حقولٌ تحت بطاقة جدولها ────────────────────────────
+   طُلب التحكّم بكل عمود في كل جدول على حدة: من يراه ومن يعدّله. والعمود في هذا
+   الإطار **حقل**: نفس مفتاحَي `field:`/`fieldedit:` ونفس مبدّلَي المحرّر — فلا
+   آليّة جديدة، وإنما تُملأ `TAB_FIELDS.ops_excels` بمجموعةٍ لكل جدول (`group` =
+   `view_key`) فيرسمها المحرّر تحت بطاقة ذلك الجدول تلقائياً.
+   ⚠️ **لا تُكتب هذه القائمة يدوياً**: `OpsExcelsPage` يسجّلها من `VIEWS` نفسها
+   لحظة تحميله (وApp يستورده استيراداً ثابتاً فيعمل قبل أي فتحٍ للإدارة). فأي
+   عمودٍ يُضاف إلى جدول يظهر في الصلاحيات من غير لمس هذا الملف — بخلاف قائمة
+   الجداول `OPS_SHEETS` التي تحتاج سطراً. */
+export const opsFieldKey = (viewKey, colKey) => `${viewKey}__${colKey}`
+/* السجلّ على `globalThis` لا في متغيّر الوحدة، و`ops_excels` **خاصيّة تُحسب عند
+   القراءة** لا قيمةٌ تُسنَد: خادم التطوير قد يقدّم نسختين من هذا الملف (لاحقة
+   `?t=` بعد كل تعديل)، فتُسجَّل الأعمدة في نسخةٍ ويقرؤها المحرّر من الأخرى
+   فتظهر الصلاحيات فارغة. السجلّ العام ينجو من ذلك، والحساب عند القراءة ينجو من
+   ترتيب التحميل — لا يهمّ أيّهما حُمّل أوّلاً. */
+const OPS_REG = (globalThis.__jisrOpsColumns ||= {})
+export const registerOpsColumns = (byView) => { Object.assign(OPS_REG, byView || {}) }
+const opsColumnFields = () => {
+  const out = []
+  for (const [vk, cols] of Object.entries(OPS_REG)) {
+    for (const c of (cols || [])) {
+      if (!c || !c.key) continue
+      // `edit:false` لعمودٍ مشتقٍّ لا يُكتب أصلاً — مبدّل قفلٍ بلا معنى تشويش
+      out.push(F(opsFieldKey(vk, c.key), c.label || c.key, vk, { edit: !c.readOnly }))
+    }
+  }
+  return out
+}
+Object.defineProperty(TAB_FIELDS, 'ops_excels', { enumerable: true, configurable: true, get: opsColumnFields })
+
 // ── helpers ─────────────────────────────────────────────────────────────
 export const tabModule = (tabId) => TAB_MODULE[tabId] || tabId
 export const tabCards = (tabId) => TAB_CARDS[tabId] || []
