@@ -11919,22 +11919,10 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange }) {
         const updCond = (i, patch) => setFilterDraft((d) => { const cc = (d.conds || []).slice(); cc[i] = { ...cc[i], ...patch }; return { ...d, conds: cc } })
         const rmCond = (i) => setFilterDraft((d) => ({ ...d, conds: (d.conds || []).filter((_, j) => j !== i) }))
         const addPreset = (key) => setFilterDraft((d) => { const cc = (d.conds || []); if (cc.some((c) => c.op === 'preset' && c.a === key)) return d; return { ...d, conds: [...cc, { op: 'preset', a: key }] } })
-        /* ── المدى «من … إلى …» ────────────────────────────────────────────
-           شرط `between` موجودٌ أصلاً، لكنه كان مدفوناً خلف «أضف شرطاً» ثم تبديل
-           المُعامِل من «قبل» — والسؤال الأوّل عن أي عمود تاريخ هو المدى. فيُرفع
-           إلى أعلى النافذة حقلَين ظاهرَين، وهما **نفس** الشرط لا شرطٌ ثانٍ:
-           يُحرَّر هنا ويُخفى من قائمة الشروط أدناه كي لا يُعدَّل من موضعين. */
-        const rangeIdx = conds.findIndex((c) => c.op === 'between')
-        const range = rangeIdx >= 0 ? conds[rangeIdx] : null
-        const setRange = (patch) => setFilterDraft((d) => {
-          const cc = (d.conds || []).slice()
-          const i = cc.findIndex((c) => c.op === 'between')
-          const next = { op: 'between', a: '', b: '', ...(i >= 0 ? cc[i] : {}), ...patch }
-          if (!next.a && !next.b) { if (i >= 0) cc.splice(i, 1) }
-          else if (i >= 0) cc[i] = next
-          else cc.push(next)
-          return { ...d, conds: cc }
-        })
+        /* المدى «من … إلى …» مكانُه **شروط مخصّصة** («بين تاريخين») لا كتلةٌ
+           مستقلّة أعلى النافذة: كتلةٌ ثانية للشيء نفسه تعني موضعَين يُحرَّر منهما
+           فلترٌ واحد. وحقلا الشرط هناك يفتحان تقويم البرنامج، و«بين» تقبل طرفاً
+           واحداً (مدىً مفتوح). */
         const valInput = family === 'date' ? 'date' : 'text'
         const sortLabel = family === 'date' ? [T('الأقدم أولاً', 'Oldest first'), T('الأحدث أولاً', 'Newest first')] : family === 'number' ? [T('الأصغر أولاً', 'Smallest first'), T('الأكبر أولاً', 'Largest first')] : [T('أ ← ي', 'A → Z'), T('ي ← أ', 'Z → A')]
         const sortActive = sortCfg?.key === filterModal ? sortCfg.dir : null
@@ -11958,36 +11946,6 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange }) {
                     onClick={() => persistLayout({ ...layout, sort: { key: filterModal, dir: 'desc' } })}>▼ {sortLabel[1]}</button>
                   {sortActive && <button className="ox-btn" style={{ width: 40, height: 36, justifyContent: 'center' }} title={T('إلغاء الفرز', 'Clear sort')} onClick={() => persistLayout({ ...layout, sort: null })}>✕</button>}
                 </div>
-
-                {/* المدى: من تاريخ ← إلى تاريخ (الطرف المتروك يعني «بلا حدّ») */}
-                {family === 'date' && (
-                  <>
-                    {/* تقويم البرنامج (`DateField` من FormKit) لا `input[type=date]`:
-                        الحقل الخام يجرّ تقويم المتصفّح بأيقونته وصيغته ولغته —
-                        نافذةٌ إنجليزية تُفتح داخل نافذةٍ عربية. و`DateField` يقبل
-                        الكتابة ويفتح `CalendarPopup` عبر بورتال فلا يقصّه جسم
-                        النافذة الذي يمرّر عمودياً. */}
-                    {/* «مسح المدى» يظهر متى كان ثمّة مدىً يُمسح — ولا يحجز سطراً قبله */}
-                    {(range?.a || range?.b) && (
-                      <div style={{ ...secLbl, justifyContent: 'flex-end' }}>
-                        <button className="ox-btn" style={{ height: 24, padding: '0 9px', fontSize: 11, color: C.red }}
-                          onClick={() => setRange({ a: '', b: '' })}>✕ {T('مسح المدى', 'Clear')}</button>
-                      </div>
-                    )}
-                    {/* حقلا تاريخٍ بينهما سهم = مدىً، يُقرأ بلا عنوانٍ ولا تسميتين
-                        ولا سطر إرشاد: ثلاث طبقاتٍ كانت تقول الشيء نفسه فوق حقلين
-                        يشرحان أنفسهما، وتُبعد الاختصارات السريعة عن الأنظار. */}
-                    <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16 }}>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <DateField value={range?.a || ''} onChange={(v) => setRange({ a: v || '' })} />
-                      </div>
-                      <span style={{ fontSize: 15, fontWeight: 600, color: C.gold }}>←</span>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <DateField value={range?.b || ''} onChange={(v) => setRange({ b: v || '' })} />
-                      </div>
-                    </div>
-                  </>
-                )}
 
                 {/* اختصارات التاريخ */}
                 {family === 'date' && (
@@ -12013,7 +11971,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange }) {
                     </div>
                   )}
                 </div>
-                {conds.map((c, i) => (family === 'date' && i === rangeIdx) ? null : c.op === 'preset' ? (
+                {conds.map((c, i) => c.op === 'preset' ? (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                     <span style={{ flex: 1, height: 34, display: 'flex', alignItems: 'center', padding: '0 10px', borderRadius: 8, background: 'var(--accent-soft)', color: 'var(--accent)', fontSize: 12.5, fontWeight: 600 }}>⚡ {presetLabel(c.a, isAr)}</span>
                     <button className="ox-btn" style={{ width: 32, height: 34, justifyContent: 'center', color: C.red }} onClick={() => rmCond(i)}>✕</button>
@@ -12047,7 +12005,9 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange }) {
                   <button className="ox-btn" style={{ height: 28 }} onClick={() => setFilterDraft((d) => ({ ...d, values: null }))}>{T('تحديد الكل', 'Select all')}</button>
                   <button className="ox-btn" style={{ height: 28 }} onClick={() => setFilterDraft((d) => ({ ...d, values: [] }))}>{T('إلغاء الكل', 'Clear all')}</button>
                 </div>
-                <div className="ox-scrolly" style={{ overflowY: 'auto', maxHeight: 220, border: '1px solid var(--bd)', borderRadius: 9, padding: 4 }}>
+                {/* قائمة القيم أطول: هي أكثر ما يُستعمل في النافذة، و٢٢٠ بكسل
+                    كانت تُظهر ستّة أسطر من مئاتٍ فيصير الاختيار تمريراً لا نظراً. */}
+                <div className="ox-scrolly" style={{ overflowY: 'auto', maxHeight: 360, minHeight: 200, border: '1px solid var(--bd)', borderRadius: 9, padding: 4 }}>
                   {shown.length === 0 && <div style={{ padding: 14, textAlign: 'center', color: 'var(--tx4)', fontSize: 12 }}>{T('لا قيم', 'No values')}</div>}
                   {shown.map((v) => (
                     <label key={v} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '7px 9px', borderRadius: 7, cursor: 'pointer', fontSize: 12.5, color: 'var(--tx2)' }}
