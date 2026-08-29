@@ -5,7 +5,7 @@ import { registerOpsColumns, opsFieldKey } from '../lib/permCatalog.js'
 import { Modal, ActionButton, Dropdown, CalendarPopup, TextField, TextArea, DateField, FileField } from '../components/ui/FormKit.jsx'
 import OpsChatPanel, { useOpsChat, cellMarkKey } from '../components/OpsChat.jsx'
 import { buildAjeerContractBookmarklet, buildAjeerNoticeBookmarklet, buildAjeerSecondmentBookmarklet, buildAjeerSecondmentInvoiceBookmarklet, buildAjeerEligibilityScanBookmarklet, buildAjeerTraceBookmarklet } from './ajeerRequestBookmarklet.js'
-import { Save, Trash2 } from 'lucide-react'
+import { Save, Trash2, Search, RefreshCw, HeartPulse, ShieldOff, X as XIcon } from 'lucide-react'
 
 /* ═══════════════════════════════════════════════════════════════════════════
    «جداول العمل» (كان اسمها «اكسلات العمليات») — تبويب رئيسي مستقلّ.
@@ -7672,6 +7672,7 @@ function FetchCell({ value, busy, tip, icon, glyph, onFetch, canEdit, blocked, l
    تعرض صورة الكابتشا ويكتبها الموظف، ثم تُعيد التاريخ إلى الخليّة كأي جلبة.
    الآلية نسخةٌ من صفحة العمالة (نفس دالّة Netlify ونفس الحدّ الثلاثيّ للمحاولات)
    — ومتى تغيّرت هناك يجب أن تتغيّر هنا. */
+const CHI_TONE = '#3bb27a'   // أخضر التأمين — نفس لون زرّ صفحة العمالة
 const CHI_FN_URL = '/.netlify/functions/check-chi-insurance'
 const CHI_MAX_ATTEMPTS = 3
 // CHI قد يعيد YYYY/M/D أو D/M/YYYY — يُوحَّد إلى YYYY-MM-DD كبقيّة تواريخ البرنامج
@@ -7741,31 +7742,60 @@ function ChiModal({ ask, onDone, isAr, lang, sb, user }) {
   }
   const busy = st.phase === 'loading' || st.phase === 'verifying'
   return (
-    <Modal open onClose={() => onDone('')} closeOnOverlay lang={lang} width={420} accent="#3bb27a"
+    <Modal open onClose={() => onDone('')} closeOnOverlay lang={lang} width={430} accent={CHI_TONE}
       title={T2('استعلام التأمين الطبي', 'Medical insurance check')}
       subtitle={`${T2('رقم الإقامة', 'Iqama')} ${ask.iqama}`}
       footer={st.phase === 'captcha' || st.phase === 'verifying'
-        ? <ActionButton disabled={busy || !st.code || st.code.length < 3} onClick={submit}>
+        ? <ActionButton Icon={Search} disabled={busy || !st.code || st.code.length < 3} onClick={submit}>
             {st.phase === 'verifying' ? T2('يُستعلم…', 'Checking…') : T2('استعلام', 'Check')}</ActionButton>
-        : <ActionButton onClick={() => (st.phase === 'error' ? init() : onDone(''))}>
+        : <ActionButton Icon={st.phase === 'error' ? RefreshCw : XIcon} onClick={() => (st.phase === 'error' ? init() : onDone(''))}>
             {st.phase === 'error' ? T2('إعادة المحاولة', 'Retry') : T2('إغلاق', 'Close')}</ActionButton>}>
-      {st.err && <div style={{ marginBottom: 12, padding: '9px 12px', borderRadius: 9, fontSize: 12, fontWeight: 600,
-        color: C.red, background: 'rgba(232,114,101,.12)', border: '1px solid rgba(232,114,101,.4)' }}>{st.err}</div>}
-      {st.phase === 'none' && <div style={{ padding: 16, textAlign: 'center', fontSize: 13, fontWeight: 600, color: 'var(--tx2)' }}>
-        {T2('لا يوجد تأمين طبي ساري على هذا الرقم', 'No active medical insurance for this ID')}</div>}
+      {st.err && (
+        <div style={{ marginBottom: 14, padding: '10px 13px', borderRadius: 10, fontSize: 12, fontWeight: 600, lineHeight: 1.7,
+          color: C.red, background: 'rgba(232,114,101,.12)', border: '1px solid rgba(232,114,101,.4)' }}>{st.err}</div>
+      )}
+      {/* لا تأمين: نتيجةٌ لا خطأ — أيقونةٌ هادئة وجملةٌ واحدة، لا صندوق أحمر */}
+      {st.phase === 'none' && (
+        <div style={{ padding: '26px 16px', textAlign: 'center' }}>
+          <ShieldOff size={30} strokeWidth={1.6} color="var(--tx4)" />
+          <div style={{ marginTop: 10, fontSize: 13.5, fontWeight: 600, color: 'var(--tx2)' }}>
+            {T2('لا يوجد تأمين طبي ساري', 'No active medical insurance')}</div>
+          <div style={{ marginTop: 4, fontSize: 11.5, color: 'var(--tx4)', direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{ask.iqama}</div>
+        </div>
+      )}
       {(st.phase === 'loading' || st.phase === 'verifying') && !st.img && (
-        <div style={{ padding: 22, textAlign: 'center', fontSize: 12.5, color: 'var(--tx3)' }}>{T2('جارٍ الاتصال بمنصة التأمين…', 'Contacting CHI…')}</div>
+        <div style={{ padding: '30px 16px', textAlign: 'center' }}>
+          <HeartPulse size={28} strokeWidth={1.7} color={CHI_TONE} style={{ opacity: .8 }} />
+          <div style={{ marginTop: 10, fontSize: 12.5, fontWeight: 600, color: 'var(--tx3)' }}>
+            {T2('جارٍ الاتصال بمنصة التأمين…', 'Contacting CHI…')}</div>
+        </div>
       )}
       {(st.phase === 'captcha' || st.phase === 'verifying') && st.img && (
         <>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-            <img src={st.img} alt="captcha" style={{ height: 46, borderRadius: 8, background: '#fff', flex: 1, objectFit: 'contain' }} />
-            <button className="ox-btn" style={{ height: 34, padding: '0 10px' }} onClick={init} disabled={busy}
-              title={T2('رمز جديد', 'New code')}>↻</button>
+          {/* الصورة **بمقاسها** داخل بطاقةٍ مؤطَّرة، لا ممدودةً على عرض النافذة:
+              كانت `flex:1` تُمدّد الخلفية البيضاء فتبدو النافذة فارغةً ويضيع
+              الرمز في وسطها. وزرّ التحديث دائريٌّ في زاوية البطاقة — جزءٌ منها
+              لا زرٌّ سائبٌ بجانبها. */}
+          <div style={{ position: 'relative', borderRadius: 12, border: `1.5px solid ${CHI_TONE}40`,
+            background: '#fff', padding: '14px 12px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            minHeight: 78, marginBottom: 14, opacity: busy ? .5 : 1, transition: 'opacity .15s' }}>
+            <img src={st.img} alt="captcha" style={{ height: 50, width: 'auto', maxWidth: '100%', objectFit: 'contain' }} />
+            <button type="button" onClick={init} disabled={busy} title={T2('رمز جديد', 'New code')}
+              style={{ position: 'absolute', insetInlineStart: 8, top: 8, width: 28, height: 28, borderRadius: '50%',
+                border: `1px solid ${CHI_TONE}55`, background: `${CHI_TONE}14`, color: CHI_TONE,
+                cursor: busy ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
+              <RefreshCw size={13} strokeWidth={2.4} />
+            </button>
           </div>
-          {/* TextField لا يمرّر onKeyDown — الإرسال بزرّ «استعلام» وحده */}
+          {/* الرمز أرقامٌ لاتينية تُقرأ من صورة: خطٌّ أحاديّ العرض ومسافةٌ بين
+              الحروف ووسطٌ — كما يُكتب الرمز لا كما يُكتب الاسم. */}
           <TextField label={T2('رمز التحقق', 'Verification code')} value={st.code} dir="ltr"
+            placeholder={T2('اكتب الرمز كما يظهر', 'Type the code as shown')} maxLength={10}
             onChange={(v) => setSt((s) => ({ ...s, code: String(v || '').trim() }))} />
+          <div style={{ marginTop: 8, fontSize: 11, color: 'var(--tx4)', lineHeight: 1.7 }}>
+            {T2('منصة CHI تطلب رمزاً جديداً لكل استعلام — إن لم يُقرأ الرمز فاطلب غيره بالزرّ الدائري.',
+              'CHI asks for a fresh code on every check — use the round button for a new one.')}
+          </div>
         </>
       )}
     </Modal>
@@ -11907,7 +11937,10 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange }) {
         const sortLabel = family === 'date' ? [T('الأقدم أولاً', 'Oldest first'), T('الأحدث أولاً', 'Newest first')] : family === 'number' ? [T('الأصغر أولاً', 'Smallest first'), T('الأكبر أولاً', 'Largest first')] : [T('أ ← ي', 'A → Z'), T('ي ← أ', 'Z → A')]
         const sortActive = sortCfg?.key === filterModal ? sortCfg.dir : null
         const secLbl = { display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: 'var(--tx2)', margin: '2px 0 8px' }
-        const selOpStyle = { height: 34, borderRadius: 8, border: '1px solid var(--bd)', background: 'var(--inputBg)', color: 'var(--tx)', fontFamily: F, fontSize: 12.5, padding: '0 8px', flexShrink: 0 }
+        /* صفّ الشرط يتساوى ارتفاعه مع منتقي التاريخ (٤٢) في أعمدة التاريخ،
+           وإلا طفا المُعامِل وزرّ الحذف فوق حقلٍ أطول منهما. */
+        const rowH2 = family === 'date' ? 42 : 34
+        const selOpStyle = { height: rowH2, borderRadius: 8, border: '1px solid var(--bd)', background: 'var(--inputBg)', color: 'var(--tx)', fontFamily: F, fontSize: 12.5, padding: '0 8px', flexShrink: 0 }
         return (
           <Modal open onClose={() => setFilterModal(null)} closeOnOverlay lang={lang} accent={C.gold} width={560} scroll
             title={`${T('تصفية وفرز', 'Filter & sort')} — «${col ? (isAr ? col.ar : col.en) : ''}»`}
@@ -11927,17 +11960,26 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange }) {
                 {/* المدى: من تاريخ ← إلى تاريخ (الطرف المتروك يعني «بلا حدّ») */}
                 {family === 'date' && (
                   <>
-                    <div style={secLbl}>📅 {T('من تاريخ — إلى تاريخ', 'Date range')}</div>
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
-                      <input className="ox-fld" type="date" style={{ flex: 1, height: 34 }} value={range?.a || ''}
-                        onChange={(e) => setRange({ a: e.target.value })} />
-                      <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx3)' }}>←</span>
-                      <input className="ox-fld" type="date" style={{ flex: 1, height: 34 }} value={range?.b || ''}
-                        onChange={(e) => setRange({ b: e.target.value })} />
+                    {/* تقويم البرنامج (`DateField` من FormKit) لا `input[type=date]`:
+                        الحقل الخام يجرّ تقويم المتصفّح بأيقونته وصيغته ولغته —
+                        نافذةٌ إنجليزية تُفتح داخل نافذةٍ عربية. و`DateField` يقبل
+                        الكتابة ويفتح `CalendarPopup` عبر بورتال فلا يقصّه جسم
+                        النافذة الذي يمرّر عمودياً. */}
+                    <div style={{ ...secLbl, justifyContent: 'space-between' }}>
+                      <span>📅 {T('من تاريخ — إلى تاريخ', 'Date range')}</span>
                       {(range?.a || range?.b) && (
-                        <button className="ox-btn" style={{ width: 32, height: 34, justifyContent: 'center', color: C.red }}
-                          title={T('مسح المدى', 'Clear range')} onClick={() => setRange({ a: '', b: '' })}>✕</button>
+                        <button className="ox-btn" style={{ height: 24, padding: '0 9px', fontSize: 11, color: C.red }}
+                          onClick={() => setRange({ a: '', b: '' })}>✕ {T('مسح المدى', 'Clear')}</button>
                       )}
+                    </div>
+                    <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', marginBottom: 4 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <DateField label={T('من', 'From')} value={range?.a || ''} onChange={(v) => setRange({ a: v || '' })} />
+                      </div>
+                      <span style={{ fontSize: 15, fontWeight: 600, color: C.gold, paddingBottom: 12 }}>←</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <DateField label={T('إلى', 'To')} value={range?.b || ''} onChange={(v) => setRange({ b: v || '' })} />
+                      </div>
                     </div>
                     <div style={{ fontSize: 11, color: 'var(--tx4)', marginBottom: 16 }}>
                       {T('اترك أحد الطرفين فارغاً لمدىً مفتوح', 'Leave one side empty for an open range')}
@@ -11979,9 +12021,15 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange }) {
                     <select value={c.op} onChange={(e) => updCond(i, { op: e.target.value })} style={selOpStyle}>
                       {ops.map((o) => <option key={o.v} value={o.v}>{isAr ? o.ar : o.en}</option>)}
                     </select>
-                    {opNeedsValue(c.op) && <input className="ox-fld" type={valInput} style={{ flex: 1, minWidth: 90, height: 34 }} value={c.a || ''} dir="auto" onChange={(e) => updCond(i, { a: e.target.value })} placeholder={T('قيمة', 'value')} />}
-                    {c.op === 'between' && <input className="ox-fld" type={valInput} style={{ flex: 1, minWidth: 90, height: 34 }} value={c.b || ''} dir="auto" onChange={(e) => updCond(i, { b: e.target.value })} placeholder={T('إلى', 'to')} />}
-                    <button className="ox-btn" style={{ width: 32, height: 34, justifyContent: 'center', color: C.red }} onClick={() => rmCond(i)}>✕</button>
+                    {/* عمود التاريخ يأخذ تقويم البرنامج هنا أيضاً — لا يصحّ أن
+                        يختلف منتقي التاريخ بين أعلى النافذة وأسفلها. */}
+                    {opNeedsValue(c.op) && (family === 'date'
+                      ? <span style={{ flex: 1, minWidth: 120 }}><DateField value={c.a || ''} onChange={(v) => updCond(i, { a: v || '' })} /></span>
+                      : <input className="ox-fld" type={valInput} style={{ flex: 1, minWidth: 90, height: 34 }} value={c.a || ''} dir="auto" onChange={(e) => updCond(i, { a: e.target.value })} placeholder={T('قيمة', 'value')} />)}
+                    {c.op === 'between' && (family === 'date'
+                      ? <span style={{ flex: 1, minWidth: 120 }}><DateField value={c.b || ''} onChange={(v) => updCond(i, { b: v || '' })} /></span>
+                      : <input className="ox-fld" type={valInput} style={{ flex: 1, minWidth: 90, height: 34 }} value={c.b || ''} dir="auto" onChange={(e) => updCond(i, { b: e.target.value })} placeholder={T('إلى', 'to')} />)}
+                    <button className="ox-btn" style={{ width: 32, height: rowH2, justifyContent: 'center', color: C.red }} onClick={() => rmCond(i)}>✕</button>
                   </div>
                 ))}
                 <button className="ox-btn" style={{ height: 32, marginBottom: 16 }} onClick={addCond}>＋ {T('أضف شرطاً', 'Add condition')}</button>
