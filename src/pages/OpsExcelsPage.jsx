@@ -976,6 +976,8 @@ const WFC = {
   exit_return: exitVisaCol('_er', 'خروج وعودة', 'Exit & re-entry'),
   vehicles: { key: 'vehicles_count', ar: 'المركبة', en: 'Vehicle', w: 90, kind: 'num' },
   absher_mobile: { key: 'official_mobile', ar: 'رقم ابشر', en: 'Absher Mobile', w: 130, kind: 'mono', get: (r) => fmtMobile(r.official_mobile) },
+  // نفس حقل «رقم ابشر» بمسمّاه المتداول — في البيانات الأساسية لا يجاوره ما يوضّحه
+  absher_phone: { key: 'official_mobile', ar: 'جوال أبشر', en: 'Absher mobile', w: 135, kind: 'mono', copy: true, get: (r) => fmtMobile(r.official_mobile) },
   hq_city: { key: 'hq_city_ar', ar: 'المدينة', en: 'City', w: 120, kind: 'text' },
   official_occupation: { key: 'official_occupation_ar', ar: 'المهنة الفعلية', en: 'Actual Occupation', w: 170, kind: 'text' },
   invoices: { key: '_inv_nos', ar: 'الفواتير', en: 'Invoices', w: 220, kind: 'text', source: 'invoice', get: (r) => r._inv_nos },
@@ -6014,7 +6016,7 @@ const VIEWS = [
     addFields: WF_ADD,
     columns: [
       ...WF_FAC, WFC.photo, WFC.muqeem_pdf, WFC.name, WFC.iqama, WFC.border, WFC.nationality, WFC.birth_date, WFC.occupation, WFC.iqama_expiry_fetch, WFC.work_permit,
-      WFC.insurance, WFC.final_exit, WFC.exit_return, WFC.vehicle, WFC.passport_no, WFC.passport_exp_full,
+      WFC.absher_phone, WFC.insurance, WFC.final_exit, WFC.exit_return, WFC.vehicle, WFC.passport_no, WFC.passport_exp_full,
       WFC.salary, WFC.balance, WFC.branch,
       WFC.src, WFC.src_synced, ...OPS_COLS,
     ],
@@ -11965,24 +11967,24 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange }) {
                         نافذةٌ إنجليزية تُفتح داخل نافذةٍ عربية. و`DateField` يقبل
                         الكتابة ويفتح `CalendarPopup` عبر بورتال فلا يقصّه جسم
                         النافذة الذي يمرّر عمودياً. */}
-                    <div style={{ ...secLbl, justifyContent: 'space-between' }}>
-                      <span>📅 {T('من تاريخ — إلى تاريخ', 'Date range')}</span>
-                      {(range?.a || range?.b) && (
+                    {/* «مسح المدى» يظهر متى كان ثمّة مدىً يُمسح — ولا يحجز سطراً قبله */}
+                    {(range?.a || range?.b) && (
+                      <div style={{ ...secLbl, justifyContent: 'flex-end' }}>
                         <button className="ox-btn" style={{ height: 24, padding: '0 9px', fontSize: 11, color: C.red }}
                           onClick={() => setRange({ a: '', b: '' })}>✕ {T('مسح المدى', 'Clear')}</button>
-                      )}
-                    </div>
-                    <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', marginBottom: 4 }}>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <DateField label={T('من', 'From')} value={range?.a || ''} onChange={(v) => setRange({ a: v || '' })} />
                       </div>
-                      <span style={{ fontSize: 15, fontWeight: 600, color: C.gold, paddingBottom: 12 }}>←</span>
+                    )}
+                    {/* حقلا تاريخٍ بينهما سهم = مدىً، يُقرأ بلا عنوانٍ ولا تسميتين
+                        ولا سطر إرشاد: ثلاث طبقاتٍ كانت تقول الشيء نفسه فوق حقلين
+                        يشرحان أنفسهما، وتُبعد الاختصارات السريعة عن الأنظار. */}
+                    <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16 }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <DateField label={T('إلى', 'To')} value={range?.b || ''} onChange={(v) => setRange({ b: v || '' })} />
+                        <DateField value={range?.a || ''} onChange={(v) => setRange({ a: v || '' })} />
                       </div>
-                    </div>
-                    <div style={{ fontSize: 11, color: 'var(--tx4)', marginBottom: 16 }}>
-                      {T('اترك أحد الطرفين فارغاً لمدىً مفتوح', 'Leave one side empty for an open range')}
+                      <span style={{ fontSize: 15, fontWeight: 600, color: C.gold }}>←</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <DateField value={range?.b || ''} onChange={(v) => setRange({ b: v || '' })} />
+                      </div>
                     </div>
                   </>
                 )}
