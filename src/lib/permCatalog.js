@@ -73,10 +73,6 @@ export const MODULE_ACTIONS = {
     // الكيان · أحمر إن لم يوجد) وفتح صفحة المنشأة/العامل بالنقر. للمدير العام دائماً، ويُمنَح لغيره.
     A('smart_id_links', 'روابط أرقام المعاملة الذكية', 'special'),
   ],
-  payments: [
-    A('view', 'عرض المدفوعات', 'view'), A('pay', 'تسجيل سداد خدمة', 'special'),
-    A('edit', 'تعديل السداد', 'edit'),
-  ],
   // سندات JUB1 — دورة حياة السند على مراحل، كل انتقال حالة صلاحية مستقلة تُسنَد لدور مختلف
   // (مثل مراحل المعاملة في الفواتير): مسودة → «مكتمل» (يتحقق المدخِل) → «مدقق» (يتأكد المراجع من
   // ربط السندات)، مع «يحتاج مراجعة» و«الإلغاء» و«الإرجاع لمسودة» كصلاحيات مستقلة.
@@ -89,14 +85,6 @@ export const MODULE_ACTIONS = {
     A('stage_cancel', 'مرحلة: إلغاء السند', 'special'),
     A('stage_reopen', 'مرحلة: إرجاع إلى مسودة', 'special'),
     A('link', 'ربط / فكّ السندات', 'special'),
-  ],
-  ext_payments: [
-    A('view', 'عرض السدادات الخارجية', 'view'), A('create', 'إضافة حوالة بنكية', 'create'),
-    A('edit', 'تعديل السداد الخارجي', 'edit'),
-  ],
-  deposits: [
-    A('view', 'عرض الإيداعات', 'view'), A('create', 'رفع طلب إيداع', 'create'),
-    A('edit', 'تعديل الإيداعات', 'edit'),
   ],
 
   quotations: [
@@ -131,17 +119,9 @@ export const MODULE_ACTIONS = {
     A('export', 'تصدير الجدول', 'special'),
     A('refresh', 'تحديث من المزامنة', 'sync'),
     A('snapshot', 'لقطات الأسبوع (الأرشيف)', 'special'),
-    A('chat', 'محادثة الجدول', 'special'),
     A('rename', 'تسمية الجداول والأعمدة', 'special'),
     A('new_sheet', 'إنشاء جدول جديد', 'create'),
     A('delete_sheet', 'حذف جدول', 'delete'),
-  ],
-
-  // Per-service transaction modules share a common action shape.
-  // (generated below by buildSvc)
-  saudization: [
-    A('view', 'عرض السعودة', 'view'), A('create', 'إضافة معاملة سعودة', 'create'),
-    A('edit', 'تعديل', 'edit'), A('complete', 'تأكيد الإنجاز', 'special'),
   ],
 
   admin_clients: [
@@ -178,72 +158,19 @@ export const MODULE_ACTIONS = {
   ],
 }
 
-// ── Per-service transaction modules ─────────────────────────────────────
-// Every service tab in transactions_hub maps to its own module svc_<code>,
-// so the GM can control each service independently.
-const SVC_ACTIONS = (extra = []) => [
-  A('view', 'عرض المعاملات', 'view'), A('create', 'طلب خدمة جديد', 'create'),
-  A('edit', 'تعديل المعاملة', 'edit'), A('delete', 'حذف المعاملة', 'delete'),
-  A('complete', 'تأكيد الإنجاز', 'special'), A('cancel', 'إلغاء المعاملة', 'special'),
-  A('attach', 'إدارة المرفقات', 'special'), ...extra,
-]
-// tab id → service module
-export const SVC_TAB_MODULE = {
-  'work-visa-permanent': 'svc_work_visa_permanent',
-  'work-visa-9m': 'svc_work_visa_9m',
-  'work-visa-6m': 'svc_work_visa_6m',
-  'work-visa-temporary': 'svc_work_visa_temporary',
-  'iqama-issuance': 'svc_iqama_issuance',
-  'transfer': 'svc_transfer',
-  'iqama-renewal': 'svc_iqama_renewal',
-  'ajeer': 'svc_ajeer',
-  'chamber': 'svc_chamber',
-  'medical-insurance': 'svc_medical_insurance',
-  'profession-change': 'svc_profession_change',
-  'external-transfer': 'svc_external_transfer',
-  'salary': 'svc_salary',
-  'exit-reentry': 'svc_exit_reentry',
-  'final-exit': 'svc_final_exit',
-  'passport-update': 'svc_passport_update',
-  'iqama-print': 'svc_iqama_print',
-  'documents': 'svc_documents',
-  'supplier-payroll': 'svc_supplier_payroll',
-  'general': 'svc_general',
-  'accountant-approvals': 'svc_accountant_approvals',
-}
-Object.values(SVC_TAB_MODULE).forEach(m => {
-  if (m === 'svc_accountant_approvals') {
-    MODULE_ACTIONS[m] = [
-      A('view', 'عرض الموافقات', 'view'), A('approve', 'موافقة المحاسب', 'special'),
-      A('reject', 'رفض الطلب', 'special'),
-    ]
-  } else if (m === 'svc_iqama_issuance') {
-    // إصدار الإقامة: مرحلة الإقامة فقط (لا إنشاء طلب — يأتي من تبويبات التأشيرة).
-    MODULE_ACTIONS[m] = SVC_ACTIONS([A('register_iqama', 'تسجيل الإقامة', 'special')])
-  } else {
-    MODULE_ACTIONS[m] = SVC_ACTIONS(
-      m === 'svc_work_visa_permanent' || m === 'svc_work_visa_9m' || m === 'svc_work_visa_6m' || m === 'svc_work_visa_temporary'
-        ? [A('issue_visa', 'إصدار التأشيرة', 'special'), A('register_iqama', 'تسجيل الإقامة', 'special')]
-        : []
-    )
-  }
-})
-
 // ── tab id → permission module ──────────────────────────────────────────
 export const TAB_MODULE = {
   home: 'home',
   facilities: 'facilities', workers: 'workers', temp_workers: 'temp_workers', work_visas: 'work_visas',
   visa_grid: 'work_visas',
-  invoices: 'invoices', deposits: 'deposits', payments: 'payments', ext_payments: 'ext_payments',
+  invoices: 'invoices',
   jub1_receipts: 'jub1_receipts',
   transfer_calc: 'quotations', renewal_calc: 'renewal_calc',
   sync_hub: 'sync_hub', sync_log: 'sync_hub', ops_excels: 'ops_excels',
-  saudization: 'saudization',
   admin_clients: 'admin_clients', admin_agents: 'admin_agents',
   admin_offices: 'admin_offices', admin_bank_accounts: 'admin_bank_accounts',
   admin_permissions: 'admin_permissions', admin_services: 'admin_services',
   admin_fees: 'admin_fees', settings_fields: 'settings_fields',
-  ...SVC_TAB_MODULE,
 }
 
 // ── Module display metadata (for the DB catalog seeding) ────────────────
@@ -254,36 +181,11 @@ export const MODULE_META = {
   temp_workers: { label_ar: 'العمالة المؤقتة', icon: 'labor', sort: 31 },
   work_visas: { label_ar: 'تأشيرات العمل', icon: 'labor', sort: 32 },
   invoices: { label_ar: 'الفواتير', icon: 'invoice', sort: 40 },
-  deposits: { label_ar: 'الإيداعات', icon: 'deposit', sort: 41 },
-  payments: { label_ar: 'سدادات الخدمات', icon: 'receipt', sort: 42 },
-  ext_payments: { label_ar: 'سدادات خارجية', icon: 'receipt', sort: 43 },
   jub1_receipts: { label_ar: 'سندات JUB1', icon: 'receipt', sort: 46 },
   quotations: { label_ar: 'تسعيرات التنازل', icon: 'calc', sort: 50 },
   renewal_calc: { label_ar: 'تسعيرات التجديد', icon: 'refresh', sort: 51 },
   sync_hub: { label_ar: 'مركز المزامنة', icon: 'facility', sort: 110 },
   ops_excels: { label_ar: 'جداول العمل', icon: 'calendar', sort: 115 },
-  svc_work_visa_permanent: { label_ar: 'تأشيرة بإقامة 12 شهر', icon: 'transaction', sort: 60 },
-  svc_work_visa_9m: { label_ar: 'تأشيرة بإقامة 9 أشهر', icon: 'transaction', sort: 60.3 },
-  svc_work_visa_6m: { label_ar: 'تأشيرة بإقامة 6 أشهر', icon: 'transaction', sort: 60.5 },
-  svc_work_visa_temporary: { label_ar: 'تأشيرة بإقامة 3 شهور', icon: 'transaction', sort: 61 },
-  svc_iqama_issuance: { label_ar: 'إصدار الإقامة', icon: 'transaction', sort: 61.5 },
-  svc_transfer: { label_ar: 'نقل كفالة', icon: 'transaction', sort: 62 },
-  svc_iqama_renewal: { label_ar: 'تجديد الإقامة', icon: 'transaction', sort: 63 },
-  svc_ajeer: { label_ar: 'عقد أجير', icon: 'transaction', sort: 64 },
-  svc_chamber: { label_ar: 'الغرفة التجارية', icon: 'transaction', sort: 65 },
-  svc_medical_insurance: { label_ar: 'تأمين طبي', icon: 'transaction', sort: 66 },
-  svc_profession_change: { label_ar: 'تغيير المهنة', icon: 'transaction', sort: 67 },
-  svc_external_transfer: { label_ar: 'الموافقة للنقل الخارجي', icon: 'transaction', sort: 68 },
-  svc_salary: { label_ar: 'تعديل الراتب', icon: 'transaction', sort: 69 },
-  svc_exit_reentry: { label_ar: 'خروج وعودة', icon: 'transaction', sort: 70 },
-  svc_final_exit: { label_ar: 'خروج نهائي', icon: 'transaction', sort: 71 },
-  svc_passport_update: { label_ar: 'تحديث بيانات الجواز', icon: 'transaction', sort: 72 },
-  svc_iqama_print: { label_ar: 'طباعة الإقامة', icon: 'transaction', sort: 73 },
-  svc_documents: { label_ar: 'مستندات', icon: 'transaction', sort: 74 },
-  svc_supplier_payroll: { label_ar: 'طلب رواتب سبلاير', icon: 'transaction', sort: 75 },
-  svc_general: { label_ar: 'خدمة عامة', icon: 'transaction', sort: 76 },
-  svc_accountant_approvals: { label_ar: 'موافقات المحاسب', icon: 'transaction', sort: 77 },
-  saudization: { label_ar: 'السعودة', icon: 'tasks', sort: 80 },
   admin_clients: { label_ar: 'العملاء', icon: 'clients', sort: 90 },
   admin_agents: { label_ar: 'الوسطاء', icon: 'broker', sort: 91 },
   admin_offices: { label_ar: 'المكاتب', icon: 'branch', sort: 100 },
@@ -317,7 +219,6 @@ const OPS_SHEET_ACTS = [
   ca('export', 'تصدير'),
   ca('refresh', 'تحديث من المزامنة', 'sync'),
   ca('snapshot', 'لقطات الأسبوع'),
-  ca('chat', 'المحادثة'),
   ca('rename', 'التسمية'),
 ]
 /* قائمة الجداول = مفاتيح `VIEWS` في OpsExcelsPage بترتيبها ومجموعاتها.
@@ -347,20 +248,14 @@ const OPS_SHEETS = [
   ['ajeer_requests', 'رفع طلبات أجير', 'الخدمات'],
   ['ajeer_secondment', 'الإعارة (أجير)', 'الخدمات'],
   ['invoices', 'الفواتير', 'المالية'],
+  ['agent_commissions', 'عمولات الوسطاء', 'المالية'],
   ['collections', 'تحصيل الفواتير', 'المالية'],
   ['deposits', 'متابعة الإيداعات', 'المالية'],
   ['sadad', 'دفتر السدادات', 'المالية'],
   ['sadad_requests', 'طلبات السداد', 'المالية'],
 ]
 const EDIT = [ca('edit', 'تعديل', 'edit')]
-const EDIT_CLIENT = [ca('edit', 'تعديل بيانات العميل', 'edit')]
-// Transaction comments/actions card — varies per service.
-const CMT_FULL = [ca('complete', 'تأكيد الإنجاز'), ca('cancel', 'إلغاء المعاملة'), ca('add_comment', 'إضافة تعليق'), ca('approve', 'موافقة المحاسب'), ca('reject', 'رفض الطلب')]
-const CMT_BASIC = [ca('complete', 'تأكيد الإنجاز'), ca('cancel', 'إلغاء المعاملة'), ca('add_comment', 'إضافة تعليق')]
 const CMT_NOTE = [ca('add_comment', 'إضافة تعليق')]
-const CMT_ACC = [ca('approve', 'موافقة المحاسب'), ca('reject', 'رفض الطلب')]
-// Read-only overview trio shared by service tabs.
-const TXN_RO = () => [C('overview', 'نظرة عامة'), C('installments', 'الدفعات'), C('status_timeline', 'سجل الحالة')]
 
 export const TAB_CARDS = {
   // The المنشآت tab detail is the basic registry page (decoupled from Sync Hub);
@@ -405,8 +300,6 @@ export const TAB_CARDS = {
     C('service_transaction', 'معاملة الخدمة'),
     C('comments', 'التعليقات', 'core', CMT_NOTE), C('financial_summary', 'المبلغ الإجمالي'),
   ],
-  payments: [C('payment_summary', 'ملخص السداد'), C('confirm_payment', 'تأكيد السداد', 'core', [ca('pay', 'توثيق السداد')])],
-  ext_payments: [],
   // سندات JUB1 — بطاقات صفحة تفاصيل السند (إظهار/إخفاء لكل دور)
   jub1_receipts: [
     C('receipt_image', 'صورة السند'), C('client', 'العميل', 'core', EDIT),
@@ -417,11 +310,6 @@ export const TAB_CARDS = {
     C('details', 'التفاصيل', 'core', EDIT),
     C('totals', 'الحساب'), C('agent', 'الوسيط', 'core', EDIT),
     C('transfer_calc', 'حسبة التنازل', 'core', [ca('edit', 'تعديل', 'edit'), ca('read', 'قراءة الحسبة آلياً', 'read')]),
-  ],
-  deposits: [
-    C('operation_details', 'الحوالة / الإيداع'), C('attachments', 'المرفقات'),
-    C('verification_details', 'بيانات التحقق', 'core', [ca('edit', 'تعبئة / تعديل البيانات', 'edit')]),
-    C('action', 'الإجراء', 'core', [ca('edit', 'تأكيد التحقق', 'edit'), ca('add_note', 'إضافة ملاحظة')]),
   ],
   // حسبة نقل الكفالة (transfer quotations) — detail cards (none existed before).
   transfer_calc: [
@@ -480,63 +368,6 @@ export const TAB_CARDS = {
   ],
   admin_fees: [],
   settings_fields: [],
-  // ── service tabs (cards verified per service) ──
-  'work-visa-permanent': [
-    C('client_worker', 'العميل والعامل', 'core', EDIT_CLIENT),
-    C('visa_file', 'ملف التأشيرات', 'core', [ca('edit', 'تعديل التأشيرة', 'edit'), ca('issue_visa', 'إصدار التأشيرة')]),
-    C('establishment_distribute', 'توزيع التأشيرات', 'core', [ca('distribute', 'توزيع التأشيرات')]),
-    C('iqama', 'الإقامة', 'core', [ca('register_iqama', 'تسجيل الإقامة'), ca('edit', 'تعديل', 'edit')]),
-    C('work_permit', 'رخصة العمل والإقامة', 'core', EDIT),
-    ...TXN_RO(), C('comments', 'التعليقات والإجراءات', 'core', CMT_FULL),
-  ],
-  'work-visa-temporary': [
-    C('client_worker', 'العميل والعامل', 'core', EDIT_CLIENT),
-    C('visa_file', 'ملف التأشيرات', 'core', [ca('edit', 'تعديل التأشيرة', 'edit'), ca('issue_visa', 'إصدار التأشيرة')]),
-    C('iqama', 'الإقامة', 'core', [ca('register_iqama', 'تسجيل الإقامة'), ca('edit', 'تعديل', 'edit')]),
-    C('work_permit', 'رخصة العمل والإقامة', 'core', EDIT),
-    ...TXN_RO(), C('comments', 'التعليقات والإجراءات', 'core', CMT_BASIC),
-  ],
-  // إصدار الإقامة — مرحلة الإقامة فقط (بلا بطاقات التأشيرة): العميل (سياق) + رخصة العمل والإقامة + التعليقات.
-  'iqama-issuance': [
-    C('client_worker', 'العميل والعامل'),
-    C('iqama', 'الإقامة', 'core', [ca('register_iqama', 'تسجيل الإقامة'), ca('edit', 'تعديل', 'edit')]),
-    C('work_permit', 'رخصة العمل والإقامة', 'core', EDIT),
-    ...TXN_RO(), C('comments', 'التعليقات والإجراءات', 'core', CMT_FULL),
-  ],
-  'transfer': [
-    C('overview', 'نظرة عامة'), C('transfer_fees', 'رسوم النقل'),
-    C('installments', 'الدفعات'), C('status_timeline', 'سجل الحالة'),
-    C('comments', 'التعليقات والإجراءات', 'core', CMT_BASIC),
-  ],
-  'iqama-renewal': [
-    C('application', 'تفاصيل الطلب'), ...TXN_RO(), C('comments', 'التعليقات والإجراءات', 'core', CMT_BASIC),
-  ],
-  'ajeer': [
-    C('worker_facility', 'العامل والمنشأة'), C('service', 'الخدمة'), C('notes', 'الملاحظات'),
-    C('contract_followup', 'متابعة عقد أجير', 'core', [ca('attach', 'إرفاق ملف'), ca('edit', 'تعديل', 'edit')]),
-    ...TXN_RO(), C('comments', 'التعليقات والإجراءات', 'core', CMT_NOTE),
-  ],
-  'chamber': [
-    C('worker_facility', 'العامل والمنشأة'), C('service', 'الخدمة'),
-    ...TXN_RO(), C('comments', 'التعليقات والإجراءات', 'core', CMT_NOTE),
-  ],
-  'medical-insurance': [C('application', 'تفاصيل الطلب'), ...TXN_RO(), C('comments', 'التعليقات والإجراءات', 'core', CMT_FULL)],
-  'profession-change': [C('application', 'تفاصيل الطلب'), ...TXN_RO(), C('comments', 'التعليقات والإجراءات', 'core', CMT_FULL)],
-  'external-transfer': [C('application', 'تفاصيل الطلب'), ...TXN_RO(), C('comments', 'التعليقات والإجراءات', 'core', CMT_FULL)],
-  'salary': [C('application', 'تفاصيل الطلب'), ...TXN_RO(), C('comments', 'التعليقات والإجراءات', 'core', CMT_FULL)],
-  'exit-reentry': [C('application', 'تفاصيل الطلب'), ...TXN_RO(), C('comments', 'التعليقات والإجراءات', 'core', CMT_FULL)],
-  'final-exit': [C('application', 'تفاصيل الطلب'), ...TXN_RO(), C('comments', 'التعليقات والإجراءات', 'core', CMT_FULL)],
-  'passport-update': [C('application', 'تفاصيل الطلب'), ...TXN_RO(), C('comments', 'التعليقات والإجراءات', 'core', CMT_BASIC)],
-  'iqama-print': [C('application', 'تفاصيل الطلب'), ...TXN_RO(), C('comments', 'التعليقات والإجراءات', 'core', CMT_BASIC)],
-  'documents': [C('application', 'تفاصيل الطلب'), ...TXN_RO(), C('comments', 'التعليقات والإجراءات', 'core', CMT_BASIC)],
-  'supplier-payroll': [C('application', 'تفاصيل الطلب'), ...TXN_RO(), C('comments', 'التعليقات والإجراءات', 'core', CMT_BASIC)],
-  'general': [...TXN_RO(), C('comments', 'التعليقات والإجراءات', 'core', CMT_NOTE)],
-  'accountant-approvals': [
-    C('client_worker', 'العميل والعامل'), C('application', 'تفاصيل الطلب'),
-    C('overview', 'نظرة عامة'), C('status_timeline', 'سجل الحالة'),
-    C('comments', 'التعليقات والإجراءات', 'core', CMT_ACC),
-  ],
-  saudization: [C('application', 'تفاصيل الطلب'), ...TXN_RO(), C('comments', 'التعليقات والإجراءات', 'core', CMT_BASIC)],
 }
 
 // Card-group display labels (used by the editor to group facility cards etc.).

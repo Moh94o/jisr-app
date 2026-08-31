@@ -820,7 +820,7 @@ function AddModal({ lang, sb, user, toast, typeByCode, newStatusId, userBranchId
         })
         toast?.('تمت الإضافة — انتقل إلى سدادات الخدمات للسداد')
         setSaved(true)
-        setTimeout(() => { onSaved(); window.dispatchEvent(new CustomEvent('app-navigate-payments')) }, 1400)
+        setTimeout(() => { onSaved() }, 1400)
         return
       }
       const refNo = String(Date.now()).slice(-10)

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import BackButton from '../components/BackButton'
 import { buildBookmarklet, buildPdfBookmarklet } from './sbcSyncBookmarklet.js'
 import { buildGosiBookmarklet } from './gosiSyncBookmarklet.js'
@@ -7,7 +7,7 @@ import { buildMuqeemBookmarklet } from './muqeemSyncBookmarklet.js'
 import { buildAjeerBookmarklet } from './ajeerSyncBookmarklet.js'
 import { buildMudadBookmarklet } from './mudadSyncBookmarklet.js'
 import { Sel } from './KafalaCalculator.jsx'
-import { Ban, ShieldOff, RefreshCw } from 'lucide-react'
+import { Ban, ShieldOff, RefreshCw, ClipboardCheck, ChevronRight, ChevronLeft, Check } from 'lucide-react'
 import { Modal as FKModal, ActionButton, SuccessView, TextField, ScrollBox, EmptyState } from '../components/ui/FormKit.jsx'
 
 const F = "'Cairo','Tajawal',sans-serif"
@@ -118,14 +118,16 @@ function CrListBadge({ row, T, compact }) {
 // Brand colors + short labels per sync source. Used by the provenance strip to
 // signal "this facility's data came from {source} via {operator}".
 const SOURCE_BRAND = {
-  sbc:      { color: '#9b59b6', ar: 'SBC',    en: 'SBC' },
+  sbc:      { color: '#9b59b6', ar: 'المركز', en: 'SBC' },
   qiwa:     { color: '#3b82f6', ar: 'قوى',    en: 'Qiwa' },
   gosi:     { color: '#22c55e', ar: 'تأمينات', en: 'GOSI' },
   muqeem:   { color: '#f59e0b', ar: 'مقيم',   en: 'Muqeem' },
   mudad:    { color: '#0ea5e9', ar: 'مدد',    en: 'Mudad' },
   zatca:    { color: '#7dd3fc', ar: 'زكاة',   en: 'ZATCA' },
   ajeer:    { color: '#eab308', ar: 'أجير',   en: 'Ajeer' },
-  chambers: { color: '#06b6d4', ar: 'الغرف',  en: 'Chambers' },
+  // غرفتان منفصلتان: البوابة الموحدة للغرف، وغرفة الشرقية (بوابتها مستقلّة).
+  chambers: { color: '#06b6d4', ar: 'الغرف الموحد', en: 'Chambers (Unified)' },
+  chambers_eastern: { color: '#14b8a6', ar: 'الغرف الشرقية', en: 'Chambers (Eastern)' },
   // Not a portal of its own — the طلباتي channel inside the companies portal.
   // Kept distinct from `sbc` because it reaches a different set of facilities.
   sbc_requests: { color: '#c084fc', ar: 'طلباتي', en: 'Requests' },
@@ -4380,6 +4382,191 @@ function BlockedFacilitiesModal({ sb, blocked, T, lang, onClose, onChanged }) {
   )
 }
 
+// ملاحظة تكامل ألوان الثيم: خلفيةٌ ملوّنة خفيفة لا تكسر الثيم الفاتح — نفس نمط
+// hexTint في OpsExcelsPage (سداسي → rgba شفّاف يبقى مقروءاً على الثيمين).
+const _tint = (hex, a = 0.14) => {
+  const h = String(hex || '#B07D00').replace('#', '')
+  const f = h.length === 3 ? h.split('').map(c => c + c).join('') : h
+  const n = parseInt(f, 16)
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`
+}
+
+// ترتيب المنصات في التقرير — نفس ترتيب أزرار المزامنة في الشريط. الغرف والزكاة
+// مدرجتان رغم أن مزامنتهما لم تُبنَ بعد (SoonBookmark)، فتظهران بصفر حتى تُفعّلا.
+const REPORT_SOURCES = ['sbc', 'sbc_requests', 'qiwa', 'gosi', 'muqeem', 'mudad', 'ajeer', 'chambers', 'chambers_eastern', 'zatca']
+
+// بداية الأسبوع = الجمعة (اتفاقية اللقطات الأسبوعية للعمليات). offset=0 الأسبوع
+// الحالي، 1 السابق… تُعيد [from, toExclusive) كـ Date محلّي.
+function weekWindow(offset = 0) {
+  const start = new Date()
+  start.setHours(0, 0, 0, 0)
+  const back = (start.getDay() - 5 + 7) % 7 // أيام منذ آخر جمعة (الجمعة = 5)
+  start.setDate(start.getDate() - back - offset * 7)
+  const end = new Date(start)
+  end.setDate(start.getDate() + 7)
+  return { start, end }
+}
+
+// نافذة «تقرير المزامنة الأسبوعي»: لكل موظف كم منشأة زامَن هذا الأسبوع في كل
+// منصّة، مع نسبة الاكتمال لكل منصّة (المُزامَن ÷ إجمالي منشآت المنصّة). تُجيب
+// السؤال: هل الموظّف المكلَّف بمزامنة هذا الأسبوع أنهى كل المنصّات أم لا؟
+function WeeklySyncReportModal({ sb, T, lang, onClose }) {
+  const isAr = (lang || 'ar') !== 'en'
+  const [offset, setOffset] = useState(0)
+  const [data, setData] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [err, setErr] = useState(null)
+  const { start, end } = useMemo(() => weekWindow(offset), [offset])
+
+  useEffect(() => {
+    let alive = true
+    setLoading(true); setErr(null)
+    sb.rpc('weekly_sync_report', { p_from: start.toISOString(), p_to: end.toISOString() })
+      .then(({ data, error }) => {
+        if (!alive) return
+        if (error) { setErr(String(error.message || error)); setData(null) }
+        else setData(data || null)
+      })
+      .finally(() => { if (alive) setLoading(false) })
+    return () => { alive = false }
+  }, [sb, start, end])
+
+  const allPeople = data?.people || []           // كل الأشخاص — النشطون ثم بلا نشاط
+  const active = allPeople.filter(p => p.total > 0) // لفحص «لا مزامنة هذا الأسبوع»
+  const endIncl = new Date(end.getTime() - 86400000) // آخر يوم شامل (الخميس)
+  // التسمية بالتاريخ المحلي: start/end جُمَع محلّية 00:00، فلو حوّلناها لـISO/UTC
+  // (fmtDMY يقرأ أول 10 أحرف من ISO) لرجعت يوماً للخلف وطُبعت الجمعة كأنها خميس.
+  const ymdLocal = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  // الأقدم (الجمعة) على اليمين والأحدث (الخميس) على اليسار — والسهم يشير يساراً
+  // متتبِّعاً تدفّق الأيام. الحاوية ltr فالترتيب يُطبع كما هو مكتوب.
+  const rangeLabel = `${ymdLocal(endIncl)} ← ${ymdLocal(start)}`
+  const weekTag = offset === 0 ? T('هذا الأسبوع', 'This week') : (offset === 1 ? T('الأسبوع الماضي', 'Last week') : T(`قبل ${offset} أسابيع`, `${offset} weeks ago`))
+
+  // نسبة الاكتمال → لون (أخضر أنجز · كهرماني جزئي · رمادي لم يبدأ)
+  const ratioColor = (synced, total) => {
+    if (!total) return C.gray
+    const p = synced / total
+    if (p >= 0.9) return C.ok
+    if (p >= 0.5) return C.warn
+    if (p > 0) return C.red
+    return C.gray
+  }
+  const srcName = (id) => { const b = SOURCE_BRAND[id]; return b ? (isAr ? b.ar : b.en) : id }
+  const srcColor = (id) => SOURCE_BRAND[id]?.color || C.gold
+  const personName = (p) => (isAr ? (p.name_ar || p.name_en) : (p.name_en || p.name_ar)) || '—'
+
+  // نافذة التنقّل بين الأسابيع (تظهر في ترويسة النافذة)
+  const nav = (
+    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, direction: 'ltr' }}>
+      <button type="button" onClick={() => setOffset(o => o + 1)} title={T('الأسبوع الأقدم', 'Older week')}
+        style={{ width: 30, height: 30, borderRadius: 8, background: 'transparent', border: '1px solid var(--bd)', color: 'var(--tx2)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+        {/* الشريط مثبّت ltr: الزر الأيسر يحمل سهم اليسار دائماً (بلا قلب للعربية) */}
+        <ChevronLeft size={16} />
+      </button>
+      <div style={{ minWidth: 190, textAlign: 'center', lineHeight: 1.2 }}>
+        <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx)' }}>{weekTag}</div>
+        <div style={{ fontSize: 10.5, color: 'var(--tx4)', direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{rangeLabel}</div>
+      </div>
+      <button type="button" onClick={() => setOffset(o => Math.max(0, o - 1))} disabled={offset === 0} title={T('الأسبوع الأحدث', 'Newer week')}
+        style={{ width: 30, height: 30, borderRadius: 8, background: 'transparent', border: '1px solid var(--bd)', color: 'var(--tx2)', cursor: offset === 0 ? 'not-allowed' : 'pointer', opacity: offset === 0 ? 0.4 : 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+        {/* الزر الأيمن يحمل سهم اليمين دائماً */}
+        <ChevronRight size={16} />
+      </button>
+    </div>
+  )
+
+  return (
+    // ارتفاع ثابت للنافذة، و**الجدول يتمدّد ليملأه** (table height:100%) فلا
+    // يبقى فراغ أسفله مهما قلّ عدد الأشخاص.
+    <FKModal open width={960} Icon={ClipboardCheck} onClose={onClose} lang={lang}
+      height="min(660px, 92vh)"
+      title={T('تقرير المزامنة الأسبوعي', 'Weekly sync report')}
+      headerExtra={nav}>
+
+      {/* شريط تمرير ذهبي رفيع لمنطقة الجدول — لا يُترك افتراضي المتصفّح. */}
+      <style>{`.wsr-tbl{scrollbar-width:thin;scrollbar-color:rgba(212,160,23,.28) transparent}
+        .wsr-tbl::-webkit-scrollbar{width:6px;height:6px}
+        .wsr-tbl::-webkit-scrollbar-track{background:transparent}
+        .wsr-tbl::-webkit-scrollbar-thumb{background:linear-gradient(180deg,rgba(212,160,23,.6),rgba(212,160,23,.22));border-radius:6px}
+        .wsr-tbl::-webkit-scrollbar-thumb:hover{background:#F0C947}`}</style>
+
+
+      {loading ? (
+        <div style={{ padding: '48px 0', textAlign: 'center', color: 'var(--tx4)', fontSize: 13 }}>{T('جارٍ تحميل التقرير…', 'Loading report…')}</div>
+      ) : err ? (
+        <div style={{ padding: '32px 0', textAlign: 'center', color: C.red, fontSize: 13 }}>{err}</div>
+      ) : active.length === 0 ? (
+        <EmptyState Icon={ClipboardCheck} title={T('لا توجد مزامنة في هذا الأسبوع', 'No syncs this week')}
+          hint={T('لم يُسجَّل أي شخص مزامنة منشآت خلال هذه الفترة.', 'No person recorded any facility sync in this window.')} />
+      ) : (
+        // الجدول يملأ ما تبقّى من الارتفاع الثابت. الرأس مثبَّت (sticky) فيبقى
+        // ظاهراً لو اضطُرّ الجسم للتمرير حين يكثر الأشخاص.
+        <div className="wsr-tbl" style={{ flex: 1, minHeight: 0, margin: '14px 0 12px', overflowY: 'auto', overflowX: 'auto', borderRadius: 12, border: '1px solid var(--bd)' }}>
+          {/* height:100% يوزّع الارتفاع المتبقّي على الصفوف فتملأ النافذة بلا فراغ.
+              separate + borderSpacing 0 بدل collapse: الخلايا اللاصقة (الرأس
+              وعمود الشخص) تُخرِج فيضاً أفقياً وهمياً مع border-collapse. */}
+          <table style={{ width: '100%', height: '100%', borderCollapse: 'separate', borderSpacing: 0, fontFamily: F }}>
+            <thead>
+              <tr style={{ background: 'var(--card-grad2)', position: 'sticky', top: 0, zIndex: 2 }}>
+                <th style={{ textAlign: isAr ? 'right' : 'left', padding: '7px 12px', fontSize: 11.5, fontWeight: 600, color: 'var(--tx3)', position: 'sticky', top: 0, insetInlineStart: 0, background: 'var(--modal-bg)', zIndex: 3, whiteSpace: 'nowrap', borderBottom: '1px solid var(--bd)' }}>{T('الشخص', 'Person')}</th>
+                {REPORT_SOURCES.map(id => (
+                  <th key={id} style={{ textAlign: 'center', padding: '7px 4px', fontSize: 11.5, fontWeight: 600, color: srcColor(id), whiteSpace: 'nowrap', position: 'sticky', top: 0, background: 'var(--modal-bg)', zIndex: 2, borderBottom: '1px solid var(--bd)' }}>{srcName(id)}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {allPeople.map((p, ri) => {
+                const idle = p.total === 0 // بلا نشاط هذا الأسبوع — صفّ باهت بكل الشُّرَط
+                // مع borderSpacing لا يُرسم حدّ الـtr، فالفاصل على كل خلية.
+                // الصفّ الأول بلا حدّ علوي كي لا يزدوج مع حدّ الرأس السفلي.
+                const rowBd = ri === 0 ? 'none' : '1px solid var(--bd)'
+                return (
+                <tr key={p.person_id} style={{ opacity: idle ? 0.55 : 1 }}>
+                  <td style={{ padding: '5px 12px', borderTop: rowBd, position: 'sticky', insetInlineStart: 0, background: 'var(--modal-bg)', zIndex: 1, whiteSpace: 'nowrap', lineHeight: 1.25 }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: p.color || C.gold, flexShrink: 0 }} />
+                      <span style={{ fontSize: 12.5, fontWeight: 600, color: idle ? 'var(--tx3)' : 'var(--tx)' }}>{personName(p)}</span>
+                      {idle && <span style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--tx5)', padding: '1px 6px', borderRadius: 20, border: '1px solid var(--bd)' }}>{T('بلا نشاط', 'idle')}</span>}
+                    </span>
+                  </td>
+                  {REPORT_SOURCES.map(id => {
+                    const v = p.by_source?.[id] || 0
+                    // المقام = نطاق هذا الشخص على هذه المنصّة (المنشآت التي زامنها
+                    // يوماً ما هناك)، لا إجمالي المنصّة — فهو يقيس إنجازه هو.
+                    const sc = p.scope?.[id] || 0
+                    // صفرٌ مع وجود نطاق = لم يُزامِن أصلاً هذا الأسبوع → أحمر لا رمادي.
+                    const col = !sc ? C.gray : (v === 0 ? C.red : ratioColor(v, sc))
+                    return (
+                      <td key={id} style={{ textAlign: 'center', padding: '5px 4px', borderTop: rowBd, fontVariantNumeric: 'tabular-nums', lineHeight: 1.25 }}>
+                        {sc ? (
+                          <span title={T(`زامَن ${num(v)} من أصل ${num(sc)} منشأة في نطاقه`, `Synced ${num(v)} of ${num(sc)} facilities in scope`)}
+                            style={{ display: 'inline-block', minWidth: 30, padding: '2px 5px', borderRadius: 7, fontSize: 11, fontWeight: 600, color: col, background: _tint(col, 0.14), direction: 'ltr' }}>
+                            <span style={{ fontSize: 9.5, opacity: .75 }}>{num(sc)}/</span>{num(v)}
+                          </span>
+                        ) : (
+                          <span style={{ color: 'var(--tx6, var(--tx5))', fontSize: 12 }}>—</span>
+                        )}
+                      </td>
+                    )
+                  })}
+                </tr>
+              )})}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {(data?.unassigned_total || 0) > 0 && (
+        <div style={{ marginTop: 10, fontSize: 11.5, color: 'var(--tx4)' }}>
+          {T(`+ ${num(data.unassigned_total)} خلية مزامنة غير منسوبة لأي شخص (لم يُختَر صاحب حساب قبل النسخ).`,
+             `+ ${num(data.unassigned_total)} synced cells not attributed to any person (no account owner selected before copying).`)}
+        </div>
+      )}
+
+    </FKModal>
+  )
+}
+
 export default function SbcFacilities({ sb, toast, user, lang, personFilter, onTriggerSync, syncPersonId, onBack }) {
   const T = (ar, en) => (lang || 'ar') !== 'en' ? ar : en
 
@@ -4423,6 +4610,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
   const [detail, setDetail] = useState(null)
   const [blocked, setBlocked] = useState([])
   const [showBlocked, setShowBlocked] = useState(false)
+  const [showWeekReport, setShowWeekReport] = useState(false)
   const [lastSync, setLastSync] = useState(null)
   const [filter, setFilter] = useState('all') // all | main | manager | partner | confirmation
   const [page, setPage] = useState(0)
@@ -5955,6 +6143,14 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
               {T(`المنشآت المحجوبة (${num(blocked.length)})`, `Blocked (${num(blocked.length)})`)}
             </button>
           )}
+          {/* تقرير المزامنة الأسبوعي — يوضّح ماذا زامَن كل موظّف في كل منصّة هذا
+              الأسبوع، لمتابعة إنجاز الموظّف المكلَّف بمزامنة الأسبوع. */}
+          <button type="button" onClick={() => setShowWeekReport(true)}
+            title={T('تقرير مزامنة كل شخص لكل منصّة هذا الأسبوع', 'Per-person, per-platform sync report for this week')}
+            style={{ height: 42, padding: '0 16px', borderRadius: 11, background: 'transparent', border: '1px dashed var(--bd)', color: 'var(--tx3)', cursor: 'pointer', fontFamily: F, fontSize: 13, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', flexShrink: 0 }}>
+            <ClipboardCheck size={15} strokeWidth={2.2} />
+            {T('تقرير المزامنة الأسبوعي', 'Weekly sync report')}
+          </button>
         </div>
         {/* الوصف على سطر كامل تحت العنوان + الأزرار (flex-basis 100%). */}
         <div style={{ flexBasis: '100%', fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 12, lineHeight: 1.6 }}>
@@ -6002,8 +6198,18 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
           {/* الغرفة + الزكاة — لا يوجد سكربت/جداول بعد؛ معطّلان لحين التقاط الـ endpoints. */}
           <SoonBookmark
             accent={SOURCE_BRAND.chambers.color}
-            title={T('مزامنة الغرفة التجارية — قيد التطوير', 'Chamber of Commerce sync — not built yet')}
-            label={T('الغرف', 'Chambers')}
+            title={T('مزامنة البوابة الموحدة للغرف التجارية — قيد التطوير', 'Unified Chambers portal sync — not built yet')}
+            label={T('الغرف الموحد', 'Chambers (Unified)')}
+            icon={(
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 21h18M4 21V10l8-5 8 5v11M9 21v-6h6v6"/>
+              </svg>
+            )}
+          />
+          <SoonBookmark
+            accent={SOURCE_BRAND.chambers_eastern.color}
+            title={T('مزامنة غرفة الشرقية — قيد التطوير', 'Eastern Province Chamber sync — not built yet')}
+            label={T('الغرف الشرقية', 'Chambers (Eastern)')}
             icon={(
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M3 21h18M4 21V10l8-5 8 5v11M9 21v-6h6v6"/>
@@ -9387,6 +9593,11 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
       {showBlocked && (
         <BlockedFacilitiesModal sb={sb} blocked={blocked} T={T} lang={lang}
           onClose={() => setShowBlocked(false)} onChanged={load} />
+      )}
+
+      {showWeekReport && (
+        <WeeklySyncReportModal sb={sb} T={T} lang={lang}
+          onClose={() => setShowWeekReport(false)} />
       )}
 
     </div>

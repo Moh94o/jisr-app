@@ -48,14 +48,15 @@ const btnFilter = (active) => ({ height: 44, padding: '0 16px', borderRadius: 12
 // Brand colors + short labels per sync source. Used by the provenance strip to
 // signal "this facility's data came from {source} via {operator}".
 const SOURCE_BRAND = {
-  sbc:      { color: '#9b59b6', ar: 'SBC',    en: 'SBC' },
+  sbc:      { color: '#9b59b6', ar: 'المركز', en: 'SBC' },
   qiwa:     { color: '#3b82f6', ar: 'قوى',    en: 'Qiwa' },
   gosi:     { color: '#22c55e', ar: 'تأمينات', en: 'GOSI' },
   muqeem:   { color: '#f59e0b', ar: 'مقيم',   en: 'Muqeem' },
   mudad:    { color: '#0ea5e9', ar: 'مدد',    en: 'Mudad' },
   zatca:    { color: '#7dd3fc', ar: 'زكاة',   en: 'ZATCA' },
   ajeer:    { color: '#eab308', ar: 'أجير',   en: 'Ajeer' },
-  chambers: { color: '#06b6d4', ar: 'الغرف',  en: 'Chambers' },
+  chambers: { color: '#06b6d4', ar: 'الغرف الموحد', en: 'Chambers (Unified)' },
+  chambers_eastern: { color: '#14b8a6', ar: 'الغرف الشرقية', en: 'Chambers (Eastern)' },
 }
 
 const fmtAgo = (iso, lang) => {
@@ -4366,6 +4367,31 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
     }
   }, [sb, rows, toast, promoting])
 
+  // «تحديث من المزامنة»: يشغّل النقل المدمج promote_sync_to_canonical (المركز/مقيم/قوى/
+  // التأمينات/مدد/أجير) يدوياً ثم يعيد جلب الجدول — نفس الدالة التي تعمل آلياً كل 15
+  // دقيقة عبر pg_cron. مركز المزامنة هو المصدر والجدول مرآته؛ الهوية ثابتة فلا تتأثر الفواتير.
+  const [syncing, setSyncing] = useState(false)
+  const refreshFromSync = useCallback(async () => {
+    if (!sb || syncing) return
+    setSyncing(true)
+    try {
+      toast?.(T('جاري التحديث من المزامنة...', 'Refreshing from sync...'))
+      const { data, error } = await sb.rpc('promote_sync_to_canonical')
+      if (error) throw error
+      const f = data?.facilities || {}
+      const rst = f.restored ? T(` · ${f.restored} أُعيد إظهارها`, ` · ${f.restored} restored`) : ''
+      toast?.(T(
+        `✅ المنشآت: ${f.updated ?? 0} محدّثة + ${f.inserted ?? 0} جديدة${rst}`,
+        `✅ Facilities: ${f.updated ?? 0} updated + ${f.inserted ?? 0} new${rst}`,
+      ))
+      await load()
+    } catch (e) {
+      toast?.(T('خطأ في التحديث: ', 'Refresh error: ') + (e.message || String(e)), 'error')
+    } finally {
+      setSyncing(false)
+    }
+  }, [sb, syncing, toast, T, load])
+
   // Load cross-source provenance for all facilities: which operators have synced
   // each facility from which platforms (SBC, Qiwa, GOSI, Muqeem…). Keyed by
   // cr_number so it merges cleanly with sbc_facilities rows.
@@ -5464,6 +5490,25 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                'A unified registry of all facilities and their core data')}
           </div>
         </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, flexWrap: 'wrap' }}>
+        {(canPerm(user, 'facilities.sync') || isGM(user)) && (
+        <button
+          onClick={refreshFromSync}
+          disabled={syncing}
+          title={T('تحديث بيانات الجدول من مركز المزامنة', 'Refresh table data from the Sync Center')}
+          style={{
+            height: 42, padding: '0 16px', borderRadius: 11,
+            cursor: syncing ? 'default' : 'pointer', opacity: syncing ? 0.6 : 1,
+            fontFamily: F, fontSize: 13, fontWeight: 600, color: 'var(--tx2)',
+            background: 'transparent', border: '1px dashed var(--bd)',
+            display: 'inline-flex', alignItems: 'center', gap: 8,
+            whiteSpace: 'nowrap',
+            transition: 'background .15s ease, border-color .15s ease, box-shadow .15s ease',
+          }}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ animation: syncing ? 'spin 1s linear infinite' : 'none' }}><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          <span>{syncing ? T('جاري التحديث...', 'Refreshing...') : T('تحديث من المزامنة', 'Refresh from sync')}</span>
+        </button>
+        )}
         {canPerm(user, 'facilities.create') && (
         <button
           onClick={() => { setAddErr(null); setAddDone(false); setShowAdd(true) }}
@@ -5481,6 +5526,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         </button>
         )}
+        </div>
       </div>
 
       {err && <Card style={{ marginBottom: 14, borderColor: 'rgba(192,57,43,.35)', background: 'rgba(192,57,43,.06)' }}>

@@ -350,7 +350,7 @@ function AddModal({ sb, user, toast, typeByCode, newStatusId, userBranchId, onCl
       })
       toast?.('تمت الإضافة — انتقل إلى سدادات الخدمات للسداد')
       setSaved(true)
-      setTimeout(() => { onSaved(); window.dispatchEvent(new CustomEvent('app-navigate-payments')) }, 1400)
+      setTimeout(() => { onSaved() }, 1400)
     } catch (e) {
       setErrMsg('تعذّر الحفظ: ' + (e.message || '').slice(0, 80)); setSaving(false)
     }

@@ -823,6 +823,30 @@ export default function WorkforcePage({ sb, toast, lang, user, onTabChange }) {
   }, [sb])
   useEffect(() => { load() }, [load])
 
+  // «تحديث من المزامنة»: يشغّل النقل المدمج promote_sync_to_canonical (مقيم/قوى/التأمينات…)
+  // يدوياً ثم يعيد جلب الجدول — نفس الدالة التي تعمل آلياً كل 15 دقيقة عبر pg_cron،
+  // فمركز المزامنة هو المصدر والجدول مرآته. الهوية ثابتة فلا تتأثر الفواتير.
+  const [syncing, setSyncing] = useState(false)
+  const refreshFromSync = useCallback(async () => {
+    if (!sb || syncing) return
+    setSyncing(true)
+    try {
+      toast?.(T('جاري التحديث من المزامنة...', 'Refreshing from sync...'))
+      const { data, error } = await sb.rpc('promote_sync_to_canonical')
+      if (error) throw error
+      const w = data?.workers || {}
+      toast?.(T(
+        `✅ العمال: ${w.updated ?? 0} محدّث + ${w.inserted ?? 0} جديد`,
+        `✅ Workers: ${w.updated ?? 0} updated + ${w.inserted ?? 0} new`,
+      ))
+      await load()
+    } catch (e) {
+      toast?.(T('خطأ في التحديث: ', 'Refresh error: ') + (e.message || String(e)), 'error')
+    } finally {
+      setSyncing(false)
+    }
+  }, [sb, syncing, toast, T, load])
+
   // فتح تفاصيل فاتورة (العرض الرابع) — نفس آلية التنقّل العامة في التطبيق.
   const goInvoice = (id) => { try { window.dispatchEvent(new CustomEvent('app-navigate-invoice', { detail: { id } })) } catch { /* ignore */ } }
 
@@ -1941,6 +1965,25 @@ export default function WorkforcePage({ sb, toast, lang, user, onTabChange }) {
                'A standalone registry of the permanent workforce, their personal and professional data and the facilities they belong to')}
           </div>
         </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, flexWrap: 'wrap' }}>
+        {(canPerm(user, 'workers.sync') || isGM(user)) && (
+        <button
+          onClick={refreshFromSync}
+          disabled={syncing}
+          title={T('تحديث بيانات الجدول من مركز المزامنة', 'Refresh table data from the Sync Center')}
+          style={{
+            height: 42, padding: '0 16px', borderRadius: 11,
+            cursor: syncing ? 'default' : 'pointer', opacity: syncing ? 0.6 : 1,
+            fontFamily: F, fontSize: 13, fontWeight: 600, color: 'var(--tx2)',
+            background: 'transparent', border: '1px dashed var(--bd)',
+            display: 'inline-flex', alignItems: 'center', gap: 8,
+            whiteSpace: 'nowrap',
+            transition: 'background .15s ease, border-color .15s ease, box-shadow .15s ease',
+          }}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ animation: syncing ? 'spin 1s linear infinite' : 'none' }}><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          <span>{syncing ? T('جاري التحديث...', 'Refreshing...') : T('تحديث من المزامنة', 'Refresh from sync')}</span>
+        </button>
+        )}
         {canPerm(user, 'workers.create') && (
         <button
           onClick={() => { setAddErr(null); setAddPage(0); setShowAdd(true) }}
@@ -1958,6 +2001,7 @@ export default function WorkforcePage({ sb, toast, lang, user, onTabChange }) {
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         </button>
         )}
+        </div>
       </div>
 
       {initialLoading ? <WorkforceSkeleton /> : (<>

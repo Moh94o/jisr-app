@@ -15,7 +15,6 @@ import KPIPage from './KPIPage.jsx'
 import ServiceRequestPage from './ServiceRequestPage.jsx'
 import ServiceAdminPage from './ServiceAdminPage.jsx'
 import FeesAdminPage from './pages/FeesAdminPage.jsx'
-import { WakalahChamberPage, MedicalStagePage, WorkCardsStagePage, IqamaIssuanceStagePage, IqamaPrintStagePage } from './pages/VisaStagesPage.jsx'
 import VisaGridPage from './pages/VisaGridPage.jsx'
 import OpsExcelsPage from './pages/OpsExcelsPage.jsx'
 import {hydrateSvcAdminFromDb} from './lib/serviceAdminSync.js'
@@ -26,21 +25,15 @@ import ClientsPage from './pages/admin/ClientsPage.jsx'
 import AgentsPage from './pages/admin/AgentsPage.jsx'
 import PermissionsPage from './pages/admin/PermissionsPage.jsx'
 import RolesAdminPage from './pages/admin/RolesAdminPage.jsx'
-import TransactionsPage from './pages/TransactionsPage.jsx'
-import SaudizationRequestsPage from './pages/SaudizationRequestsPage.jsx'
 import SbcCenterPage from './pages/SbcCenterPage.jsx'
 import BaladiCenterPage from './pages/BaladiCenterPage.jsx'
-import SectionStub from './pages/SectionStub.jsx'
-import PaymentsPage from './pages/PaymentsPage.jsx'
-import ExternalPaymentsPage from './pages/ExternalPaymentsPage.jsx'
-import DepositsPage from './pages/DepositsPage.jsx'
 import Jub1ReceiptsPage from './Jub1ReceiptsPage.jsx'
 import StampBadge from './components/ui/StampBadge.jsx'
 import OfficialStampBadge from './components/ui/OfficialStampBadge.jsx'
 import WelcomeToast from './components/WelcomeToast.jsx'
 import { Modal as FKModal, ModalSection, ActionButton, SuccessView, ConfirmDialog, ScrollBox, InfoRow, InfoGrid, GRID, TextField, TextArea, FileField, CurrencyField, PhoneField, IdField, Select as FKSelect, DateField as FKDateField, TimeField as FKTimeField, Segmented, YesNo, EmptyState, C as FKC, FKLang } from './components/ui/FormKit.jsx'
 import VisibilityAdmin, { getVisibility, isItemVisible } from './pages/VisibilityAdmin.jsx'
-import { FileText, Sparkles, Tag, Lock, Mail, Send, User, UserPlus, ShieldCheck, Pencil, Eye, Calendar, Wallet, Banknote, ArrowLeftRight, BadgeCheck, Calculator, Trash2, CalendarRange, CalendarClock, RefreshCw, Users, FileCheck, HeartPulse, UserCog, Plane, PlaneTakeoff, IdCard, Printer, FileStack, Coins, Percent, MessageSquare, Paperclip, Plus, AlertCircle, Phone, Globe } from 'lucide-react'
+import { FileText, Lock, Mail, Send, User, UserPlus, ShieldCheck, Pencil, Eye, Calendar, Wallet, Banknote, ArrowLeftRight, BadgeCheck, Calculator, Trash2, RefreshCw, Users, MessageSquare, Paperclip, Plus, AlertCircle, Phone } from 'lucide-react'
 
 import { getSupabase } from './lib/supabase.js'
 import { swrGet, swrSet, useLiveRefresh, emitDataChanged, getTestBranchIds, excludeTestBranchesOr } from './lib/liveData.js'
@@ -99,28 +92,6 @@ const DT = (clr) => ({
   receipt: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 3h9l3 3v13.5l-2-1.2-2 1.2-2-1.2-2 1.2-2-1.2-2 1.2V5a2 2 0 0 1 2-2Z" fill={clr} fillOpacity=".12" stroke={clr} strokeWidth="1.5" strokeLinejoin="round"/><path d="M8 9h6M8 12.5h6M8 16h3" stroke={clr} strokeWidth="1.3" strokeLinecap="round" opacity=".6"/></svg>,
   alert: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" fill={clr} fillOpacity=".12" stroke={clr} strokeWidth="1.5"/><line x1="12" y1="9" x2="12" y2="13" stroke={clr} strokeWidth="1.8" strokeLinecap="round"/><circle cx="12" cy="16" r="1" fill={clr}/></svg>,
   calendar: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="18" rx="2" fill={clr} fillOpacity=".12" stroke={clr} strokeWidth="1.5"/><line x1="16" y1="2" x2="16" y2="6" stroke={clr} strokeWidth="1.5" opacity=".5"/><line x1="8" y1="2" x2="8" y2="6" stroke={clr} strokeWidth="1.5" opacity=".5"/><line x1="3" y1="10" x2="21" y2="10" stroke={clr} strokeWidth="1.5" opacity=".4"/><path d="M8 14h2v2H8z" fill={clr} opacity=".5"/><path d="M12 14h2v2h-2z" fill={clr} opacity=".3"/></svg>,
-  // ── أيقونات تبويبات المعاملات — نفس أيقونات الفاتورة (lucide) ──
-  svc_visa_perm:    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={clr} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3.5" width="18" height="17" rx="5.5"/><text x="12" y="12.2" textAnchor="middle" dominantBaseline="central" fontSize="9.5" fontWeight="600" fill={clr} stroke="none" fontFamily="Cairo,sans-serif">12</text></svg>,
-  svc_visa_9m:      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={clr} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3.5" width="18" height="17" rx="5.5"/><text x="12" y="12.2" textAnchor="middle" dominantBaseline="central" fontSize="12" fontWeight="600" fill={clr} stroke="none" fontFamily="Cairo,sans-serif">9</text></svg>,
-  svc_visa_6m:      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={clr} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3.5" width="18" height="17" rx="5.5"/><text x="12" y="12.2" textAnchor="middle" dominantBaseline="central" fontSize="12" fontWeight="600" fill={clr} stroke="none" fontFamily="Cairo,sans-serif">6</text></svg>,
-  svc_visa_temp:    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={clr} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3.5" width="18" height="17" rx="5.5"/><text x="12" y="12.2" textAnchor="middle" dominantBaseline="central" fontSize="12" fontWeight="600" fill={clr} stroke="none" fontFamily="Cairo,sans-serif">3</text></svg>,
-  svc_transfer:     <ArrowLeftRight color={clr} size={18} strokeWidth={1.7} />,
-  svc_renew:        <RefreshCw color={clr} size={18} strokeWidth={1.7} />,
-  svc_ajeer:        <Users color={clr} size={18} strokeWidth={1.7} />,
-  svc_chamber:      <FileCheck color={clr} size={18} strokeWidth={1.7} />,
-  svc_medical:      <HeartPulse color={clr} size={18} strokeWidth={1.7} />,
-  svc_profession:   <UserCog color={clr} size={18} strokeWidth={1.7} />,
-  svc_ext_transfer: <BadgeCheck color={clr} size={18} strokeWidth={1.7} />,
-  svc_salary:       <Wallet color={clr} size={18} strokeWidth={1.7} />,
-  svc_exit_reentry: <Plane color={clr} size={18} strokeWidth={1.7} />,
-  svc_final_exit:   <PlaneTakeoff color={clr} size={18} strokeWidth={1.7} />,
-  svc_passport:     <IdCard color={clr} size={18} strokeWidth={1.7} />,
-  svc_iqama_print:  <Printer color={clr} size={18} strokeWidth={1.7} />,
-  svc_docs:         <FileStack color={clr} size={18} strokeWidth={1.7} />,
-  svc_payroll:      <Coins color={clr} size={18} strokeWidth={1.7} />,
-  svc_general:      <Sparkles color={clr} size={18} strokeWidth={1.7} />,
-  svc_saudization:  <Percent color={clr} size={18} strokeWidth={1.7} />,
-  tasks: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="5" y="4" width="14" height="17" rx="2" fill={clr} fillOpacity=".12" stroke={clr} strokeWidth="1.5"/><path d="M9 3h6a1 1 0 0 1 1 1v1a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" fill={clr} fillOpacity=".2" stroke={clr} strokeWidth="1.4"/><path d="M8.5 12.2l1.4 1.4 3-3" stroke={clr} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" opacity=".85"/><path d="M8.5 17h6" stroke={clr} strokeWidth="1.4" strokeLinecap="round" opacity=".5"/></svg>,
 })
 
 const LANG = {
@@ -585,66 +556,6 @@ return(<div style={{minHeight:'100vh',display:'flex',alignItems:'center',justify
 </div>
 </div><Css/></div>)}
 
-// Transaction sub-pages — one per request type (mirrors the service list in ServiceRequestPage).
-// `code` is the service_type lookup code each page filters the transactions list by.
-const TX_TYPES=[
-{id:'tx_work_visa_permanent',code:'work_visa_permanent',ar:'تأشيرة بإقامة 12 شهر',en:'12-Month Visa & Iqama',i:'calendar'},
-{id:'tx_work_visa_9m',code:'work_visa_9m',ar:'تأشيرة بإقامة 9 أشهر',en:'9-Month Visa & Iqama',i:'calendar'},
-{id:'tx_work_visa_6m',code:'work_visa_6m',ar:'تأشيرة بإقامة 6 أشهر',en:'6-Month Visa & Iqama',i:'calendar'},
-{id:'tx_work_visa_temporary',code:'work_visa_temporary',ar:'تأشيرة بإقامة 3 شهور',en:'3-Month Visa & Iqama',i:'calendar'},
-{id:'tx_transfer',code:'transfer',ar:'نقل كفالة',en:'Sponsorship Transfer',i:'broker'},
-{id:'tx_iqama_renewal',code:'iqama_renewal',ar:'تجديد الإقامة',en:'Iqama Renewal',i:'role'},
-{id:'tx_ajeer',code:'ajeer',ar:'عقد أجير',en:'Ajeer Contract',i:'users'},
-{id:'tx_chamber',code:'other',ar:'الغرفة التجارية',en:'Chamber of Commerce',i:'branch'},
-{id:'tx_medical_insurance',code:'medical_insurance',ar:'تأمين طبي',en:'Medical Insurance',i:'alert'},
-{id:'tx_profession_change',code:'profession_change',ar:'تغيير المهنة',en:'Occupation Change',i:'worker'},
-{id:'tx_salary',code:'name_translation',ar:'تعديل الراتب',en:'Salary Adjustment',i:'payment'},
-{id:'tx_exit_reentry',code:'exit_reentry_visa',ar:'خروج وعودة',en:'Exit / Re-entry Visa',i:'calendar'},
-{id:'tx_final_exit',code:'final_exit_visa',ar:'خروج نهائي',en:'Final Exit',i:'alert'},
-{id:'tx_passport_update',code:'passport_update',ar:'تحديث بيانات الجواز',en:'Passport Update',i:'client'},
-{id:'tx_iqama_print',code:'iqama_print',ar:'طباعة الإقامة',en:'Iqama Print',i:'notes'},
-{id:'tx_documents',code:'documents',ar:'مستندات',en:'Documents',i:'notes'},
-{id:'tx_general',code:'general',ar:'خدمة عامة',en:'General',i:'transaction'},
-{id:'tx_saudization',code:'saudization',ar:'سعودة',en:'Saudization',i:'chart'},
-]
-
-// Transaction sections shown under the المعاملات hub.
-// Mirrors the invoice service catalog 1:1 (ServiceRequestPage MAIN_SERVICES +
-// OTHER_SERVICES) + السعودة. Every section has a `code` → TransactionsPage filtered
-// by that service_type. Order matches the invoice popup (main services first).
-const TXN_SECTIONS=[
-// — الخدمات الرئيسية (تأشيرات/إقامات/نقل) —
-{id:'work-visa-permanent',  ar:'تأشيرة بإقامة 12 شهر',     en:'12-Month Visa & Iqama',      i:'svc_visa_perm',    code:'work_visa_permanent'},
-{id:'work-visa-9m',         ar:'تأشيرة بإقامة 9 أشهر',     en:'9-Month Visa & Iqama',       i:'svc_visa_9m',      code:'work_visa_9m'},
-{id:'work-visa-6m',         ar:'تأشيرة بإقامة 6 أشهر',     en:'6-Month Visa & Iqama',       i:'svc_visa_6m',      code:'work_visa_6m'},
-{id:'work-visa-temporary',  ar:'تأشيرة بإقامة 3 شهور',     en:'3-Month Visa & Iqama',       i:'svc_visa_temp',    code:'work_visa_temporary'},
-// إصدار الإقامة — طابور مرحلة الإقامة (تأمين/رخصة عمل/إقامة) لكل تأشيرات العمل، لموظف مستقل عن مُصدِر التأشيرة.
-{id:'iqama-issuance',       ar:'إصدار الإقامة',           en:'Iqama Issuance',            i:'svc_renew',        iqamaMode:true},
-{id:'transfer',             ar:'نقل كفالة',               en:'Sponsorship Transfer',      i:'svc_transfer',     code:'transfer'},
-{id:'iqama-renewal',        ar:'تجديد الإقامة',           en:'Iqama Renewal',             i:'svc_renew',        code:'iqama_renewal'},
-{id:'ajeer',                ar:'عقد أجير',                en:'Ajeer Contract',            i:'svc_ajeer',        code:'ajeer'},
-{id:'chamber',              ar:'الغرفة التجارية',         en:'Chamber of Commerce',       i:'svc_chamber',      code:'other'},
-// — خدمات أخرى —
-{id:'medical-insurance',    ar:'تأمين طبي',               en:'Medical Insurance',         i:'svc_medical',      code:'medical_insurance'},
-{id:'profession-change',    ar:'تغيير المهنة',            en:'Occupation Change',         i:'svc_profession',   code:'profession_change'},
-{id:'external-transfer',    ar:'الموافقة للنقل الخارجي',  en:'External Transfer Approval',i:'svc_ext_transfer', code:'external_transfer_approval'},
-{id:'salary',               ar:'تعديل الراتب',            en:'Salary Adjustment',         i:'svc_salary',       code:'name_translation'},
-{id:'exit-reentry',         ar:'خروج وعودة',       en:'Exit / Re-entry Visa',      i:'svc_exit_reentry', code:'exit_reentry_visa'},
-{id:'final-exit',           ar:'خروج نهائي',  en:'Final Exit',                i:'svc_final_exit',   code:'final_exit_visa'},
-{id:'passport-update',      ar:'تحديث بيانات الجواز',     en:'Passport Update',           i:'svc_passport',     code:'passport_update'},
-{id:'iqama-print',          ar:'طباعة الإقامة',           en:'Iqama Print',               i:'svc_iqama_print',  code:'iqama_print'},
-{id:'documents',            ar:'مستندات',                 en:'Documents',                 i:'svc_docs',         code:'documents'},
-{id:'supplier-payroll',     ar:'طلب رواتب سبلاير',        en:'Supplier Payroll',          i:'svc_payroll',      code:'supplier_payroll'},
-{id:'general',              ar:'خدمة عامة',               en:'General',                   i:'svc_general',      code:'general'},
-// — صندوق موافقات المحاسب (عابر للخدمات: النقل الخارجي + الخروج النهائي) —
-{id:'accountant-approvals', ar:'موافقات المحاسب',         en:'Accountant Approvals',      i:'svc_ext_transfer', accountant:true},
-]
-
-// Sidebar hub «المهام» (Tasks) — internal task-style sections, separate from invoice services.
-const TASK_SECTIONS=[
-{id:'saudization',          ar:'السعودة',                 en:'Saudization',               i:'svc_saudization',  code:'saudization'},
-]
-
 function DashPage({sb,user,onLogout,toast,lang,switchLang,setLang}){const[pg,setPg]=useState(()=>landsOnInvoices(user)?'invoices':'home');const[toastMsg,setToastMsg]=useState(null);const tt=m=>{setToastMsg(m);setTimeout(()=>setToastMsg(null),2500)};const[userMenu,setUserMenu]=useState(false);const[showProfile,setShowProfile]=useState(false);const[emailConfirmStep,setEmailConfirmStep]=useState(false);const[profileData,setProfileData]=useState(null);const[profileBank,setProfileBank]=useState(null);const[profileBusy,setProfileBusy]=useState(false);const[profileTab,setProfileTab]=useState('info');const[profileErr,setProfileErr]=useState({});const[profileBanks,setProfileBanks]=useState([]);const[profileBankDrop,setProfileBankDrop]=useState(false);const[profilePerf,setProfilePerf]=useState(null);const[profileAtt,setProfileAtt]=useState([]);const[profileTasks,setProfileTasks]=useState([]);const[profileSalary,setProfileSalary]=useState([]);const[profileLoans,setProfileLoans]=useState([]);const[profileLogins,setProfileLogins]=useState([]);const[stats,setStats]=useState(null);const[showUserMenu,setShowUserMenu]=useState(false);useEffect(()=>{document.documentElement.setAttribute('data-theme','light');localStorage.setItem('jisr_theme','light');const m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('content','#e2dac6');document.body.style.background='#f2ece0'},[]);
 // Pull service-admin config (pricing minimums, overrides, etc.) from system_settings on login —
 // otherwise pages that read these synchronously from localStorage (ServiceRequestPage, InvoicePage…)
@@ -669,7 +580,6 @@ useEffect(()=>{const handler=(e)=>{const loc=e.detail||{};if(loc.hash){try{windo
 if(loc.pg)setPg(loc.pg);
 setTimeout(()=>{try{if(loc.hash)window.dispatchEvent(new HashChangeEvent('hashchange'));if(loc.event)window.dispatchEvent(new CustomEvent(loc.event,{detail:{...(loc.detail||{}),__restore:true}}))}catch{}},80)};
 window.addEventListener('app-navigate-restore',handler);return()=>window.removeEventListener('app-navigate-restore',handler)},[]);
-useEffect(()=>{const handler=()=>setPg('payments');window.addEventListener('app-navigate-payments',handler);return()=>window.removeEventListener('app-navigate-payments',handler)},[]);
 // Open a transfer quote's details from anywhere (e.g. the invoice Service card link). Set the ?q= hash then switch page;
 // TransferCalcPage reads the hash and auto-opens the matching quote, refetching on hashchange if needed.
 useEffect(()=>{const handler=(e)=>{const q=e.detail?.q||'';navPushFrom('transfer_calc',{kind:'transfer_quote',id:q});try{window.location.hash='#transfer_calc?q='+encodeURIComponent(q)}catch{}setPg('transfer_calc');setTimeout(()=>{try{window.dispatchEvent(new HashChangeEvent('hashchange'))}catch{}},60)};window.addEventListener('app-navigate-transfer-calc',handler);return()=>window.removeEventListener('app-navigate-transfer-calc',handler)},[]);
@@ -697,7 +607,7 @@ const[isStandalone]=useState(()=>window.navigator.standalone===true||window.matc
 const[installPrompt,setInstallPrompt]=useState(null);
 const[showInstallBanner,setShowInstallBanner]=useState(false);
 useEffect(()=>{const h=e=>{e.preventDefault();setInstallPrompt(e);if(!isStandalone&&!localStorage.getItem('jisr_install_dismissed'))setShowInstallBanner(true)};window.addEventListener('beforeinstallprompt',h);return()=>window.removeEventListener('beforeinstallprompt',h)},[isStandalone]);
-const handleInstall=async()=>{if(!installPrompt)return;installPrompt.prompt();const{outcome}=await installPrompt.userChoice;if(outcome==='accepted')setShowInstallBanner(false);setInstallPrompt(null)};const toggleSec=k=>setExpanded(p=>({...p,[k]:!p[k]}));const hubDefaults={workforce:'facilities',sync_center:'sync_hub',finance_hub:'invoices',pricing_hub:'transfer_calc',persons_hub:'admin_clients',transactions_hub:'work-visa-permanent',tasks_hub:'saudization',admin_hub:'admin_offices'};// Pages with inner hash routing land on this canonical hash so they reset
+const handleInstall=async()=>{if(!installPrompt)return;installPrompt.prompt();const{outcome}=await installPrompt.userChoice;if(outcome==='accepted')setShowInstallBanner(false);setInstallPrompt(null)};const toggleSec=k=>setExpanded(p=>({...p,[k]:!p[k]}));const hubDefaults={workforce:'facilities',sync_center:'sync_hub',finance_hub:'invoices',pricing_hub:'transfer_calc',persons_hub:'admin_clients',admin_hub:'admin_offices'};// Pages with inner hash routing land on this canonical hash so they reset
 // to their list/home view.
 const pageHashes={};
 // Bumped when the user taps a sidebar entry while already on that page.
@@ -708,15 +618,6 @@ const setPage=(id)=>{const mapped=hubDefaults[id]||id;if(mapped===pg)setNavReset
 // Normalize the URL so pages with internal hash routing return to their
 // default view (pages without hash routing are unaffected).
 try{const target=pageHashes[mapped]||'';if(window.location.hash!==target){window.history.replaceState(null,'',target||window.location.pathname);window.dispatchEvent(new HashChangeEvent('hashchange'))}}catch{}};
-// فتح تفاصيل الخدمة مباشرة من الفاتورة عبر الرقم المرجعي: نحفظ معرّف الطلب ثم ننتقل لتبويب معاملات التأشيرة المناسب (دائمة/مؤقتة).
-const[txnDeepLink,setTxnDeepLink]=useState(null);
-const onOpenService=({srId,svcCode})=>{
-  // وجّه إلى تبويب معاملات الخدمة المطابق لكودها (تأشيرة/غرفة تجارية…) ثم افتح المعاملة مباشرة عبر الـ deep link.
-  const norm=svcCode==='work_visa_6m'?'work_visa_6m':(svcCode==='work_visa_9m'?'work_visa_9m':(/temporary/i.test(svcCode||'')?'work_visa_temporary':(/^work_visa|permanent/i.test(svcCode||'')?'work_visa_permanent':(svcCode||''))));
-  const sec=TXN_SECTIONS.find(s=>s.code===norm);
-  navPushFrom(sec?.id||'work-visa-permanent',{kind:'txn',id:srId});
-  setTxnDeepLink(srId||null);setPage(sec?.id||'work-visa-permanent');
-};
 const loadStats=useCallback(()=>{const brId=dashBranch||null;Promise.all([sb.rpc('get_branch_stats',{p_branch_id:brId}),sb.from('branches').select('id,name_ar,branch_code').is('deleted_at',null).eq('is_active',true).order('name_ar')]).then(([statsR,branchesR])=>{if(statsR.data)setStats(statsR.data);setDashBranches(branchesR.data||[])})},[sb,dashBranch]);useEffect(()=>{loadStats()},[loadStats]);
 useEffect(()=>{if(!sb)return;const ch=sb.channel('jisr-realtime-sync').on('postgres_changes',{event:'*',schema:'public',table:'invoices'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'clients'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'workers'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'facilities'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'activity_log'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'invoice_payments'},()=>loadStats()).subscribe();return()=>{sb.removeChannel(ch)}},[sb,loadStats]);
 useEffect(()=>{const cleanup=setupKeyboardShortcuts({'ctrl+n':()=>{},'ctrl+/':()=>{tt(T('Ctrl+N إضافة جديد','Ctrl+N New'))},'escape':()=>{setSideOpen(false)}});return cleanup},[]);
@@ -726,8 +627,6 @@ const T=(ar,en)=>lang==='ar'?ar:en;const TL=(ar)=>lang==='ar'?ar:(TR[ar]||ar);co
 {id:'workforce',l:T('المنشآت والعمالة','Workforce'),i:'worker'},
 {id:'finance_hub',l:T('المالية','Operations'),i:'invoice'},
 {id:'pricing_hub',l:T('الحسبات','Calc'),i:'calc'},
-{id:'transactions_hub',l:T('الخدمات','Services'),i:'transaction'},
-{id:'tasks_hub',l:T('المهام','Tasks'),i:'tasks'},
 {id:'persons_hub',l:T('الأشخاص','Persons'),i:'client'},
 {id:'ops_excels',l:T('جداول العمل','Work Sheets'),i:'calendar'},
 {id:'sync_center',l:T('مركز المزامنة','Sync Hub'),i:'transaction'},
@@ -737,11 +636,9 @@ const hubTabs={
   workforce:[{id:'facilities',l:T('المنشآت','Facilities'),i:'facility'},{id:'workers',l:T('العمالة الدائمة','Permanent Workforce'),i:'labor'},{id:'temp_workers',l:T('العمالة المؤقتة','Temporary Workforce'),i:'labor'},{id:'visa_grid',l:T('جدول إصدار التأشيرات','Visa Issuance Grid'),i:'calendar'}],
   // «اكسلات العمليات» خرجت من هنا إلى تبويب رئيسي مستقلّ — لم تعد تابعة للمزامنة
   sync_center:[{id:'sync_hub',l:T('مركز المزامنة','Sync Hub'),i:'refresh'}],
-  finance_hub:[{id:'invoices',l:T('الفواتير','Invoices'),i:'invoice'},{id:'deposits',l:T('الإيداعات','Deposits'),i:'deposit'},{id:'payments',l:T('سدادات الخدمات','Service Payments'),i:'receipt'},{id:'ext_payments',l:T('سدادات خارجية','External Payments'),i:'receipt'},{id:'jub1_receipts',l:T('سندات JUB1','JUB1 Receipts'),i:'receipt'}],
+  finance_hub:[{id:'invoices',l:T('الفواتير','Invoices'),i:'invoice'},{id:'jub1_receipts',l:T('سندات JUB1','JUB1 Receipts'),i:'receipt'}],
   pricing_hub:[{id:'transfer_calc',l:T('حسبة نقل الكفالات','Transfer Calc'),i:'calc'},{id:'renewal_calc',l:T('حسبة تجديد الإقامات','Renewal Calc'),i:'refresh'}],
   persons_hub:[{id:'admin_clients',l:T('العملاء','Clients'),i:'clients'},{id:'admin_agents',l:T('الوسطاء','Agents'),i:'broker'}],
-  transactions_hub:TXN_SECTIONS.map(t=>({id:t.id,l:T(t.ar,t.en),i:t.i})),
-  tasks_hub:TASK_SECTIONS.map(t=>({id:t.id,l:T(t.ar,t.en),i:t.i})),
   admin_hub:[{id:'admin_offices',l:T('المكاتب','Offices'),i:'branch'},{id:'admin_bank_accounts',l:T('الحسابات البنكية','Bank Accounts'),i:'bank'},{id:'admin_permissions',l:T('المستخدمون','Users'),i:'userPerm'},{id:'admin_roles',l:T('الأدوار والصلاحيات','Roles & Permissions'),i:'userPerm'},{id:'admin_services',l:T('الخدمات','Services'),i:'notes'},{id:'admin_fees',l:T('الرسوم','Fees'),i:'payment'},{id:'settings_fields',l:T('الحقول','Fields'),i:'settings'}]
 };
 // Single source of truth for a page's icon: resolve a tab's nav icon (by page id) rendered
@@ -1212,25 +1109,10 @@ return<div><div>
 {/* مفتوح لكل مستخدم — الحجب داخل الصفحة على الشيتات المالية وحدها */}
 {pg==='ops_excels'&&<OpsExcelsPage sb={sb} toast={tt} user={user} lang={lang} onTabChange={setSTabInfo}/>}
 {/* العمليات */}
-{pg==='invoices'&&<InvoicePageFull sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch} emptyIcon={navEmptyIcon('invoices')} onNewInvoice={()=>setShowServiceRequest(true)} onOpenService={onOpenService}/>}
-{pg==='payments'&&<PaymentsPage sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch} emptyIcon={navEmptyIcon('payments')}/>}
-{pg==='ext_payments'&&<ExternalPaymentsPage sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch} emptyIcon={navEmptyIcon('ext_payments')}/>}
-{pg==='deposits'&&<DepositsPage sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch} emptyIcon={navEmptyIcon('deposits')}/>}
+{pg==='invoices'&&<InvoicePageFull sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch} emptyIcon={navEmptyIcon('invoices')} onNewInvoice={()=>setShowServiceRequest(true)}/>}
 {pg==='jub1_receipts'&&<Jub1ReceiptsPage sb={sb} user={user} toast={tt} lang={lang} emptyIcon={navEmptyIcon('jub1_receipts')}/>}
 {pg==='sbc'&&<SbcCenterPage sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch}/>}
 {pg==='baladi'&&<BaladiCenterPage sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch}/>}
-{/* لوحات مراحل ما بعد التأشيرة — تظهر فوق قوائم المعاملات في تبويب كل قسم */}
-{pg==='medical'&&<MedicalStagePage sb={sb} user={user} toast={tt} lang={lang}/>}
-{pg==='work-cards'&&<WorkCardsStagePage sb={sb} user={user} toast={tt} lang={lang}/>}
-{pg==='iqama'&&<IqamaIssuanceStagePage sb={sb} user={user} toast={tt} lang={lang}/>}
-{pg==='iqama-print'&&<IqamaPrintStagePage sb={sb} user={user} toast={tt} lang={lang}/>}
-{pg==='saudization'&&<SaudizationRequestsPage sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch} emptyIcon={navEmptyIcon('saudization')}/>}
-{TXN_SECTIONS.filter(s=>s.code&&s.id===pg&&s.id!=='saudization').map(s=><TransactionsPage key={s.id} tabId={s.id} sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch} lockedService={s.code} lockedLabel={T(s.ar,s.en)} emptyIcon={navEmptyIcon(s.id)} initialDetailId={txnDeepLink} onConsumeInitialDetail={()=>setTxnDeepLink(null)}/>)}
-{TXN_SECTIONS.filter(s=>s.accountant&&s.id===pg).map(s=><TransactionsPage key={s.id} tabId={s.id} accountantMode sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch} lockedLabel={T(s.ar,s.en)} emptyIcon={navEmptyIcon(s.id)}/>)}
-{TXN_SECTIONS.filter(s=>s.iqamaMode&&s.id===pg).map(s=><TransactionsPage key={s.id} tabId={s.id} iqamaMode sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch} lockedLabel={T(s.ar,s.en)} emptyIcon={navEmptyIcon(s.id)} initialDetailId={txnDeepLink} onConsumeInitialDetail={()=>setTxnDeepLink(null)}/>)}
-{TXN_SECTIONS.filter(s=>!s.code&&!s.page&&!s.accountant&&!s.iqamaMode&&s.id===pg).map(s=><SectionStub key={s.id} title={T(s.ar,s.en)} lang={lang}/>)}
-{/* المهام */}
-{TASK_SECTIONS.filter(s=>s.code&&s.id===pg&&s.id!=='saudization').map(s=><TransactionsPage key={s.id} tabId={s.id} sb={sb} user={user} toast={tt} lang={lang} branchId={dashBranch} lockedService={s.code} lockedLabel={T(s.ar,s.en)} emptyIcon={navEmptyIcon(s.id)}/>)}
 {/* الإدارة */}
 {pg==='admin_offices'&&<BranchesPage key={navResetKey} sb={sb} toast={tt} user={user} lang={lang} showStaff={false} singleTab="branches" AdminPage={AdminPageFull} adminProps={{sb,toast:tt,user,lang,onTabChange:setSTabInfo,defaultTab:'users',branchId:dashBranch}}/>}
 {pg==='admin_bank_accounts'&&<BankAccountsPage key={navResetKey} sb={sb} toast={tt} user={user} lang={lang}/>}

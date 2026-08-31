@@ -956,7 +956,7 @@ function StatsCards({ T, periodStats, svcToday, mode = 'real' }) {
   )
 }
 
-export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvoice, emptyIcon, onOpenService }) {
+export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvoice, emptyIcon }) {
   const isAr = lang !== 'en'
   const T = (a, e) => (isAr ? a : e)
 
@@ -1495,7 +1495,7 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
   const totalPages = Math.max(1, Math.ceil(total / PAGE))
   const initialLoading = loading && rows.length === 0
 
-  if (detail) return <InvoiceDetailPage sb={sb} inv={detail} onBack={() => { setDetail(null); setRefreshTick(t => t + 1) }} isAr={isAr} T={T} toast={toast} user={user} onOpenService={onOpenService} />
+  if (detail) return <InvoiceDetailPage sb={sb} inv={detail} onBack={() => { setDetail(null); setRefreshTick(t => t + 1) }} isAr={isAr} T={T} toast={toast} user={user} />
 
   return (
     <div style={{ fontFamily: F, paddingTop: 0 }}>
@@ -1946,7 +1946,7 @@ const HeroMeta = ({ isAr, T, qty, showQty, serviceFull, durLabel, invoiceNo, bra
 }
 
 /* ═════════════ Full-page detail ═════════════ */
-function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user, onOpenService }) {
+function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user }) {
   // Keep a local copy of the invoice so we can re-fetch its totals after a
   // payment/refund/cancel without leaving the detail page. invProp is the
   // original row from the list; once we re-fetch, `inv` becomes the fresh one.
@@ -2561,7 +2561,7 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user, onO
       })()}
 
       {data.loading ? <InvoiceDetailSkeleton /> : (
-      <InvoiceDetailLayout user={user} inv={inv} data={data} isAr={isAr} T={T} svc={svc} payT={payT} total={total} paid={paid} remaining={remaining} pct={pct} stageStatus={[]} sb={sb} toast={toast} onRecordPayment={onRecordPayment} onCancelInv={onCancelInv} onPrint={onPrint} onEditWorker={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_worker_pick') ? undefined : () => setWorkerModal(true)} onEditService={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_service_edit') ? undefined : () => setSvcModal(true)} onEditOffice={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_service_edit') ? undefined : () => setOfficeModal(true)} onEditVisa={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_permanent_visa_edit') ? undefined : () => setVisaEditModal(true)} onEditBorders={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_border_numbers') ? undefined : () => setBorderModal(true)} onEditClient={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_client_edit') ? undefined : () => setClientModal(true)} onEditAgent={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_agent_edit') ? undefined : () => setAgentModal(true)} onEditNote={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_note_edit') ? undefined : () => setNoteModal(true)} onEditPricing={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_pricing_edit') ? undefined : () => setPricingModal(true)} onEditPayment={cancelledRO || !canPerm(user, 'invoices.record_payment') || !modalAllowed(user, 'invoices', 'inv_payment_edit') ? undefined : setPayEdit} onEditStage={cancelledRO ? undefined : openTransferStage} canPayPerm={canPerm(user, 'invoices.record_payment')} canCancelPerm={canPerm(user, 'invoices.cancel') && !gmLock} gmLock={gmLock} onOpenService={onOpenService} />
+      <InvoiceDetailLayout user={user} inv={inv} data={data} isAr={isAr} T={T} svc={svc} payT={payT} total={total} paid={paid} remaining={remaining} pct={pct} stageStatus={[]} sb={sb} toast={toast} onRecordPayment={onRecordPayment} onCancelInv={onCancelInv} onPrint={onPrint} onEditWorker={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_worker_pick') ? undefined : () => setWorkerModal(true)} onEditService={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_service_edit') ? undefined : () => setSvcModal(true)} onEditOffice={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_service_edit') ? undefined : () => setOfficeModal(true)} onEditVisa={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_permanent_visa_edit') ? undefined : () => setVisaEditModal(true)} onEditBorders={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_border_numbers') ? undefined : () => setBorderModal(true)} onEditClient={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_client_edit') ? undefined : () => setClientModal(true)} onEditAgent={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_agent_edit') ? undefined : () => setAgentModal(true)} onEditNote={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_note_edit') ? undefined : () => setNoteModal(true)} onEditPricing={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_pricing_edit') ? undefined : () => setPricingModal(true)} onEditPayment={cancelledRO || !canPerm(user, 'invoices.record_payment') || !modalAllowed(user, 'invoices', 'inv_payment_edit') ? undefined : setPayEdit} onEditStage={cancelledRO ? undefined : openTransferStage} canPayPerm={canPerm(user, 'invoices.record_payment')} canCancelPerm={canPerm(user, 'invoices.cancel') && !gmLock} gmLock={gmLock} />
       )}
 
       {actionModal && <ActionModal type={actionModal} stage={doneStage} onClose={() => { setActionModal(null); setDoneStage(null) }} sb={sb} T={T} isAr={isAr} inv={inv} total={total} paid={paid} remaining={remaining} toast={toast} user={user} onSaved={() => setRefreshTick(t => t + 1)} visaDet={data?.det || []} svcCode={data?.code} insts={data?.insts || []} />}
@@ -9403,7 +9403,7 @@ function InvoiceCommentModal({ sb, T, toast, srId, user, onClose, onSaved }) {
   )
 }
 
-const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid, remaining, pct, stageStatus, sb, toast, onRecordPayment, onCancelInv, onPrint, onEditWorker, onEditService, onEditOffice, onEditVisa, onEditBorders, onEditClient, onEditAgent, onEditNote, onEditPricing, onEditPayment, onEditStage, onOpenService, canPayPerm = true, canCancelPerm = true, gmLock = false }) => {
+const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid, remaining, pct, stageStatus, sb, toast, onRecordPayment, onCancelInv, onPrint, onEditWorker, onEditService, onEditOffice, onEditVisa, onEditBorders, onEditClient, onEditAgent, onEditNote, onEditPricing, onEditPayment, onEditStage, canPayPerm = true, canCancelPerm = true, gmLock = false }) => {
   // المدير العام يرى كل الكروت حتى الفارغة منها — ليتمكّن من الإضافة/التعديل من داخل الفاتورة.
   const showEmpty = isGM(user)
   /* زر تعديل موحّد لأي شريط حالة: المدير العام دائماً، وبقية المستخدمين خلال 24 ساعة من الإنجاز. */

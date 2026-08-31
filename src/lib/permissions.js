@@ -124,8 +124,6 @@ export const PAGE_VIEW_PERM = {
   // والتحرير داخل الصفحة محكوم بـwork_visas.edit.
   visa_grid: 'workers.view',
   invoices: 'invoices.view',
-  payments: 'payments.view',
-  deposits: 'deposits.view',
   jub1_receipts: 'jub1_receipts.view',
   transfer_calc: 'quotations.view',
   renewal_calc: 'renewal_calc.view',

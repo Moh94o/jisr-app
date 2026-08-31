@@ -40,7 +40,7 @@ function decodeJwt(jwt) {
   } catch { return { exp: null, moiNumber: null } }
 }
 
-async function fetchLatestOtp() {
+async function fetchLatestOtp(sinceSeconds = 120) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_latest_muqeem_otp`, {
     method: 'POST',
     headers: {
@@ -48,7 +48,7 @@ async function fetchLatestOtp() {
       'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ since_seconds: 120 }),
+    body: JSON.stringify({ since_seconds: sinceSeconds }),
   })
   if (!res.ok) return null
   const v = await res.json()
@@ -189,20 +189,20 @@ async function loginOnce() {
       throw e
     }
 
-    log('→ Polling Supabase for OTP (90s window)')
+    log('→ Polling Supabase for OTP (180s window)')
     let otp = null
     const otpStart = Date.now()
-    while (Date.now() - otpStart < 90_000) {
-      otp = await fetchLatestOtp()
-      // Only accept OTPs that arrived AFTER we triggered login
-      if (otp) {
-        // We accept any recent OTP; the SQL function already filters to last 120s.
-        // To be safe, give the SMS time to land — wait at least 8s after login click.
-        if (Date.now() - loginStart > 8_000) break
-      }
+    // Muqeem's OTP SMS latency drifts (seen up to ~100s), so wait up to 180s rather than 90s
+    // — a token gap costs ~15 min, while a wider wait sends no extra OTP requests.
+    while (Date.now() - otpStart < 180_000) {
+      // Anchor the lookback to the login click so we never grab a stale OTP from a prior cycle.
+      const sinceSec = Math.max(8, Math.ceil((Date.now() - loginStart) / 1000))
+      otp = await fetchLatestOtp(sinceSec)
+      // Give the SMS time to land — accept only after at least 8s past the login click.
+      if (otp && Date.now() - loginStart > 8_000) break
       await sleep(3000)
     }
-    if (!otp) throw new Error('OTP did not arrive in 90s')
+    if (!otp) throw new Error('OTP did not arrive in 180s')
     log(`→ Got OTP: ${otp}`)
 
     const otpSel = await page.evaluate(() => {

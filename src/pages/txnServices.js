@@ -1,18 +1,17 @@
 // ═══════════════════════════════════════════════════════════════════════════
-// Central registry for المعاملات (Transactions) service tabs.
+// Central registry for خدمات الفواتير (invoice service types).
 //
 // Single source of truth that drives, per service_type `code`:
-//   • theme  — accent color + bilingual label (TransactionsPage SVC_THEME / cards)
-//   • hero   — page title + description (TransactionsPage HERO)
+//   • theme  — accent color + bilingual label
+//   • hero   — title + description
 //   • party  — who the request is raised for ('worker' = worker is the client)
 //   • billable / pricing — whether the add-wizard creates an invoice
-//   • listMode — which specific columns the list shows ('worker' | 'facility' | 'default')
-//   • inputs — the add-wizard step-3 fields (same shape as SERVICE_INPUTS)
-//   • detail — the fields rendered on the detail page (ApplicationDetails)
+//   • listMode — which specific columns a list shows ('worker' | 'facility' | 'default')
+//   • inputs — the invoice wizard's service fields (same shape as SERVICE_INPUTS)
+//   • detail — the fields rendered on the invoice detail/print
 //
-// Adding a new transaction tab is now: one entry here + (if new) one service_type
-// lookup row + one TXN_SECTIONS line in App.jsx. The list/detail/actions/wizard all
-// read from this file, mirroring the رواتب سبلاير (supplier_payroll) reference build.
+// Consumed by ServiceRequestPage (الفاتورة الجديدة), InvoicePage and lib/invoicePrint.
+// Adding a new service is: one entry here + (if new) one service_type lookup row.
 //
 // `inputs` keys that aren't a dedicated column on other_applications are written into
 // the `details` JSONB column; the detail page reads them back from there
@@ -204,7 +203,6 @@ export const TXN_SERVICES = {
     theme: { c: '#16a085', label_ar: 'السعودة', label_en: 'Saudization' },
     hero: { ar: 'السعودة', en: 'Saudization', dAr: 'إصدار ومتابعة طلبات السعودة ونطاقات المنشآت', dEn: 'Issue and track Saudization & Nitaqat requests' },
     party: 'worker', billable: true, listMode: 'facility',
-    // الإنشاء عبر معالج مخصّص (SaudizationRequestPage)؛ هذه الحقول لعرض التفاصيل فقط.
     inputs: [],
     detail: [
       { src: 'f_name', l_ar: 'المنشأة', l_en: 'Facility' },
