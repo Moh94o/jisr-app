@@ -4002,22 +4002,8 @@ return<div key={g.id} style={{padding:'6px 10px',marginBottom:4,borderRadius:7,b
 <div style={{fontSize:11,color:'var(--tx2)',fontWeight:600}}>{nat} · {prof} · {gen} · {emb}</div>
 </div>
 })}
-{/* File distribution */}
-{visaFiles.length>0&&<div style={{marginTop:6,padding:'6px 10px',borderRadius:7,background:'rgba(255,255,255,.02)',border:'1px solid var(--bd)'}}>
-<div style={{fontSize:10.5,fontWeight:600,color:'var(--tx3)',marginBottom:4}}>{T('توزيع الملفات','File distribution')} ({visaFiles.length})</div>
-<div style={{display:'flex',flexWrap:'wrap',gap:4}}>
-{visaFiles.map((f,i)=>{
-const fc=Object.values(f.assignments||{}).reduce((s,n)=>s+(parseInt(n)||0),0)
-const parts=visaGroups.length>1?Object.entries(f.assignments||{}).filter(([,n])=>(parseInt(n)||0)>0).map(([gid,n])=>{const g=visaGroups.find(x=>x.id===(parseInt(gid)||gid));const nat=g?.nationality?(lkCountries.find(co=>co.id===g.nationality)?.nationality_ar||''):'';return`${n}× ${nat||T('مجموعة','group')}`}).join(' · '):null
-// ملف واحد بتأشيرة واحدة → «ملف واحد» بدل ترقيم زائد («الملف الأول: 1»)
-const single=visaFiles.length===1&&fc===1
-return<span key={f.id} style={{display:'inline-flex',alignItems:'center',gap:4,padding:'2px 8px',borderRadius:6,background:'rgba(176,125,0,.1)',border:'1px solid rgba(176,125,0,.22)',fontSize:10.5,fontWeight:600,color:C.gold,fontFamily:F}}>
-<span>{single?T('ملف واحد','One file'):(isAr?`الملف ${['الأول','الثاني','الثالث','الرابع','الخامس','السادس','السابع','الثامن','التاسع','العاشر'][i]||(i+1)}: ${fc}`:`File ${i+1}: ${fc}`)}</span>
-{parts&&<span style={{fontSize:9.5,fontWeight:600,color:'var(--tx3)'}}>({parts})</span>}
-</span>
-})}
-</div>
-</div>}
+{/* «توزيع الملفات» أُزيل من بطاقة الملخّص بطلب المستخدم: الملفات تُوزَّع في
+    خطوتها، وإعادةُ سردها هنا سطرٌ يشغل الملخّص بلا قرارٍ يُتّخذ عليه. */}
 </div>}
 
 {/* Iqama renewal details — مصدرها حسبة التجديد المصدّقة المختارة */}
