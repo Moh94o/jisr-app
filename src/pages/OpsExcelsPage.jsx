@@ -2,9 +2,9 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import ReactDOM from 'react-dom'
 import { can as canPerm, cardVisible, canCardBtn, hasPerm, isGM as isGmUser } from '../lib/permissions.js'
 import { registerOpsColumns, opsFieldKey } from '../lib/permCatalog.js'
-import { Modal, ActionButton, Dropdown, CalendarPopup, TextField, TextArea, DateField, FileField } from '../components/ui/FormKit.jsx'
+import { Modal, ModalSection, ActionButton, Dropdown, CalendarPopup, TextField, TextArea, DateField, FileField } from '../components/ui/FormKit.jsx'
 import { buildAjeerContractBookmarklet, buildAjeerNoticeBookmarklet, buildAjeerSecondmentBookmarklet, buildAjeerSecondmentInvoiceBookmarklet, buildAjeerEligibilityScanBookmarklet, buildAjeerTraceBookmarklet } from './ajeerRequestBookmarklet.js'
-import { Save, Trash2, Search, RefreshCw, HeartPulse, ShieldOff, X as XIcon } from 'lucide-react'
+import { Save, Trash2, Search, RefreshCw, HeartPulse, ShieldOff, X as XIcon, HandCoins, BadgeCheck } from 'lucide-react'
 
 /* ═══════════════════════════════════════════════════════════════════════════
    «جداول العمل» (كان اسمها «اكسلات العمليات») — تبويب رئيسي مستقلّ.
@@ -4588,9 +4588,20 @@ const acDue = (r) => acDueInfo(r, true).due
    عمود «العمولة» في الشبكة لحظة الرسم — نفس حيلة تسعيرة السدادات.
    وأولويّة المبلغ في كل صفّ: **ما كتبه الموظف في الخليّة ← ما في سجلّ الوسيط
    ← تسعيرةُ خدمته**. فالتسعيرة قاعدةٌ عامّة لا تدهس استثناءً مكتوباً. */
+/* ⚠️ **تجديد الإقامة ليس سطراً واحداً**: عمولته تختلف بمدّته (٣ · ٦ · ٩ · ١٢
+   شهراً) — بنصّ المستخدم. فمفتاح التسعيرة ليس رمز الخدمة وحده بل `acKey`:
+   رمزُ الخدمة، إلا التجديد فيُلحَق به شهورُه (`iqama_renewal_6`). والمدّة من
+   `renewal_months` في العرض (حسبةُ التجديد المجمَّدة، وإلا طلبُ التجديد) —
+   والـ٧٣ فاتورةً كلُّها لها مدّة اليوم. والسطر الأخير احتياطُ مدّةٍ مجهولة:
+   يُخفى ما دام فارغاً، فلا يُرى إلا حين يوجد ما يُفسّره. */
+const AC_RENEW_MONTHS = [3, 6, 9, 12]
 const AC_SERVICES = [
   { code: 'transfer', ar: 'نقل الكفالة', en: 'Sponsorship transfer' },
-  { code: 'iqama_renewal', ar: 'تجديد الإقامة', en: 'Iqama renewal' },
+  { code: 'iqama_renewal_3', ar: 'تجديد الإقامة ٣ أشهر', en: 'Iqama renewal · 3m' },
+  { code: 'iqama_renewal_6', ar: 'تجديد الإقامة ٦ أشهر', en: 'Iqama renewal · 6m' },
+  { code: 'iqama_renewal_9', ar: 'تجديد الإقامة ٩ أشهر', en: 'Iqama renewal · 9m' },
+  { code: 'iqama_renewal_12', ar: 'تجديد الإقامة ١٢ شهراً', en: 'Iqama renewal · 12m' },
+  { code: 'iqama_renewal', ar: 'تجديد الإقامة — مدّة غير معروفة', en: 'Iqama renewal · unknown term', spare: true },
   { code: 'work_visa_6m', ar: 'تأشيرة بإقامة ٦ أشهر', en: '6-month visa' },
   { code: 'work_visa_9m', ar: 'تأشيرة بإقامة ٩ أشهر', en: '9-month visa' },
   { code: 'work_visa_permanent', ar: 'تأشيرة بإقامة ١٢ شهر', en: '12-month visa' },
@@ -4598,7 +4609,14 @@ const AC_SERVICES = [
 const AC_REF = { rates: {} }
 const acDerive = (rows, edits, ctx) => { AC_REF.rates = (ctx && ctx.prices) || {} }
 const acQty = (r) => Math.max(1, depNum(r && r.service_quantity) || 1)
-const acRateOf = (r, rates) => depNum((rates || AC_REF.rates)[String((r && r.service_code) || '')])
+/* مفتاح التسعيرة: الخدمة، والتجديدُ بمدّته */
+const acKey = (r) => {
+  const c = String((r && r.service_code) || '')
+  if (c !== 'iqama_renewal') return c
+  const m = depNum(r && r.renewal_months)
+  return AC_RENEW_MONTHS.includes(m) ? `iqama_renewal_${m}` : 'iqama_renewal'
+}
+const acRateOf = (r, rates) => depNum((rates || AC_REF.rates)[acKey(r)])
 /* مبلغ عمولة الصفّ: المكتوب ← المخزَّن في سجلّ الوسيط ← التسعيرة × الكمية */
 const acRowAmount = (r, rates, pend) => {
   const typed = ev(r, 'ac_amount', pend)
@@ -4640,7 +4658,7 @@ function AcRatesPanel({ rows, isAr, layout, persistLayout, canEdit, writeCells, 
   const st = useMemo(() => {
     const m = new Map(AC_SERVICES.map((s) => [s.code, { n: 0, dueN: 0, dueQty: 0, dueAmt: 0, paidAmt: 0, waitN: 0, waitAmt: 0 }]))
     for (const r of rows) {
-      const c = m.get(String(r.service_code || '')); if (!c) continue
+      const c = m.get(acKey(r)); if (!c) continue
       c.n++
       const state = acState(r)
       if (state === AC_HOLD) continue                    // موقوفة بقرار — خارج الحساب كلّه
@@ -4676,6 +4694,16 @@ function AcRatesPanel({ rows, isAr, layout, persistLayout, canEdit, writeCells, 
   const payTotal = useMemo(() => payable.reduce((a, r) => a + acRowAmount(r, draft), 0), [payable, draft])
   const noAmt = targets.length - payable.length
   const payAgents = useMemo(() => new Set(payable.map((r) => r.agent_id)), [payable])
+  /* تفصيلُ ما يُدفع بالخدمة — للنافذة: الرقم الكبير مجموعٌ لا يُصدَّق بلا
+     مفرداته. و«الوحدات × متوسّط الوحدة» لا «الصفوف × التسعيرة»: صفٌّ كميّتُه
+     ثلاثٌ ثلاثُ عمولات، وصفٌّ كُتب مبلغه بيده يخالف تسعيرة خدمته. */
+  const payBreak = useMemo(() => AC_SERVICES.map((s) => {
+    const rows2 = payable.filter((r) => acKey(r) === s.code)
+    if (!rows2.length) return null
+    const n = rows2.reduce((a, r) => a + acQty(r), 0)
+    const amt = rows2.reduce((a, r) => a + acRowAmount(r, draft), 0)
+    return { code: s.code, label: isAr ? s.ar : s.en, n, amt, rate: n ? Math.round(amt / n) : 0 }
+  }).filter(Boolean), [payable, draft, isAr])
   const doPay = useCallback(() => {
     const day = todayYmd()
     const cA = colDefs.get('ac_amount'), cS = colDefs.get('ac_state'), cD = colDefs.get('ac_paid_date')
@@ -4722,7 +4750,7 @@ function AcRatesPanel({ rows, isAr, layout, persistLayout, canEdit, writeCells, 
             </tr>
           </thead>
           <tbody>
-            {AC_SERVICES.map((s) => {
+            {AC_SERVICES.filter((s) => !s.spare || st.get(s.code).n > 0).map((s) => {
               const c = st.get(s.code)
               return (
                 <tr key={s.code} style={{ borderBottom: '1px solid var(--bd2)', opacity: c.n ? 1 : 0.5 }}>
@@ -4764,15 +4792,21 @@ function AcRatesPanel({ rows, isAr, layout, persistLayout, canEdit, writeCells, 
         </span>
         {/* الزرّ يبقى ظاهراً ومعطَّلاً حين لا شيء يُدفع، ويقول سببَه في تلميحه —
             زرٌّ يختفي يترك المستخدم يبحث عمّا لم يعد موجوداً. */}
-        {/* التلميح على الغلاف لا على الزرّ: `ActionButton` لا يمرّر `title`،
-            والزرّ المعطَّل لا يستقبل حدث المرور في بعض المتصفّحات أصلاً. */}
+        {/* الزرّ بلغة أزرار الصفحة نفسها (`.ox-btn`) لا بلغة نوافذ FormKit:
+            هو يقف في شريطٍ فيه أرقامٌ تُقرأ، فلا بدّ أن يُرى **زرّاً** — إطارٌ
+            ذهبيّ صريح ورقعةٌ خفيفة وشارةُ عددٍ في طرفه، كنبرة «تحديث من
+            المزامنة» وأعلى قليلاً لأنه يُخرج مالاً.
+            والتلميح على الغلاف لا على الزرّ: الزرّ المعطَّل لا يستقبل حدث
+            المرور في بعض المتصفّحات. */}
         {canEdit && (
           <span title={payable.length ? '' : (noAmt
             ? T('صفوفٌ مستحقّة بلا مبلغ — اكتب تسعيرة خدمتها أوّلاً', 'Due rows have no amount — set their service rate first')
             : T('لا عمولة حلّ أجلها ولم تُصرف في المعروض', 'Nothing due and unpaid in the current view'))}>
-            <ActionButton Icon={Save} disabled={!payable.length} onClick={() => setPayAsk(true)}>
-              {T('تم الدفع', 'Mark paid')}{payable.length ? ` · ${enNum(payable.length)}` : ''}
-            </ActionButton>
+            <button className="ox-btn ox-pay" disabled={!payable.length} onClick={() => setPayAsk(true)}>
+              <HandCoins size={15} strokeWidth={2.1} />
+              <span>{T('تم الدفع', 'Mark paid')}</span>
+              {payable.length > 0 && <span className="ox-pay-n">{enNum(payable.length)}</span>}
+            </button>
           </span>
         )}
       </div>
@@ -4784,18 +4818,58 @@ function AcRatesPanel({ rows, isAr, layout, persistLayout, canEdit, writeCells, 
       )}
 
       {payAsk && (
-        <Modal open onClose={() => setPayAsk(false)} closeOnOverlay lang={isAr ? 'ar' : 'en'} accent={C.gold} width={460}
+        <Modal open onClose={() => setPayAsk(false)} closeOnOverlay lang={isAr ? 'ar' : 'en'} accent={C.gold} width={480}
           title={T('تأكيد صرف العمولات', 'Confirm commission payout')}
           subtitle={T('يُكتب في أعمدة الجدول ثم يُرحَّل إلى سجلّ الوسيط', 'Written into the sheet columns, then posted to the agent record')}
-          footer={<ActionButton Icon={Save} onClick={doPay}>{T('تسجيل الصرف', 'Record payout')}</ActionButton>}>
-          <div style={{ fontSize: 13, color: 'var(--tx2)', lineHeight: 1.9 }}>
-            {T('عدد العمولات', 'Commissions')} <b style={{ fontFamily: MONO, fontWeight: 600, color: 'var(--tx)' }}>{enNum(payable.length)}</b><br />
-            {T('المجموع', 'Total')} <b style={{ fontFamily: MONO, fontWeight: 600, color: C.gold2 }}>{enNum(payTotal)}</b><br />
-            {T('الوسطاء', 'Agents')} <b style={{ fontFamily: MONO, fontWeight: 600, color: 'var(--tx)' }}>
-              {payAgents.size === 1 ? (payable[0].agent_name || '—') : enNum(payAgents.size)}</b><br />
-            {T('تاريخ الصرف', 'Paid on')} <b style={{ fontFamily: MONO, fontWeight: 600, color: 'var(--tx)' }}>{todayYmd()}</b>
+          footer={<ActionButton Icon={BadgeCheck} onClick={doPay}>{T('تسجيل الصرف', 'Record payout')}</ActionButton>}>
+          {/* الرقم أوّلاً وكبيراً: هو القرار. وما تحته شروطُه لا شركاؤه في الحجم. */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px 18px', borderRadius: 14,
+            border: `1.5px solid ${C.gold}45`, background: 'rgba(176,125,0,.07)' }}>
+            <span style={{ width: 42, height: 42, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center',
+              justifyContent: 'center', background: 'rgba(176,125,0,.16)', color: C.gold2 }}>
+              <HandCoins size={20} strokeWidth={2} />
+            </span>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--tx3)' }}>{T('المطلوب صرفه', 'Amount to pay')}</div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 2 }}>
+                <span style={{ fontSize: 30, fontWeight: 600, fontFamily: MONO, color: C.gold2, lineHeight: 1.05, letterSpacing: '-.5px', direction: 'ltr' }}>{enNum(payTotal)}</span>
+                <span style={{ fontSize: 12, color: 'var(--tx3)' }}>{T('ريال', 'SAR')}</span>
+              </div>
+            </div>
           </div>
-          <div style={{ marginTop: 10, fontSize: 11.5, color: 'var(--tx4)', lineHeight: 1.8 }}>
+
+          {/* ثلاث حقائق في صفٍّ واحد بدل أسطرٍ متتابعة يختلط فيها الوسمُ بقيمته */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 10 }}>
+            {[
+              { l: T('عدد العمولات', 'Commissions'), v: enNum(payable.length), mono: true },
+              { l: payAgents.size === 1 ? T('الوسيط', 'Agent') : T('الوسطاء', 'Agents'),
+                v: payAgents.size === 1 ? (payable[0].agent_name || '—') : enNum(payAgents.size), mono: payAgents.size !== 1 },
+              { l: T('تاريخ الصرف', 'Paid on'), v: todayYmd(), mono: true },
+            ].map((f) => (
+              <div key={f.l} title={f.v} style={{ borderRadius: 10, border: '1px solid var(--bd)', background: 'var(--card-grad2)', padding: '9px 11px', minWidth: 0 }}>
+                <div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--tx4)', whiteSpace: 'nowrap' }}>{f.l}</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx)', marginTop: 3, fontFamily: f.mono ? MONO : F,
+                  direction: f.mono ? 'ltr' : undefined, textAlign: f.mono ? (isAr ? 'right' : 'left') : undefined,
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.v}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* تفصيلُ ما يُدفع: الرقم الكبير مجموعٌ لا يُصدَّق بلا مفرداته. */}
+          <ModalSection Icon={HandCoins} label={T('تفصيل الخدمات', 'Per service')} style={{ marginTop: 22 }}>
+            {payBreak.map((b) => (
+              <div key={b.code} style={{ display: 'flex', alignItems: 'baseline', gap: 8, padding: '6px 0',
+                borderBottom: '1px solid var(--bd2)' }}>
+                <span style={{ flex: 1, fontSize: 12, color: 'var(--tx2)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.label}</span>
+                <span style={{ fontSize: 11, color: 'var(--tx4)', fontFamily: MONO, direction: 'ltr', whiteSpace: 'nowrap' }}>
+                  {enNum(b.n)} × {enNum(b.rate)}
+                </span>
+                <span style={{ fontSize: 12.5, fontWeight: 600, fontFamily: MONO, color: 'var(--tx)', direction: 'ltr', minWidth: 62, textAlign: isAr ? 'left' : 'right' }}>{enNum(b.amt)}</span>
+              </div>
+            ))}
+          </ModalSection>
+
+          <div style={{ marginTop: 12, fontSize: 11.5, color: 'var(--tx4)', lineHeight: 1.85 }}>
             {T('يشمل المعروض بعد التصفية وحده · ولا يمسّ ما صُرف من قبل ولا ما لم يحلّ أجله · ويُتراجَع عنه بـCtrl+Z قبل الحفظ',
               'Covers the filtered rows only · leaves already-paid and not-yet-due rows untouched · undo with Ctrl+Z before it saves')}
           </div>
@@ -5142,6 +5216,15 @@ const VIEWS = [
          كميّتها أكثر من واحد، والعمولة تُحسب عليها لا على الفاتورة وحدها. */
       { key: 'service_quantity', ar: 'الكمية', en: 'Qty', w: 80, kind: 'num' },
       { key: 'service_ar', ar: 'الخدمة', en: 'Service', w: 170, kind: 'text' },
+      /* مدّة التجديد بجانب الخدمة: عمولةُ «تجديد الإقامة» تختلف بها، فلوحةُ
+         الأسفل تُقسّمه أربعة أسطر — وبلا هذا العمود لا يُعرف أيُّ صفٍّ في أيّ
+         سطر. تفرغ لغير التجديد: لكلّ تأشيرةٍ مدّتُها في اسمها. */
+      { key: 'renewal_months', ar: 'مدة التجديد', en: 'Renewal term', w: 105, kind: 'text',
+        get: (r, isAr2) => {
+          const m = depNum(r.renewal_months)
+          if (!m || String(r.service_code || '') !== 'iqama_renewal') return ''
+          return isAr2 !== false ? `${m} ${moU(m, true)}` : `${m}m`
+        } },
       { key: 'client_name', ar: 'العميل', en: 'Client', w: 180, kind: 'text' },
       { key: 'facility_ar', ar: 'المنشأة', en: 'Facility', w: 200, kind: 'text' },
       /* ═══ العمولة: أَحلَّ أجلُها؟ ثم كم؟ ثم أصُرفت؟ ═══ */
@@ -11089,6 +11172,17 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange }) {
            بقيّة الأزرار بلا صراخ: تدرّجٌ ذهبيّ خفيف بدل لونٍ مسطّح، وإطارٌ ذهبيّ
            أصرح، ولمعةٌ داخليّة علويّة تعطيه بروزاً طفيفاً. يغمق عند المرور وينضغط
            عند الضغط، فيُحسّ كزرّ لا كوسم. */
+        /* «تم الدفع» — أعلى نبرةً من «تحديث من المزامنة» بدرجةٍ واحدة: يقف في
+           شريطٍ كلّه أرقامٌ تُقرأ، فلولا رقعةٌ صمّاء وإطارٌ صريح لقُرئ وسماً لا
+           زرّاً. وشارةُ العدد في طرفه تقول كم صفّاً سيمسّ قبل أن يُضغط. */
+        .ox-btn.ox-pay{background:rgba(176,125,0,.10);border-color:var(--accent);color:var(--accent);padding:0 12px}
+        .ox-btn.ox-pay:hover:not(:disabled){background:rgba(176,125,0,.18);border-color:var(--accent)}
+        .ox-btn.ox-pay:active:not(:disabled){transform:translateY(1px)}
+        .ox-btn.ox-pay:disabled{background:transparent;border-color:var(--bd);color:var(--tx4);cursor:not-allowed}
+        .ox-pay-n{min-width:20px;height:20px;padding:0 6px;border-radius:99px;background:var(--accent);
+          color:var(--card-grad2);font-family:${MONO};font-size:11px;font-weight:600;
+          display:inline-flex;align-items:center;justify-content:center;line-height:1}
+        .ox-btn.ox-pay:disabled .ox-pay-n{background:var(--bd);color:var(--tx4)}
         .ox-btn.ox-sync{background:transparent;border-color:var(--accent);color:var(--accent);box-shadow:none}
         .ox-btn.ox-sync:hover:not(:disabled){background:rgba(176,125,0,.10);color:var(--accent);border-color:var(--accent)}
         .ox-btn.ox-sync:active:not(:disabled){transform:translateY(1px);box-shadow:none}
