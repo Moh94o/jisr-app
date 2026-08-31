@@ -874,7 +874,13 @@ function StatsCards({ T, periodStats, svcToday, mode = 'real' }) {
   const refCnt = z ? 0 : (ps.voided.cnt + ps.cancelled.cnt)
   // الصافي النقدي = النقد المستلم − المُعاد للعميل (المرتجعة + الملغاة).
   const netCash = cashSum - refSum
-  const svcs = z ? [] : buildTodaySvcs(svcToday)
+  /* «صفر» يعني **رقماً صفراً** لا خانةً غائبة: بقيّة الكروت تعرض 0 لا فراغاً،
+     فكذلك كرت الخدمات — تُسرَد خدماتُه كلّها بأصفارها.
+     ⚠️ `[]` هنا كانت تكفي يوم كان التصفير في الواجهة وحدها و`svcToday` يصل
+     مملوءاً؛ فلمّا صار الخادم يردّ `services: []` للممنوعين صار الكرت يخلو من
+     أسطره كلّها فيبدو معطوباً. `buildTodaySvcs([])` تُعيد الخدمات الثمانَ
+     و«أخرى» بأصفارها — فالشكل واحدٌ للجميع والأرقام وحدها تختلف. */
+  const svcs = buildTodaySvcs(z ? [] : svcToday)
   const svcTotal = svcs.reduce((a, b) => a + b.cnt, 0)
 
   return (
