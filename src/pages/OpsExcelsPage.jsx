@@ -5094,7 +5094,11 @@ const VIEWS = [
     panel: AcRatesPanel,
     derive: acDerive,
     afterSave: acPostCommission,
-    agg: { service_quantity: 'sum', ac_amount: 'sum', invoice_total: 'sum', paid_amount: 'sum', remaining_amount: 'sum' },
+    /* لا صفَّ إجماليات (`agg`) في هذا الشيت: لوحةُ «عمولة كل خدمة» تحته تقول
+       الأرقام مفصَّلةً بالخدمة ومقسَّمةً على مستحقٍّ ومصروفٍ ومنتظِر — فصفُّ
+       الـΣ فوقها مجموعٌ أخرس يزاحمها ويُقرأ مرّتين. ومن أراد إجمالي عمودٍ بعينه
+       فبابُه مفتوح: كليك يمين على رأسه ← «إجمالي العمود» (يُحفظ في layout.agg
+       فيعود الصفّ لعموده وحده). */
     /* اختيار «مصروفة» يختم تاريخ اليوم مرّةً واحدة — ويبقى قابلاً للتصحيح بيد. */
     autoStamp: (row, ctx) => (((ctx || {}).col === 'ac_state' && String((ctx || {}).val || '').trim() === AC_PAID)
       ? { ac_paid_date: todayYmd() } : null),
