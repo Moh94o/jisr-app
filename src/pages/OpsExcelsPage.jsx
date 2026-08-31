@@ -253,16 +253,19 @@ const SYNC_PERSON_COL = {
    اسم مدد/أجير حين يختلفان، ويبقى اسم الجهة احتياطياً لمن لا سجلَّ له عندنا.
    الربط بالرقم الوطني الموحّد (`cr_national_number`)، والاسم الأصلي يبقى في
    الصف (`r.name`) فيظلّ البحث به ناجحاً. */
-async function sbcNameMap(sb) {
-  const src = await fetchAll(sb, 'sbc_facilities', 'cr_national_number,entity_full_name_ar,entity_full_name_en,last_synced_at')
-  const m = new Map()
-  for (const s of src) {
-    const k = s.cr_national_number
-    if (!k) continue
-    const prev = m.get(k)
-    if (!prev || String(s.last_synced_at || '') > String(prev.last_synced_at || '')) m.set(k, s)
-  }
-  return m
+function sbcNameMap(sb) {
+  // تلزم أكثر العروض وتتغيّر مع المزامنة فقط — كاش مشترك قصير العمر (sharedP)
+  return sharedP('sbcNames', async () => {
+    const src = await fetchAll(sb, 'sbc_facilities', 'cr_national_number,entity_full_name_ar,entity_full_name_en,last_synced_at')
+    const m = new Map()
+    for (const s of src) {
+      const k = s.cr_national_number
+      if (!k) continue
+      const prev = m.get(k)
+      if (!prev || String(s.last_synced_at || '') > String(prev.last_synced_at || '')) m.set(k, s)
+    }
+    return m
+  })
 }
 async function attachSbcName(sb, rows, unifiedOf) {
   const m = await sbcNameMap(sb)
@@ -653,20 +656,63 @@ function toHijri(dateStr) {
   return o.y ? `${o.y}-${o.m}-${o.d}` : ''
 }
 
-/* جلب كل الصفوف متجاوزاً سقف 1000 صف في PostgREST. */
+/* جلب كل الصفوف متجاوزاً سقف 1000 صف في PostgREST.
+   الطلب الأول يحمل العدّ الكلي، فتُطلب بقية الدفعات كلها **بالتوازي** بدل
+   التسلسل — جدول 3600 صف = رحلتان بدل أربع متعاقبة. */
 async function fetchAll(sb, table, cols, mod) {
-  const out = []
   const size = 1000
-  for (let from = 0; ; from += size) {
-    let q = sb.from(table).select(cols).range(from, from + size - 1)
+  const mk = (from, withCount) => {
+    let q = sb.from(table).select(cols, withCount ? { count: 'exact' } : undefined).range(from, from + size - 1)
     if (mod) q = mod(q)
-    const { data, error } = await q
-    if (error) throw error
-    out.push(...(data || []))
-    if (!data || data.length < size) break
+    return q
+  }
+  const first = await mk(0, true)
+  if (first.error) throw first.error
+  const out = [...(first.data || [])]
+  const total = first.count
+  if (total == null) {
+    // احتياط: لا عدّ من الخادم — الحلقة المتسلسلة القديمة
+    if (out.length < size) return out
+    for (let from = size; ; from += size) {
+      const { data, error } = await mk(from, false)
+      if (error) throw error
+      out.push(...(data || []))
+      if (!data || data.length < size) break
+    }
+    return out
+  }
+  if (out.length >= total) return out
+  const rest = []
+  for (let from = size; from < total; from += size) rest.push(mk(from, false))
+  for (const r of await Promise.all(rest)) {
+    if (r.error) throw r.error
+    out.push(...(r.data || []))
   }
   return out
 }
+
+/* ═══ كاش الجلسة — «اعرض المحفوظ فوراً وحدّث بالخلفية» (SWR) ═══════════════════
+   فتح جدولٍ ثقيل كان = سكيلتون + انتظار الشبكة في كل مرة. الآن:
+   - `opsSwrCache`: آخر حمولة لكل عرض (صفوف/طبقة يدوية/تخطيط/تفضيلات) على مستوى
+     الموديول — تعيش ما دام التطبيق مفتوحاً. العودة لعرضٍ سبق فتحه ترسمه فوراً
+     ثم يجري جلبٌ صامت يحدّثه (نفس نمط lib/liveData في الصفحات الثقيلة).
+   - `sharedP`: مصادر يتشاركها أكثر من عرض (بيانات العمالة من مركز المزامنة
+     تُطعم خمسة عروض، وأسماء السجل التجاري تلزم أكثرها) تُجلب مرة واحدة ويُعاد
+     استعمال وعدها لدقائق — فالتنقل بين عروض العمالة لا يعيد الجلب الثقيل.
+   - زر «تحديث من المزامنة» يصفّر المشترك (`opsBustShared`) فيجلب حقيقةً. */
+const opsSwrCache = new Map()        // 'ops:view:<key>' → { src, ov, lay, prefs }
+const OPS_SHARED_TTL = 120_000
+const _sharedCache = new Map()       // slot → { p, at }
+function sharedP(slot, make) {
+  const cur = _sharedCache.get(slot)
+  if (cur && Date.now() - cur.at < OPS_SHARED_TTL) return cur.p
+  const p = make()
+  p.catch(() => { if (_sharedCache.get(slot)?.p === p) _sharedCache.delete(slot) })
+  _sharedCache.set(slot, { p, at: Date.now() })
+  return p
+}
+function opsBustShared() { _sharedCache.clear() }
+let opsWarmed = false                // تسخين بيانات العمالة مرة واحدة في الجلسة
 
 /* شهادات السجل التجاري المُزامَنة: ملفٌ واحد لكل منشأة باسم `{الموحّد}-ar.pdf`
    في مجلّد `documents/sbc-cr-certificates` (النسخ القديمة تحت `_versions/`
@@ -700,64 +746,62 @@ async function listCrCertificates(sb) {
    فقط جوال أبشر/مدينة المقر/المهنة الفعلية/الفواتير تُستكمَل من الكانوني لأنها
    غير موجودة في مركز المزامنة. الفواتير (العرض الرابع) عبر RPC حسب worker_id. */
 const fmtMobile = (v) => { const s = String(v || '').replace(/\D/g, '').replace(/^966/, '').replace(/^0/, '').slice(-9); return s ? '0' + s : '' }
-async function loadSyncWorkforce(sb, { invoices = false } = {}) {
+/* الأساس المشترك لعروض العمالة الخمسة (بلا فواتير): يُجلب مرة ويُتشارك عبر
+   `sharedP` فالتنقل بينها لا يعيد الجلب، ومجموعاته الأربع مستقلّة فتُجلب
+   **بالتوازي** بدل التعاقب (كان أول فتحٍ يدفع ثمن أربع سلاسل رحلات متتابعة). */
+async function loadSyncWorkforceBase(sb) {
   // مرتّب حسب المنشأة ثم الاسم كي تتجاور صفوف كل منشأة للدمج الرأسي
-  const rows = await fetchAll(sb, 'v_ops_sync_workforce', '*',
+  const rowsP = fetchAll(sb, 'v_ops_sync_workforce', '*',
     (q) => q.order('unified_number', { nullsFirst: false }).order('name_ar', { nullsFirst: false }))
-  const invMap = {}
-  if (invoices) {
-    const ids = [...new Set(rows.map((r) => r.worker_id).filter(Boolean))]
-    for (let i = 0; i < ids.length; i += 800) {
-      const { data } = await sb.rpc('worker_invoices_summary', { p_worker_ids: ids.slice(i, i + 800) })
-      for (const row of (data || [])) {
-        const wid = row.worker_id; if (!wid) continue
-        const m = invMap[wid] || (invMap[wid] = { nos: [], services: [], remaining: 0 })
-        m.nos.push(row.invoice_no)
-        if (row.status_code !== 'cancelled') m.remaining += Number(row.remaining) || 0
-        if (row.service_ar && !m.services.includes(row.service_ar)) m.services.push(row.service_ar)
-      }
-    }
-  }
   /* ── تأشيرات الخروج السارية ───────────────────────────────────────────────
      من `v_muqeem_exit_visas` (الطبقة الموحّدة لأربعة مصادر في مقيم) — **السارية
      وحدها** (`is_valid`)، صفٌّ لكل نوع كي يُجاب عن النوعين استقلالاً: العامل قد
      يحمل خروجاً وعودة ونهائياً معاً، فعمودٌ واحد يُخفي أحدهما.
      ملاحظة: `is_valid` تقول ما قالته المنصّة وقت المزامنة، والانقضاء بالنسبة
      لليوم يُحسب في العمود من التاريخ نفسه — فالقديمة تظهر حمراء لا مخفيّة. */
-  const exitMap = {}
-  try {
-    const vs = await fetchAll(sb, 'v_muqeem_exit_visas', 'alien_id,kind,visa_number,valid_until,is_valid',
-      (q) => q.eq('is_valid', true))
-    for (const v of (vs || [])) {
-      const k = String(v.alien_id || '').trim(); if (!k) continue
-      const tag = v.kind === 'خروج نهائي' ? 'fe' : 'er'
-      const m = exitMap[k] || (exitMap[k] = {})
-      // الأبعد انتهاءً هي الحاكمة عند تعدّد السارية من مصادر مختلفة
-      if (!m[tag] || String(v.valid_until || '') > String(m[tag].valid_until || '')) m[tag] = v
-    }
-  } catch { /* تعذّر جلب التأشيرات — العمودان يظهران «لا» بدل كسر الشيت */ }
+  const exitP = (async () => {
+    const exitMap = {}
+    try {
+      const vs = await fetchAll(sb, 'v_muqeem_exit_visas', 'alien_id,kind,visa_number,valid_until,is_valid',
+        (q) => q.eq('is_valid', true))
+      for (const v of (vs || [])) {
+        const k = String(v.alien_id || '').trim(); if (!k) continue
+        const tag = v.kind === 'خروج نهائي' ? 'fe' : 'er'
+        const m = exitMap[k] || (exitMap[k] = {})
+        // الأبعد انتهاءً هي الحاكمة عند تعدّد السارية من مصادر مختلفة
+        if (!m[tag] || String(v.valid_until || '') > String(m[tag].valid_until || '')) m[tag] = v
+      }
+    } catch { /* تعذّر جلب التأشيرات — العمودان يظهران «لا» بدل كسر الشيت */ }
+    return exitMap
+  })()
   /* التأمين الطبي: ليس في مركز المزامنة (منصّة CHI بكابتشا) — يُقرأ من سجلّ
      العامل حيث يكتبه زرّ الاستعلام، ويُربط برقم الإقامة كبقيّة الاستكمالات. */
-  const insMap = {}
-  try {
-    const ws = await fetchAll(sb, 'workers', 'iqama_number,insurance_expiry_date,insurance_company',
-      (q) => q.is('deleted_at', null).not('iqama_number', 'is', null))
-    for (const x of (ws || [])) insMap[String(x.iqama_number).trim()] = x
-  } catch { /* العمود يظهر فارغاً بزرّه، وهو حاله الغالب أصلاً */ }
+  const insP = (async () => {
+    const insMap = {}
+    try {
+      const ws = await fetchAll(sb, 'workers', 'iqama_number,insurance_expiry_date,insurance_company',
+        (q) => q.is('deleted_at', null).not('iqama_number', 'is', null))
+      for (const x of (ws || [])) insMap[String(x.iqama_number).trim()] = x
+    } catch { /* العمود يظهر فارغاً بزرّه، وهو حاله الغالب أصلاً */ }
+    return insMap
+  })()
   /* ملفّا مقيم (عربي/إنجليزي): تحفظهما المزامنة في نفس دلو الصور، وليسا في
      `v_ops_sync_workforce` — فيُقرآن من مصدرهما مباشرةً كبقيّة الاستكمالات. */
-  const pdfMap = {}
-  try {
-    const ps = await fetchAll(sb, 'muqeem_residents', 'iqama_number,profile_pdf_path,profile_pdf_en_path,vehicles:detail_raw->vehicles',
-      (q) => q.not('iqama_number', 'is', null))
-    for (const x of (ps || [])) {
-      const k = String(x.iqama_number).trim(); if (!k) continue
-      // صفوفٌ متكرّرة لنفس الإقامة: أوّل صفٍّ يحمل ملفاً يكفي
-      if (!pdfMap[k] || (!pdfMap[k].profile_pdf_path && x.profile_pdf_path)) pdfMap[k] = x
-    }
-  } catch { /* العمود يظهر «—» بدل كسر الشيت */ }
+  const pdfP = (async () => {
+    const pdfMap = {}
+    try {
+      const ps = await fetchAll(sb, 'muqeem_residents', 'iqama_number,profile_pdf_path,profile_pdf_en_path,vehicles:detail_raw->vehicles',
+        (q) => q.not('iqama_number', 'is', null))
+      for (const x of (ps || [])) {
+        const k = String(x.iqama_number).trim(); if (!k) continue
+        // صفوفٌ متكرّرة لنفس الإقامة: أوّل صفٍّ يحمل ملفاً يكفي
+        if (!pdfMap[k] || (!pdfMap[k].profile_pdf_path && x.profile_pdf_path)) pdfMap[k] = x
+      }
+    } catch { /* العمود يظهر «—» بدل كسر الشيت */ }
+    return pdfMap
+  })()
+  const [rows, exitMap, insMap, pdfMap] = await Promise.all([rowsP, exitP, insP, pdfP])
   return rows.map((r) => {
-    const inv = invMap[r.worker_id]
     const ex = exitMap[String(r.iqama_number || '').trim()] || {}
     const ins = insMap[String(r.iqama_number || '').trim()]
     const pdf = pdfMap[String(r.iqama_number || '').trim()]
@@ -770,9 +814,8 @@ async function loadSyncWorkforce(sb, { invoices = false } = {}) {
     ].filter(Boolean)
     return {
       ...r, _id: r.iqama_number,
-      _inv_nos: inv ? inv.nos.join('، ') : '',
-      _inv_services: inv ? inv.services.join('، ') : '',
-      _inv_remaining: inv ? inv.remaining : '',
+      // أعمدة الفواتير يُثريها loadSyncWorkforce لعرض الفواتير وحده
+      _inv_nos: '', _inv_services: '', _inv_remaining: '',
       _fe_until: ex.fe ? ymd(ex.fe.valid_until) : '',
       _fe_no: ex.fe ? (ex.fe.visa_number || '') : '',
       _er_until: ex.er ? ymd(ex.er.valid_until) : '',
@@ -786,6 +829,35 @@ async function loadSyncWorkforce(sb, { invoices = false } = {}) {
     }
   })
 }
+/* عروض العمالة الخمسة كلها تمرّ من هنا: الأساس مشترك (كاش الجلسة)، وعرض
+   الفواتير وحده يُثريه بنتيجة RPC `worker_invoices_summary` — دفعاته بالتوازي
+   بدل التسلسل، ونتيجتُه بدورها مشتركة كي لا تُعاد على كل زيارة. */
+function loadSyncWorkforce(sb, { invoices = false } = {}) {
+  if (!invoices) return sharedP('wfBase', () => loadSyncWorkforceBase(sb))
+  return sharedP('wfInvoices', async () => {
+    const rows = await sharedP('wfBase', () => loadSyncWorkforceBase(sb))
+    const invMap = {}
+    const ids = [...new Set(rows.map((r) => r.worker_id).filter(Boolean))]
+    const chunks = []
+    for (let i = 0; i < ids.length; i += 800) chunks.push(ids.slice(i, i + 800))
+    for (const { data } of await Promise.all(chunks.map((c) => sb.rpc('worker_invoices_summary', { p_worker_ids: c })))) {
+      for (const row of (data || [])) {
+        const wid = row.worker_id; if (!wid) continue
+        const m = invMap[wid] || (invMap[wid] = { nos: [], services: [], remaining: 0 })
+        m.nos.push(row.invoice_no)
+        if (row.status_code !== 'cancelled') m.remaining += Number(row.remaining) || 0
+        if (row.service_ar && !m.services.includes(row.service_ar)) m.services.push(row.service_ar)
+      }
+    }
+    return rows.map((r) => {
+      const inv = invMap[r.worker_id]
+      if (!inv) return r   // القيم الافتراضية الفارغة في الأساس أصلاً
+      return { ...r, _inv_nos: inv.nos.join('، '), _inv_services: inv.services.join('، '), _inv_remaining: inv.remaining }
+    })
+  })
+}
+// العروض التي تتغذّى على المحمّل المشترك — يستهدفها التسخين المسبق عند فتح الصفحة
+const WF_VIEW_KEYS = new Set(['permanent_workers', 'permanent_workers_dates', 'permanent_workers_actual', 'permanent_workers_invoices', 'recoveries'])
 /* ── كتابة عكسية لسجلّ العامل (afterSave لشيتات العمالة) ────────────────────
    خلايا الشيت تُحفظ تجاوزاً في ops_sheet_rows، فتظهر في الجدول وحده. لكنّ عدداً
    من هذه الأعمدة بياناتُ العامل نفسه، وبقيّة النظام (حسبة تجديد الإقامة، حسبة
@@ -8699,31 +8771,15 @@ const VIEW_STATS = {
     SC('sum', 'سعوديون مطلوبون', 'Saudis needed', { k: 'nitaqat_saudis_to_be_hired', tone: 'warn' }),
     SC('sum', 'تأشيرات عمل متبقّية', 'Unused work visas', { k: 'visa_work_unused' }),
   ],
-  permanent_workers: [
-    SC('rows', 'العمّال', 'Workers'),
-    SC('uniq', 'المنشآت', 'Establishments', { k: 'facility_ar' }),
-    SC('uniq', 'الجنسيات', 'Nationalities', { k: 'nationality_ar' }),
-    SC('sum', 'إجمالي الرواتب', 'Total salaries', { k: 'wage_total', money: true }),
-    SC('sum', 'إجمالي الأرصدة', 'Total balances', { k: 'jawazat_balance', money: true }),
-  ],
-  permanent_workers_dates: [
-    SC('rows', 'العمّال', 'Workers'),
-    SC('uniq', 'المنشآت', 'Establishments', { k: 'facility_ar' }),
-    SC('empty', 'بلا تاريخ إقامة', 'No iqama expiry', { k: 'iqama_expiry_date', tone: 'warn' }),
-    SC('empty', 'بلا رقم جواز', 'No passport no.', { k: 'passport_number', tone: 'warn' }),
-  ],
-  permanent_workers_actual: [
-    SC('rows', 'العمّال', 'Workers'),
-    SC('uniq', 'المنشآت', 'Establishments', { k: 'facility_ar' }),
-    SC('empty', 'بلا جوال أبشر', 'No Absher mobile', { k: 'official_mobile', tone: 'warn' }),
-    SC('empty', 'بلا مدينة مقر', 'No HQ city', { k: 'hq_city_ar', tone: 'warn' }),
-  ],
-  permanent_workers_invoices: [
-    SC('rows', 'العمّال', 'Workers'),
-    SC('filled', 'لهم فواتير', 'With invoices', { k: '_inv_nos', tone: 'ok' }),
-    SC('empty', 'بلا فواتير', 'No invoices', { k: '_inv_nos', tone: 'warn' }),
-    SC('sum', 'إجمالي المتبقّي', 'Total remaining', { k: '_inv_remaining', money: true, tone: 'bad' }),
-  ],
+  /* «العمالة» الأربعة بلا كروت (طلب المستخدم): خمسةُ كروتٍ فوق ٣٦٠٠ صف كانت
+     تلتفّ سطرين وتدفع الشبكة تحت الطيّة، والأرقام نفسها في صفّ الإجماليات أسفل
+     العمود المعنيّ. الأربعة معاً لا الأوّل وحده — هي بياناتٌ واحدة بأربع عدسات،
+     فإخلاء واحدةٍ يُبقي الكروت تظهر وتختفي مع كل تبديل. ومصفوفةٌ فارغة **صراحةً**
+     لا حذفُ السطر: الحذف يُسقطها على الاحتياطي (كرت «عدد الصفوف») فتعود. */
+  permanent_workers: [],
+  permanent_workers_dates: [],
+  permanent_workers_actual: [],
+  permanent_workers_invoices: [],
   recoveries: [
     SC('rows', 'العمّال', 'Workers'),
     SC('sum', 'إجمالي الرصيد', 'Total balance', { k: 'jawazat_balance', money: true }),
@@ -8758,13 +8814,9 @@ const VIEW_STATS = {
     SC('eq', 'في المدة النظامية', 'On time', { k: 'on_time', v: YES, tone: 'ok' }),
     SC('eq', 'متأخّرة', 'Late', { k: 'on_time', v: ['لا', 'No'], tone: 'bad' }),
   ],
-  mudad: [
-    SC('rows', 'المنشآت', 'Establishments'),
-    SC('eq', 'ملتزمة', 'Compliant', { k: 'compliance_status', v: ['ملتزمة', 'Compliant'], tone: 'ok' }),
-    SC('eq', 'غير ملتزمة', 'Non-compliant', { k: 'compliance_status', v: ['غير ملتزمة', 'Noncompliant'], tone: 'bad' }),
-    SC('eq', 'خدمات موقفة', 'Suspended', { k: 'compliance_status', v: ['خدمات موقفة', 'Suspended'], tone: 'bad' }),
-    SC('eq', 'بمخالفات مفتوحة', 'Open violations', { k: 'open_violations', v: YES, tone: 'warn' }),
-  ],
+  /* «مدد» بلا كروت إحصاء (طلب المستخدم). القائمة **فارغة** لا محذوفة: الحذف
+     يُسقط المفتاح فيسري الافتراضي (كرت «عدد الصفوف») ويبقى الشريط ظاهراً. */
+  mudad: [],
   ajeer: [
     SC('rows', 'المنشآت', 'Establishments'),
     SC('eq', 'محجوبة', 'Blocked', { k: 'is_blocked', v: YES, tone: 'bad' }),
@@ -8884,6 +8936,16 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange }) {
 
   // تخطيط الأعمدة المحفوظ لكل عرض: { order:[keys], hidden:[keys], custom:[{key,ar,w,kind}] }
   const [layout, setLayout] = useState({})
+  /* ── تفضيلات المستخدم الشخصية (ops_sheet_prefs) ──────────────────────────────
+     `layout` مشترك: صفٌّ واحد لكل عرض يراه الجميع — وهو الصحيح لشكل الجدول
+     (الأعمدة وترتيبها وعرضها وتنسيقها). أما **الفلترة والفرز** فعدسةُ نظرٍ
+     شخصية: فلترُ موظّفٍ على فرعه كان يُفرَض على كل من يفتح الجدول بعده، وحتى بعد
+     خروجه من النظام. صارا يُحفظان هنا لكل (مستخدم × عرض) بـRLS تمنع رؤية غير
+     صفوفه. و`layout.sort` يبقى **ترتيباً افتراضياً** للجدول يظهر لمن لم يفرز
+     بنفسه؛ فإن فرز أو ألغى الفرز سرى اختياره وحده (`prefs.sort = null` إلغاءٌ
+     صريح، وغيابُه من الأصل رجوعٌ للافتراضي). */
+  const [prefs, setPrefs] = useState({})
+  const uid = user?.id || null
   const [syncRows, setSyncRows] = useState([])
 
   /* ── أزرار المجموعات (view.tabs) ──────────────────────────────────────────────
@@ -9113,6 +9175,17 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange }) {
   const [rowErr, setRowErr] = useState({})
   const [saving, setSaving] = useState(false)
   const [busy, setBusy] = useState(false)         // عمليات الصفوف (إضافة/حذف/ترتيب)
+  /* حارسا كاش الجلسة (SWR):
+     - dirtyGuardRef: كتابة غير محفوظة أو حفظ جارٍ — يمنع الجلبَ الصامت من دهس
+       الطبقة اليدوية التي حُفظت للتوّ بنسخةٍ جُلبت قبل الحفظ.
+     - overlayViewRef: أي عرضٍ تعود إليه حالة overlay/layout الحالية — كي لا
+       تكتب مرآةُ الكاش حالةَ عرضٍ قديم تحت مفتاح العرض الجديد لحظةَ التبديل. */
+  const dirtyGuardRef = useRef(false)
+  const overlayViewRef = useRef(null)
+  useEffect(() => { dirtyGuardRef.current = Object.keys(edits).length > 0 || saving }, [edits, saving])
+  /* تسلسل التحميل: التنقّل صار لحظياً فقد يهبط جلبُ عرضٍ سابق **بعد** أن حُمّل
+     الأحدث — من دون هذا الحارس كان يدهس حالته ببيانات عرضٍ غادره المستخدم. */
+  const loadSeqRef = useRef(0)
 
   const [addOpen, setAddOpen] = useState(false)
   const [addForm, setAddForm] = useState({})
@@ -9205,9 +9278,27 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange }) {
      يحفظ البيانات لا شكل الجدول، فترتيب الأعمدة الحالي يُطبَّق على أي أسبوع.    */
   const load = useCallback(async () => {
     if (!sb) return
-    setLoading(true); setLoadErr(null)
+    const seq = ++loadSeqRef.current
+    const alive = () => loadSeqRef.current === seq
+    /* كاش الجلسة (SWR): عرضٌ حيّ سبق تحميله يُرسم من آخر نسخة **فوراً** بلا
+       سكيلتون، ثم يجري الجلب أدناه صامتاً ويستبدلها عند وصوله — فالتنقل بين
+       الجداول لحظي، والبيانات تلحق بأحدث حالة خلال ثوانٍ. */
+    const cacheKey = weekSel === 'live' ? 'ops:view:' + view.key : null
+    const cached = cacheKey ? opsSwrCache.get(cacheKey) : null
+    if (cached) {
+      setSyncRows(cached.src); setOverlay(cached.ov); setLayout(cached.lay); setPrefs(cached.prefs); setSnapInfo(null)
+      setWidthMap({}); setRowH((cached.lay && cached.lay.rowHeight) || ROW_H)
+      setEdits({}); setRowErr({}); undoStackRef.current = []; redoStackRef.current = []
+      overlayViewRef.current = view.key
+      setLoading(false)
+    } else setLoading(true)
+    setLoadErr(null)
     try {
       const cfgP = sb.from('ops_sheet_config').select('layout').eq('view_key', view.key).maybeSingle()
+      // تفضيلات هذا المستخدم وحده (الفلترة/الفرز) — RLS تكفل ألا يعود صفُّ غيره
+      const prefP = uid
+        ? sb.from('ops_sheet_prefs').select('prefs').eq('user_id', uid).eq('view_key', view.key).maybeSingle()
+        : Promise.resolve({ data: null })
       let src = [], ov = {}, snap = null
       if (weekSel === 'live') {
         const [s, ovR] = await Promise.all([
@@ -9227,23 +9318,69 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange }) {
         ov = data.overlay || {}
         snap = { week_start: weekSel, captured_at: data.captured_at, row_count: data.row_count }
       }
-      const cfgR = await cfgP
+      const [cfgR, prefR] = await Promise.all([cfgP, prefP])
       const lay = cfgR?.data?.layout || {}
-      setSyncRows(src); setOverlay(ov); setLayout(lay); setSnapInfo(snap)
-      setWidthMap({}); setRowH(lay.rowHeight || ROW_H)
-      setEdits({}); setRowErr({}); undoStackRef.current = []; redoStackRef.current = []
+      const prf = prefR?.data?.prefs || {}
+      // الحمولة صالحة لعرضها فتُحفظ في الكاش ولو تجاوزنا هذا التحميل — لكن
+      // الحالة المعروضة لا يلمسها إلا أحدثُ تحميل.
+      if (cacheKey) opsSwrCache.set(cacheKey, { src, ov, lay, prefs: prf })
+      if (!alive()) return null
+      if (cached) {
+        /* تطبيق صامت فوق الشبكة المعروضة — لا تُصفَّر كتابة المستخدم الجارية:
+           الطبقة اليدوية لا تُستبدل إن كانت هناك تعديلات لم تُحفظ أو حفظٌ جارٍ
+           (الجلب بدأ قبل الحفظ فنسخته أقدم من الحالة)، والتفضيلات تبقى المحلية. */
+        setSyncRows(src); setLayout(lay); setSnapInfo(snap)
+        setRowH(lay.rowHeight || ROW_H)
+        setOverlay((prev) => (dirtyGuardRef.current ? prev : ov))
+      } else {
+        setSyncRows(src); setOverlay(ov); setLayout(lay); setPrefs(prf); setSnapInfo(snap)
+        setWidthMap({}); setRowH(lay.rowHeight || ROW_H)
+        setEdits({}); setRowErr({}); undoStackRef.current = []; redoStackRef.current = []
+      }
+      overlayViewRef.current = weekSel === 'live' ? view.key : null
       // تُعاد للمستدعي: `refresh` يلتقط بها لقطة الأسبوع فوراً — قراءة `syncRows`
       // من الحالة هناك تُرجع القيمة **القديمة** (لم يُعَد الرسم بعد) فتُحفظ لقطة بائتة.
       return { src, ov, archived: weekSel !== 'live' }
     } catch (e) {
+      if (!alive()) return null
+      if (cached) {
+        // الشبكة المعروضة من الكاش تبقى — فشل التحديث الصامت لا يُسقطها لشاشة خطأ
+        console.warn('[ops-excels] silent refresh failed', e)
+        return null
+      }
       setLoadErr(e.message || String(e)); setSyncRows([]); setOverlay({}); setSnapInfo(null)
       return null
-    } finally { setLoading(false) }
+    } finally { if (alive()) setLoading(false) }
     // ⚠️ لا تضع `T` (ولا أي دالة تُبنى كل رسم) في هذه المصفوفة: `load` يُستدعى من
     // effect يعتمد عليه، فأي اعتماد غير مستقرّ = إعادة تحميل بلا نهاية (الشبكة
     // تبقى هيكلاً عظمياً والطلبات تُقطَع). استعمل `isAr` وهو قيمة منطقية ثابتة.
-  }, [sb, view, weekSel, isAr])
+  }, [sb, view, weekSel, isAr, uid])
   useEffect(() => { load() }, [load])
+
+  /* مرآة الكاش: ما يتغيّر محلياً بعد التحميل (حفظ خلايا، إخفاء/إضافة صف، ترتيب
+     أعمدة، تفضيلات) يُعكس على نسخة الكاش — كي لا تعرض الزيارةُ التالية حالةً
+     أقدم مما غادرها المستخدم ثم «تقفز» بعد الجلب الصامت. حارس `overlayViewRef`
+     يمنع كتابة حالة عرضٍ سابق تحت مفتاح العرض الجديد لحظةَ التبديل. */
+  useEffect(() => {
+    if (weekSel !== 'live' || overlayViewRef.current !== view.key) return
+    const e = opsSwrCache.get('ops:view:' + view.key)
+    if (e) { e.ov = overlay; e.lay = layout; e.prefs = prefs }
+  }, [overlay, layout, prefs, view.key, weekSel])
+
+  /* تسخين مسبق (مرة في الجلسة): بيانات العمالة أثقل ما في الصفحة ويتشاركها
+     خمسة عروض — تُجلب في الخلفية بُعيد فتح الصفحة، فأول ضغطة على أي عرض عمالة
+     تجد الأساس جاهزاً (أو في طريقه) بدل أن تبدأ الجلب من الصفر. */
+  useEffect(() => {
+    if (!sb || opsWarmed) return
+    if (!visibleViews.some((v) => WF_VIEW_KEYS.has(v.key))) return
+    const t = setTimeout(() => {
+      if (opsWarmed) return
+      opsWarmed = true
+      Promise.resolve(loadSyncWorkforce(sb)).catch(() => {})
+      Promise.resolve(sbcNameMap(sb)).catch(() => {})
+    }, 1500)
+    return () => clearTimeout(t)
+  }, [sb, visibleViews])
 
   /* ── الأرشيف الأسبوعي: قائمة الأسابيع · الالتقاط · الالتقاط التلقائي ──────── */
   // القائمة تستبعد عمودَي rows/overlay عمداً — حمولتهما بالميغابايتات ولا حاجة
@@ -9344,6 +9481,8 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange }) {
           على هذا الجدول. اللقطة تُبنى من عائد `load` مباشرةً لا من الحالة. */
   const refresh = useCallback(async () => {
     if (Object.keys(edits).length && typeof window !== 'undefined' && !window.confirm(T('تعديلاتك الأخيرة لم تُحفظ بعد وستُفقد عند التحديث — انتظر لحظةً حتى يتم الحفظ التلقائي. متابعة الآن؟', 'Your latest edits have not been saved yet and will be lost — wait a moment for the autosave. Continue now?'))) return
+    // المصادر المشتركة (عمالة مركز المزامنة/أسماء السجل) تُجلب حقيقةً لا من كاش الدقائق
+    opsBustShared()
     const fresh = await load()
     const snapped = (fresh && !fresh.archived && canSnapNow)
       ? await captureWeek({ silent: true, rows: fresh.src, overlay: fresh.ov })
@@ -9601,8 +9740,10 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange }) {
   }, [ordered, showHidden, removedRowSet])
 
   // ── مطوّرات المحرّك (كلها مخزّنة في layout — يعدّلها المستخدم بلا كود) ──
-  const sortCfg = layout.sort || null                         // { key, dir:'asc'|'desc' }
-  const colFilters = useMemo(() => layout.filters || {}, [layout])   // { key: {values:[], text:''} }
+  /* الفلترة والفرز من `prefs` لا من `layout` — شخصيّان لا مشتركان (انظر تعريف
+     `prefs`). `sort` غير المعرَّف يرجع لافتراضي الجدول، و`null` إلغاءٌ صريح. */
+  const sortCfg = (prefs.sort !== undefined ? prefs.sort : layout.sort) || null   // { key, dir:'asc'|'desc' }
+  const colFilters = useMemo(() => prefs.filters || {}, [prefs])   // { key: {values:[], text:''} }
   /* إجماليات **افتراضية** يعرّفها العرض (`view.agg`): صفُّ الإجماليات يظهر من أول
      فتحة بلا أن يضبطه كل مستخدمٍ بيده على أعمدةٍ معناها واحد لا يختلف (الإجمالي
      والمدفوع والمتبقّي والمطلوب). وتفضيل المستخدم يعلوها: إلغاؤه يُخزَّن `''`
@@ -10739,6 +10880,17 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange }) {
     setLayout(merged)
   }, [sb, view, user, layout, toast, T])
 
+  /* حفظ التفضيلات الشخصية (الفلترة/الفرز) — التوأم الشخصي لـ`persistLayout`:
+     الحالة تتحدّث فوراً ثم يُكتب الصفّ، ولا يُلمس ما يراه بقيّة المستخدمين. */
+  const persistPrefs = useCallback(async (next) => {
+    setPrefs(next)
+    if (!sb || !uid) return
+    const { error } = await sb.from('ops_sheet_prefs').upsert({
+      user_id: uid, view_key: view.key, prefs: next, updated_at: new Date().toISOString(),
+    }, { onConflict: 'user_id,view_key' })
+    if (error) toast && toast(T('فشل حفظ الفلترة/الفرز', 'Failed to save filter/sort'))
+  }, [sb, uid, view, toast, T])
+
 
   const addColumn = useCallback((label) => {
     const name = String(label || '').trim()
@@ -10828,22 +10980,22 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange }) {
 
   // فرز: نقر رأس العمود يدوّر بلا فرز → تصاعدي → تنازلي → بلا
   const cycleSort = useCallback((key) => {
-    const cur = layout.sort
+    const cur = sortCfg
     let next
     if (!cur || cur.key !== key) next = { key, dir: 'asc' }
     else if (cur.dir === 'asc') next = { key, dir: 'desc' }
     else next = null
-    persistLayout({ ...layout, sort: next })
-  }, [layout, persistLayout])
+    persistPrefs({ ...prefs, sort: next })
+  }, [prefs, sortCfg, persistPrefs])
   const setColFilter = useCallback((key, f) => {
-    const filters = { ...(layout.filters || {}) }
+    const filters = { ...(prefs.filters || {}) }
     const conds = (f?.conds || []).filter(condUsable)
     const hasVals = Array.isArray(f?.values) && f.values.length
     const hasText = f?.text && String(f.text).trim() !== ''
     if (f && (hasVals || conds.length || hasText)) filters[key] = { values: hasVals ? f.values : null, conds, join: f.join === 'or' ? 'or' : 'and', text: hasText ? f.text : '' }
     else delete filters[key]
-    persistLayout({ ...layout, filters })
-  }, [layout, persistLayout])
+    persistPrefs({ ...prefs, filters })
+  }, [prefs, persistPrefs])
   const setAgg = useCallback((key, kind) => {
     const agg = { ...aggMap }
     agg[key] = kind || ''      // '' = إلغاءٌ صريح يغلب افتراضي العرض
@@ -11391,7 +11543,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange }) {
           </button>
         )}
         {(activeFilterKeys.length > 0 || sortCfg) && (
-          <button className="ox-btn" onClick={() => persistLayout({ ...layout, filters: {}, sort: null })} style={{ color: C.blue, borderColor: 'rgba(93,173,226,.4)' }}>
+          <button className="ox-btn" onClick={() => persistPrefs({ ...prefs, filters: {}, sort: null })} style={{ color: C.blue, borderColor: 'rgba(93,173,226,.4)' }}>
             ✕ {T(`مسح الفلاتر/الفرز${activeFilterKeys.length ? ` (${activeFilterKeys.length})` : ''}`, `Clear filters/sort${activeFilterKeys.length ? ` (${activeFilterKeys.length})` : ''}`)}
           </button>
         )}
@@ -12117,9 +12269,9 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange }) {
           ) : (
             <>
               <button onClick={() => { setRenameCol({ key: hdrCtx.colKey, ar: hdrCtxCol?.ar || '', en: hdrCtxCol?.en || '' }); setHdrCtx(null) }}>✎ {T('إعادة تسمية', 'Rename')}</button>
-              <button onClick={() => { persistLayout({ ...layout, sort: { key: hdrCtx.colKey, dir: 'asc' } }); setHdrCtx(null) }}>▲ {T('فرز تصاعدي', 'Sort ascending')}</button>
-              <button onClick={() => { persistLayout({ ...layout, sort: { key: hdrCtx.colKey, dir: 'desc' } }); setHdrCtx(null) }}>▼ {T('فرز تنازلي', 'Sort descending')}</button>
-              {sortCfg?.key === hdrCtx.colKey && <button onClick={() => { persistLayout({ ...layout, sort: null }); setHdrCtx(null) }}>⇕ {T('إلغاء الفرز', 'Clear sort')}</button>}
+              <button onClick={() => { persistPrefs({ ...prefs, sort: { key: hdrCtx.colKey, dir: 'asc' } }); setHdrCtx(null) }}>▲ {T('فرز تصاعدي', 'Sort ascending')}</button>
+              <button onClick={() => { persistPrefs({ ...prefs, sort: { key: hdrCtx.colKey, dir: 'desc' } }); setHdrCtx(null) }}>▼ {T('فرز تنازلي', 'Sort descending')}</button>
+              {sortCfg?.key === hdrCtx.colKey && <button onClick={() => { persistPrefs({ ...prefs, sort: null }); setHdrCtx(null) }}>⇕ {T('إلغاء الفرز', 'Clear sort')}</button>}
               <button onClick={() => { const cur = colFilters[hdrCtx.colKey]; setFilterDraft({ text: cur?.text || '', values: Array.isArray(cur?.values) ? cur.values.slice() : null, conds: (cur?.conds || []).map((c) => ({ ...c })), join: cur?.join || 'and', q: '' }); setFilterModal(hdrCtx.colKey); setHdrCtx(null) }}>⧩ {T('تصفية وفرز', 'Filter & sort')}{colFilters[hdrCtx.colKey] ? ' •' : ''}</button>
               <button onClick={() => { setAggModal(hdrCtx.colKey); setHdrCtx(null) }}>Σ {T('إجمالي العمود', 'Column total')}{aggMap[hdrCtx.colKey] ? ` · ${aggLabel(aggMap[hdrCtx.colKey], isAr)}` : ''}</button>
               <button onClick={() => { toggleWrap(hdrCtx.colKey); setHdrCtx(null) }}>↵ {wrapMap[hdrCtx.colKey] ? T('إلغاء لفّ النص', 'Unwrap text') : T('لفّ النص', 'Wrap text')}</button>
@@ -12735,10 +12887,10 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange }) {
                 <div style={secLbl}>↕ {T('الترتيب', 'Sort')}</div>
                 <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
                   <button className="ox-btn" style={{ flex: 1, height: 36, ...(sortActive === 'asc' ? { background: 'var(--accent-soft)', color: 'var(--accent)', borderColor: 'var(--accent-bd)' } : {}) }}
-                    onClick={() => persistLayout({ ...layout, sort: { key: filterModal, dir: 'asc' } })}>▲ {sortLabel[0]}</button>
+                    onClick={() => persistPrefs({ ...prefs, sort: { key: filterModal, dir: 'asc' } })}>▲ {sortLabel[0]}</button>
                   <button className="ox-btn" style={{ flex: 1, height: 36, ...(sortActive === 'desc' ? { background: 'var(--accent-soft)', color: 'var(--accent)', borderColor: 'var(--accent-bd)' } : {}) }}
-                    onClick={() => persistLayout({ ...layout, sort: { key: filterModal, dir: 'desc' } })}>▼ {sortLabel[1]}</button>
-                  {sortActive && <button className="ox-btn" style={{ width: 40, height: 36, justifyContent: 'center' }} title={T('إلغاء الفرز', 'Clear sort')} onClick={() => persistLayout({ ...layout, sort: null })}>✕</button>}
+                    onClick={() => persistPrefs({ ...prefs, sort: { key: filterModal, dir: 'desc' } })}>▼ {sortLabel[1]}</button>
+                  {sortActive && <button className="ox-btn" style={{ width: 40, height: 36, justifyContent: 'center' }} title={T('إلغاء الفرز', 'Clear sort')} onClick={() => persistPrefs({ ...prefs, sort: null })}>✕</button>}
                 </div>
 
                 {/* اختصارات التاريخ */}
