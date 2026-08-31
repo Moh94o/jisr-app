@@ -391,11 +391,20 @@ export const canTabService = (user, tabId, serviceTypeId) => {
 }
 
 // ── Per-tab STAT-CARDS mode ──────────────────────────────────────────────
-// users.ui_visibility['stats:<tab>'] ∈ 'real' | 'zero' | 'hidden'. Default
-// 'real'. 'zero' shows the cards but always zeroed (also enforced in the stats
-// RPC so the figures can't be read via the API); 'hidden' removes them.
+// ui_visibility['stats:<tab>'] ∈ 'real' | 'zero' | 'hidden' (من الأدوار —
+// انظر mergeRoleVis في App.jsx). 'zero' يُبقي الكروت ويصفّرها (والصفر مفروضٌ في
+// دالّة الإحصاء أيضاً فلا تُقرأ الأرقام من الـAPI)، و'hidden' يُزيلها.
+//
+// ⚠️ **تبويب الفواتير ممنوعٌ افتراضاً**: كروته أرقامُ مالِ المكتب — نقدُ اليوم
+// وتحويلاتُه ومرتجعاته — ولا يراها إلا من له سببٌ. فالغياب فيه «صفر» لا
+// «حقيقي»، ودورٌ يُنشأ غداً يبدأ مستوراً لا مكشوفاً. من يستحقّها يُمنحها
+// صراحةً ('real') — المدير العام (بالدور) ومنشئ الفواتير (لمكتبه) والمحاسب.
+// وبقيّة التبويبات على حالها: الغياب فيها 'real'.
+const STATS_DENY_BY_DEFAULT = new Set(['invoices'])
 export const statsMode = (user, tabId) => {
   if (isGM(user)) return 'real'
   const v = user?.ui_visibility?.[`stats:${tabId}`]
-  return (v === 'zero' || v === 'hidden') ? v : 'real'
+  if (v === 'zero' || v === 'hidden') return v
+  if (v === 'real') return 'real'
+  return STATS_DENY_BY_DEFAULT.has(tabId) ? 'zero' : 'real'
 }
