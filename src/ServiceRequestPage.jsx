@@ -734,12 +734,45 @@ else{setSelClient(null);setClientMode('new');setNewClient(p=>({...p,name_ar:/[؀
 return()=>{cancelled=true}
 },[selSvc,selKafalaQuote,sb])
 
-// Broker search
-const filteredBrokers=useMemo(()=>{
-if(!brokerQ.trim())return brokers.slice(0,2)
+/* ── بحث الوسيط: من الخادم لا من الخمسين المحمَّلة ──────────────────────────
+   ⚠️ العلّة التي كان يشكوها المستخدم («أبحث عن وسيط فلا يظهر شيء»): البحث كان
+   يُرشِّح مصفوفة `brokers` المحمَّلة مسبقاً وهي **`limit(50)` مرتَّبةٌ بالاسم**
+   من أصل ٤٤٠ وسيطاً — فمن لم يكن اسمُه في أوائل الخمسين لا يظهر أبداً، لأي
+   مستخدم لا لواحدٍ بعينه. والبحث المحلّي يكذب: يقول «لا يوجد وسيط بهذا البحث»
+   وهو موجودٌ في القاعدة.
+   الآن: استعلامٌ للخادم بعد حرفين، مؤجَّلٌ ٢٥٠ms، ويطابق الاسمين والجوال
+   والهوية. والمحمَّل مسبقاً يبقى ردّاً فورياً ريثما يصل الخادم — فلا تومض
+   القائمة فارغةً بين ضغطة وأخرى. */
+const[brokerHits,setBrokerHits]=useState(null)   // null = لم يُبحَث بعد
+useEffect(()=>{
+const q=brokerQ.trim()
+if(!sb||!q){setBrokerHits(null);return}
+let cancelled=false
+const esc=q.replace(/[,()*]/g,' ').trim()
+const digits=q.replace(/\D/g,'')
+const parts=[`name_ar.ilike.*${esc}*`,`name_en.ilike.*${esc}*`]
+// الجوال يُطابَق بآخر ٩ أرقام ليتجاوز اختلاف البادئة (966 / 0) — كبحث العميل
+if(digits){parts.push(`id_number.ilike.*${digits}*`);const ph=digits.length>=9?digits.slice(-9):digits;parts.push(`phone.ilike.*${ph}*`)}
+const t=setTimeout(async()=>{
+const{data}=await sb.from('agents').select('id,name_ar,name_en,phone,id_number,nationality_id')
+  .is('deleted_at',null).or(parts.join(',')).order('name_ar').limit(25)
+if(cancelled)return
+setBrokerHits(data||[])
+},250)
+return()=>{cancelled=true;clearTimeout(t)}
+},[brokerQ,sb])
+
+/* نتائج البحث المعروضة: ما جاء من الخادم، وقبل وصوله ترشيحُ المحمَّل مسبقاً. */
+const brokerResults=useMemo(()=>{
 const q=brokerQ.trim().toLowerCase()
-return brokers.filter(b=>(b.name_ar||'').toLowerCase().includes(q)||(b.name_en||'').toLowerCase().includes(q)||(b.phone||'').includes(q)||(b.id_number||'').includes(q)).slice(0,2)
-},[brokers,brokerQ])
+if(!q)return[]
+const local=brokers.filter(b=>(b.name_ar||'').toLowerCase().includes(q)||(b.name_en||'').toLowerCase().includes(q)||(b.phone||'').includes(q)||(b.id_number||'').includes(q))
+const list=brokerHits!==null?brokerHits:local
+return list.slice(0,5)
+},[brokers,brokerHits,brokerQ])
+
+// Broker search
+const filteredBrokers=useMemo(()=>(brokerQ.trim()?brokerResults:brokers.slice(0,2)),[brokers,brokerQ,brokerResults])
 
 // Reshape a raw workers/temproryworkers row into the legacy shape the UI expects (mirror of the
 // initial-load map above), including nationality-flag backfill from the cached nat lookup.
@@ -4228,7 +4261,8 @@ onMouseLeave={e=>{if(!receiptDrag)e.currentTarget.style.background='rgba(176,125
 
 {/* Existing broker list */}
 {brokerMode!=='new'&&<div style={{display:'flex',flexDirection:'column',gap:8}}>
-{(()=>{const filtered=selBroker?[selBroker]:(brokerQ.trim()?brokers.filter(b=>(b.name_ar||'').includes(brokerQ)||(b.phone||'').includes(brokerQ)||(b.id_number||'').includes(brokerQ)).slice(0,2):[]);
+{/* نتائج البحث من `brokerResults` — تُرشَّح في الخادم لا في الخمسين المحمَّلة */}
+{(()=>{const filtered=selBroker?[selBroker]:brokerResults;
 // بلا اختيار/بحث: نعرض بطاقة «ابحث عن الوسيط» (نفس سلوك العميل) بدل سرد وسطاء مسبقاً.
 if(filtered.length===0)return<div style={{padding:'24px 20px',borderRadius:9,background:'transparent',border:'1px dashed var(--bd)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:8}}>
 <div style={{width:42,height:42,borderRadius:'50%',background:'rgba(176,125,0,.08)',border:'1px dashed rgba(176,125,0,.3)',display:'flex',alignItems:'center',justifyContent:'center'}}>
