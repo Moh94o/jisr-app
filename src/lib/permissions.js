@@ -34,7 +34,23 @@ export const mergeRoleVis = (roleVisList) => {
   for (const k of keys) {
     const objVal = list.map(v => v[k]).find(x => x && typeof x === 'object')
     if (objVal) { out[k] = objVal; continue }
-    if (list.every(v => v[k] === false)) out[k] = false
+    if (list.every(v => v[k] === false)) { out[k] = false; continue }
+    /* ⚠️ القيم **النصّية** كانت تسقط صامتةً: الدمج لم يكن يحمل إلا الكائنات
+       و`false`. ولم يظهر أثرُ ذلك ما دام وضع كروت الإحصاء يفترض 'real' عند
+       الغياب — فلمّا صار الافتراض 'zero' صار الدورُ الممنوح 'real' يصل الواجهةَ
+       بلا قيمة فيُصفَّر، وهو ممنوح.
+       في مفاتيح `stats:` **الأشدّ يفوز** (hidden ← zero ← real) كنظيرتها في
+       الخادم (`current_user_stats_mode`): دورٌ يمنح لا يفكّ منعَ دورٍ آخر، ويكفي
+       دورٌ واحدٌ مانحٌ ليُمنَح (كما `bool_or` هناك). */
+    const strs = list.map(v => v[k]).filter(x => typeof x === 'string')
+    if (!strs.length) continue
+    if (k.startsWith('stats:')) {
+      out[k] = strs.includes('hidden') ? 'hidden' : strs.includes('zero') ? 'zero' : strs.includes('real') ? 'real' : strs[0]
+      continue
+    }
+    /* بقيّة المفاتيح النصّية: تُحمَل متى اتفقت عليها الأدوار كلّها — فاختلافُها
+       التباسٌ لا يُحسَم هنا، وتركُه على حاله أسلمُ من ترجيحٍ اعتباطي. */
+    if (strs.length === list.length && strs.every(s => s === strs[0])) out[k] = strs[0]
   }
   return out
 }
