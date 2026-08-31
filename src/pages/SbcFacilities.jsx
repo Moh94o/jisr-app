@@ -5750,9 +5750,14 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
         return false
       })
     }
-    // Advanced filter dropdowns combine with OR semantics: any row matching
-    // at least one active filter group is included. Each group's own
-    // multi-select is still OR internally.
+    /* ── تجتمع عوامل التصفية بـ«و» لا بـ«أو» ─────────────────────────────────
+       كانت المجموعات تُدمج بـOR: يكفي أن يوافق الصفُّ **عاملاً واحداً** ليظهر.
+       فمن اختار «المالك: مهدي اليامي» و«عدد الملاك: مالك واحد» كان يرى كل ذي
+       مالكٍ واحد **وإن لم يكن مهدي مالكَه** — ٣٢٧ صفاً بدل حفنة. والقراءة
+       الطبيعية لصفٍّ من المرشِّحات أنها تُضيَّق لا تُوسَّع: كل عاملٍ يُضاف
+       يُنقص النتيجة.
+       الآن: **بين المجموعات «و»** (كلّها تنطبق)، و**داخل المجموعة الواحدة
+       «أو»** كما كانت — اختيار مالكَين يعني «أيّهما»، لا «كلاهما معاً». */
     const owners = Array.isArray(adv.owner) ? adv.owner.filter(Boolean) : (adv.owner ? [adv.owner] : [])
     const managers = Array.isArray(adv.manager) ? adv.manager.filter(Boolean) : (adv.manager ? [adv.manager] : [])
     const statuses = Array.isArray(adv.status) ? adv.status.filter(Boolean) : (adv.status ? [adv.status] : [])
@@ -5823,7 +5828,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
       advGroups.push(r => nitaqs.includes(r.hrsd_nitaq_name))
     }
     if (advGroups.length) {
-      out = out.filter(r => advGroups.some(check => check(r)))
+      out = out.filter(r => advGroups.every(check => check(r)))
     }
     return out
   }, [normalized, search, filter, adv, personFilter, adminsCountByReg])
