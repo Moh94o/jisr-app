@@ -164,6 +164,16 @@ export default function Jub1ReceiptsPage({ sb, user, toast, lang = 'ar', emptyIc
     setLoading(false)
   }, [sb])
 
+  // دمج محلي فوري: الحفظ لا ينتظر إعادة جلب آلاف الصفوف — نعدّل القائمة والكاش مباشرة
+  // ثم يجري الجلب الكامل صامتاً بالخلفية (ويؤكده بثّ useLiveRefresh أيضاً).
+  const mutateEntries = useCallback((fn) => {
+    setEntries(prev => {
+      const next = fn(prev)
+      swrSet('jub1_entries', next)
+      return next
+    })
+  }, [])
+
   // مرجع «اكسل المكتب» (jub1_excel_ref) — مساعد تحقّق للعرض فقط: المصدر الرسمي هو صورة السند،
   // ولا تُنسخ منه أي قيمة تلقائياً. يُستورد بالسكربت scripts/jub1-excel-ref.mjs.
   const loadExcelRef = useCallback(async () => {
@@ -373,9 +383,11 @@ export default function Jub1ReceiptsPage({ sb, user, toast, lang = 'ar', emptyIc
     const { data, error } = await sb.from('jub1_receipts').update({ review_status: s }).eq('id', id).select('id')
     if (error) { tt(T('فشل تحديث الحالة: ', 'Status update failed: ') + error.message); return false }
     if (!data || !data.length) { tt(T('لم تتغيّر الحالة — لا صلاحية أو السند غير موجود', 'Status unchanged — no permission, or receipt not found')); return false }
-    await Promise.all([loadEntries(), loadStats()])
+    // فوري: تحديث محلي ثم جلب صامت بالخلفية بلا انتظار
+    mutateEntries(prev => prev.map(r => r.id === id ? { ...r, review_status: s, updated_at: new Date().toISOString() } : r))
+    loadEntries(); loadStats()
     return true
-  }, [sb, loadEntries, loadStats])
+  }, [sb, mutateEntries, loadEntries, loadStats])
 
   // حفظ التحرير المباشر من صفحة التفاصيل — تحديث السند + استبدال صفوف المدفوعات
   const saveInline = useCallback(async (id, patch, payRows) => {
@@ -391,20 +403,26 @@ export default function Jub1ReceiptsPage({ sb, user, toast, lang = 'ar', emptyIc
       const { error: e2 } = await sb.from('jub1_receipt_payments').insert(rows)
       if (e2) tt(T('حُفظ السند لكن فشل حفظ المدفوعات: ', 'Saved, but payments failed: ') + e2.message)
     }
-    await loadEntries()
+    // فوري: ندمج التعديل في القائمة محلياً ونُظهر النجاح حالاً؛ الجلب الكامل يجري بالخلفية
+    mutateEntries(prev => prev.map(r => r.id === id
+      ? { ...r, ...patch, payments: rows, updated_at: new Date().toISOString() }
+      : r))
+    loadEntries()
     tt(T('تم حفظ التعديلات', 'Changes saved'))
     return true
-  }, [sb, loadEntries])
+  }, [sb, mutateEntries, loadEntries])
 
   // حذف السند (حذف ناعم — قابل للاسترجاع) ثم العودة للقائمة
   const deleteEntry = useCallback(async (id) => {
     const { error } = await sb.from('jub1_receipts').update({ deleted_at: new Date().toISOString(), deleted_by: user?.id || null }).eq('id', id)
     if (error) { tt(T('فشل الحذف: ', 'Delete failed: ') + error.message); return false }
     setViewId(null)
-    await loadEntries()
+    // فوري: إزالة محلية ثم جلب صامت بالخلفية
+    mutateEntries(prev => prev.filter(r => r.id !== id))
+    loadEntries()
     tt(T('تم حذف السند', 'Receipt deleted'))
     return true
-  }, [sb, user, loadEntries])
+  }, [sb, user, mutateEntries, loadEntries])
 
   // فتح سند عبر رقمه — رقاقة «أرقام السندات السابقة» هي رابط تكوين صورة الفاتورة
   const openByNo = useCallback((no) => {
@@ -424,9 +442,18 @@ export default function Jub1ReceiptsPage({ sb, user, toast, lang = 'ar', emptyIc
     if (!cur || !tgt) return
     const { error } = await sb.rpc('jub1_toggle_link', { p_cur: currentId, p_tgt: targetId, p_link: !!link })
     if (error) { tt(T('فشل الربط: ', 'Link failed: ') + error.message); return }
-    await loadEntries()
+    // فوري: نعدّل الطرفين محلياً (الربط ثنائي الاتجاه) ثم جلب صامت بالخلفية
+    const patchIds = (ids, other) => {
+      const cur = (ids || []).filter(x => x !== other)
+      return link ? [...cur, other] : cur
+    }
+    mutateEntries(prev => prev.map(r =>
+      r.id === currentId ? { ...r, linked_receipt_ids: patchIds(r.linked_receipt_ids, targetId) }
+      : r.id === targetId ? { ...r, linked_receipt_ids: patchIds(r.linked_receipt_ids, currentId) }
+      : r))
+    loadEntries()
     tt(link ? T('تم ربط السند', 'Receipt linked') : T('تم إلغاء الربط', 'Link removed'))
-  }, [sb, entries, loadEntries])
+  }, [sb, entries, mutateEntries, loadEntries])
 
   // ── فتح نموذج التعديل (الإضافة تتم حصرياً عبر المعالجة الآلية للصور) ────
   const openEdit = async (e) => {
