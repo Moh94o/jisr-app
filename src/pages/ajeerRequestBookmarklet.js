@@ -120,7 +120,7 @@ var t=tokOf(s0.d); if(!t) throw new Error('تعذّر قراءة رمز الجل
 var f1=new FormData(); f1.append('_token',t); f1.append('service','taqaul');
 var s1=await post(O+'/contracts/create',f1);
 var sg=svcGate(s1,'taqaul','تعاقد أجير'); if(sg) throw new Error(sg);
-var t1=tokOf(s1.d); if(!t1) throw new Error(errOf(s1.d)||'فشلت الخطوة ١ (اختيار الخدمة).');
+var t1=tokOf(s1.d); if(!t1) throw new Error(errOf(s1.d)||'فشلت الخطوة 1 (اختيار الخدمة).');
 `
 
 /* ── بوكماركت العقد ─────────────────────────────────────────────────────────
@@ -143,7 +143,7 @@ try{
 ${STEP12}
 var f2=new FormData(); f2.append('_token',t1); f2.append('option','new');
 var s2=await post(O+'/contracts/create/taqaul',f2);
-var t2=tokOf(s2.d); if(!t2) throw new Error('فشلت الخطوة ٢ (نوع الطلب).');
+var t2=tokOf(s2.d); if(!t2) throw new Error('فشلت الخطوة 2 (نوع الطلب).');
 var f3=new FormData(); f3.append('_token',t2);
 f3.append('labor_office',need(P.lo,'مكتب العمل')); f3.append('sequence_number',need(P.sq,'الرقم التسلسلي')); f3.append('unified_number',need(P.un,'الرقم الموحّد'));
 var s3=await post(O+'/contracts/create/taqaul/beneficiary',f3);
@@ -214,16 +214,16 @@ var t=tokOf(s0.d); if(!t) throw new Error('تعذّر قراءة رمز الجل
 var f1=new FormData(); f1.append('_token',t); f1.append('service','tempwork');
 var s1=await post(O+'/contracts/create',f1);
 var sg=svcGate(s1,'tempwork','التعاقد بين المنشآت'); if(sg) throw new Error(sg);
-var t1=tokOf(s1.d); if(!t1) throw new Error(errOf(s1.d)||'فشلت الخطوة ١ (اختيار الخدمة).');
+var t1=tokOf(s1.d); if(!t1) throw new Error(errOf(s1.d)||'فشلت الخطوة 1 (اختيار الخدمة).');
 var f2=new FormData(); f2.append('_token',t1);
 f2.append('labor_office',need(P.lo,'مكتب العمل')); f2.append('sequence_number',need(P.sq,'الرقم التسلسلي')); f2.append('unified_number',need(P.un,'الرقم الموحّد'));
 var s2=await post(O+'/contracts/create/tempwork/beneficiary',f2);
 var id=(s2.u.match(/\\/tempwork\\/(\\d+)\\//)||[])[1];
-if(!id) throw new Error(fail('خطوة ٢ — المنشأة المستفيدة',s2,f2));
+if(!id) throw new Error(fail('خطوة 2 — المنشأة المستفيدة',s2,f2));
 var t2=tokOf(s2.d);
 var f3=new FormData(); f3.append('_token',t2); f3.append('notice_type',P.nt);
 var s3=await post(O+'/contracts/create/tempwork/'+id+'/type',f3);
-if(!/\\/information/.test(s3.u)) throw new Error(fail('خطوة ٣ — نوع التصريح',s3,f3));
+if(!/\\/information/.test(s3.u)) throw new Error(fail('خطوة 3 — نوع التصريح',s3,f3));
 var t3=tokOf(s3.d);
 var dsc=s3.d.querySelector('[name=contract_description]');
 var f4=new FormData(); f4.append('_token',t3);
@@ -232,7 +232,7 @@ f4.append('contract_start_date',need(P.sd,'تاريخ بداية العقد'));
 f4.append('contract_duration',P.du);
 f4.append('use_unified_contract','1');
 var s4=await post(O+'/contracts/create/tempwork/'+id+'/information',f4);
-if(!/\\/laborers/.test(s4.u)) throw new Error(fail('خطوة ٤ — بيانات العقد',s4,f4));
+if(!/\\/laborers/.test(s4.u)) throw new Error(fail('خطوة 4 — بيانات العقد',s4,f4));
 var t4=tokOf(s4.d);
 var jm='';
 try{
@@ -247,7 +247,7 @@ try{
 }catch(e){}
 var f5=new FormData(); f5.append('_token',t4); f5.append('laborers['+iq+'][id_number]',iq);
 var s5=await post(O+'/contracts/create/tempwork/'+id+'/laborers',f5);
-if(!/\\/confirm/.test(s5.u)) throw new Error(fail('خطوة ٥ — اختيار العامل',s5,f5)+(jm?('<br><small style="opacity:.7">رد فحص العامل: '+jm+'</small>'):''));
+if(!/\\/confirm/.test(s5.u)) throw new Error(fail('خطوة 5 — اختيار العامل',s5,f5)+(jm?('<br><small style="opacity:.7">رد فحص العامل: '+jm+'</small>'):''));
 var t5=tokOf(s5.d);
 var cf=[].slice.call(s5.d.querySelectorAll('form')).filter(function(x){return x.querySelector('[name=terms_agreement]')})[0];
 var f6=new FormData(); f6.append('_token',t5);
@@ -255,7 +255,7 @@ if(cf){[].slice.call(cf.querySelectorAll('input[type=checkbox]')).forEach(functi
 if(!f6.get('terms_agreement')){f6.set('unified_contract_items_agreement','1');f6.set('contract_disclaimer_agreement','1');f6.set('terms_agreement','1')}
 var s6=await post(O+'/contracts/create/tempwork/'+id+'/confirm',f6);
 var no=(((s6.d.body?s6.d.body.innerText:'')||'').match(/رقم العقد هو\\s*(\\d+)/)||[])[1];
-if(!no) throw new Error(fail('خطوة ٦ — التأكيد',s6,f6)+'<br><small style="opacity:.7">المسوّدة '+id+' ما زالت معلّقة — أكملها من «إصدار عقد».</small>');
+if(!no) throw new Error(fail('خطوة 6 — التأكيد',s6,f6)+'<br><small style="opacity:.7">المسوّدة '+id+' ما زالت معلّقة — أكملها من «إصدار عقد».</small>');
 n.remove();
 try{await navigator.clipboard.writeText(no)}catch(e){}
 box('<b style="color:#1e8449">تم إصدار عقد الإعارة ✔</b><br>رقم العقد: <b style="font-family:monospace">'+esc(no)+'</b> (نُسخ للحافظة)<br>المعرّف الداخلي: <b style="font-family:monospace">'+id+'</b><br>المنشأة المستفيدة: '+esc(P.bn||P.un)+'<br>العامل: '+esc(P.wn||iq)+' — <b style="font-family:monospace">'+iq+'</b><br>المدة: '+esc(P.du)+' أشهر من '+esc(P.sd)+'<br><br>بانتظار قبول المنشأة المستفيدة.');

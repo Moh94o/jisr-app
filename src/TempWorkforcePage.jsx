@@ -907,7 +907,7 @@ export default function TempWorkforcePage({ sb, toast, lang, user, onTabChange }
           )}
           {(!editSection || editSection === 'docs') && (
             <ModalSection Icon={ShieldCheck} label={editSection === 'docs'
-              ? (docStep === 1 ? T('البيانات المهنية — ١. البيانات', 'Professional Data — 1. Details') : T('البيانات المهنية — ٢. الملفات', 'Professional Data — 2. Files'))
+              ? (docStep === 1 ? T('البيانات المهنية — 1. البيانات', 'Professional Data — 1. Details') : T('البيانات المهنية — 2. الملفات', 'Professional Data — 2. Files'))
               : T('البيانات المهنية', 'Professional Data')}>
               <div style={{ ...GRID, gridTemplateColumns: 'repeat(2, 1fr)' }}>
                 {(editSection !== 'docs' || docStep === 1) && (<>

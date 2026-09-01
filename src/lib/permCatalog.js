@@ -99,6 +99,60 @@ export const MODULE_ACTIONS = {
     A('invoice', 'إصدار فاتورة من التسعيرة', 'special'),
     A('edit', 'تعديل التسعيرة', 'edit'), A('delete', 'حذف التسعيرة', 'delete'),
   ],
+  // «توريد العمالة» — تسعيرات عقود توريد العمالة (حاسبة داخلية + عرض سعر PDF للعميل)
+  manpower_calc: [
+    A('view', 'عرض التسعيرات', 'view'), A('create', 'إنشاء تسعيرة', 'create'),
+    A('edit', 'تعديل التسعيرات', 'edit'), A('delete', 'حذف التسعيرات', 'delete'),
+    A('print', 'طباعة عرض السعر', 'print'),
+    A('approve', 'اعتماد التسعيرة', 'special'), A('view_profit', 'عرض الربح والجدوى والمخاطر', 'special'),
+  ],
+
+  // بطاقة الأسعار — مرجع تكلفة الساعة وسعر الفوترة
+  manpower_rates: [
+    A('view', 'عرض بطاقة الأسعار', 'view'), A('create', 'إضافة مهنة', 'create'),
+    A('edit', 'تعديل الأسعار', 'edit'), A('delete', 'حذف مهنة', 'delete'),
+    A('view_cost', 'عرض التكلفة والهامش', 'special'),
+  ],
+  // عقود توريد العمالة
+  manpower_contracts: [
+    A('view', 'عرض العقود', 'view'), A('create', 'إنشاء عقد', 'create'),
+    A('edit', 'تعديل العقود', 'edit'), A('delete', 'حذف العقود', 'delete'),
+    A('activate', 'اعتماد العقد', 'special'), A('close', 'إقفال العقد', 'special'),
+    A('print', 'طباعة العقد', 'print'),
+  ],
+  // كشوف الدوام
+  manpower_timesheets: [
+    A('view', 'عرض كشوف الدوام', 'view'), A('create', 'إنشاء كشف دوام', 'create'),
+    A('edit', 'تعديل الكشوف', 'edit'), A('delete', 'حذف الكشوف', 'delete'),
+    A('approve', 'اعتماد الكشف', 'special'), A('print', 'طباعة الكشف', 'print'),
+  ],
+  // سجل العمالة المتاحة
+  manpower_pool: [
+    A('view', 'عرض سجل العمالة', 'view'), A('create', 'تسجيل عامل', 'create'),
+    A('edit', 'تعديل بيانات العمال', 'edit'), A('delete', 'حذف من السجل', 'delete'),
+    A('contact', 'تسجيل التواصل والترشيح', 'special'),
+  ],
+  // المستخلصات — مطالبات دورية على العقد
+  manpower_claims: [
+    A('view', 'عرض المستخلصات', 'view'), A('create', 'إنشاء مستخلص', 'create'),
+    A('edit', 'تعديل المستخلصات', 'edit'), A('delete', 'حذف المستخلصات', 'delete'),
+    A('submit', 'تقديم المستخلص', 'special'), A('approve', 'اعتماد المستخلص', 'special'),
+    A('pay', 'تسجيل السداد', 'special'), A('print', 'طباعة المستخلص', 'print'),
+  ],
+  // فواتير توريد العمالة — الوثيقة الضريبية الرسمية المُصدرة من المستخلص
+  manpower_invoices: [
+    A('view', 'عرض الفواتير', 'view'), A('create', 'إصدار فاتورة', 'create'),
+    A('edit', 'تعديل الفواتير', 'edit'), A('delete', 'حذف الفواتير', 'delete'),
+    A('issue', 'اعتماد وإصدار الفاتورة', 'special'), A('pay', 'تسجيل الدفعات', 'special'),
+    A('cancel', 'إلغاء الفاتورة', 'special'), A('print', 'طباعة الفاتورة', 'print'),
+  ],
+  // رواتب وأرباح التوريد — كشف رواتب العمال شهرياً + حساب الأرباح وتقسيم الشركاء
+  manpower_payroll: [
+    A('view', 'عرض كشوف الرواتب', 'view'), A('create', 'إنشاء كشف رواتب', 'create'),
+    A('edit', 'تعديل الكشوف', 'edit'), A('delete', 'حذف الكشوف', 'delete'),
+    A('approve', 'اعتماد كشف الرواتب', 'special'), A('pay', 'تسجيل صرف الرواتب', 'special'),
+    A('view_pnl', 'عرض الأرباح وتقسيم الشركاء', 'special'), A('print', 'طباعة كشف الرواتب', 'print'),
+  ],
 
   sync_hub: [
     A('access', 'الوصول لمركز المزامنة', 'view'), A('sync', 'تنفيذ المزامنة', 'sync'),
@@ -165,7 +219,10 @@ export const TAB_MODULE = {
   visa_grid: 'work_visas',
   invoices: 'invoices',
   jub1_receipts: 'jub1_receipts',
-  transfer_calc: 'quotations', renewal_calc: 'renewal_calc',
+  transfer_calc: 'quotations', renewal_calc: 'renewal_calc', manpower_calc: 'manpower_calc',
+  manpower_rates: 'manpower_rates', manpower_contracts: 'manpower_contracts', manpower_claims: 'manpower_claims',
+  manpower_timesheets: 'manpower_timesheets', manpower_pool: 'manpower_pool',
+  manpower_invoices: 'manpower_invoices', manpower_payroll: 'manpower_payroll',
   sync_hub: 'sync_hub', sync_log: 'sync_hub', ops_excels: 'ops_excels',
   admin_clients: 'admin_clients', admin_agents: 'admin_agents',
   admin_offices: 'admin_offices', admin_bank_accounts: 'admin_bank_accounts',
@@ -184,6 +241,14 @@ export const MODULE_META = {
   jub1_receipts: { label_ar: 'سندات JUB1', icon: 'receipt', sort: 46 },
   quotations: { label_ar: 'تسعيرات التنازل', icon: 'calc', sort: 50 },
   renewal_calc: { label_ar: 'تسعيرات التجديد', icon: 'refresh', sort: 51 },
+  manpower_calc: { label_ar: 'تسعيرات توريد العمالة', icon: 'calc', sort: 52 },
+  manpower_rates: { label_ar: 'بطاقة الأسعار', icon: 'coins', sort: 53 },
+  manpower_contracts: { label_ar: 'عقود توريد العمالة', icon: 'notes', sort: 54 },
+  manpower_timesheets: { label_ar: 'كشوف الدوام', icon: 'calendar', sort: 55 },
+  manpower_claims: { label_ar: 'المستخلصات', icon: 'receipt', sort: 56 },
+  manpower_pool: { label_ar: 'العمالة المتاحة', icon: 'labor', sort: 57 },
+  manpower_invoices: { label_ar: 'فواتير توريد العمالة', icon: 'invoice', sort: 58 },
+  manpower_payroll: { label_ar: 'رواتب وأرباح التوريد', icon: 'payment', sort: 59 },
   sync_hub: { label_ar: 'مركز المزامنة', icon: 'facility', sort: 110 },
   ops_excels: { label_ar: 'جداول العمل', icon: 'calendar', sort: 115 },
   admin_clients: { label_ar: 'العملاء', icon: 'clients', sort: 90 },
@@ -253,6 +318,8 @@ const OPS_SHEETS = [
   ['deposits', 'متابعة الإيداعات', 'المالية'],
   ['sadad', 'دفتر السدادات', 'المالية'],
   ['sadad_requests', 'طلبات السداد', 'المالية'],
+  ['manpower_rates', 'بطاقة الأسعار', 'توريد العمالة'],
+  ['manpower_pool', 'العمالة المتاحة', 'توريد العمالة'],
 ]
 const EDIT = [ca('edit', 'تعديل', 'edit')]
 const CMT_NOTE = [ca('add_comment', 'إضافة تعليق')]
@@ -324,6 +391,51 @@ export const TAB_CARDS = {
     C('pricing', 'التسعيرة', 'core', EDIT), C('financial_summary', 'الملخص المالي'),
     C('comments', 'التعليقات', 'core', CMT_NOTE),
     C('actions_print', 'الإجراءات والطباعة', 'core', [ca('approve', 'تصديق الحسبة'), ca('cancel', 'إلغاء الحسبة')]),
+  ],
+  // «توريد العمالة» — بطاقات صفحة تفاصيل التسعيرة
+  manpower_calc: [
+    C('client', 'العميل والطلب', 'core', EDIT), C('work', 'تفاصيل العمل', 'core', EDIT),
+    C('revenue', 'بنود عرض السعر', 'core', EDIT),
+    C('pnl', 'الربح والجدوى والمخاطر'),
+    C('actions_print', 'الإجراءات والطباعة', 'core', [ca('print', 'طباعة عرض السعر')]),
+  ],
+  // «العقود» — بطاقات صفحة تفاصيل العقد
+  manpower_contracts: [
+    C('client', 'العميل والعقد', 'core', EDIT), C('terms', 'الشروط والالتزامات', 'core', EDIT),
+    C('lines', 'بنود العقد', 'core', EDIT),
+    C('workers', 'عمال العقد', 'core', [ca('link', 'ربط/فك عامل من السجل')]),
+    C('timesheets', 'كشوف دوام العقد'), C('claims', 'مستخلصات العقد'),
+    C('actions_print', 'الإجراءات والطباعة', 'core', [ca('print', 'طباعة العقد')]),
+  ],
+  // «كشوف الدوام» — بطاقات صفحة تفاصيل الكشف
+  manpower_timesheets: [
+    C('header', 'العقد والفترة', 'core', EDIT), C('grid', 'شبكة الدوام', 'core', EDIT),
+    C('summary', 'ملخّص الساعات'),
+    C('actions_print', 'الإجراءات والطباعة', 'core', [ca('print', 'طباعة الكشف')]),
+  ],
+  // «العمالة المتاحة» — بطاقات صفحة تفاصيل العامل المسجَّل
+  manpower_pool: [
+    C('identity', 'بيانات العامل', 'core', EDIT), C('work', 'المهنة والجاهزية', 'core', EDIT),
+    C('contact', 'التواصل والترشيح', 'core', EDIT),
+  ],
+  // «المستخلصات» — بطاقات صفحة تفاصيل المستخلص
+  manpower_claims: [
+    C('header', 'العقد والفترة', 'core', EDIT), C('lines', 'بنود المستخلص', 'core', EDIT),
+    C('financial', 'الملخص المالي'),
+    C('actions_print', 'الإجراءات والطباعة', 'core', [ca('print', 'طباعة المستخلص')]),
+  ],
+  // «فواتير توريد العمالة» — بطاقات صفحة تفاصيل الفاتورة
+  manpower_invoices: [
+    C('client', 'العميل والفاتورة', 'core', EDIT), C('lines', 'بنود الفاتورة', 'core', EDIT),
+    C('financial', 'الملخص المالي'),
+    C('payments', 'الدفعات', 'core', [ca('pay', 'تسجيل دفعة'), ca('delete_payment', 'حذف دفعة', 'delete')]),
+    C('actions_print', 'الإجراءات والطباعة', 'core', [ca('print', 'طباعة الفاتورة')]),
+  ],
+  // «رواتب وأرباح التوريد» — بطاقات صفحة تفاصيل كشف الرواتب
+  manpower_payroll: [
+    C('header', 'الشهر والمصدر', 'core', EDIT), C('workers', 'رواتب العمال', 'core', EDIT),
+    C('pnl', 'الأرباح وتقسيم الشركاء'),
+    C('actions_print', 'الإجراءات والطباعة', 'core', [ca('print', 'طباعة كشف الرواتب')]),
   ],
   sync_hub: [C('facilities_overview', 'المنشآت'), C('sync_activities_log', 'أنشطة المزامنة')],
   /* «جداول العمل»: كل **جدول** بطاقةٌ مستقلّة — إخفاؤها يمنع الجدول كلّه من

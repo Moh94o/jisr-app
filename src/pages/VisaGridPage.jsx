@@ -40,6 +40,14 @@ const COL_H = 36
 const SAVE_CONCURRENCY = 6
 const VISA_FEE_AMOUNT = 2000
 const FEE_KIND_CODE = 'visa_cost'
+/* صيغ الأرقام — هي نفسها التي تفرضها نافذة «بيانات التأشيرات» في الفاتورة.
+   الإدخال صار من مكانين، ولو تساهل الجدول لصار باباً خلفياً لبيانات لا تقبلها
+   النافذة ثم تظهر ناقصة في «حالة المعاملة». */
+const FMT = {
+  visa_number: /^1\d{9}$/,
+  border_number: /^3\d{9}$/,
+  unified_number: /^7\d{9}$/,
+}
 
 const latin = (s) => String(s ?? '')
   .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660))
@@ -48,7 +56,6 @@ const p2 = (n) => String(n).padStart(2, '0')
 const ymd = (v) => (v ? String(v).slice(0, 10) : '')
 const enNum = (n) => Number(n || 0).toLocaleString('en-US')
 
-const parseText = (v) => { const s = String(v ?? '').trim(); return s === '' ? null : s }
 const parseDate = (v) => {
   const s = latin(v).trim()
   if (!s) return null
@@ -142,6 +149,7 @@ export default function VisaGridPage({ sb, user, toast, lang, onTabChange }) {
   const [facilities, setFacilities] = useState([])
   const [statuses, setStatuses] = useState([])
   const [fees, setFees] = useState({})
+  const [fileAtt, setFileAtt] = useState({})   // visa_id → ملف التأشيرة المرفوع من نافذة الفاتورة
   const [feeKindId, setFeeKindId] = useState(null)
   const [loading, setLoading] = useState(true)
 
@@ -187,13 +195,18 @@ export default function VisaGridPage({ sb, user, toast, lang, onTabChange }) {
   const load = useCallback(async () => {
     if (!sb) return
     setLoading(true)
-    const [visaR, facR, catR, feeKindR] = await Promise.all([
+    const [visaR, facR, catR, feeKindR, attR] = await Promise.all([
       sb.from('visa_applications').select(VISA_SELECT).is('deleted_at', null).order('created_at', { ascending: false }),
       /* range صريح: المنشآت ١,١٩١ صفاً وسقف PostgREST الافتراضي ١٠٠٠ — بدونه تختفي
          ~٢٠٠ منشأة من بحث الأرقام فيُقال «لا توجد منشأة» وهي موجودة. */
       sb.from('facilities').select('id,name_ar,name_en,unified_number,cr_number,hrsd_number,gosi_number').is('deleted_at', null).order('name_ar').range(0, 4999),
       sb.from('lookup_categories').select('id').eq('category_key', 'visa_usage_status').maybeSingle(),
       sb.from('lookup_items').select('id').eq('code', FEE_KIND_CODE).limit(1).maybeSingle(),
+      /* ملف التأشيرة المرفوع من نافذة الفاتورة يُسجَّل صفاً في attachments بلا
+         visa_file_path — فبدون قراءته يظهر الصفّ هنا «بلا ملف» وهو مرفوع فعلاً. */
+      sb.from('attachments').select('entity_id,file_url,created_at')
+        .eq('entity_type', 'visa_application').eq('notes', 'visa_file')
+        .is('deleted_at', null).order('created_at', { ascending: false }).range(0, 4999),
     ])
     const list = (visaR.data || []).filter((v) => /^work_visa/.test(v.sr?.service_type?.code || ''))
     /* ترتيب يُبقي تأشيرات الفاتورة متلاصقة ثم مرتّبة بملفّها */
@@ -218,6 +231,9 @@ export default function VisaGridPage({ sb, user, toast, lang, onTabChange }) {
     const map = {}
     for (const f of (feeRows || [])) if (!map[f.visa_application_id]) map[f.visa_application_id] = f
     setFees(map)
+    const att = {}
+    for (const a of (attR.data || [])) if (a.entity_id && !att[a.entity_id]) att[a.entity_id] = a.file_url
+    setFileAtt(att)
     setLoading(false)
   }, [sb])
   useEffect(() => { load() }, [load])
@@ -374,7 +390,12 @@ export default function VisaGridPage({ sb, user, toast, lang, onTabChange }) {
   const coercePatch = useCallback((col, text) => {
     const s = String(text ?? '').trim()
     switch (col.kind) {
-      case 'text': return { [col.key]: parseText(s) }
+      case 'text': {
+        const v = latin(s).trim()
+        if (!v) return { [col.key]: null }
+        const re = FMT[col.key]
+        return (re && !re.test(v)) ? undefined : { [col.key]: v }
+      }
       case 'date': { const d = parseDate(s); return d === undefined ? undefined : { [col.key]: d } }
       case 'status': {
         if (!s) return { usage_status_id: null }
@@ -389,8 +410,10 @@ export default function VisaGridPage({ sb, user, toast, lang, onTabChange }) {
         if (!v) return { unified_number: null, main_facility_id: null }
         const fac = facLookup(v)
         /* الرقم يُحفظ حتى بلا منشأة مطابقة — بيانات قديمة فيها أرقام بلا منشأة
-           مسجّلة، ومنعُها يمنع تصحيحها */
-        return fac ? { unified_number: fac.unified_number || v, main_facility_id: fac.id } : { unified_number: v }
+           مسجّلة، ومنعُها يمنع تصحيحها — لكن بصيغته الرسمية (يبدأ بـ7 و10 أرقام)
+           كما تشترط نافذة الفاتورة. */
+        if (fac) return { unified_number: fac.unified_number || v, main_facility_id: fac.id }
+        return FMT.unified_number.test(v) ? { unified_number: v } : undefined
       }
       case 'hrsd':
       case 'gosi': {
@@ -417,6 +440,30 @@ export default function VisaGridPage({ sb, user, toast, lang, onTabChange }) {
       default: return ''
     }
   }, [fieldOf, facOf, statusById, isAr, fees])
+
+  /* رسالة الرفض تُسمّي الشرط المخالف — «قيمة غير صالحة» وحدها تترك الموظف يخمّن. */
+  const invalidMsg = useCallback((col) => {
+    if (col.kind === 'hrsd' || col.kind === 'gosi') return T('لا توجد منشأة بهذا الرقم', 'No facility with that number')
+    if (col.key === 'visa_number') return T('رقم التأشيرة يبدأ بـ1 ويكون 10 أرقام', 'Visa number must start with 1 and be 10 digits')
+    if (col.key === 'border_number') return T('رقم الحدود يبدأ بـ3 ويكون 10 أرقام', 'Border number must start with 3 and be 10 digits')
+    if (col.kind === 'uni') return T('الرقم الموحد يبدأ بـ7 ويكون 10 أرقام، أو اكتب رقم منشأة معروفة', 'Unified number must start with 7 and be 10 digits, or type a known facility number')
+    return T('قيمة غير صالحة — لم تُحفظ', 'Invalid value — not applied')
+  }, [T])
+
+  /* ── تفرّد رقم الحدود ───────────────────────────────────────────────────
+     نافذة الفاتورة تمنع تكرار رقم الحدود بين التأشيرات، فالجدول يمنعه أيضاً:
+     نقطة حمراء فور الكتابة، وفحص في القاعدة عند الحفظ (يمنع التسابق ويكشف
+     تكراراً مع تأشيرة خارج الصفحة). */
+  const borderDup = useMemo(() => {
+    const seen = new Map(), dup = new Set()
+    for (const r of rows) {
+      const e = edits[r.id]
+      const b = String((e && Object.prototype.hasOwnProperty.call(e, 'border_number') ? e.border_number : r.border_number) || '').trim()
+      if (!b) continue
+      if (seen.has(b)) { dup.add(r.id); dup.add(seen.get(b)) } else seen.set(b, r.id)
+    }
+    return dup
+  }, [rows, edits])
 
   const isDirty = useCallback((row, col) => {
     const e = edits[row.id]
@@ -481,13 +528,11 @@ export default function VisaGridPage({ sb, user, toast, lang, onTabChange }) {
       setEditing(null); setSeq((s) => s + 1)
       if (row && col) {
         const { bad } = writeCells([{ row, col, text }])
-        if (bad) toast && toast(col.kind === 'hrsd' || col.kind === 'gosi'
-          ? T('لا توجد منشأة بهذا الرقم', 'No facility with that number')
-          : T('قيمة غير صالحة — لم تُحفظ', 'Invalid value — not applied'))
+        if (bad) toast && toast(invalidMsg(col))
       }
     } else setEditing(null)
     if (moveDir) move(moveDir[0], moveDir[1], false)
-  }, [view, COLS, writeCells, move, toast, T])
+  }, [view, COLS, writeCells, move, toast, invalidMsg])
 
   /* ── العمليات ────────────────────────────────────────────────────────── */
   const doCopy = useCallback(async () => {
@@ -600,8 +645,31 @@ export default function VisaGridPage({ sb, user, toast, lang, onTabChange }) {
     const entries = Object.entries(edits)
     const nowIso = new Date().toISOString()
     const errs = {}, saved = []
-    for (let i = 0; i < entries.length; i += SAVE_CONCURRENCY) {
-      await Promise.all(entries.slice(i, i + SAVE_CONCURRENCY).map(async ([id, patch]) => {
+    /* تفرّد رقم الحدود قبل أي كتابة — نفس شرط نافذة الفاتورة:
+       ما تكرّر داخل الجدول يُرفض فوراً، وما بقي يُفحص في القاعدة (قد يكون على
+       تأشيرة لا يعرضها هذا الطابور). الصفوف المرفوضة تبقى متسخة بنقطة حمراء. */
+    const dupMsg = T('رقم الحدود مستخدَم مسبقاً على تأشيرة أخرى', 'Border number is already used on another visa')
+    const blocked = new Set()
+    const wantBorder = new Map()   // رقم الحدود → معرّف الصف
+    for (const [id, patch] of entries) {
+      if (!Object.prototype.hasOwnProperty.call(patch, 'border_number')) continue
+      if (borderDup.has(id)) { errs[id] = dupMsg; blocked.add(id); continue }
+      const b = String(patch.border_number || '').trim()
+      if (b) wantBorder.set(b, id)
+    }
+    if (wantBorder.size) {
+      const ids = [...new Set(wantBorder.values())]
+      let q = sb.from('visa_applications').select('id,border_number').in('border_number', [...wantBorder.keys()]).is('deleted_at', null)
+      if (ids.length) q = q.not('id', 'in', `(${ids.join(',')})`)
+      const { data: clash } = await q
+      for (const c of (clash || [])) {
+        const id = wantBorder.get(String(c.border_number || '').trim())
+        if (id) { errs[id] = dupMsg; blocked.add(id) }
+      }
+    }
+    const todo = entries.filter(([id]) => !blocked.has(id))
+    for (let i = 0; i < todo.length; i += SAVE_CONCURRENCY) {
+      await Promise.all(todo.slice(i, i + SAVE_CONCURRENCY).map(async ([id, patch]) => {
         const body = { ...patch, updated_by: user?.id || null, updated_at: nowIso }
         if (Object.prototype.hasOwnProperty.call(patch, 'usage_status_id')) {
           body.usage_status_changed_at = nowIso
@@ -622,7 +690,7 @@ export default function VisaGridPage({ sb, user, toast, lang, onTabChange }) {
     toast && toast(failed
       ? T(`حُفظ ${saved.length} سطراً · فشل ${failed}`, `Saved ${saved.length} · ${failed} failed`)
       : T(`تم حفظ ${saved.length} سطراً`, `Saved ${saved.length} rows`))
-  }, [sb, saving, dirtyRowCount, edits, user, toast, T])
+  }, [sb, saving, dirtyRowCount, edits, user, toast, T, borderDup])
 
   const discard = useCallback(() => { setEdits({}); setRowErr({}); setSeq((s) => s + 1) }, [])
 
@@ -865,7 +933,9 @@ export default function VisaGridPage({ sb, user, toast, lang, onTabChange }) {
 
                   {b.rows.map((row) => {
                     const r = rowIndex.get(row.id)
-                    const err = rowErr[row.id]
+                    /* التكرار يُعلَّم فوراً — لا ينتظر محاولة حفظ تفشل */
+                    const err = rowErr[row.id] || (borderDup.has(row.id)
+                      ? T('رقم الحدود مكرّر — يجب أن يكون فريداً', 'Border number is duplicated — it must be unique') : null)
                     const fee = fees[row.id]
                     const hasIssuance = CORE_KEYS.some((k) => { const v = fieldOf(row, k); return v != null && v !== '' })
                     return (
@@ -925,7 +995,9 @@ export default function VisaGridPage({ sb, user, toast, lang, onTabChange }) {
                             content = txt ? <span style={{ color: C.gold2, fontWeight: 600 }}>{txt}</span>
                                           : <span style={{ fontSize: 11, color: 'var(--tx5)' }}>{T('لم يُسجَّل بعد', 'not set yet')}</span>
                           } else if (col.kind === 'file') {
-                            const url = fieldOf(row, 'visa_file_path')
+                            /* المصدران معاً: الجدول يكتب visa_file_path، ونافذة الفاتورة
+                               تكتب صفّ attachments فقط — فأيّهما وُجد فالملف موجود. */
+                            const url = fieldOf(row, 'visa_file_path') || fileAtt[row.id] || ''
                             content = uploading === row.id
                               ? <span style={{ fontSize: 11, color: C.gold2, fontWeight: 600 }}>{T('جارٍ الرفع…', 'Uploading…')}</span>
                               : url
@@ -936,9 +1008,12 @@ export default function VisaGridPage({ sb, user, toast, lang, onTabChange }) {
                                   </a>
                                 : canEdit
                                   ? <button type="button" className="vg-cellbtn" onMouseDown={(ev) => ev.stopPropagation()} onClick={(ev) => { ev.stopPropagation(); pickFile(row) }}
-                                      style={{ background: 'transparent', borderColor: 'var(--bd)', color: 'var(--tx4)' }}>
+                                      title={hasIssuance ? T('أُدخلت بيانات الإصدار بلا ملف تأشيرة — النافذة في الفاتورة تشترطه', 'Issuance data entered without a visa file — the invoice modal requires it') : undefined}
+                                      style={hasIssuance
+                                        ? { background: 'rgba(217,148,0,.12)', borderColor: 'rgba(217,148,0,.45)', color: C.warn }
+                                        : { background: 'transparent', borderColor: 'var(--bd)', color: 'var(--tx4)' }}>
                                       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
-                                      {T('رفع', 'Upload')}
+                                      {hasIssuance ? T('رفع ⚠', 'Upload ⚠') : T('رفع', 'Upload')}
                                     </button>
                                   : <span style={{ color: 'var(--tx5)' }}>—</span>
                           } else if (col.kind === 'status' && txt) {
@@ -1077,7 +1152,7 @@ function FeeCell({ T, fee, hasIssuance, canEdit, onRequest }) {
     return (
       <button type="button" className="vg-cellbtn" onMouseDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onRequest() }}
         style={{ background: 'rgba(176,125,0,.14)', borderColor: 'rgba(176,125,0,.45)', color: '#D4A017' }}>
-        {T('طلب سداد ٢٬٠٠٠', 'Request 2,000')}
+        {T('طلب سداد 2٬000', 'Request 2,000')}
       </button>
     )
   }

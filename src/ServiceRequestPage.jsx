@@ -2344,7 +2344,8 @@ const infoBox=(Icon,label,val)=><div style={{display:'flex',alignItems:'center',
 const flagEl=size=><div title={natLabel} style={{width:size,height:size,borderRadius:12,background:'rgba(0,0,0,.25)',border:sel?'1.5px solid rgba(176,125,0,.4)':'1px solid rgba(255,255,255,.08)',flexShrink:0,transition:'.25s',boxShadow:sel?'0 2px 8px rgba(176,125,0,.15)':'none',position:'relative',overflow:'hidden'}}>{flagUrl?<img src={flagUrl} alt={natLabel} loading="lazy" style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>:<div style={{width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center'}}><Globe size={Math.round(size*.42)} strokeWidth={1.6} color="rgba(255,255,255,.35)"/></div>}</div>
 const nameBlock=<div style={{flex:1,minWidth:0,display:'flex',flexDirection:'column',gap:3}}><span style={{fontSize:14.5,fontWeight:600,color:sel?C.gold:'var(--tx)',letterSpacing:'-.2px'}}>{c.name_ar||c.name_en||'—'}</span>{c.name_ar&&c.name_en&&<span style={{fontSize:11,color:'var(--tx3)',fontWeight:600,opacity:.9}}>{c.name_en}</span>}</div>
 const boxes=<div style={{display:'flex',gap:8,flexShrink:0}}>{c.id_number&&infoBox(CreditCard,T('رقم الهوية','ID number'),c.id_number)}{c.phone&&infoBox(Phone,T('الجوال','Phone'),fmtPhone(c.phone))}</div>
-const wrapSel={position:'relative',border:`1px solid ${G.selB}`,background:G.sel,boxShadow:'var(--shadow-md)',transition:'all .22s ease',padding:'11px',borderRadius:14,display:'flex',flexDirection:'column',gap:9}
+// flexShrink:0 — البطاقات داخل منطقة تمرير ذات ارتفاع ثابت: بلا هذا تنضغط بدل أن تُمرَّر.
+const wrapSel={position:'relative',border:`1px solid ${G.selB}`,background:G.sel,boxShadow:'var(--shadow-md)',transition:'all .22s ease',padding:'11px',borderRadius:14,display:'flex',flexDirection:'column',gap:9,flexShrink:0}
 const xIcon=<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
 
 // مُختار — أيقونة زاوية: زر إلغاء أحمر بالزاوية + شارة «محدد» بجانب الاسم
@@ -2360,7 +2361,7 @@ if(sel)return<div key={c.id} style={{...wrapSel,flexDirection:'row',alignItems:'
 </div>
 // غير مُختار — بطاقة معلومات قابلة للضغط للاختيار
 return<div key={c.id} onClick={handleClick} onMouseEnter={onEnter} onMouseLeave={onLeave}
-style={{cursor:'pointer',position:'relative',border:`1px solid ${G.baseB}`,background:G.base,boxShadow:'var(--shadow-md)',transition:'all .22s ease',padding:'11px',borderRadius:14,display:'flex',alignItems:'center',gap:10}}>
+style={{cursor:'pointer',position:'relative',border:`1px solid ${G.baseB}`,background:G.base,boxShadow:'var(--shadow-md)',transition:'all .22s ease',padding:'11px',borderRadius:14,display:'flex',alignItems:'center',gap:10,flexShrink:0}}>
 {flagEl(40)}{nameBlock}{boxes}
 </div>})}
 </div>
@@ -4245,12 +4246,15 @@ onMouseLeave={e=>{if(!receiptDrag)e.currentTarget.style.background='rgba(176,125
 </button>}
 </div>}
 
-{/* Existing broker list */}
-{brokerMode!=='new'&&<div style={{display:'flex',flexDirection:'column',gap:8}}>
+{/* Existing broker list — ارتفاع **ثابت** ما دام لا وسيطَ مختاراً: نتيجةٌ واحدة أو عشرون أو
+    لا شيء، الإطار لا يتحرّك أثناء الكتابة والنتائج تُمرَّر داخلياً. الارتفاع يُظهر ثلاث بطاقات
+    وطرفَ الرابعة فيبين أنّ تحتها المزيد. بعد الاختيار يختفي البحث وتبقى بطاقة واحدة، فيعود
+    الإطار لحجمها الطبيعي بدل فراغٍ كبير تحتها. */}
+{brokerMode!=='new'&&<div className="sr-scroll" style={{display:'flex',flexDirection:'column',gap:8,...(selBroker?null:{height:268}),overflowY:'auto',overflowX:'hidden',paddingLeft:4}}>
 {/* نتائج البحث من `brokerResults` — تُرشَّح في الخادم لا في الخمسين المحمَّلة */}
 {(()=>{const filtered=selBroker?[selBroker]:brokerResults;
 // بلا اختيار/بحث: نعرض بطاقة «ابحث عن الوسيط» (نفس سلوك العميل) بدل سرد وسطاء مسبقاً.
-if(filtered.length===0)return<div style={{padding:'24px 20px',borderRadius:9,background:'transparent',border:'1px dashed var(--bd)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:8}}>
+if(filtered.length===0)return<div style={{flex:1,minHeight:0,padding:'24px 20px',borderRadius:9,background:'transparent',border:'1px dashed var(--bd)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:8}}>
 <div style={{width:42,height:42,borderRadius:'50%',background:'rgba(176,125,0,.08)',border:'1px dashed rgba(176,125,0,.3)',display:'flex',alignItems:'center',justifyContent:'center'}}>
 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(176,125,0,.65)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>{brokerQ.trim()&&<line x1="8" y1="11" x2="14" y2="11"/>}</svg>
 </div>
@@ -4269,7 +4273,8 @@ const infoBox=(Icon,label,val)=><div style={{display:'flex',alignItems:'center',
 const flagEl=size=><div title={natLabel} style={{width:size,height:size,borderRadius:12,background:'rgba(0,0,0,.25)',border:sel?'1.5px solid rgba(176,125,0,.4)':'1px solid rgba(255,255,255,.08)',flexShrink:0,transition:'.25s',boxShadow:sel?'0 2px 8px rgba(176,125,0,.15)':'none',position:'relative',overflow:'hidden'}}>{flagUrl?<img src={flagUrl} alt={natLabel} loading="lazy" style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>:<div style={{width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center'}}><Globe size={Math.round(size*.42)} strokeWidth={1.6} color="rgba(255,255,255,.35)"/></div>}</div>
 const nameBlock=<div style={{flex:1,minWidth:0,display:'flex',flexDirection:'column',gap:3}}><span style={{fontSize:14.5,fontWeight:600,color:sel?C.gold:'var(--tx)',letterSpacing:'-.2px'}}>{b.name_ar||b.name_en||'—'}</span>{b.name_ar&&b.name_en&&<span style={{fontSize:11,color:'var(--tx3)',fontWeight:600,opacity:.9}}>{b.name_en}</span>}</div>
 const boxes=<div style={{display:'flex',gap:8,flexShrink:0}}>{b.id_number&&infoBox(CreditCard,T('رقم الهوية','ID number'),b.id_number)}{b.phone&&infoBox(Phone,T('الجوال','Phone'),fmtPhone(b.phone))}</div>
-const wrapSel={position:'relative',border:`1px solid ${G.selB}`,background:G.sel,boxShadow:'var(--shadow-md)',transition:'all .22s ease',padding:'11px',borderRadius:14,display:'flex',flexDirection:'column',gap:9}
+// flexShrink:0 — البطاقات داخل منطقة تمرير ذات ارتفاع ثابت: بلا هذا تنضغط بدل أن تُمرَّر.
+const wrapSel={position:'relative',border:`1px solid ${G.selB}`,background:G.sel,boxShadow:'var(--shadow-md)',transition:'all .22s ease',padding:'11px',borderRadius:14,display:'flex',flexDirection:'column',gap:9,flexShrink:0}
 if(sel)return<div key={b.id} style={{...wrapSel,flexDirection:'row',alignItems:'center',gap:10}}>
 {flagEl(40)}
 <div style={{flex:1,minWidth:0,display:'flex',flexDirection:'column',gap:2,alignSelf:'flex-start',marginTop:2}}>
@@ -4281,7 +4286,7 @@ if(sel)return<div key={b.id} style={{...wrapSel,flexDirection:'row',alignItems:'
 {boxes}
 </div>
 return<div key={b.id} onClick={()=>setSelBroker(b)} onMouseEnter={onEnter} onMouseLeave={onLeave}
-style={{cursor:'pointer',position:'relative',border:`1px solid ${G.baseB}`,background:G.base,boxShadow:'var(--shadow-md)',transition:'all .22s ease',padding:'11px',borderRadius:14,display:'flex',alignItems:'center',gap:10}}>
+style={{cursor:'pointer',position:'relative',border:`1px solid ${G.baseB}`,background:G.base,boxShadow:'var(--shadow-md)',transition:'all .22s ease',padding:'11px',borderRadius:14,display:'flex',alignItems:'center',gap:10,flexShrink:0}}>
 {flagEl(40)}{nameBlock}{boxes}
 </div>})})()}
 </div>}

@@ -392,9 +392,10 @@ function InvCard({ d, row, sb, T, isAr, toast, onClick, user }) {
   const PrintIco = <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
   // ── شرائح حركة اليوم — بجوار زرّي الواتساب/الطباعة وبنفس ستايلهما: المستلم على الفاتورة
   //    في يوم مجموعتها (+ أخضر)، والمُعاد للعميل ذلك اليوم إلغاءً أو استرجاعاً (− أحمر).
-  //    فاتورة أُلغيت ذلك اليوم: يُعرض المُعاد فقط (المستلم عاد ضمن مبلغ الإلغاء) — نفس منطق ملخص اليوم.
+  //    فاتورة أُلغيت ذلك اليوم: يُعرض المستلم فيه (+) والمسدَّد الملغى (−) معاً — نفس منطق
+  //    ملخص اليوم وكروت الإحصاء: الداخل كامل، والخارج يُخصم منه.
   const dm = d.dayMoney || {}
-  const dayIn = dm.cancelledToday ? 0 : Number(dm.received || 0)
+  const dayIn = Number(dm.received || 0)
   const dayOut = Number(dm.refunded || 0) + Number(dm.cancelledAmt || 0)
   // شريحة حركة اليوم: سهم صاعد أخضر (مستلم) أو نازل أحمر (مُعاد) + المبلغ فقط — بدون خلفية.
   // big: نسخة أكبر تُعرض في منتصف رأس كرت التذكرة.
@@ -870,10 +871,16 @@ function StatsCards({ T, periodStats, svcToday, mode = 'real' }) {
   const ps = periodStats
   const cashSum = z ? 0 : ps.cash.sum, cashCnt = z ? 0 : ps.cash.cnt
   const bankSum = z ? 0 : ps.bank.sum, bankCnt = z ? 0 : ps.bank.cnt
+  /* حركة النقد: «نقدًا» كامل الكاش الداخل للمكتب في الفترة (كل إيصال، بلا نظر لحالة فاتورته)،
+     و«مرتجعة أو ملغاة» ما خرج منه: المرتجعات + كامل المسدَّد على الفواتير المُلغاة داخل الفترة،
+     و«الصافي» ما استقرّ في صندوق منشئ الفواتير. فالطرح ظاهرٌ على الشاشة: نقدًا − الخارج = الصافي.
+     ⚠️ لا يُستبعد إيصالٌ من «نقدًا» لأنّ فاتورته أُلغيت — ذلك كان يخصم المبلغ مرّتين
+     (مرّةً بعدم احتسابه ومرّةً بخصم الملغاة)، ويمحو المبلغ أثراً رجعياً من اليوم الذي قُبض فيه. */
   const refSum = z ? 0 : (ps.voided.sum + ps.cancelled.sum)
   const refCnt = z ? 0 : (ps.voided.cnt + ps.cancelled.cnt)
-  // الصافي النقدي = النقد المستلم − المُعاد للعميل (المرتجعة + الملغاة).
-  const netCash = cashSum - refSum
+  // يُخصم الشقّ النقدي وحده — الاسترجاع بحوالة بنكية لا ينقص نقد الصندوق.
+  const outSum = z ? 0 : Number(ps.returned?.cash || 0)
+  const netCash = cashSum - outSum
   /* «صفر» يعني **رقماً صفراً** لا خانةً غائبة: بقيّة الكروت تعرض 0 لا فراغاً،
      فكذلك كرت الخدمات — تُسرَد خدماتُه كلّها بأصفارها.
      ⚠️ `[]` هنا كانت تكفي يوم كان التصفير في الواجهة وحدها و`svcToday` يصل
@@ -895,9 +902,10 @@ function StatsCards({ T, periodStats, svcToday, mode = 'real' }) {
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <span style={{ fontSize: 12.5, color: 'var(--tx3)', fontWeight: 600 }}>{T('عدد العمليات', 'Receipts')} <span style={{ color: C.gold, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(cashCnt)}</span></span>
-            {/* الصافي النقدي — النقد بعد خصم المرتجعة/الملغاة، بشكل «تاق» مثل تاق حالة المعاملة */}
+            {/* الصافي النقدي — النقد بعد خصم ما خرج فعلاً للعميل، بشكل «تاق» مثل تاق حالة المعاملة */}
             {(() => { const netColor = netCash < 0 ? C.red : '#27a046'; return (
-              <span style={{ alignSelf: 'flex-start', direction: 'rtl', display: 'inline-flex', alignItems: 'center', gap: 6, borderInlineStart: '3px solid ' + netColor, background: netColor + '10', padding: '5px 11px', color: netColor, flexShrink: 0 }}>
+              <span title={T('ما استقرّ في الصندوق = «نقدًا» − الخارج نقدًا (المرتجعات + المسدَّد على الفواتير المُلغاة ضمن الفترة).', 'What is left in the box = “Cash” − cash out (refunds + amounts paid on invoices cancelled within the period).')}
+                style={{ alignSelf: 'flex-start', direction: 'rtl', display: 'inline-flex', alignItems: 'center', gap: 6, borderInlineStart: '3px solid ' + netColor, background: netColor + '10', padding: '5px 11px', color: netColor, flexShrink: 0, cursor: 'help' }}>
                 <span style={{ fontSize: 12, fontWeight: 600 }}>{T('الصافي النقدي', 'Net Cash')}</span>
                 <span style={{ fontSize: 15, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(netCash)}</span>
                 <span style={{ fontSize: 10.5, fontWeight: 600, opacity: .85 }}>{T('ريال', 'SAR')}</span>
@@ -913,10 +921,13 @@ function StatsCards({ T, periodStats, svcToday, mode = 'real' }) {
       {/* كرت جانبي — تحويلات / مرتجعة (شريط أيقونة على اليسار لكل صف) */}
       <div style={{ ...SC_CARD, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 190 }}>
         {[{ label: T('تحويلات بنكية', 'Bank Transfers'), val: bankSum, cnt: bankCnt, c: C.blue, railIcon: <Landmark size={22} /> },
-          { label: T('مرتجعة أو ملغاة', 'Refunded / Cancelled'), val: refSum, cnt: refCnt, c: C.red, railIcon: <RotateCcw size={22} /> }].map((s, i) => (
+          // الخارج من الصندوق: المرتجعات + المسدَّد على الفواتير المُلغاة ضمن الفترة. يُخصم من
+          // «نقدًا» بشقّه النقدي؛ فإن خرج جزءٌ منه بحوالة بنكية بُيّن ذلك في التلميح.
+          { label: T('مرتجعة أو ملغاة', 'Refunded / Cancelled'), val: refSum, cnt: refCnt, c: C.red, railIcon: <RotateCcw size={22} />,
+            hint: outSum !== refSum ? T(`منه نقدًا: ${num(outSum)} ريال (هو المخصوم من الصافي النقدي) · والباقي خرج عبر التحويلات البنكية.`, `Of which cash: ${num(outSum)} SAR (deducted from net cash) · the rest went out via bank transfer.`) : undefined }].map((s, i) => (
           <div key={i} style={{ position: 'relative', flex: 1, borderTop: i ? '1px solid var(--bd)' : 'none', display: 'flex', overflow: 'hidden' }}>
             <div style={{ position: 'relative', flex: 1, padding: '16px 24px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 6 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+              <div title={s.hint} style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: s.hint ? 'help' : undefined }}>
                 <span style={{ fontSize: 13, color: 'var(--tx2)', fontWeight: 600 }}>{s.label}</span>
                 <span style={{ fontSize: 12, color: s.cnt > 0 ? C.gold : 'var(--tx4)', fontWeight: 600 }}>({num(s.cnt)})</span>
               </div>
@@ -985,8 +996,9 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
   const [periodStats, setPeriodStats] = useState({
     cash: { cnt: 0, sum: 0 },
     bank: { cnt: 0, sum: 0 },
-    cancelled: { cnt: 0, sum: 0 },
-    voided: { cnt: 0, sum: 0 },
+    cancelled: { cnt: 0, sum: 0 },   // إعلامي: عدد الملغاة وقيمة المحصَّل عليها
+    voided: { cnt: 0, sum: 0 },      // المرتجعات المسجّلة (دفعات سالبة) ضمن الفترة
+    returned: { cnt: 0, sum: 0 },    // الخروج النقدي الفعلي — هو ما يُخصم من الصافي
   })
   const [weekStats, setWeekStats] = useState({
     cash: { cnt: 0, sum: 0 },
@@ -1219,7 +1231,7 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
     let alive = true
     const todayStart = riyadhDayStart()
     const weekStart = new Date(todayStart.getTime() - 6 * 24 * 3600 * 1000)
-    const normKpi = (x) => ({ cnt: Number(x?.cnt) || 0, sum: Number(x?.sum) || 0 })
+    const normKpi = (x) => ({ cnt: Number(x?.cnt) || 0, sum: Number(x?.sum) || 0, cash: Number(x?.cash) || 0, bank: Number(x?.bank) || 0 })
     const normSvc = (rows) => (rows || []).map(s => ({ code: s.code, cnt: Number(s.cnt) || 0, sum: Number(s.sum) || 0 }))
     // كروت الإحصاء: المدير العام والمحاسب تتبع عوامل التصفية المختارة (يوم/مدى/كل التواريخ).
     // باقي المستخدمين تبقى مثبّتة على «اليوم» دائماً وتتجاهل فلاتر التاريخ والخدمة…،
@@ -1231,7 +1243,7 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
     const f = fullStats ? rawF : { p_branch_ids: rawF.p_branch_ids, p_branch_exact_ids: rawF.p_branch_exact_ids }
     const applyPeriod = ([t, w]) => {
       if (t.data) {
-        setPeriodStats({ cash: normKpi(t.data.cash), bank: normKpi(t.data.bank), cancelled: normKpi(t.data.cancelled), voided: normKpi(t.data.voided) })
+        setPeriodStats({ cash: normKpi(t.data.cash), bank: normKpi(t.data.bank), cancelled: normKpi(t.data.cancelled), voided: normKpi(t.data.voided), returned: normKpi(t.data.returned) })
         setSvcToday(normSvc(t.data.services))
       }
       if (w.data) {
@@ -1337,6 +1349,13 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
     if (isNaN(d.getTime())) return ''
     return new Date(d.getTime() - 2 * 3600 * 1000).toISOString().slice(0, 10)
   }
+  // يوم الإلغاء بمعيار يوم العمل — من cancel_log، وإلا آخر نشاط/الإنشاء (فواتير Bubble المهاجرة بلا سجل إلغاء).
+  const cancelDayKey = (r) => {
+    if (r?.status?.code !== 'cancelled') return ''
+    const log = Array.isArray(r?.cancel_log) ? r.cancel_log : []
+    const at = log.length ? log[log.length - 1]?.at : null
+    return businessDayKey(at || r.last_activity_at || r.created_at)
+  }
   const grouped = useMemo(() => {
     // عند الترتيب حسب تاريخ الإصدار نجمّع الكروت بيوم الإصدار (لا يوم آخر نشاط) كي تطابق
     // عناوين الأيام ترتيب الفرز وتتصاعد/تتنازل بحسبه.
@@ -1439,24 +1458,48 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
         svcMap.set(code, e)
       }
 
-      // دفعات الفترة ضمن نطاق التصفية. المقبوضات تستثني الفواتير الملغاة (لا تُحتسب كإيراد)،
-      // أما المرتجعات فتُحتسب حتى لو أُلغيت الفاتورة (الاسترداد فعليًا حصل ضمن الفترة).
+      /* دفعات الفترة ضمن نطاق التصفية — نفس نموذج حركة النقد في invoice_period_stats:
+         • الداخل = كل دفعة صحيحة موجبة تاريخها داخل الفترة، بلا نظر لحالة فاتورتها
+           (كامل الكاش الذي دخل المكتب). ⚠️ لا يُستبعد إيصالٌ لأنّ فاتورته أُلغيت: ذلك كان
+           يخصم المبلغ مرّتين، ويمحوه أثراً رجعياً من تقرير اليوم الذي قُبض فيه.
+         • الخارج = مرتجعات مسجّلة (دفعات سالبة) + كامل المسدَّد على فواتير أُلغيت *داخل الفترة*
+           (بتاريخ الإلغاء). لا ازدواج: مسدَّد الفاتورة صافٍ من مرتجعها (تريغر paid_amount).
+         • الدفعة المُبطَلة (is_valid=false) قيدٌ لم يحدث: لا تُحتسب داخلاً ولا خارجاً. */
       const scoped = (pays || []).filter(p => p.invoice && (!branchScope || branchScope.includes(p.invoice.branch_id)) && inSet(p.invoice.id))
-      const recv = scoped.filter(p => p.invoice.status?.code !== 'cancelled' && p.is_valid && Number(p.amount) > 0)
+      const moved = scoped.filter(p => p.is_valid)
+      const recv = moved.filter(p => Number(p.amount) > 0)
       const sumOf = arr => arr.reduce((s, p) => s + Number(p.amount || 0), 0)
       const cashP = recv.filter(p => p.payment_method?.code === 'cash')
       const bankP = recv.filter(p => p.payment_method?.code === 'bank_transfer' || p.payment_method?.code === 'pos')
       // دفعة على فاتورة سابقة = فاتورتها أُنشئت قبل بداية الفترة (فقط عند وجود بداية محددة للفترة).
       const oldP = start ? recv.filter(p => new Date(p.invoice.created_at) < start) : []
-      // مقدار الاسترداد لدفعة: دفعة صحيحة سالبة (مرتجع) أو دفعة أُبطلت (غير صحيحة).
-      const refundMag = p => !p.is_valid ? Math.abs(Number(p.amount) || 0) : (Number(p.amount) < 0 ? -Number(p.amount) : 0)
-      const refundSum = scoped.reduce((s, p) => s + refundMag(p), 0)
-      const refundCnt = scoped.filter(p => !p.is_valid || Number(p.amount) < 0).length
+      // طريقة الدفع تُصنَّف نقداً/حوالة كي لا يُخصم استرجاعٌ بنكيّ من «الصافي نقدًا».
+      const payKind = (code) => code === 'cash' ? 'cash' : (code === 'bank_transfer' || code === 'pos') ? 'bank' : 'other'
+      const refunds = moved.filter(p => Number(p.amount) < 0)
+      const refundSum = refunds.reduce((s, p) => s - Number(p.amount || 0), 0)
+      const refundCnt = refunds.length
+      const refundBy = (kind) => refunds.filter(p => payKind(p.payment_method?.code) === kind).reduce((s, p) => s - Number(p.amount || 0), 0)
 
-      // «المُعاد للعميل» = المرتجعات + مبالغ الفواتير الملغاة ضمن الفترة — كلاهما فلوس نقدية تُعاد للعميل.
-      // paid_amount للفاتورة الملغاة صافٍ من أي مرتجع مُسجّل عليها (تريغر paid_amount)، فلا ازدواج بالحساب.
-      const cancelledSum = cancelledRows.reduce((s, r) => s + Number(r.paid_amount || 0), 0)
-      const returnedToCustomer = refundSum + cancelledSum
+      // الخارج بالإلغاء = كامل ما سُدِّد على الفواتير المُلغاة ضمن الفترة، موزّعاً على طريقة الدفع
+      // (مجموعه = paid_amount). الاستعلام يُقسَّم دفعاتٍ لأن «كل التواريخ» قد يجمع مئات الفواتير.
+      const cancelOutBy = { cash: 0, bank: 0, other: 0 }
+      if (cancelledRows.length) {
+        const ids = cancelledRows.map(r => r.id)
+        for (let i = 0; i < ids.length; i += 200) {
+          const { data: cp, error: e4 } = await sb.from('payments')
+            .select('amount,payment_method:payment_method_id(code)')
+            .is('deleted_at', null).eq('is_valid', true)
+            .in('invoice_id', ids.slice(i, i + 200))
+          if (e4) throw e4
+          for (const p of cp || []) cancelOutBy[payKind(p.payment_method?.code)] += Number(p.amount || 0)
+        }
+      }
+      const cancelOut = cancelOutBy.cash + cancelOutBy.bank + cancelOutBy.other
+      // قيمة الملغى في سطر «فواتير ملغاة» = نفس المبلغ المخصوم، فيتطابق الملخص مع الكروت.
+      const cancelledSum = cancelOut
+      const returnedToCustomer = refundSum + cancelOut
+      const returnedCash = refundBy('cash') + cancelOutBy.cash
+      const returnedBank = refundBy('bank') + cancelOutBy.bank
 
       // وسم الفترة + سطر التصفية في ترويسة الرسالة.
       const disp = ds => ds.split('-').reverse().join('-')
@@ -1480,12 +1523,12 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
         oldPays: { cnt: oldP.length, sum: sumOf(oldP) },
         refunded: { cnt: refundCnt, sum: refundSum },
         cancelled: { cnt: cancelledRows.length, sum: cancelledSum },
-        returned: { sum: returnedToCustomer },
+        returned: { sum: returnedToCustomer, cash: returnedCash, bank: returnedBank },
         net: {
-          // المُعاد للعميل يُعامل كخروج نقدي (فلوس تُسلَّم للعميل نقدًا).
+          // المُعاد للعميل خروجٌ من نفس القناة التي دخل منها: النقدي من النقد والبنكي من التحويلات.
           total: (sumOf(cashP) + sumOf(bankP)) - returnedToCustomer,
-          cash: sumOf(cashP) - returnedToCustomer,
-          bank: sumOf(bankP),
+          cash: sumOf(cashP) - returnedCash,
+          bank: sumOf(bankP) - returnedBank,
         },
       })
       navigator.clipboard?.writeText(msg)
@@ -1689,13 +1732,14 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
         // المُحصّل = الدفعات الموجبة الصحيحة في هذا اليوم فقط (لا تُخصم منها المستردات — تظهر مستقلة بالأحمر).
         const dayPaid  = dayRows.reduce((s, r) => s + dayPaymentsOf(r).filter(p => Number(p.amount) > 0).reduce((a, p) => a + Number(p.amount || 0), 0), 0)
         const dayPmtCount = dayRows.reduce((s, r) => s + (createdThisDay(r) ? 0 : dayPaymentsOf(r).length), 0)
-        // الملغى + المسترد لهذا اليوم (يُعرض بالأحمر) = كلاهما فلوس تُعاد للعميل:
-        // • المسترد = مبالغ المستردات (دفعات سالبة أو مُبطَلة) بتاريخ هذا اليوم — حتى على فاتورة ملغاة
-        //   (paid_amount للفاتورة الملغاة صافٍ من مرتجعها، فلا ازدواج مع «الملغى»).
-        // • الملغى  = المبلغ المسدّد على الفواتير الملغاة التي وقع آخر نشاط لها في هذا اليوم.
-        const dayRefunded = dayRows.reduce((s, r) => s + (r.payments || []).filter(p => p.deleted_at == null && businessDayKey(p.payment_date) === dayKey)
-              .reduce((a, p) => a + (!p.is_valid ? Math.abs(Number(p.amount) || 0) : (Number(p.amount) < 0 ? -Number(p.amount) : 0)), 0), 0)
-        const dayCancelled = dayRows.reduce((s, r) => s + (r.status?.code === 'cancelled' ? Number(r.paid_amount || 0) : 0), 0)
+        // الملغى + المسترد لهذا اليوم (يُعرض بالأحمر) = ما خرج من الصندوق:
+        // • المسترد = الدفعات السالبة الصحيحة بتاريخ هذا اليوم. الدفعة المُبطَلة (is_valid=false)
+        //   قيدٌ لم يحدث — لا تُحتسب داخلاً ولا خارجاً (وإلا خُصمت وهي أصلاً غير محسوبة).
+        // • الملغى  = كامل المسدَّد على الفواتير التي أُلغيت *في هذا اليوم* — بتاريخ الإلغاء لا
+        //   بحالة الفاتورة، وإلا خُصمت الفاتورة الملغاة من كل يوم تظهر فيه.
+        const dayRefunded = dayRows.reduce((s, r) => s + dayPaymentsOf(r)
+              .reduce((a, p) => a + (Number(p.amount) < 0 ? -Number(p.amount) : 0), 0), 0)
+        const dayCancelled = dayRows.reduce((s, r) => s + (cancelDayKey(r) === dayKey ? Number(r.paid_amount || 0) : 0), 0)
         const dayVoid = dayRefunded + dayCancelled
         // الصافي اليومي = المُحصّل − المُعاد للعميل (المرتجع + الملغى). قد يكون سالباً في يوم كثُرت فيه الإلغاءات.
         const dayNet = dayPaid - dayVoid
@@ -1731,9 +1775,10 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
                 const dayMoney = (() => {
                   const tp = (r.payments || []).filter(p => p.deleted_at == null && businessDayKey(p.payment_date) === dayKey)
                   const recv = tp.filter(p => p.is_valid && Number(p.amount) > 0)
-                  const refs = tp.filter(p => !p.is_valid || Number(p.amount) < 0)
+                  // المرتجع = دفعة سالبة صحيحة. الدفعة المُبطَلة قيدٌ لم يحدث فلا تُعدّ استرجاعاً.
+                  const refs = tp.filter(p => p.is_valid && Number(p.amount) < 0)
                   const mLabel = p => (isAr ? p.payment_method?.value_ar : (p.payment_method?.value_en || p.payment_method?.value_ar)) || p.payment_method?.value_ar
-                  const cancelledToday = r.status?.code === 'cancelled' && businessDayKey(r.last_activity_at || r.created_at) === dayKey
+                  const cancelledToday = cancelDayKey(r) === dayKey
                   // تفصيل المقبوضات حسب طريقة الدفع (نقد/حوالة…): المبلغ + عدد الدفعات لكل طريقة ذلك اليوم.
                   const recvBreakdown = (() => {
                     const map = new Map()
@@ -1748,7 +1793,7 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
                     received: recv.reduce((a, p) => a + Number(p.amount || 0), 0),
                     recvMethods: [...new Set(recv.map(mLabel).filter(Boolean))],
                     recvBreakdown,
-                    refunded: refs.reduce((a, p) => a + (!p.is_valid ? Math.abs(Number(p.amount) || 0) : (Number(p.amount) < 0 ? -Number(p.amount) : 0)), 0),
+                    refunded: refs.reduce((a, p) => a - Number(p.amount || 0), 0),
                     refundMethods: [...new Set(refs.map(mLabel).filter(Boolean))],
                     cancelledToday,
                     cancelledAmt: cancelledToday ? Number(r.paid_amount || 0) : 0,
@@ -2011,7 +2056,7 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user }) {
       const srId = inv.service_request?.id
 
       const SELECTS = {
-        work_visa: `id,visa_number,visa_cost,border_number,unified_number,worker_name,wakalah_number,wakalah_date,wakalah_office,visa_used,visa_used_date_check,gender,file_number,visa_issue_date,created_at,updated_at,
+        work_visa: `id,visa_number,visa_cost,border_number,unified_number,worker_name,wakalah_number,wakalah_date,wakalah_office,visa_used,visa_used_date_check,gender,file_number,visa_issue_date,visa_file_path,created_at,updated_at,
           main_facility:main_facility_id(name_ar,unified_number,gosi_number,qiwa_prefix,qiwa_number),
           nationality:nationality_id(name_ar,name_en),
           occupation:occupation_id(name_ar,name_en),
@@ -7901,6 +7946,8 @@ function BorderNumbersModal({ sb, toast, T, isAr, visas, editorId, editorName, o
   const [vals, setVals] = useState(() => Object.fromEntries(rows.map(r => [r.id, r.border_number ? String(r.border_number) : ''])))
   const [unifieds, setUnifieds] = useState(() => Object.fromEntries(rows.map(r => [r.id, r.unified_number ? String(r.unified_number) : ''])))
   const [visaNos, setVisaNos] = useState(() => Object.fromEntries(rows.map(r => [r.id, r.visa_number ? String(r.visa_number) : ''])))
+  // تاريخ الإصدار: يُدخَل هنا كما يُدخَل في «جدول إصدار التأشيرات» — فالمصدران يكتبان الحقول نفسها.
+  const [issueDates, setIssueDates] = useState(() => Object.fromEntries(rows.map(r => [r.id, r.visa_issue_date ? String(r.visa_issue_date).slice(0, 10) : ''])))
   const [files, setFiles] = useState({})   // files[visaId] = ملف التأشيرة المرفق (File)
   const [saving, setSaving] = useState(false)
   const [done, setDone] = useState(false)
@@ -7923,11 +7970,12 @@ function BorderNumbersModal({ sb, toast, T, isAr, visas, editorId, editorName, o
     b: String(vals[r.id] ?? '').trim(),       // رقم الحدود
     u: String(unifieds[r.id] ?? '').trim(),   // الرقم الموحّد للمنشأة
     v: String(visaNos[r.id] ?? '').trim(),    // رقم التأشيرة
+    d: String(issueDates[r.id] ?? '').trim(), // تاريخ إصدار التأشيرة
     f: files[r.id] || null,                   // ملف التأشيرة
   })
-  const touched = r => { const x = rawOf(r); return !!(x.b || x.u || x.v || x.f) }
+  const touched = r => { const x = rawOf(r); return !!(x.b || x.u || x.v || x.d || x.f) }
   // الصيغ: الرقم الموحّد يبدأ بـ7، رقم التأشيرة بـ1، رقم الحدود بـ3 — وكلّها 10 أرقام بالضبط، والملف مرفق.
-  const complete = r => { const x = rawOf(r); return /^7\d{9}$/.test(x.u) && /^1\d{9}$/.test(x.v) && /^3\d{9}$/.test(x.b) && !!x.f }
+  const complete = r => { const x = rawOf(r); return /^7\d{9}$/.test(x.u) && /^1\d{9}$/.test(x.v) && /^3\d{9}$/.test(x.b) && /^\d{4}-\d{2}-\d{2}$/.test(x.d) && !!x.f }
   // التحقّق والحفظ يقتصران على التأشيرات المعروضة (غير المُدخَلة بعد) — التأشيرات المحفوظة سابقاً تُستثنى تماماً
   // فلا تُطالَب بإعادة إرفاق ملفها (ملفها رُفع سابقاً ولا يوجد في حالة هذه النافذة). كل تأشيرة مستقلّة عن الأخرى.
   const touchedRows = shown.filter(touched)
@@ -7964,6 +8012,7 @@ function BorderNumbersModal({ sb, toast, T, isAr, visas, editorId, editorName, o
       if (!/^7\d{9}$/.test(x.u)) return T('الرقم الموحد يجب أن يبدأ بـ7 ويكون 10 أرقام','Unified number must start with 7 and be 10 digits')
       if (!/^1\d{9}$/.test(x.v)) return T('رقم التأشيرة يجب أن يبدأ بـ1 ويكون 10 أرقام','Visa number must start with 1 and be 10 digits')
       if (!/^3\d{9}$/.test(x.b)) return T('رقم الحدود يجب أن يبدأ بـ3 ويكون 10 أرقام','Border number must start with 3 and be 10 digits')
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(x.d)) return T('أدخل تاريخ إصدار التأشيرة','Enter the visa issue date')
       if (!x.f) return T('أرفق ملف التأشيرة','Attach the visa file')
     }
     for (const r of touchedRows) {
@@ -7991,8 +8040,10 @@ function BorderNumbersModal({ sb, toast, T, isAr, visas, editorId, editorName, o
         const nv = String(vals[r.id] ?? '').trim() || null
         const uv = String(unifieds[r.id] ?? '').trim() || null
         const vno = String(visaNos[r.id] ?? '').trim() || null
+        const dv = String(issueDates[r.id] ?? '').trim() || null
         // .select() لتأكيد تحديث صفٍّ فعلاً — منع RLS يُرجع صفر صفوف بلا خطأ، فكان الحفظ يبدو ناجحاً ولا يُخزَّن شيء.
-        const { data: upd, error } = await sb.from('visa_applications').update({ border_number: nv, unified_number: uv, visa_number: vno }).eq('id', r.id).select('id')
+        // updated_by/updated_at: منهما يُعرف «مَن أصدر ومتى» في كرت حالة المعاملة — والجدول يكتبهما أيضاً.
+        const { data: upd, error } = await sb.from('visa_applications').update({ border_number: nv, unified_number: uv, visa_number: vno, visa_issue_date: dv, updated_by: editorId || null, updated_at: new Date().toISOString() }).eq('id', r.id).select('id')
         if (error) throw error
         if (!upd || upd.length === 0) { setErr(T('تعذّر حفظ بيانات التأشيرة — تحقّق من الصلاحيات','Could not save visa data — check permissions')); setSaving(false); return }
         // مرفق «ملف التأشيرة» — أفضل-جهد، لا يمنع الحفظ. يُربط بالتأشيرة (entity_type='visa_application') بملاحظة 'visa_file'.
@@ -8004,12 +8055,15 @@ function BorderNumbersModal({ sb, toast, T, isAr, visas, editorId, editorName, o
             const { error: upErr } = await sb.storage.from('attachments').upload(path, vf, { cacheControl: '3600', upsert: false })
             if (!upErr) {
               const { data: pub } = sb.storage.from('attachments').getPublicUrl(path)
+              const fileUrl = pub?.publicUrl || path
               await sb.from('attachments').insert({
                 entity_type: 'visa_application', entity_id: r.id,
-                file_name: vf.name, file_url: pub?.publicUrl || path, storage_path: path,
+                file_name: vf.name, file_url: fileUrl, storage_path: path,
                 mime_type: vf.type || null, size_bytes: vf.size || null,
                 notes: 'visa_file', uploaded_by: editorId || null,
               })
+              // المسار يُكتب على صفّ التأشيرة أيضاً — هو ما يقرأه «جدول إصدار التأشيرات».
+              await sb.from('visa_applications').update({ visa_file_path: fileUrl }).eq('id', r.id)
             }
           } catch { /* مرفق التأشيرة أفضل-جهد */ }
         }
@@ -8079,6 +8133,8 @@ function BorderNumbersModal({ sb, toast, T, isAr, visas, editorId, editorName, o
                     onChange={v => { setErr(''); setVals(p => ({ ...p, [r.id]: v })) }}
                     filter="digits" maxLength={10} dir="ltr" align="center" placeholder="3XXXXXXXXX" />
                 </div>
+                <DateField full req label={T('تاريخ إصدار التأشيرة','Visa issue date')} value={issueDates[r.id] || ''}
+                  onChange={v => { setErr(''); setIssueDates(p => ({ ...p, [r.id]: v })) }} />
                 <FileField full req dropHeight={72} label={T('ملف التأشيرة','Visa file')}
                   value={files[r.id] || null} onChange={f => { setErr(''); setFiles(p => ({ ...p, [r.id]: f })) }} />
               </div>
@@ -10057,7 +10113,10 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
                       whenAt: visaWhen,
                       person: visaDone ? v.editor?.person : null,
                       extraRows: visaExtra,
-                      attachments: (visaDone && visaFile?.file_url) ? [{ url: visaFile.file_url, label: T('عرض ملف التأشيرة', 'View visa file') }] : [],
+                      /* الملف قد يكون مرفقاً (نافذة الفاتورة) أو مساراً على صفّ التأشيرة
+                         (جدول إصدار التأشيرات/الاستيراد) — فالإدخال من المكانين سواء. */
+                      attachments: (visaDone && (visaFile?.file_url || v.visa_file_path))
+                        ? [{ url: visaFile?.file_url || v.visa_file_path, label: T('عرض ملف التأشيرة', 'View visa file') }] : [],
                     })
                     // مرحلة «الإقامة» — لا تظهر إلا بعد إصدار التأشيرة.
                     const iqExtra = []

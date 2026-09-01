@@ -473,10 +473,10 @@ const DATE_PRESETS = [
   { v: 'this_week', ar: 'هذا الأسبوع', en: 'This week' },
   { v: 'this_month', ar: 'هذا الشهر', en: 'This month' },
   { v: 'this_year', ar: 'هذه السنة', en: 'This year' },
-  { v: 'last7', ar: 'آخر ٧ أيام', en: 'Last 7 days' },
-  { v: 'last30', ar: 'آخر ٣٠ يوم', en: 'Last 30 days' },
-  { v: 'next7', ar: 'خلال ٧ أيام', en: 'Next 7 days' },
-  { v: 'next30', ar: 'خلال ٣٠ يوم', en: 'Next 30 days' },
+  { v: 'last7', ar: 'آخر 7 أيام', en: 'Last 7 days' },
+  { v: 'last30', ar: 'آخر 30 يوم', en: 'Last 30 days' },
+  { v: 'next7', ar: 'خلال 7 أيام', en: 'Next 7 days' },
+  { v: 'next30', ar: 'خلال 30 يوم', en: 'Next 30 days' },
   { v: 'past', ar: 'منتهٍ (قبل اليوم)', en: 'Overdue' },
   { v: 'future', ar: 'قادم (بعد اليوم)', en: 'Upcoming' },
 ]
@@ -4228,6 +4228,11 @@ const colSummary = (rows, isAr) => {
    طلبه والمحاسب يحدّث حالته — قفلُها يوقف العمل لا يحمي مالاً. */
 const GM_ONLY_VIEWS = new Set(['invoices', 'permanent_workers_invoices', 'deposits', 'sadad'])
 
+/* شيتات محجوبة عن **الجميع** بمن فيهم المدير العام — قسم «توريد العمالة» أُخفي
+   مؤقتاً بطلبه (2026-09-01) حتى يطلب إظهاره. الإرجاع: أفرغ المجموعة (ومعها
+   NAV_HARD_HIDDEN في App.jsx). */
+const HIDDEN_VIEWS = new Set(['manpower_rates', 'manpower_pool'])
+
 /* ═══ نقل الكفالة — تعبئة المراحل وإنهاء المعاملة من الشبكة ═══════════════════
    شيت `transfer_txn` صفٌّ لكل فاتورة نقل كفالة سارية. ما يُكتب في أعمدة المراحل
    يُرحَّل بعد الحفظ إلى **مكان النظام نفسه** الذي تكتب فيه صفحة الفاتورة:
@@ -4530,6 +4535,133 @@ const trPostStages = async (sb, savedRows, { user, isAr, rows }) => {
   return { note: notes.join(' · '), patch }
 }
 
+/* ═══ «إصدار التأشيرات» — ترحيل بيانات الإصدار إلى صفّ التأشيرة نفسه ═══════════
+   شيت `work_visas` كان يحفظ الإدخال في طبقة الشيت وحدها، بينما بطاقة «حالة
+   المعاملة» في الفاتورة تقرأ من `visa_applications` (رقم الحدود = إنجاز مرحلة
+   التأشيرة، و`updated_by` = مَن أصدر). فما يُعبَّأ هنا يُرحَّل بعد الحفظ إلى
+   **المكان نفسه** الذي تكتب فيه نافذة «بيانات التأشيرات» بصفحة الفاتورة، وبنفس
+   شروطها: الأرقام الثلاثة بصيَغها (موحّد 7 · تأشيرة 1 · حدود 3، عشر خانات)
+   والتاريخ وحدةٌ واحدة لا تُرحَّل ناقصة، ورقم الحدود فريدٌ لا يتكرّر — فيظهر
+   الإصدار في الفاتورة كما لو أُدخل منها، والطريقتان تبقيان مفتوحتين معاً.
+   (ملف التأشيرة خارج الوحدة عمداً: عموده يكتب في المصدر لحظة الرفع أصلاً.) */
+const WV_ISSUE_REQ = [
+  ['unified_number', /^7\d{9}$/, 'الرقم الموحّد', 'unified no.'],
+  ['visa_number', /^1\d{9}$/, 'رقم التأشيرة', 'visa no.'],
+  ['border_number', /^3\d{9}$/, 'رقم الحدود', 'border no.'],
+  ['visa_issue_date', /^\d{4}-\d{2}-\d{2}$/, 'تاريخ الإصدار', 'issue date'],
+]
+/* صيغتا الإدخال لحظة الكتابة — نفس ما تشترطه نافذة الفاتورة، فلا يقبل الشيتُ
+   ما سترفضه (الموحّد له قاعدته المشتركة SR_NUM_UNIFIED المطبَّقة أدناه). */
+const WV_NUM_VISA = numRule(/^1\d{9}$/, 'رقم التأشيرة: يبدأ بـ 1 و10 خانات', 'Visa no.: starts with 1, 10 digits')
+const WV_NUM_BORDER = numRule(/^3\d{9}$/, 'رقم الحدود: يبدأ بـ 3 و10 خانات', 'Border no.: starts with 3, 10 digits')
+const wvIssNorm = (k, v) => (k === 'visa_issue_date' ? ymd(v) : latin(String(v ?? '')).replace(/\D/g, ''))
+/* القيم الفعّالة الأربع: المكتوب في الشيت ← المخزَّن على صفّ التأشيرة — تعريفٌ
+   واحد يقرؤه عمود «في الفاتورة» والترحيلُ معاً (درس TR_FIELDS: وإلا قال الترحيل
+   «ينقص كذا» وهو ظاهرٌ في الخليّة لأنه جاء من النظام لا من يد الموظف). */
+const wvIssVals = (row, data) => {
+  const vals = {}; const missing = []; const missingEn = []
+  for (const [k, re, ar, en] of WV_ISSUE_REQ) {
+    const typed = wvIssNorm(k, (data && data[k]) ?? '')
+    const v = typed || wvIssNorm(k, row ? row[k] : '')
+    vals[k] = v
+    if (!re.test(v)) { missing.push(ar); missingEn.push(en) }
+  }
+  return { vals, missing, missingEn, complete: !missing.length,
+    typed: WV_ISSUE_REQ.some(([k]) => String((data && data[k]) ?? '').trim()),
+    fp: WV_ISSUE_REQ.map(([k]) => vals[k]).join('|') }
+}
+/* حال الصفّ لعمود «في الفاتورة»: مُرحَّل ✓ · وحدة مكتملة تُرحَّل مع الحفظ ·
+   ناقص كذا. الصفوف اليتيمة (قوى بلا فاتورة) والصفوف اليدوية خارج الحكاية.
+   `pend` = تعديلات الصفّ غير المحفوظة — فيتحدّث الحكم لحظة الكتابة لا بعد الحفظ. */
+const wvIssState = (r, isAr2, pend) => {
+  if (!r || r._orphan || !r.id) return null
+  const o = { ...((r && r._ops) || {}), ...(pend || {}) }
+  const iv = wvIssVals(r, o)
+  const done = { t: isAr2 === false ? 'On the invoice ✓' : 'في الفاتورة ✓', c: 'ok' }
+  if (o.wv_issue_p && o.wv_issue_p === iv.fp) return done
+  if (iv.typed) {
+    if (iv.complete) return { t: isAr2 === false ? 'Posts on save' : 'يُرحَّل مع الحفظ', c: 'wait' }
+    return { t: (isAr2 === false ? 'missing: ' : 'ناقص: ')
+      + (isAr2 === false ? iv.missingEn.join(', ') : iv.missing.join('، ')), c: 'miss' }
+  }
+  /* لا إدخالَ في الشيت: الحكم بما على صفّ التأشيرة نفسه — رقم حدودٍ صحيح يعني
+     أن الإصدار مُثبتٌ سلفاً (من الفاتورة أو استيرادٍ قديم). */
+  if (/^3\d{9}$/.test(wvIssNorm('border_number', r.border_number))) return done
+  return null
+}
+/* الترحيل بعد الحفظ (view.afterSave). لا حالةَ مرحلةٍ تُختار هنا: اكتمالُ
+   الوحدة الأربع هو الحدث — كما أن إدخالها كاملةً في نافذة الفاتورة هو الحفظ.
+   بصمة `wv_issue_p` تمنع إعادة كتابة ما لم يتغيّر، وتُعيد الترحيل تلقائياً متى
+   صُحِّحت قيمةٌ بعده. والسدادُ لا يقفل (قرار «لا قفل صلب» في تسلسل الإصدار) —
+   لكن غير المسدَّد يُذكر في التنبيه. */
+const wvPostIssuance = async (sb, savedRows, { user, isAr, rows }) => {
+  const byId = new Map((rows || []).map((r) => [r._id, r]))
+  const nowIso = new Date().toISOString()
+  const held = [], patch = {}
+  let posted = 0, unpaidN = 0
+  /* المرشّحون أولاً — ففحص تفرّد رقم الحدود نداءٌ واحد للدفعة كلها */
+  const cand = []
+  for (const { id, data } of savedRows) {
+    const row = byId.get(id)
+    if (!row || row._orphan || !row.id) continue          // صفوف النظام الحقيقية وحدها
+    const iv = wvIssVals(row, data)
+    if (!iv.typed || !iv.complete) continue               // الناقص يقوله عمود «في الفاتورة» بلا إزعاج كل حفظة
+    if (data.wv_issue_p === iv.fp) continue               // مُرحَّل ولم يتغيّر شيء
+    cand.push({ row, data, iv })
+  }
+  if (!cand.length) return ''
+  /* تفرّد رقم الحدود — كما تفحصه نافذة الفاتورة: داخل الدفعة ثم في القاعدة
+     (يُستثنى ما كان الرقمُ رقمَ الصفّ نفسه المخزَّن سلفاً). */
+  const cnt = new Map()
+  for (const c of cand) cnt.set(c.iv.vals.border_number, (cnt.get(c.iv.vals.border_number) || 0) + 1)
+  const fresh = cand.filter((c) => c.iv.vals.border_number !== wvIssNorm('border_number', c.row.border_number))
+  let taken = new Set()
+  if (fresh.length) {
+    const nums = [...new Set(fresh.map((c) => c.iv.vals.border_number))]
+    const { data: clash, error } = await sb.from('visa_applications')
+      .select('id,border_number').in('border_number', nums)
+      .not('id', 'in', `(${cand.map((c) => c.row.id).join(',')})`)
+    if (error) throw error
+    taken = new Set((clash || []).map((d) => wvIssNorm('border_number', d.border_number)))
+  }
+  for (const c of cand) {
+    const b = c.iv.vals.border_number
+    if (cnt.get(b) > 1 || taken.has(b)) {
+      held.push(isAr ? `رقم الحدود ${b} مستخدَم على تأشيرة أخرى — يجب أن يكون فريداً`
+        : `Border number ${b} is already used on another visa`)
+      continue
+    }
+    /* `.select()` لتأكيد تحديث صفٍّ فعلاً — منع RLS يُرجع صفر صفوف بلا خطأ.
+       و`updated_by` هو ما تعرضه بطاقة المعاملة «مَن أصدر». */
+    const { data: upd, error } = await sb.from('visa_applications').update({
+      unified_number: c.iv.vals.unified_number,
+      visa_number: c.iv.vals.visa_number,
+      border_number: b,
+      visa_issue_date: c.iv.vals.visa_issue_date,
+      updated_by: user?.id || null, updated_at: nowIso,
+    }).eq('id', c.row.id).select('id')
+    if (error) throw error
+    if (!upd || !upd.length) {
+      held.push(isAr ? 'تعذّر الحفظ على التأشيرة — تحقّق من الصلاحيات' : 'Could not write the visa — check permissions')
+      continue
+    }
+    posted++
+    if (depNum(wvFirstPay(c.row).remaining) > 0) unpaidN++
+    patch[c.row._id] = { ...c.data, wv_issue_p: c.iv.fp, wv_posted_at: nowIso }
+  }
+  if (Object.keys(patch).length) {
+    const { error } = await sb.from('ops_sheet_rows').upsert(
+      Object.entries(patch).map(([rowKey, d]) => ({ view_key: 'work_visas', row_key: rowKey, data: d, is_manual: false, hidden: false })),
+      { onConflict: 'view_key,row_key' })
+    if (error) throw error
+  }
+  const notes = []
+  if (posted) notes.push(isAr ? `أُثبت إصدار ${arCount(posted, 'تأشيرة', 'تأشيرتين', 'تأشيرات', 'تأشيرة')} في فاتورتها` : `Issuance posted to ${enNum(posted)} visa(s)`)
+  if (unpaidN) notes.push(isAr ? `منها ${arCount(unpaidN, 'تأشيرة', 'تأشيرتان', 'تأشيرات', 'تأشيرة')} دفعةُ إصدارها غير مسدَّدة بعد` : `${enNum(unpaidN)} with the issuance installment still unpaid`)
+  if (held.length) notes.push([...new Set(held)].join(' · '))
+  return { note: notes.join(' · '), patch }
+}
+
 /* ── عمولات الوسطاء: المبلغ يُكتب في مصدره لا في هذا الشيت ──────────────────
    العمولة تعيش في `service_request_agents` — منها تقرأ صفحة «الوسطاء» مستحقَّ
    كل وسيطٍ ومصروفَه. فما يُكتب هنا يُرحَّل إليها بعد الحفظ، وإلا صار الشيت
@@ -4669,14 +4801,14 @@ const acDue = (r) => acDueInfo(r, true).due
 const AC_RENEW_MONTHS = [3, 6, 9, 12]
 const AC_SERVICES = [
   { code: 'transfer', ar: 'نقل الكفالة', en: 'Sponsorship transfer' },
-  { code: 'iqama_renewal_3', ar: 'تجديد الإقامة ٣ أشهر', en: 'Iqama renewal · 3m' },
-  { code: 'iqama_renewal_6', ar: 'تجديد الإقامة ٦ أشهر', en: 'Iqama renewal · 6m' },
-  { code: 'iqama_renewal_9', ar: 'تجديد الإقامة ٩ أشهر', en: 'Iqama renewal · 9m' },
-  { code: 'iqama_renewal_12', ar: 'تجديد الإقامة ١٢ شهراً', en: 'Iqama renewal · 12m' },
+  { code: 'iqama_renewal_3', ar: 'تجديد الإقامة 3 أشهر', en: 'Iqama renewal · 3m' },
+  { code: 'iqama_renewal_6', ar: 'تجديد الإقامة 6 أشهر', en: 'Iqama renewal · 6m' },
+  { code: 'iqama_renewal_9', ar: 'تجديد الإقامة 9 أشهر', en: 'Iqama renewal · 9m' },
+  { code: 'iqama_renewal_12', ar: 'تجديد الإقامة 12 شهراً', en: 'Iqama renewal · 12m' },
   { code: 'iqama_renewal', ar: 'تجديد الإقامة — مدّة غير معروفة', en: 'Iqama renewal · unknown term', spare: true },
-  { code: 'work_visa_6m', ar: 'تأشيرة بإقامة ٦ أشهر', en: '6-month visa' },
-  { code: 'work_visa_9m', ar: 'تأشيرة بإقامة ٩ أشهر', en: '9-month visa' },
-  { code: 'work_visa_permanent', ar: 'تأشيرة بإقامة ١٢ شهر', en: '12-month visa' },
+  { code: 'work_visa_6m', ar: 'تأشيرة بإقامة 6 أشهر', en: '6-month visa' },
+  { code: 'work_visa_9m', ar: 'تأشيرة بإقامة 9 أشهر', en: '9-month visa' },
+  { code: 'work_visa_permanent', ar: 'تأشيرة بإقامة 12 شهر', en: '12-month visa' },
 ]
 const AC_REF = { rates: {} }
 const acDerive = (rows, edits, ctx) => { AC_REF.rates = (ctx && ctx.prices) || {} }
@@ -4949,6 +5081,111 @@ function AcRatesPanel({ rows, isAr, layout, persistLayout, canEdit, writeCells, 
       )}
     </div>
   )
+}
+
+/* ── «توريد العمالة»: بطاقة الأسعار وسجل العمالة كجدولَي عمل ────────────────
+   العمودان مصدرُهما جدولٌ حقيقي تقرؤه صفحاتٌ أخرى (نافذة التسعيرة تقرأ
+   `billing_rate`، وكشف الدوام يقرأ سجلّ العمالة) — فلا تكفي طبقة التجاوز:
+   كل خليّة تُكتب في جدولها، وكل صفٍّ مضاف يُنشأ فيه. */
+const MRC_POS_FG = {
+  'تنافسي ✓': '#27a046', 'مطلوب ⬆': '#d99f2b', 'مطلوب بشدة ⬆': '#e08a3c',
+  'نادر جداً ⬆⬆': C.red, 'هامش عالي ⬆': C.gold,
+}
+const mrcPosFg = (v) => MRC_POS_FG[String(v ?? '').trim()] || undefined
+/* الهامش يلوّن نفسه بحدّي الجدوى: 25% فأعلى صحّي، ودون 15% ضعيف */
+const mrcMarginFg = (v) => { const x = Number(v); if (!Number.isFinite(x)) return undefined; return x >= 25 ? '#27a046' : x >= 15 ? '#d99f2b' : C.red }
+
+const MRC_COLS = {
+  position_ar: 'position_ar', position_en: 'position_en', category_ar: 'category_ar',
+  min_rate: 'min_rate', max_rate: 'max_rate', avg_cost: 'avg_cost',
+  wage_rate: 'wage_rate', ot_wage_rate: 'ot_wage_rate', ot_billing_rate: 'ot_billing_rate',
+  margin_pct: 'margin_pct', billing_rate: 'billing_rate', market_pos: 'market_pos', notes: 'notes',
+}
+const MRC_NUM = new Set(['min_rate', 'max_rate', 'avg_cost', 'margin_pct', 'billing_rate', 'wage_rate', 'ot_wage_rate', 'ot_billing_rate'])
+const numOrNull = (v) => { const x = Number(String(v ?? '').replace(/,/g, '')); return Number.isFinite(x) ? x : null }
+
+async function mrcPost(sb, saved, ctx = {}) {
+  let done = 0, miss = 0
+  for (const { id, data } of (saved || [])) {
+    const patch = {}
+    for (const [colKey, dbCol] of Object.entries(MRC_COLS)) {
+      if (!data || !(colKey in data)) continue
+      const raw = data[colKey]
+      const empty = raw === '' || raw == null
+      patch[dbCol] = empty ? null : (MRC_NUM.has(dbCol) ? numOrNull(raw) : raw)
+    }
+    if (!Object.keys(patch).length) continue
+    // الربح يُشتقّ ولا يُكتب يدوياً — يبقى متّسقاً مع أي تعديل على التكلفة أو السعر
+    if ('avg_cost' in patch || 'billing_rate' in patch) {
+      const { data: cur } = await sb.from('manpower_rate_card').select('avg_cost,billing_rate').eq('id', id).maybeSingle()
+      const cost = 'avg_cost' in patch ? patch.avg_cost : cur?.avg_cost
+      const bill = 'billing_rate' in patch ? patch.billing_rate : cur?.billing_rate
+      if (bill != null) {
+        patch.profit_hr = Math.round(((bill || 0) - (cost || 0)) * 100) / 100
+        if (bill > 0) patch.margin_pct = Math.round((1 - (cost || 0) / bill) * 10000) / 100
+      }
+    }
+    const { data: upd, error } = await sb.from('manpower_rate_card').update(patch).eq('id', id).select('id')
+    if (!error && upd && upd.length) done++; else miss++
+  }
+  if (!done && !miss) return ''
+  const ar = ctx.isAr !== false
+  return miss ? (ar ? `حُدِّث ${done} سعر · تعذّر ${miss}` : `${done} rate(s) updated · ${miss} failed`)
+              : (ar ? `حُدِّث ${done} سعر في بطاقة الأسعار` : `${done} rate(s) updated`)
+}
+async function mrcAdd(sb, { data }, ctx = {}) {
+  const row = { position_en: (data.position_en || data.position_ar || '').trim(), position_ar: data.position_ar || null,
+    category_ar: data.category_ar || null, avg_cost: numOrNull(data.avg_cost), billing_rate: numOrNull(data.billing_rate),
+    created_by: ctx.user?.id || null }
+  if (!row.position_en) return ''
+  const { error } = await sb.from('manpower_rate_card').insert(row)
+  const ar = ctx.isAr !== false
+  return error ? (ar ? 'تعذّر إنشاء المهنة: ' : 'Trade insert failed: ') + error.message
+               : (ar ? 'أُنشئت في بطاقة الأسعار' : 'created in the rate card')
+}
+
+const MLP_STATUS_FG = { available: '#27a046', placed: C.blue, unreachable: '#d99f2b', blocked: C.red }
+const mlpStatusFg = (v) => MLP_STATUS_FG[String(v ?? '').trim()] || undefined
+
+const MLP_COLS = {
+  full_name: 'full_name', full_name_en: 'full_name_en', nationality: 'nationality', id_number: 'id_number',
+  phone: 'phone', whatsapp: 'whatsapp', trade: 'trade', trade_en: 'trade_en',
+  experience_years: 'experience_years', city: 'city', current_employer: 'current_employer',
+  iqama_expiry: 'iqama_expiry', expected_rate: 'expected_rate', rate_basis: 'rate_basis',
+  available_from: 'available_from', status: 'status', source: 'source',
+  last_contacted_at: 'last_contacted_at', notes: 'notes',
+}
+const MLP_NUM = new Set(['experience_years', 'expected_rate'])
+const MLP_DATE = new Set(['iqama_expiry', 'available_from', 'last_contacted_at'])
+async function mlpPost(sb, saved, ctx = {}) {
+  let done = 0, miss = 0
+  for (const { id, data } of (saved || [])) {
+    const patch = {}
+    for (const [colKey, dbCol] of Object.entries(MLP_COLS)) {
+      if (!data || !(colKey in data)) continue
+      const raw = data[colKey]
+      const empty = raw === '' || raw == null
+      patch[dbCol] = empty ? null : MLP_NUM.has(dbCol) ? numOrNull(raw) : MLP_DATE.has(dbCol) ? (String(raw).slice(0, 10) || null) : raw
+    }
+    if (!Object.keys(patch).length) continue
+    const { data: upd, error } = await sb.from('manpower_labor_pool').update(patch).eq('id', id).select('id')
+    if (!error && upd && upd.length) done++; else miss++
+  }
+  if (!done && !miss) return ''
+  const ar = ctx.isAr !== false
+  return miss ? (ar ? `حُدِّث ${done} عامل · تعذّر ${miss}` : `${done} worker(s) updated · ${miss} failed`)
+              : (ar ? `حُدِّث ${done} عامل في السجل` : `${done} worker(s) updated`)
+}
+async function mlpAdd(sb, { data }, ctx = {}) {
+  const name = (data.full_name || '').trim()
+  if (!name) return ''
+  const { error } = await sb.from('manpower_labor_pool').insert({
+    full_name: name, trade: data.trade || null, phone: data.phone || null, whatsapp: data.phone || null,
+    nationality: data.nationality || null, status: 'available', source: 'walk_in', created_by: ctx.user?.id || null,
+  })
+  const ar = ctx.isAr !== false
+  return error ? (ar ? 'تعذّر تسجيل العامل: ' : 'Worker insert failed: ') + error.message
+               : (ar ? 'سُجّل في سجل العمالة' : 'registered in the labour pool')
 }
 
 const VIEWS = [
@@ -5234,7 +5471,7 @@ const VIEWS = [
   {
     key: 'agent_commissions',
     ar: 'عمولات الوسطاء', en: 'Agent commissions',
-    hintAr: 'فواتير الوسطاء شهراً بشهر في الخدمات الخمس (تأشيرة ٦ و٩ و١٢ شهراً · نقل الكفالة · تجديد الإقامة) — صفِّ بعمود «الشهر»، واكتب العمولة وحالة صرفها فتُسجَّل في سجلّ الوسيط نفسه',
+    hintAr: 'فواتير الوسطاء شهراً بشهر في الخدمات الخمس (تأشيرة 6 و9 و12 شهراً · نقل الكفالة · تجديد الإقامة) — صفِّ بعمود «الشهر»، واكتب العمولة وحالة صرفها فتُسجَّل في سجلّ الوسيط نفسه',
     hintEn: 'Agent invoices month by month for the five commissioned services (6/9/12-month visas, transfer, iqama renewal) — filter by month, then enter the commission and its payout state; both are written to the agent record itself',
     /* لوحةٌ فوق الشبكة بدل شريط الشرائح: تسعيرة كل خدمة ومجموع ما يُدفع. */
     panel: AcRatesPanel,
@@ -5759,11 +5996,14 @@ const VIEWS = [
     /* هويّة المنشأة تُقفل بعد إرسال طلب شحن الرصيد — إلا للمدير العام */
     cellLocked: (r, col, ctx) => wvFacLocked(r, col, ctx),
     ar: 'تأشيرات العمل', en: 'Work visas',
+    /* ترحيل الإصدار إلى صفّ التأشيرة بعد كل حفظة — تلقائيٌّ لا بضغطة (بخلاف شيت
+       نقل الكفالة): الوحدة الناقصة لا تُرحَّل أصلاً، فلا خطرَ من حفظةٍ عابرة. */
+    afterSave: wvPostIssuance,
     /* رقمٌ واحد من الثلاثة يكفي: يُكتب الموحّد (أو التأمينات أو الموارد) فتُملأ
        البقيّة واسم المنشأة من فهرس الأرقام. ختمٌ لا دهس — لا يُملأ إلا الفارغ. */
     autoStamp: (row, ctx) => facNumStamp(row, ctx),
-    hintAr: 'تأشيرة لكل صف — بيانات التأشيرة من الفاتورة أولاً، ثم البيانات المدخلة (المنشأة وأرقامها والإصدار). تأشيرات الفاتورة الواحدة على غسلةٍ واحدة، ولونُ «مجموعة الملف» يجمع المتطابقة جنسيةً وسفارةً ومهنةً وجنساً — وهي ما يخرج في ملفٍّ واحد. الوكالة في شيت «وكالات التأشيرات»',
-    hintEn: 'One row per visa — invoice data first, then entered data (facility & issuance). One invoice = one shaded band; the “File group” colour joins visas matching in nationality, embassy, occupation & gender — those go in one file. Wakalah lives in the “Visa wakalas” sheet',
+    hintAr: 'تأشيرة لكل صف — بيانات التأشيرة من الفاتورة أولاً، ثم البيانات المدخلة (المنشأة وأرقامها والإصدار). متى اكتملت حقول الإصدار الأربعة تُرحَّل لصفّ التأشيرة فتظهر في «حالة المعاملة» بالفاتورة (عمود «في الفاتورة» يقول الحال)، والإدخال من صفحة الفاتورة يبقى مفتوحاً. تأشيرات الفاتورة الواحدة على غسلةٍ واحدة، ولونُ «مجموعة الملف» يجمع المتطابقة جنسيةً وسفارةً ومهنةً وجنساً — وهي ما يخرج في ملفٍّ واحد. الوكالة في شيت «وكالات التأشيرات»',
+    hintEn: 'One row per visa — invoice data first, then entered data (facility & issuance). Once the four issuance fields are complete they post to the visa row itself and show in the invoice transaction card (the “On the invoice” column tells the state); entry from the invoice page stays open. One invoice = one shaded band; the “File group” colour joins visas matching in nationality, embassy, occupation & gender — those go in one file. Wakalah lives in the “Visa wakalas” sheet',
     /* مجموعات الفاتورة والملف — تُحسب مع كل تعديل (رقم الملف قابل للتحرير هنا) */
     derive: wvDerive,
     /* تجاور صفوف الفاتورة شرطٌ لقراءة الغسلة ككتلة، والمتجانسة تتجاور داخلها */
@@ -5820,7 +6060,7 @@ const VIEWS = [
         'client_name', 'client_phone', 'agent_name', 'agent_phone', 'inv_state',
         'request_status_ar', 'visa_type_ar', 'order_kind_ar', 'visa_cost',
         'absher_topup', 'worker_name', 'visa_issue_date', 'visa_used',
-        'file_number', '_file_group', 'visa_file'],
+        'file_number', '_file_group', 'visa_file', '_issue_posted'],
     },
     search: (r) => [r.invoice_no, r.request_ref_no, r.client_name, r.agent_name, r.worker_name,
       r.visa_number, r.border_number, r.unified_number, r.gosi_number, r.hrsd_number,
@@ -5897,7 +6137,7 @@ const VIEWS = [
          المنشأة لم تُربَط بعد. */
       { key: 'facility_ar', ar: 'المنشأة', en: 'Facility', w: 220, kind: 'text', sectionStart: true,
         get: (r, _isAr, e) => r.facility_ar || (facNumRow(r, e) || {}).name || '' },
-      { key: 'unified_number', ar: 'الرقم الموحّد', en: 'Unified no.', w: 140, kind: 'mono', fg: facNumFg,
+      { key: 'unified_number', ar: 'الرقم الموحّد', en: 'Unified no.', w: 140, kind: 'mono', fg: facNumFg, ...SR_NUM_UNIFIED,
         get: (r, _isAr, e) => r.unified_number || (facNumRow(r, e) || {}).unified || '' },
       { key: 'gosi_number', ar: 'رقم التأمينات', en: 'GOSI no.', w: 130, kind: 'mono', fg: facNumFg,
         get: (r, _isAr, e) => r.gosi_number || (facNumRow(r, e) || {}).gosi || '' },
@@ -5949,8 +6189,8 @@ const VIEWS = [
         fetchTone: (r) => { const st = wvTopupState(wvTopupOf(r)); return st ? WV_TOPUP_LBL[st].c : null },
         fetch: (r, c) => wvAbsherTopup(r, c) },
       { key: 'worker_name', ar: 'اسم العامل', en: 'Worker', w: 200, kind: 'text', manual: true },
-      { key: 'visa_number', ar: 'رقم التأشيرة', en: 'Visa no.', w: 140, kind: 'mono', manual: true },
-      { key: 'border_number', ar: 'رقم الحدود', en: 'Border no.', w: 130, kind: 'mono', fg: wvBnFg, cellTip: wvBnTip },
+      { key: 'visa_number', ar: 'رقم التأشيرة', en: 'Visa no.', w: 140, kind: 'mono', manual: true, ...WV_NUM_VISA },
+      { key: 'border_number', ar: 'رقم الحدود', en: 'Border no.', w: 130, kind: 'mono', fg: wvBnFg, cellTip: wvBnTip, ...WV_NUM_BORDER },
       { key: 'visa_issue_date', ar: 'تاريخ الإصدار', en: 'Issue date', w: 120, kind: 'date', get: (r) => ymd(r.visa_issue_date) },
       /* حالة الاستخدام **من قوى** برقم الحدود، وتاريخُ مزامنتها تحتها. وحين لا
          تعرف قوى هذا الرقم (لم تُزامَن منشأته) يُعرض المخزَّن عندنا مذيَّلاً
@@ -6029,6 +6269,16 @@ const VIEWS = [
           // المرفق يبقى في سجلّ المرفقات (أثرٌ لا يُمحى)، ويُرفع بدله ملفٌ جديد
           r.visa_file_path = null
         } },
+      /* حال ترحيل الإصدار إلى صفّ التأشيرة — منه تقرأ بطاقة «حالة المعاملة»
+         في الفاتورة: ✓ مُرحَّل · وحدة مكتملة تُرحَّل مع الحفظ · ناقص كذا.
+         عمودٌ مشتقّ يُغني عن تنبيهٍ يزعج مع كل حفظةٍ ناقصة. */
+      { key: '_issue_posted', ar: 'في الفاتورة', en: 'On the invoice', w: 170, kind: 'text', readOnly: true,
+        get: (r, isAr2, e) => (wvIssState(r, isAr2, e) || {}).t || '',
+        bg: (v, r) => { const s = wvIssState(r, true)
+          return !s ? null : s.c === 'ok' ? 'rgba(46,204,113,.26)' : s.c === 'miss' ? 'rgba(234,179,8,.28)' : 'rgba(56,189,248,.22)' },
+        cellTip: (v, r, isAr2) => (isAr2 === false
+          ? 'The four issuance fields (unified, visa & border numbers + issue date) post to the visa row once complete — the invoice transaction card reads them from there.'
+          : 'حقول الإصدار الأربعة (الموحّد ورقما التأشيرة والحدود + تاريخ الإصدار) تُرحَّل لصفّ التأشيرة متى اكتملت — ومنه تقرؤها بطاقة «حالة المعاملة» في الفاتورة.') },
       { key: 'notes', ar: 'ملاحظات', en: 'Notes', w: 200, kind: 'text' },
 
       /* ═══ (3) بيانات قوى — تبويب «مزامنة بلا فاتورة» وحده ═══
@@ -7328,10 +7578,10 @@ const VIEWS = [
       { key: 'aj_contract_id', ar: 'معرّف العقد', en: 'Contract ID', w: 110, kind: 'mono', ops: true },
       /* تتبّع خام بأسلوب Burp — للتوثيق والتشخيص، بمستويَي عمق */
       { key: 'aj_bmk_tr1', ar: 'تتبّع — بلا مسوّدة', en: 'Trace (no draft)', w: 165, kind: 'bmk',
-        label: 'تتبّع ١', req: [],
+        label: 'تتبّع 1', req: [],
         get: () => buildAjeerTraceBookmarklet({ service: 'taqaul', depth: 'service' }) },
       { key: 'aj_bmk_tr2', ar: 'تتبّع — حتى المسوّدة', en: 'Trace (to draft)', w: 175, kind: 'bmk',
-        label: 'تتبّع ٢', req: [['aj_labor_office', 'مكتب العمل'], ['aj_sequence_number', 'التسلسلي'], ['aj_unified_number', 'الموحّد']],
+        label: 'تتبّع 2', req: [['aj_labor_office', 'مكتب العمل'], ['aj_sequence_number', 'التسلسلي'], ['aj_unified_number', 'الموحّد']],
         get: (r) => buildAjeerTraceBookmarklet({ service: 'taqaul', depth: 'draft',
           labor_office: av(r, 'aj_labor_office'), sequence_number: av(r, 'aj_sequence_number'), unified_number: av(r, 'aj_unified_number') }) },
 
@@ -8101,6 +8351,96 @@ const VIEWS = [
       { key: 'bl_notes', ar: 'ملاحظات', en: 'Notes', w: 220, kind: 'longtext', ops: true },
     ],
   },
+  {
+    key: 'manpower_rates',
+    ar: 'بطاقة الأسعار', en: 'Rate Card',
+    hintAr: 'تكلفة ساعة العامل وسعر فوترتها لكل مهنة — مرجع التسعيرات والعقود',
+    hintEn: 'Worker rate (cost) and quotation rate (billing) per trade',
+    async load(sb) {
+      const src = await fetchAll(sb, 'manpower_rate_card',
+        'id,sort_order,position_ar,position_en,category_ar,min_rate,max_rate,avg_cost,margin_pct,billing_rate,ot_billing_rate,wage_rate,ot_wage_rate,profit_hr,market_pos,is_active,notes',
+        (q) => q.order('sort_order', { nullsFirst: false }).order('position_en'))
+      return src.map((r) => ({
+        ...r, _id: r.id,
+        /* اليوم والشهر مشتقّان من سعر الساعة — 10 ساعات و26 يوماً، وهي أرقام
+           التشغيل الفعلية في كشوف المكتب ونافذة التسعيرة معاً */
+        day_rate: r.billing_rate == null ? null : Math.round(r.billing_rate * 10),
+        month_rate: r.billing_rate == null ? null : Math.round(r.billing_rate * 10 * 26),
+      }))
+    },
+    search: (r) => [r.position_ar, r.position_en, r.category_ar, r.market_pos],
+    addFields: [
+      { key: 'position_ar', ar: 'المهنة (عربي)', en: 'Trade (Arabic)', required: true },
+      { key: 'position_en', ar: 'المهنة (إنجليزي)', en: 'Trade (English)' },
+      { key: 'category_ar', ar: 'الفئة', en: 'Category' },
+      { key: 'avg_cost', ar: 'تكلفة الساعة', en: 'Cost / hr' },
+      { key: 'billing_rate', ar: 'سعر الفوترة', en: 'Billing rate' },
+    ],
+    afterSave: mrcPost,
+    afterAdd: mrcAdd,
+    columns: [
+      { key: 'position_ar', ar: 'المهنة', en: 'Trade', w: 170, kind: 'text', manual: true },
+      { key: 'position_en', ar: 'بالإنجليزي', en: 'English', w: 190, kind: 'text', manual: true },
+      { key: 'category_ar', ar: 'الفئة', en: 'Category', w: 130, kind: 'text', manual: true },
+      { key: 'min_rate', ar: 'أدنى تكلفة', en: 'Min cost', w: 105, kind: 'num', manual: true, fg: () => 'var(--tx3)' },
+      { key: 'max_rate', ar: 'أعلى تكلفة', en: 'Max cost', w: 105, kind: 'num', manual: true, fg: () => 'var(--tx3)' },
+      /* التكلفة حمراء والفوترة خضراء — اللونان يفصلان العمودين اللذين لا يجوز خلطهما */
+      { key: 'avg_cost', ar: 'تكلفة الساعة', en: 'Cost / hr', w: 115, kind: 'num', manual: true, fg: () => '#e5867a' },
+      /* أجر العامل وأجر ساعته الإضافية — تكلفة الرواتب التي يقرؤها كشف «الرواتب والأرباح» */
+      { key: 'wage_rate', ar: 'أجر العامل / ساعة', en: 'Wage / hr', w: 125, kind: 'num', manual: true, fg: () => '#e5867a' },
+      { key: 'ot_wage_rate', ar: 'أجر الإضافي / ساعة', en: 'OT wage / hr', w: 130, kind: 'num', manual: true, fg: () => '#e5867a' },
+      { key: 'margin_pct', ar: 'الهامش %', en: 'Margin %', w: 100, kind: 'num', manual: true, fg: (v) => mrcMarginFg(v) },
+      { key: 'billing_rate', ar: 'سعر الفوترة', en: 'Billing rate', w: 120, kind: 'num', manual: true, fg: () => '#27a046' },
+      /* سعر فوترة الساعة الإضافية — سعرٌ مستقل لا مضاعف (كما في عقود المكتب الحقيقية) */
+      { key: 'ot_billing_rate', ar: 'فوترة الإضافي / ساعة', en: 'OT billing / hr', w: 140, kind: 'num', manual: true, fg: () => '#d99f2b' },
+      { key: 'profit_hr', ar: 'الربح / ساعة', en: 'Profit / hr', w: 110, kind: 'num', fg: () => C.gold },
+      { key: 'day_rate', ar: 'اليوم (10 ساعات)', en: 'Day (10h)', w: 120, kind: 'num', fg: () => 'var(--tx2)' },
+      { key: 'month_rate', ar: 'الشهر (26 يوماً)', en: 'Month (26d)', w: 130, kind: 'num', fg: () => 'var(--tx2)' },
+      { key: 'market_pos', ar: 'موقع السوق', en: 'Market', w: 135, kind: 'text', manual: true, fg: (v) => mrcPosFg(v) },
+      { key: 'notes', ar: 'ملاحظات', en: 'Notes', w: 200, kind: 'text', manual: true },
+    ],
+  },
+  {
+    key: 'manpower_pool',
+    ar: 'العمالة المتاحة', en: 'Labour Pool',
+    hintAr: 'من يأتي للمكتب ويسجّل جاهزيته للعمل — ابحث بالمهنة عند توفّر عقد وتواصل معه',
+    hintEn: 'Workers who register their availability — search by trade when a contract lands',
+    async load(sb) {
+      const src = await fetchAll(sb, 'manpower_labor_pool',
+        'id,ref_no,full_name,full_name_en,nationality,id_number,phone,whatsapp,trade,trade_en,experience_years,city,current_employer,iqama_expiry,transfer_ready,expected_rate,rate_basis,available_from,status,last_contacted_at,source,notes,created_at',
+        (q) => q.order('created_at', { ascending: false }))
+      return src.map((r) => ({ ...r, _id: r.id }))
+    },
+    search: (r) => [r.full_name, r.full_name_en, r.trade, r.phone, r.whatsapp, r.id_number, r.nationality, r.city, r.ref_no],
+    addFields: [
+      { key: 'full_name', ar: 'اسم العامل', en: 'Worker name', required: true },
+      { key: 'trade', ar: 'المهنة', en: 'Trade' },
+      { key: 'phone', ar: 'الجوال', en: 'Mobile' },
+      { key: 'nationality', ar: 'الجنسية', en: 'Nationality' },
+    ],
+    afterSave: mlpPost,
+    afterAdd: mlpAdd,
+    columns: [
+      { key: 'ref_no', ar: 'الرقم', en: 'Ref', w: 95, kind: 'mono' },
+      { key: 'full_name', ar: 'الاسم', en: 'Name', w: 190, kind: 'text', manual: true },
+      { key: 'trade', ar: 'المهنة', en: 'Trade', w: 150, kind: 'text', manual: true },
+      { key: 'nationality', ar: 'الجنسية', en: 'Nationality', w: 110, kind: 'text', manual: true },
+      { key: 'id_number', ar: 'الإقامة / الحدود', en: 'Iqama / Border', w: 135, kind: 'mono', manual: true },
+      { key: 'phone', ar: 'الجوال', en: 'Mobile', w: 120, kind: 'mono', manual: true },
+      { key: 'whatsapp', ar: 'الواتساب', en: 'WhatsApp', w: 120, kind: 'mono', manual: true },
+      { key: 'experience_years', ar: 'الخبرة (سنة)', en: 'Experience', w: 105, kind: 'num', manual: true },
+      { key: 'city', ar: 'المدينة', en: 'City', w: 110, kind: 'text', manual: true },
+      { key: 'expected_rate', ar: 'الأجر المطلوب', en: 'Asking rate', w: 115, kind: 'num', manual: true, fg: () => C.gold },
+      { key: 'rate_basis', ar: 'أساس الأجر', en: 'Basis', w: 100, kind: 'text', manual: true },
+      { key: 'available_from', ar: 'متاح من', en: 'Available from', w: 120, kind: 'date', manual: true },
+      { key: 'status', ar: 'الحالة', en: 'Status', w: 110, kind: 'text', manual: true, fg: (v) => mlpStatusFg(v) },
+      { key: 'current_employer', ar: 'الكفيل الحالي', en: 'Current sponsor', w: 160, kind: 'text', manual: true },
+      { key: 'iqama_expiry', ar: 'انتهاء الإقامة', en: 'Iqama expiry', w: 120, kind: 'date', manual: true },
+      { key: 'last_contacted_at', ar: 'آخر تواصل', en: 'Last contact', w: 115, kind: 'date', manual: true },
+      { key: 'source', ar: 'مصدر التسجيل', en: 'Source', w: 115, kind: 'text', manual: true },
+      { key: 'notes', ar: 'ملاحظات', en: 'Notes', w: 220, kind: 'text', manual: true },
+    ],
+  },
 ]
 
 /* تسجيل أعمدة كل جدول في كتالوج الصلاحيات — من `VIEWS` نفسها لا من قائمةٍ
@@ -8697,6 +9037,10 @@ const VIEW_STATS = {
      سطرٌ يأكل ارتفاعاً ولا يقول شيئاً. ومصفوفةٌ فارغة **صراحةً** لا حذفُ السطر:
      الحذف يُسقطه على الاحتياطي فيعود الكرت من حيث لا يُقصد. */
   agent_commissions: [],
+  /* بطاقة الأسعار وسجل العمالة: جدولان مرجعيان يُقرآن سطراً سطراً، وكرت
+     «عدد الصفوف» وحده فوقهما سطرٌ يأكل ارتفاعاً ولا يقول شيئاً. */
+  manpower_rates: [],
+  manpower_pool: [],
   companies: [
     SC('rows', 'المنشآت', 'Establishments'),
     SC('uniq', 'المدن', 'Cities', { k: 'headquarter_city_ar' }),
@@ -8728,7 +9072,7 @@ const VIEW_STATS = {
     SC('rows', 'المنشآت', 'Establishments'),
     SC('lt', 'مقيم منتهٍ', 'Muqeem expired', { k: 'muqeem_days_left', n: 0, tone: 'bad' }),
     SC('lt', 'قوى منتهٍ', 'Qiwa expired', { k: 'qiwa_days_left', n: 0, tone: 'bad' }),
-    SC('btw', 'تأكيد سنوي خلال ٣٠ يوماً', 'CR confirm in 30d', { k: 'cr_confirm_days_left', n: [0, 30], tone: 'warn' }),
+    SC('btw', 'تأكيد سنوي خلال 30 يوماً', 'CR confirm in 30d', { k: 'cr_confirm_days_left', n: [0, 30], tone: 'warn' }),
     SC('sum', 'رصيد نقاط مقيم', 'Muqeem points', { k: 'muqeem_points' }),
   ],
   work_visas: [
@@ -8859,7 +9203,7 @@ const VIEW_STATS = {
   baladi_licenses: [
     SC('rows', 'الرخص', 'Licences'),
     SC('lt', 'منتهية', 'Expired', { k: 'bl_left', n: 0, tone: 'bad' }),
-    SC('btw', 'تنتهي خلال ٣٠ يوماً', 'Expiring in 30d', { k: 'bl_left', n: [0, 30], tone: 'warn' }),
+    SC('btw', 'تنتهي خلال 30 يوماً', 'Expiring in 30d', { k: 'bl_left', n: [0, 30], tone: 'warn' }),
     SC('filled', 'سُدّدت', 'Paid', { k: 'bl_sadad_no', tone: 'ok' }),
     SC('sum', 'رسوم التجديد', 'Renewal fees', { k: 'bl_fee', money: true }),
   ],
@@ -8869,7 +9213,7 @@ export default function OpsExcelsPageBoundary(props) {
   return <OxErrorBoundary lang={props.lang}><OpsExcelsPage {...props} /></OxErrorBoundary>
 }
 
-function OpsExcelsPage({ sb, user, toast, lang, onTabChange }) {
+function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView }) {
   const isAr = lang !== 'en'
   const T = (a, e) => (isAr ? a : e)
   /* صلاحية التعديل. الصلاحية الفعلية `canEdit` تُشتقّ منها أدناه بعد معرفة
@@ -8909,9 +9253,11 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange }) {
   const sheetShown = useCallback((k) => isGM || uvis[`card:ops_excels:${k}`] !== false, [isGM, uvis])
   const visibleViews = useMemo(() => {
     const base = isGM ? VIEWS : VIEWS.filter((v) => !GM_ONLY_VIEWS.has(v.key))
-    return base.filter((v) => sheetShown(v.key))
+    // شيتا قسم «توريد العمالة» محجوبان مع القسم كله (حتى عن المدير العام) —
+    // انظر NAV_HARD_HIDDEN في App.jsx؛ الإرجاع بإفراغ المجموعتين معاً.
+    return base.filter((v) => sheetShown(v.key) && !HIDDEN_VIEWS.has(v.key))
   }, [isGM, sheetShown])
-  const [viewKey, setViewKey] = useState(() => (isGmUser(user) ? VIEWS[0].key : VIEWS.find((v) => !GM_ONLY_VIEWS.has(v.key)).key))
+  const [viewKey, setViewKey] = useState(() => forceView || (isGmUser(user) ? VIEWS[0].key : VIEWS.find((v) => !GM_ONLY_VIEWS.has(v.key)).key))
   // جداول مخصّصة يبنيها المستخدم من الصفر (بديل ملفات الإكسل) — مخزّنة في ops_sheet_config بمفتاح custom_*
   const [customSheets, setCustomSheets] = useState([])   // [{ key, ar, en }]
   const [nameOverrides, setNameOverrides] = useState({}) // { view_key: { ar, en } } — تسمية أي عرض
@@ -8923,7 +9269,14 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange }) {
     hintAr: 'جدول مخصّص — أنشئ أعمدته وصفوفه كما تريد', hintEn: 'Custom sheet — build your own columns and rows',
     load: async () => [], search: (r) => Object.values(r._ops || {}), addFields: [], columns: [],
   })), [customSheets])
-  const allViews = useMemo(() => [...visibleViews, ...customViews], [visibleViews, customViews])
+  const allViews = useMemo(() => {
+    const base = visibleViews
+    const all = [...visibleViews, ...customViews]
+    // العرض المقفول يُركَّب داخل تبويب مستقلّ، فلا معنى لمنتقي جداول فيه
+    // العرض المقفول يخضع لصلاحية شيته كأي شيت — القفل تركيبٌ لا تجاوز
+    if (forceView) { const one = base.find((v) => v.key === forceView); return one ? [one] : [] }
+    return all
+  }, [visibleViews, customViews, forceView])
   /* الاحتياطي أوّلُ عرضٍ **مسموح** لا `VIEWS[0]`: مفتاحٌ محفوظ من جلسةٍ سابقة (أو
      رابط) يشير لشيت مالي كان سيفتحه لغير المدير العام عبر هذا الاحتياطي. */
   const view = useMemo(() => allViews.find((v) => v.key === viewKey) || allViews[0], [viewKey, allViews])
@@ -9008,10 +9361,14 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange }) {
   /* `view.tabHiddenCols`: أعمدةٌ لا معنى لها في مجموعةٍ بعينها — عمودُ فاتورةٍ
      في تبويب صفوفٍ بلا فاتورة خانةٌ فارغةٌ أبداً. تُخفى بحكم التعريف كأعمدة
      التخزين، فلا تظهر في «أعمدة مخفية» (تلك اختيارُ المستخدم يرجعه متى شاء). */
+  /* ⚠️ «إخفاء العمود» أُلغي من المحرّك كلّه بقرار المستخدم: عمودٌ إمّا أن يكون
+     له مكانٌ في الشيت أو يُحذف نهائياً — والحالة الوسطى كانت تُخفي بيانات ثم
+     تُنسى. فلم يبقَ هنا إلا الإخفاء **بحكم التعريف**: أعمدة التخزين
+     (view.hiddenCols) وأعمدة لا معنى لها في مجموعةٍ بعينها (tabHiddenCols).
+     وlayout.hidden القديمة تُتجاهَل عمداً — فما أخفاه أحدٌ سابقاً عاد ظاهراً. */
   const hiddenCols = useMemo(
-    () => new Set([...(view.hiddenCols || []), ...((view.tabHiddenCols || {})[tabSel] || []),
-      ...(layout.hidden || []), ...(((layout.tabHidden || {})[tabSel]) || [])]),
-    [view, layout, tabSel])
+    () => new Set([...(view.hiddenCols || []), ...((view.tabHiddenCols || {})[tabSel] || [])]),
+    [view, tabSel])
   // خرائط تعريف الأعمدة: المدمجة (built-in) + المُضافة يدوياً (custom → عمود تشغيلي)
   const colDefs = useMemo(() => {
     const m = new Map()
@@ -9557,7 +9914,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange }) {
     const rnd = () => (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2, 12)).replace(/-/g, '')
     const key = 'custom_' + rnd().slice(0, 12)
     const mk = () => 'c_' + rnd().slice(0, 8)
-    const cols = [{ key: mk(), ar: 'العمود ١', w: 220, kind: 'text' }, { key: mk(), ar: 'العمود ٢', w: 180, kind: 'text' }, { key: mk(), ar: 'العمود ٣', w: 180, kind: 'text' }]
+    const cols = [{ key: mk(), ar: 'العمود 1', w: 220, kind: 'text' }, { key: mk(), ar: 'العمود 2', w: 180, kind: 'text' }, { key: mk(), ar: 'العمود 3', w: 180, kind: 'text' }]
     const layout = { sheet: true, name_ar: ar, name_en: sheetName.en.trim() || ar, custom: cols, order: cols.map((c) => c.key) }
     const { error } = await sb.from('ops_sheet_config').upsert({ view_key: key, layout, updated_by: user?.id || null, updated_at: new Date().toISOString() }, { onConflict: 'view_key' })
     if (error) { toast && toast(T('فشل إنشاء الجدول', 'Create failed')); return }
@@ -10703,7 +11060,14 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange }) {
     if (error) { toast && toast(T('فشل الإضافة: ', 'Add failed: ') + (error.message || error)); return }
     setOverlay((prev) => ({ ...prev, [key]: { data, sort_order, hidden: false, is_manual: true } }))
     setAddOpen(false); setAddForm({})
-    toast && toast(T('تمت الإضافة', 'Added'))
+    /* عرضٌ مصدرُه جدولٌ حقيقي يُنشئ سجلّه هناك أيضاً — وإلا رأى الشيت الصفَّ وحده
+       ولم تره بقيّة الصفحات التي تقرأ من الجدول (بطاقة الأسعار، سجل العمالة). */
+    let extra = ''
+    if (view.afterAdd) {
+      try { extra = (await view.afterAdd(sb, { key, data }, { user, isAr })) || '' }
+      catch (e) { extra = T('تعذّر إنشاء السجل: ', 'Record creation failed: ') + (e?.message || e) }
+    }
+    toast && toast(T('تمت الإضافة', 'Added') + (extra ? ' · ' + extra : ''))
   }, [sb, busy, view, addForm, allRows, user, toast, T, isAr, tabSel, daySel, userName, layout])
 
   const deleteRow = useCallback(async (rowId) => {
@@ -11391,10 +11755,26 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange }) {
         .ox-fld:focus{border-color:${C.gold2}}
       `}</style>
 
+      {/* العرض المقفول فقد منتقيَه الذي كان يسمّيه — فيحمل عنوانه بنفسه،
+          كأي صفحة في التطبيق: الاسم ثم سطر تعريفه. */}
+      {forceView && (
+        <div style={{ marginBottom: 22 }}>
+          <div style={{ fontSize: 24, fontWeight: 600, color: 'var(--tx)', letterSpacing: '-.3px', lineHeight: 1.2 }}>
+            {isAr ? view.ar : (view.en || view.ar)}
+          </div>
+          {(view.hintAr || view.hintEn) && (
+            <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx2)', marginTop: 12, lineHeight: 1.6 }}>
+              {isAr ? view.hintAr : (view.hintEn || view.hintAr)}
+            </div>
+          )}
+        </div>
+      )}
       {/* ── العنوان + اختيار العرض ── */}
       {/* مسافةٌ واسعة تحت هذا الصفّ: هو «أي جدول وأي أسبوع أرى» — سؤالٌ يسبق
-           أدوات الجدول نفسه (بحث/إضافة/تصدير)، فالفراغ يفصل السؤالين. */}
-      <div style={{ display: 'flex', gap: 12, marginBottom: 34, alignItems: 'center', flexWrap: 'wrap' }}>
+           أدوات الجدول نفسه (بحث/إضافة/تصدير)، فالفراغ يفصل السؤالين.
+           ويسقط كلّه في العرض المقفول (forceView): الجدول واحدٌ لا يُختار،
+           ولا لقطات أسبوعية لجدولٍ مرجعيّ يُقرأ حيّاً. */}
+      {!forceView && <div style={{ display: 'flex', gap: 12, marginBottom: 34, alignItems: 'center', flexWrap: 'wrap' }}>
         <div className="ox-field" style={{ minWidth: 190, flex: '0 0 auto' }}>
           <Dropdown value={viewKey} onChange={(k) => setViewKey(k)} options={allViews} searchable
             getKey={(o) => o.key}
@@ -11464,7 +11844,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange }) {
             </span>
           )}
         </div>
-      </div>
+      </div>}
 
       {/* لم يبقَ في هذا الصفّ إلا منتقي اليوم — التبويبات صعدت إلى صفّ الأدوات. */}
       {dayField && (
@@ -11547,9 +11927,9 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange }) {
             ✕ {T(`مسح الفلاتر/الفرز${activeFilterKeys.length ? ` (${activeFilterKeys.length})` : ''}`, `Clear filters/sort${activeFilterKeys.length ? ` (${activeFilterKeys.length})` : ''}`)}
           </button>
         )}
-        {(hiddenColList.length > 0 || removedCount > 0) && (
+        {removedCount > 0 && (
           <button className="ox-btn" onClick={(e) => { e.stopPropagation(); setHdrCtx({ x: e.clientX, y: e.clientY + 8, colKey: '__hidden__' }) }}>
-            {T(`أعمدة مخفية (${hiddenColList.length})`, `Hidden cols (${hiddenColList.length})`)}
+            {T(`أعمدة محذوفة (${removedCount})`, `Deleted cols (${removedCount})`)}
           </button>
         )}
         {hiddenCount > 0 && (
@@ -12257,14 +12637,9 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange }) {
             </>
           ) : hdrCtx.colKey === '__hidden__' ? (
             <>
-              {hiddenColList.length === 0 && removedCount === 0 && <button disabled>{T('لا أعمدة مخفية', 'No hidden columns')}</button>}
-              {hiddenColList.map((c) => (
-                <div key={c.key} style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <button style={{ flex: 1 }} onClick={() => { unhideColumn(c.key); setHdrCtx(null) }}>↺ {T('إظهار', 'Show')} «{isAr ? c.ar : c.en}»</button>
-                  <button className="del" title={T('حذف نهائي', 'Delete permanently')} style={{ width: 34, justifyContent: 'center' }} onClick={() => { removeColumn(c.key); setHdrCtx(null) }}>✕</button>
-                </div>
-              ))}
-              {removedCount > 0 && <button onClick={() => { restoreRemovedColumns(); setHdrCtx(null) }}>↺ {T(`استعادة المحذوفة نهائياً (${removedCount})`, `Restore removed (${removedCount})`)}</button>}
+              {removedCount === 0
+                ? <button disabled>{T('لا أعمدة محذوفة', 'No deleted columns')}</button>
+                : <button onClick={() => { restoreRemovedColumns(); setHdrCtx(null) }}>↺ {T(`استعادة المحذوفة (${removedCount})`, `Restore deleted (${removedCount})`)}</button>}
             </>
           ) : (
             <>
@@ -12309,16 +12684,9 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange }) {
                 <button onClick={() => { setPwInput(''); setPwModal({ key: hdrCtx.colKey, mode: 'set' }); setHdrCtx(null) }}>🔑 {T('حماية بكلمة سر', 'Protect with password')}</button>
               )}
               <button onClick={() => { setColName(''); setColModal(true); setHdrCtx(null) }}>＋ {T('إضافة عمود', 'Add column')}</button>
-              {!hdrCtxCol?.custom && (
-                <button onClick={() => { deleteColumn(hdrCtx.colKey); setHdrCtx(null) }}>
-                  🚫 {(view.tabs && tabSel)
-                    ? T(`إخفاء العمود في «${(tabDefs.find((t) => t.key === tabSel) || {}).label || tabSel}»`,
-                        `Hide column in “${(tabDefs.find((t) => t.key === tabSel) || {}).label || tabSel}”`)
-                    : T('إخفاء العمود (يمكن إظهاره)', 'Hide column (restorable)')}
-                </button>
-              )}
+              {/* لا «إخفاء» — العمود يبقى أو يُحذف، والمحذوف يُستعاد من زرّ «أعمدة محذوفة» */}
               <button className="del" onClick={() => { removeColumn(hdrCtx.colKey); setHdrCtx(null) }}>
-                🗑 {T('حذف العمود نهائياً (من الشيت كله)', 'Delete column permanently (whole sheet)')}
+                🗑 {T('حذف العمود (يمكن استعادته)', 'Delete column (restorable)')}
               </button>
             </>
           )}
@@ -12951,7 +13319,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange }) {
                   <button className="ox-btn" style={{ height: 28 }} onClick={() => setFilterDraft((d) => ({ ...d, values: null }))}>{T('تحديد الكل', 'Select all')}</button>
                   <button className="ox-btn" style={{ height: 28 }} onClick={() => setFilterDraft((d) => ({ ...d, values: [] }))}>{T('إلغاء الكل', 'Clear all')}</button>
                 </div>
-                {/* قائمة القيم أطول: هي أكثر ما يُستعمل في النافذة، و٢٢٠ بكسل
+                {/* قائمة القيم أطول: هي أكثر ما يُستعمل في النافذة، و220 بكسل
                     كانت تُظهر ستّة أسطر من مئاتٍ فيصير الاختيار تمريراً لا نظراً. */}
                 <div className="ox-scrolly" style={{ overflowY: 'auto', maxHeight: 360, minHeight: 200, border: '1px solid var(--bd)', borderRadius: 9, padding: 4 }}>
                   {shown.length === 0 && <div style={{ padding: 14, textAlign: 'center', color: 'var(--tx4)', fontSize: 12 }}>{T('لا قيم', 'No values')}</div>}

@@ -349,9 +349,9 @@ export default function UserActivityCard({ userId, toast }) {
           <FilterSelect label="الكيان" value={entityType} onChange={setEntityType} options={entityOpts} />
           <FilterSelect label="الفترة" value={days} onChange={setDays} options={[
             { value: '', label: 'الكل' },
-            { value: 7, label: '٧ أيام' },
-            { value: 14, label: '١٤ يوم' },
-            { value: 30, label: '٣٠ يوم' },
+            { value: 7, label: '7 أيام' },
+            { value: 14, label: '14 يوم' },
+            { value: 30, label: '30 يوم' },
           ]} />
         </div>
       </div>

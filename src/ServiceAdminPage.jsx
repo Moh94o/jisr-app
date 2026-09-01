@@ -242,10 +242,10 @@ const KAFALA_SECTIONS=[
 ]
 // حقول حاسبة تاريخ الانتهاء — تُخزَّن ضمن إعدادات التسعير (لا تظهر في أقسام التسعير؛ لها قسمها الخاص).
 const EXPIRY_DATE_FIELDS=[
-  {k:'expiryDays3',l:'٣ أشهر',d:90,sfx:'يوم'},
-  {k:'expiryDays6',l:'٦ أشهر',d:178,sfx:'يوم'},
-  {k:'expiryDays9',l:'٩ أشهر',d:267,sfx:'يوم'},
-  {k:'expiryDays12',l:'١٢ شهر',d:355,sfx:'يوم'},
+  {k:'expiryDays3',l:'3 أشهر',d:90,sfx:'يوم'},
+  {k:'expiryDays6',l:'6 أشهر',d:178,sfx:'يوم'},
+  {k:'expiryDays9',l:'9 أشهر',d:267,sfx:'يوم'},
+  {k:'expiryDays12',l:'12 شهر',d:355,sfx:'يوم'},
   {k:'overdueEnabled',l:'احتساب تأخير الإقامات المنتهية',d:true,t:'bool'},
   {k:'overdueQuarterDays',l:'طول فترة التعويض (يوم)',d:90,sfx:'يوم'},
 ]
@@ -277,15 +277,15 @@ const IQAMA_EXTRA_FIELDS=[
   {k:'iqamaPricingModel',l:'نموذج التسعير',d:'flat',t:'mode'},
   // حصة المكتب والتأمين لكل مدة — رسوم المكتب = الحصة − التأمين (لا تنزل تحت صفر).
   // فمجموعهما لا يقلّ عن الحصة مهما تبدّلت شريحة عمر العامل. (تُشتقّ تلقائياً من الإجمالي المستهدف أدناه إن كان مضبوطاً.)
-  {k:'iqamaOfficeShare3M',l:'حصة المكتب والتأمين · ٣ أشهر',d:1412.5,sfx:'ريال'},
-  {k:'iqamaOfficeShare6M',l:'حصة المكتب والتأمين · ٦ أشهر',d:2825,sfx:'ريال'},
-  {k:'iqamaOfficeShare9M',l:'حصة المكتب والتأمين · ٩ أشهر',d:4237.5,sfx:'ريال'},
-  {k:'iqamaOfficeShare12M',l:'حصة المكتب والتأمين · ١٢ شهر',d:5650,sfx:'ريال'},
+  {k:'iqamaOfficeShare3M',l:'حصة المكتب والتأمين · 3 أشهر',d:1412.5,sfx:'ريال'},
+  {k:'iqamaOfficeShare6M',l:'حصة المكتب والتأمين · 6 أشهر',d:2825,sfx:'ريال'},
+  {k:'iqamaOfficeShare9M',l:'حصة المكتب والتأمين · 9 أشهر',d:4237.5,sfx:'ريال'},
+  {k:'iqamaOfficeShare12M',l:'حصة المكتب والتأمين · 12 شهر',d:5650,sfx:'ريال'},
   // الإجمالي المستهدف (باستثناء غرامة التأخير) لكل مدة — أدخل هذا فيُشتقّ منه حصة المكتب أعلاه تلقائياً.
-  {k:'iqamaExclFineTotal3M',l:'الإجمالي المستهدف (بلا غرامة) · ٣ أشهر',d:5000,sfx:'ريال'},
-  {k:'iqamaExclFineTotal6M',l:'الإجمالي المستهدف (بلا غرامة) · ٦ أشهر',d:8500,sfx:'ريال'},
-  {k:'iqamaExclFineTotal9M',l:'الإجمالي المستهدف (بلا غرامة) · ٩ أشهر',d:12500,sfx:'ريال'},
-  {k:'iqamaExclFineTotal12M',l:'الإجمالي المستهدف (بلا غرامة) · ١٢ شهر',d:16000,sfx:'ريال'},
+  {k:'iqamaExclFineTotal3M',l:'الإجمالي المستهدف (بلا غرامة) · 3 أشهر',d:5000,sfx:'ريال'},
+  {k:'iqamaExclFineTotal6M',l:'الإجمالي المستهدف (بلا غرامة) · 6 أشهر',d:8500,sfx:'ريال'},
+  {k:'iqamaExclFineTotal9M',l:'الإجمالي المستهدف (بلا غرامة) · 9 أشهر',d:12500,sfx:'ريال'},
+  {k:'iqamaExclFineTotal12M',l:'الإجمالي المستهدف (بلا غرامة) · 12 شهر',d:16000,sfx:'ريال'},
   {k:'iqamaGovCover',l:'حد التغطية الحكومية للإقامة',d:650,sfx:'ريال'},
   {k:'iqamaWpResetEnabled',l:'تفعيل قاعدة الإقامة المنتهية من مدة طويلة',d:false,t:'bool'},
   {k:'iqamaWpResetAfterDays',l:'حدّ التأخّر الطويل (يبدأ بعده إصدار جديد)',d:365,sfx:'يوم'},
@@ -294,10 +294,10 @@ const IQAMA_EXTRA_FIELDS=[
   {k:'iqamaWpBasis',l:'أساس احتساب رخصة العمل',d:'iqama',t:'mode'},
   {k:'iqamaExemptionMode',l:'سياسة الإعفاء في الحاسبة',d:'free',t:'mode'},
   {k:'iqamaOfficeDiscountEnabled',l:'السماح بالخصم الإضافي عند التصديق',d:true,t:'bool'},
-  {k:'iqamaApprovalDiscountCap3M',l:'سقف الخصم · ٣ أشهر',d:25,sfx:'ريال'},
-  {k:'iqamaApprovalDiscountCap6M',l:'سقف الخصم · ٦ أشهر',d:51,sfx:'ريال'},
-  {k:'iqamaApprovalDiscountCap9M',l:'سقف الخصم · ٩ أشهر',d:76,sfx:'ريال'},
-  {k:'iqamaApprovalDiscountCap12M',l:'سقف الخصم · ١٢ شهر',d:102,sfx:'ريال'},
+  {k:'iqamaApprovalDiscountCap3M',l:'سقف الخصم · 3 أشهر',d:25,sfx:'ريال'},
+  {k:'iqamaApprovalDiscountCap6M',l:'سقف الخصم · 6 أشهر',d:51,sfx:'ريال'},
+  {k:'iqamaApprovalDiscountCap9M',l:'سقف الخصم · 9 أشهر',d:76,sfx:'ريال'},
+  {k:'iqamaApprovalDiscountCap12M',l:'سقف الخصم · 12 شهر',d:102,sfx:'ريال'},
 ]
 const IQAMA_FIELDS=[...KAFALA_FIELDS.filter(f=>!['transferFee1','transferFee2','transferFee3'].includes(f.k)),...WP_NO_EXEMPT_FIELDS,...IQAMA_EXTRA_FIELDS]
 // أقسام تجديد الإقامة كصفحات معالج: نفس أقسام الكفالة لكن بحقول الإقامة فقط، مع حذف الأقسام الفارغة (نقل الكفالة).
@@ -317,19 +317,19 @@ const IQAMA_WIZARD_STEPS=[
     {k:'iqamaFine1',desc:'الغرامة المُضافة أول مرّة تتأخّر أو تنتهي فيها الإقامة (الحالة الثانية).'},
     {k:'iqamaFine2',desc:'غرامة أعلى للمخالفة المكرّرة (الحالة الثالثة).'},
   ]},
-  {title:'كرت العمل · ٣ و ٦ أشهر',icon:IdCard,note:'السعر الثابت لإصدار كرت العمل للمدد القصيرة (تنتهي قبل «تاريخ التفعيل اليومي»).',fields:[
-    {k:'workPermit3M',desc:'سعر إصدار كرت العمل لمدّة ٣ أشهر.'},
-    {k:'workPermit6M',desc:'سعر إصدار كرت العمل لمدّة ٦ أشهر.'},
+  {title:'كرت العمل · 3 و 6 أشهر',icon:IdCard,note:'السعر الثابت لإصدار كرت العمل للمدد القصيرة (تنتهي قبل «تاريخ التفعيل اليومي»).',fields:[
+    {k:'workPermit3M',desc:'سعر إصدار كرت العمل لمدّة 3 أشهر.'},
+    {k:'workPermit6M',desc:'سعر إصدار كرت العمل لمدّة 6 أشهر.'},
   ]},
-  {title:'كرت العمل · ٩ و ١٢ شهر',icon:IdCard,note:'السعر الثابت لإصدار كرت العمل للمدد الطويلة (تنتهي قبل «تاريخ التفعيل اليومي»).',fields:[
-    {k:'workPermit9M',desc:'سعر إصدار كرت العمل لمدّة ٩ أشهر.'},
-    {k:'workPermit12M',desc:'سعر إصدار كرت العمل لسنة كاملة (١٢ شهر).'},
+  {title:'كرت العمل · 9 و 12 شهر',icon:IdCard,note:'السعر الثابت لإصدار كرت العمل للمدد الطويلة (تنتهي قبل «تاريخ التفعيل اليومي»).',fields:[
+    {k:'workPermit9M',desc:'سعر إصدار كرت العمل لمدّة 9 أشهر.'},
+    {k:'workPermit12M',desc:'سعر إصدار كرت العمل لسنة كاملة (12 شهر).'},
   ]},
   {title:'كرت العمل · بدون إعفاء',icon:BadgeCheck,note:'السعر الثابت لرخصة العمل عند اختيار «لا يوجد إعفاء» في حاسبة التجديد — يحل محل الحساب الاعتيادي لكل فترة.',fields:[
-    {k:'workPermitNoExempt3M',desc:'سعر رخصة العمل لمدّة ٣ أشهر بدون إعفاء.'},
-    {k:'workPermitNoExempt6M',desc:'سعر رخصة العمل لمدّة ٦ أشهر بدون إعفاء.'},
-    {k:'workPermitNoExempt9M',desc:'سعر رخصة العمل لمدّة ٩ أشهر بدون إعفاء.'},
-    {k:'workPermitNoExempt12M',desc:'سعر رخصة العمل لسنة كاملة (١٢ شهر) بدون إعفاء.'},
+    {k:'workPermitNoExempt3M',desc:'سعر رخصة العمل لمدّة 3 أشهر بدون إعفاء.'},
+    {k:'workPermitNoExempt6M',desc:'سعر رخصة العمل لمدّة 6 أشهر بدون إعفاء.'},
+    {k:'workPermitNoExempt9M',desc:'سعر رخصة العمل لمدّة 9 أشهر بدون إعفاء.'},
+    {k:'workPermitNoExempt12M',desc:'سعر رخصة العمل لسنة كاملة (12 شهر) بدون إعفاء.'},
   ]},
   {title:'كرت العمل · التسعير اليومي',icon:CalendarRange,note:'بعد «تاريخ التفعيل اليومي» يُحسب كرت العمل بعدد الأيام بدل السعر الثابت.',fields:[
     {k:'workPermitCutoffDate',desc:'الخط الفاصل: قبله السعر الثابت من الجدول، وبعده التسعير اليومي.'},
@@ -355,8 +355,8 @@ const IQAMA_WIZARD_STEPS=[
 // شرح مختصر يظهر أعلى كل خطوة في معالج تسعير تجديد الإقامة.
 const IQAMA_STEP_NOTES={
   'تجديد الإقامة':'رسوم التجديد تُحسب على ثلاث حالات: إقامة سارية بعيدة عن الانتهاء (عدد الأشهر × سعر الشهر، بلا غرامة)؛ خلال المهلة أو منتهية حديثًا (المدة الكاملة × سعر الشهر + غرامة المرة الأولى)؛ ومخالفة مكررة (نفس المعادلة بغرامة المرة الثانية). «أيام المهلة قبل الغرامة» هي ما يفصل الحالة الأولى عن البقية.',
-  'كرت العمل':'سعر رخصة العمل ثابت لكل فترة (٣/٦/٩/١٢ شهر) إذا انتهت قبل «تاريخ التفعيل اليومي»، وبعده يُحسب بعدد الأيام × سعر اليوم. «أيام معالجة الطلب» تحدّد بداية الفترة، وللإقامة المنتهية من مدة طويلة قاعدة خاصة.',
-  'رسوم تغيير المهنة':'رسم ثابت يُضاف عند تغيير مهنة العامل. أي مهنة (الحالية أو الجديدة) مدرجة في القائمة أدناه تجعل الرسوم مجانية (٠ ريال).',
+  'كرت العمل':'سعر رخصة العمل ثابت لكل فترة (3/6/9/12 شهر) إذا انتهت قبل «تاريخ التفعيل اليومي»، وبعده يُحسب بعدد الأيام × سعر اليوم. «أيام معالجة الطلب» تحدّد بداية الفترة، وللإقامة المنتهية من مدة طويلة قاعدة خاصة.',
+  'رسوم تغيير المهنة':'رسم ثابت يُضاف عند تغيير مهنة العامل. أي مهنة (الحالية أو الجديدة) مدرجة في القائمة أدناه تجعل الرسوم مجانية (0 ريال).',
   'رسوم المكتب':'«السعر العام» يظهر ثابتًا عند رفع الطلب. «سعر اليوم» هو الحد الأدنى المسموح للخصم عند التصديق (لا يظهر للموظف المُصدّق)، ويُحتسب أيضًا للأيام الزائدة عن «الحد الشهري».',
 }
 const PRICING_SCHEMA={
@@ -1781,7 +1781,7 @@ const renderProfChangeFreePicker=()=>{
       <div style={{fontSize:12,fontWeight:600,color:C.ok,display:'flex',alignItems:'center',gap:7}}>
         <Gift size={14} strokeWidth={2.4}/><span>مهن معفاة من رسوم التغيير</span>
       </div>
-      <div style={{fontSize:11,color:'var(--tx3)',lineHeight:1.7}}>إذا كانت المهنة الحالية للعامل أو المهنة الجديدة ضمن هذه القائمة ← تصير رسوم تغيير المهنة <b>مجانية (٠ ريال)</b>.</div>
+      <div style={{fontSize:11,color:'var(--tx3)',lineHeight:1.7}}>إذا كانت المهنة الحالية للعامل أو المهنة الجديدة ضمن هذه القائمة ← تصير رسوم تغيير المهنة <b>مجانية (0 ريال)</b>.</div>
       <div className="svc-occ-search" style={{position:'relative'}}>
         <Search size={15} strokeWidth={2.2} className="svc-occ-search-ico" style={{position:'absolute',top:'50%',left:14,transform:'translateY(-50%)',pointerEvents:'none'}}/>
         <input type="text" value={q} onChange={e=>setQ(e.target.value)} placeholder={`ابحث بالاسم (${occupations.length} مهنة متاحة)…`} style={{...inpS,height:38,textAlign:'right',direction:'rtl',paddingLeft:40,paddingRight:14,background:'var(--inputBg)'}}/>
@@ -1941,7 +1941,7 @@ const renderIqamaOfficeBody=(step)=>{
             {mopt('cover','تغطية وزائد','النموذج القديم')}
           </div>
           {flat&&(<>
-            <span style={{fontSize:11,color:'var(--tx4)',fontWeight:600,lineHeight:1.8}}>حصة المكتب والتأمين لكل مدة: <b>رسوم المكتب = الحصة − التأمين</b> (لا تنزل تحت صفر). فلو كانت الحصة ١٤١٢٫٥ وتأمين العامل ٤٠٠ صارت رسوم المكتب ١٠١٢٫٥؛ ولو كان تأمينه ٥٠٠ صارت ٩١٢٫٥ — والإجمالي لا يتغيّر بتغيّر التأمين، بينما يتغيّر بتغيّر تجديد الإقامة أو رخصة العمل.</span>
+            <span style={{fontSize:11,color:'var(--tx4)',fontWeight:600,lineHeight:1.8}}>حصة المكتب والتأمين لكل مدة: <b>رسوم المكتب = الحصة − التأمين</b> (لا تنزل تحت صفر). فلو كانت الحصة 1412٫5 وتأمين العامل 400 صارت رسوم المكتب 1012٫5؛ ولو كان تأمينه 500 صارت 912٫5 — والإجمالي لا يتغيّر بتغيّر التأمين، بينما يتغيّر بتغيّر تجديد الإقامة أو رخصة العمل.</span>
             {renderFeeFieldRow('iqamaOfficeShare3M',descOf('iqamaOfficeShare3M'))}
             {renderFeeFieldRow('iqamaOfficeShare6M',descOf('iqamaOfficeShare6M'))}
             {renderFeeFieldRow('iqamaOfficeShare9M',descOf('iqamaOfficeShare9M'))}
@@ -2005,9 +2005,9 @@ const renderIqamaDetailView=(s)=>{
       {Section('كرت العمل (رخصة العمل)',pill(wc?'الأساس: انتهاء كرت العمل':'الأساس: انتهاء الإقامة',C.gold),
         <>
           {subhead('بالإعفاء · السعر الثابت لكل مدة')}
-          {grid(4,[Stat('٣ أشهر',money('workPermit3M'),'ريال'),Stat('٦ أشهر',money('workPermit6M'),'ريال'),Stat('٩ أشهر',money('workPermit9M'),'ريال'),Stat('١٢ شهر',money('workPermit12M'),'ريال')])}
+          {grid(4,[Stat('3 أشهر',money('workPermit3M'),'ريال'),Stat('6 أشهر',money('workPermit6M'),'ريال'),Stat('9 أشهر',money('workPermit9M'),'ريال'),Stat('12 شهر',money('workPermit12M'),'ريال')])}
           {subhead('بدون إعفاء (المقابل المالي)')}
-          {grid(4,[Stat('٣ أشهر',money('workPermitNoExempt3M'),'ريال'),Stat('٦ أشهر',money('workPermitNoExempt6M'),'ريال'),Stat('٩ أشهر',money('workPermitNoExempt9M'),'ريال'),Stat('١٢ شهر',money('workPermitNoExempt12M'),'ريال')])}
+          {grid(4,[Stat('3 أشهر',money('workPermitNoExempt3M'),'ريال'),Stat('6 أشهر',money('workPermitNoExempt6M'),'ريال'),Stat('9 أشهر',money('workPermitNoExempt9M'),'ريال'),Stat('12 شهر',money('workPermitNoExempt12M'),'ريال')])}
           {subhead('التسعير اليومي وبداية الفترة')}
           {grid(3,[Stat('سعر اليوم بعد التفعيل',money('workPermitDailyAfter'),'ريال/يوم'),Stat('تاريخ التفعيل اليومي',raw('workPermitCutoffDate')),Stat('أيام المعالجة',raw('workPermitProcDays'),'يوم')])}
           <div style={{display:'flex',flexDirection:'column',gap:7,padding:'11px 13px',borderRadius:10,background:resetOn?'rgba(176,125,0,.05)':'rgba(255,255,255,.02)',border:`1px solid ${resetOn?C.gold+'33':'rgba(255,255,255,.07)'}`}}>
@@ -2058,8 +2058,8 @@ const renderIqamaInlineEditor=(s,opts={})=>{
     if(title==='كرت العمل (رخصة العمل)'){const wc=v.iqamaWpBasis==='workcard';const rst=v.iqamaWpResetEnabled===true;const exm=v.iqamaExemptionMode||'free';return(<div style={{display:'flex',flexDirection:'column',gap:12}}>
       {sub('أساس الاحتساب')}{ed?seg('iqamaWpBasis',[{val:'iqama',l:'انتهاء الإقامة',sub:'الافتراضي'},{val:'workcard',l:'انتهاء كرت العمل',sub:'تاريخ مستقل'}]):pill(wc?'الأساس: كرت العمل':'الأساس: الإقامة',C.gold)}
       {sub('سياسة الإعفاء في الحاسبة')}{ed?seg('iqamaExemptionMode',[{val:'free',l:'يختار المستخدم',sub:'نعم/لا'},{val:'exempt',l:'دائماً بإعفاء',sub:'مقفل'},{val:'noexempt',l:'دائماً بدون إعفاء',sub:'مقفل'}]):pill(exm==='exempt'?'الإعفاء: دائماً بإعفاء':exm==='noexempt'?'الإعفاء: دائماً بدون إعفاء':'الإعفاء: يختار المستخدم',exm==='free'?C.gold:C.ok)}
-      {sub('بالإعفاء · السعر الثابت')}{ed?grid(4,[fld('workPermit3M',1),fld('workPermit6M',1),fld('workPermit9M',1),fld('workPermit12M',1)]):grid(4,[Stat('٣ أشهر',fmtThousands(v.workPermit3M??0)),Stat('٦ أشهر',fmtThousands(v.workPermit6M??0)),Stat('٩ أشهر',fmtThousands(v.workPermit9M??0)),Stat('١٢ شهر',fmtThousands(v.workPermit12M??0))])}
-      {sub('بدون إعفاء')}{ed?grid(4,[fld('workPermitNoExempt3M',1),fld('workPermitNoExempt6M',1),fld('workPermitNoExempt9M',1),fld('workPermitNoExempt12M',1)]):grid(4,[Stat('٣ أشهر',fmtThousands(v.workPermitNoExempt3M??0)),Stat('٦ أشهر',fmtThousands(v.workPermitNoExempt6M??0)),Stat('٩ أشهر',fmtThousands(v.workPermitNoExempt9M??0)),Stat('١٢ شهر',fmtThousands(v.workPermitNoExempt12M??0))])}
+      {sub('بالإعفاء · السعر الثابت')}{ed?grid(4,[fld('workPermit3M',1),fld('workPermit6M',1),fld('workPermit9M',1),fld('workPermit12M',1)]):grid(4,[Stat('3 أشهر',fmtThousands(v.workPermit3M??0)),Stat('6 أشهر',fmtThousands(v.workPermit6M??0)),Stat('9 أشهر',fmtThousands(v.workPermit9M??0)),Stat('12 شهر',fmtThousands(v.workPermit12M??0))])}
+      {sub('بدون إعفاء')}{ed?grid(4,[fld('workPermitNoExempt3M',1),fld('workPermitNoExempt6M',1),fld('workPermitNoExempt9M',1),fld('workPermitNoExempt12M',1)]):grid(4,[Stat('3 أشهر',fmtThousands(v.workPermitNoExempt3M??0)),Stat('6 أشهر',fmtThousands(v.workPermitNoExempt6M??0)),Stat('9 أشهر',fmtThousands(v.workPermitNoExempt9M??0)),Stat('12 شهر',fmtThousands(v.workPermitNoExempt12M??0))])}
       {sub('التسعير اليومي وبداية الفترة')}{ed?grid(3,[fld('workPermitDailyAfter',1),fld('workPermitCutoffDate',1),fld('workPermitProcDays',1)]):grid(3,[Stat('سعر اليوم',fmtThousands(v.workPermitDailyAfter??0),'ريال/يوم'),Stat('تاريخ التفعيل',v.workPermitCutoffDate||'—'),Stat('أيام المعالجة',v.workPermitProcDays??'—','يوم')])}
       <div style={{display:'flex',flexDirection:'column',gap:8,padding:'11px 13px',borderRadius:10,background:rst?'rgba(176,125,0,.05)':'rgba(255,255,255,.02)',border:`1px solid ${rst?C.gold+'33':'rgba(255,255,255,.07)'}`}}>
         {ed?sw('iqamaWpResetEnabled','قاعدة المنتهية من مدة طويلة: مفعّلة','قاعدة المنتهية من مدة طويلة: معطّلة'):pill(rst?'قاعدة المنتهية من مدة طويلة: مفعّلة':'قاعدة المنتهية من مدة طويلة: معطّلة',rst?C.ok:C.red)}
@@ -2070,12 +2070,12 @@ const renderIqamaInlineEditor=(s,opts={})=>{
         <span style={{display:'inline-flex',alignItems:'center',gap:7,fontSize:12,fontWeight: 600,color:C.gold}}><BadgeCheck size={14}/> قاعدة قوى لخيارات مدة التجديد</span>
         <span style={{fontSize:11,color:'var(--tx3)',fontWeight:600,lineHeight:1.9}}>
           يُقاس التأخّر على المدة المنقضية من آخر رخصة عمل مستحقة غير مدفوعة — لا على تاريخ الانتهاء وحده:
-          <br/>• الرخصة <b>سارية</b> ← تُتاح كل المدد (٣ / ٦ / ٩ / ١٢).
-          <br/>• تجاوز التأخّر <b>٣ أشهر</b> ← يُلغى خيار <b>٣ أشهر</b>.
-          <br/>• تجاوز التأخّر <b>٦ أشهر</b> ← يُلغى خيار <b>٦ أشهر</b>.
-          <br/>• تجاوز التأخّر <b>٩ أشهر</b> ← يُلغى خيار <b>٩ أشهر</b> (يبقى ١٢ دائماً).
+          <br/>• الرخصة <b>سارية</b> ← تُتاح كل المدد (3 / 6 / 9 / 12).
+          <br/>• تجاوز التأخّر <b>3 أشهر</b> ← يُلغى خيار <b>3 أشهر</b>.
+          <br/>• تجاوز التأخّر <b>6 أشهر</b> ← يُلغى خيار <b>6 أشهر</b>.
+          <br/>• تجاوز التأخّر <b>9 أشهر</b> ← يُلغى خيار <b>9 أشهر</b> (يبقى 12 دائماً).
           <br/>السبب: الرسوم تُحتسب على كامل الفترة المنقضية، فلا يُسمح بتجديد أقصر منها.
-          <br/>• <b>التجديد المبكر:</b> يُسمح بتجديد رخصة العمل إذا تبقّى <b>١٨٠ يوماً</b> (٦ أشهر) أو أقل على انتهائها.
+          <br/>• <b>التجديد المبكر:</b> يُسمح بتجديد رخصة العمل إذا تبقّى <b>180 يوماً</b> (6 أشهر) أو أقل على انتهائها.
         </span>
         <span style={{fontSize:9.5,color:'var(--tx5)',fontWeight:600}}>المصدر: منصة قوى — تُطبَّق هذه القاعدة تلقائياً في حاسبة تجديد الإقامة.</span>
       </div></div>)}
@@ -2087,13 +2087,13 @@ const renderIqamaInlineEditor=(s,opts={})=>{
       return(<div style={{display:'flex',flexDirection:'column',gap:12}}>
       {sub('الإجمالي المستهدف (باستثناء غرامة التأخير) حسب مدة التجديد')}
       <span style={{fontSize:10.5,color:'var(--tx4)',fontWeight:600,lineHeight:1.8,marginTop:-4}}>أدخل الإجمالي الذي تريده لكل مدة (بالحالة القياسية: بإعفاء، بلا تغيير مهنة أو إضافات أو تأخير) — والبرنامج يشتق رسوم المكتب تلقائياً بحيث يطابق الإجمالي الفعلي هذا الرقم.</span>
-      {ed?grid(4,[fld('iqamaExclFineTotal3M',1),fld('iqamaExclFineTotal6M',1),fld('iqamaExclFineTotal9M',1),fld('iqamaExclFineTotal12M',1)]):grid(4,[Stat('٣ أشهر',fmtThousands(v.iqamaExclFineTotal3M??5000),'ريال'),Stat('٦ أشهر',fmtThousands(v.iqamaExclFineTotal6M??8500),'ريال'),Stat('٩ أشهر',fmtThousands(v.iqamaExclFineTotal9M??12500),'ريال'),Stat('١٢ شهر',fmtThousands(v.iqamaExclFineTotal12M??16000),'ريال')])}
+      {ed?grid(4,[fld('iqamaExclFineTotal3M',1),fld('iqamaExclFineTotal6M',1),fld('iqamaExclFineTotal9M',1),fld('iqamaExclFineTotal12M',1)]):grid(4,[Stat('3 أشهر',fmtThousands(v.iqamaExclFineTotal3M??5000),'ريال'),Stat('6 أشهر',fmtThousands(v.iqamaExclFineTotal6M??8500),'ريال'),Stat('9 أشهر',fmtThousands(v.iqamaExclFineTotal9M??12500),'ريال'),Stat('12 شهر',fmtThousands(v.iqamaExclFineTotal12M??16000),'ريال')])}
       {sub('حصة المكتب والتأمين المشتقة (معاينة فقط — لا تُعدَّل مباشرة)')}
-      {grid(4,[Stat('٣ أشهر',fmtThousands(derivedShare(3)),'ريال',true),Stat('٦ أشهر',fmtThousands(derivedShare(6)),'ريال',true),Stat('٩ أشهر',fmtThousands(derivedShare(9)),'ريال',true),Stat('١٢ شهر',fmtThousands(derivedShare(12)),'ريال',true)])}
+      {grid(4,[Stat('3 أشهر',fmtThousands(derivedShare(3)),'ريال',true),Stat('6 أشهر',fmtThousands(derivedShare(6)),'ريال',true),Stat('9 أشهر',fmtThousands(derivedShare(9)),'ريال',true),Stat('12 شهر',fmtThousands(derivedShare(12)),'ريال',true)])}
       {sub('طريقة الحساب (احتياطي لمدد غير قياسية)')}{ed?seg('iqamaOfficeFeeMode',[{val:'flat',l:'سعر ثابت',sub:'نفس المبلغ'},{val:'daily',l:'يومي',sub:'سعر اليوم × الأيام'}]):pill(daily?'الوضع: يومي':'الوضع: سعر ثابت',C.gold)}
       {ed?grid(2,[fld('officeFee',1),fld('officeDailyRate',1)]):grid(2,[Stat('السعر الثابت',fmtThousands(v.officeFee??0),'ريال'),Stat('سعر اليوم',fmtThousands(v.officeDailyRate??0),'ريال/يوم')])}
       {sub('الخصم الإضافي عند التصديق')}{ed?sw('iqamaOfficeDiscountEnabled','مسموح بالخصم الإضافي','الخصم الإضافي معطّل'):pill(v.iqamaOfficeDiscountEnabled!==false?'الخصم الإضافي: مسموح':'الخصم الإضافي: غير مسموح',v.iqamaOfficeDiscountEnabled!==false?C.ok:C.red)}
-      {sub('سقف الخصم حسب مدة التجديد')}{ed?grid(4,[fld('iqamaApprovalDiscountCap3M',1),fld('iqamaApprovalDiscountCap6M',1),fld('iqamaApprovalDiscountCap9M',1),fld('iqamaApprovalDiscountCap12M',1)]):grid(4,[Stat('٣ أشهر',fmtThousands(v.iqamaApprovalDiscountCap3M??25),'ريال'),Stat('٦ أشهر',fmtThousands(v.iqamaApprovalDiscountCap6M??51),'ريال'),Stat('٩ أشهر',fmtThousands(v.iqamaApprovalDiscountCap9M??76),'ريال'),Stat('١٢ شهر',fmtThousands(v.iqamaApprovalDiscountCap12M??102),'ريال')])}</div>)}
+      {sub('سقف الخصم حسب مدة التجديد')}{ed?grid(4,[fld('iqamaApprovalDiscountCap3M',1),fld('iqamaApprovalDiscountCap6M',1),fld('iqamaApprovalDiscountCap9M',1),fld('iqamaApprovalDiscountCap12M',1)]):grid(4,[Stat('3 أشهر',fmtThousands(v.iqamaApprovalDiscountCap3M??25),'ريال'),Stat('6 أشهر',fmtThousands(v.iqamaApprovalDiscountCap6M??51),'ريال'),Stat('9 أشهر',fmtThousands(v.iqamaApprovalDiscountCap9M??76),'ريال'),Stat('12 شهر',fmtThousands(v.iqamaApprovalDiscountCap12M??102),'ريال')])}</div>)}
     if(title==='التأمين الطبي'){const bk=Array.isArray(v.medicalBrackets)?v.medicalBrackets:[];return ed?renderIqamaMedicalBody():(<div style={{display:'flex',flexDirection:'column',gap:11}}>
       {grid(3,[Stat('سريان التأمين',v.medicalGraceMonths??2,'شهر'),Stat('أيام إضافية',v.medicalGraceDays??10,'يوم'),Stat('حد تغطية المكتب',fmtThousands(v.medGovCover??1000),'ريال')])}
       {bk.length?<div style={{display:'flex',flexWrap:'wrap',gap:8}}>{bk.map((b,i)=>(<span key={i} style={{display:'inline-flex',alignItems:'center',gap:6,padding:'7px 12px',borderRadius:10,background:'var(--card-bg)',border:'1px solid var(--bd)',fontSize:11.5,fontWeight:600}}><span style={{color:'var(--tx3)'}}>{b.min}-{b.max} سنة</span><span style={{color:C.gold,fontWeight:600,direction:'ltr'}}>{fmtThousands(b.rate)} ريال</span></span>))}</div>:<div style={{fontSize:11,color:'var(--tx5)',textAlign:'center',padding:'8px 0'}}>لا توجد فئات</div>}

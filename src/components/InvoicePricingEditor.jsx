@@ -123,7 +123,7 @@ export default function InvoicePricingEditor({
   // لأن المدير العام يتجاوز تحقّق «التالي» فيصل للخطوة الأخيرة والسبب ناقص.
   const reasonOk = !!reasonKind && String(reason).trim().length >= 3
   const reasonMsg = !reasonKind ? T('اختر تصنيف التعديل في خطوة «سبب التعديل»', 'Pick a category in the “Reason” step')
-    : String(reason).trim().length < 3 ? T('اكتب تفصيل سبب التعديل (٣ أحرف فأكثر)', 'Write the reason details (3+ characters)') : ''
+    : String(reason).trim().length < 3 ? T('اكتب تفصيل سبب التعديل (3 أحرف فأكثر)', 'Write the reason details (3+ characters)') : ''
 
   const save = async () => {
     if (saving || !inv?.id) return

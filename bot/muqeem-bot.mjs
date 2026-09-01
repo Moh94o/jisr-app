@@ -25,6 +25,21 @@ const ENV_MUQEEM_PASSWORD = env('MUQEEM_PASSWORD')
 const SUPABASE_URL = env('SUPABASE_URL', 'https://gcvshzutdslmdkwqwteh.supabase.co')
 const SUPABASE_ANON_KEY = env('SUPABASE_ANON_KEY', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdjdnNoenV0ZHNsbWRrd3F3dGVoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4OTkwNjgsImV4cCI6MjA5MDQ3NTA2OH0.5R0I5VvB7lp3wpSrtay3DMcXKsT9l1uK0Ukd1F4_ImM')
 const RUN_EVERY_MS = parseInt(env('RUN_EVERY_MIN', '10')) * 60 * 1000
+// عند فشل تسجيل الدخول (غير قفل الحساب) نعيد المحاولة بسرعة بدل انتظار الدورة الكاملة،
+// حتى لا تسبّب تعثّرة واحدة (تأخّر OTP مثلاً) فجوة انقطاع طويلة لجلسة مقيم (JWT عمره ~15 دقيقة).
+const RETRY_AFTER_MS = parseInt(env('RETRY_AFTER_SEC', '90')) * 1000
+// حدّ أقصى لعدد إعادات المحاولة السريعة المتتالية — بعده نعود للدورة العادية (كل 10 دقائق)
+// حتى لا نُغرق منصة مقيم بطلبات OTP عند تعطّل وصول الرمز (قد يُقفل الحساب).
+const MAX_FAST_RETRIES = parseInt(env('MAX_FAST_RETRIES', '2'))
+// استطلاع أمر «إعادة الاتصال» القادم من واجهة جسر (زر إعادة الاتصال في حاسبة نقل الكفالة).
+const CMD_POLL_MS = parseInt(env('CMD_POLL_SEC', '15')) * 1000
+// أدنى فاصل بين دخولَين قسريَّين بطلب من الواجهة — حماية من إغراق مقيم بطلبات OTP.
+const MIN_FORCED_GAP_MS = parseInt(env('MIN_FORCED_GAP_SEC', '90')) * 1000
+// «الشبكة ميتة داخل العملية» (net::ERR_INTERNET_DISCONNECTED بينما الجهاز متصل):
+// حالة موثّقة لا تُصلح نفسها أبداً — العلاج الوحيد عملية جديدة. بعد هذا العدد من الفشل
+// الشبكي المتتالي نُنهي العملية عمداً ليُعيد PM2 تشغيلها بعملية سليمة.
+const NET_DEAD_EXIT_AFTER = parseInt(env('NET_DEAD_EXIT_AFTER', '2'))
+const NET_DEAD_RE = /ERR_INTERNET_DISCONNECTED|ERR_NAME_NOT_RESOLVED|ERR_NETWORK_CHANGED|ERR_PROXY_CONNECTION_FAILED|ERR_TUNNEL_CONNECTION_FAILED|fetch failed/i
 const HEADLESS = env('HEADLESS', 'new') === 'new' ? 'new' : env('HEADLESS') === 'false' ? false : true
 
 // ─── helpers ────────────────────────────────────────────────
@@ -53,6 +68,21 @@ async function fetchLatestOtp(sinceSeconds = 120) {
   if (!res.ok) return null
   const v = await res.json()
   return typeof v === 'string' ? v : null
+}
+
+// يلتقط طلب «إعادة الاتصال» المعلّق من الواجهة ويصفّره ذرّياً (RPC security definer).
+async function takeReconnectRequest() {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/take_muqeem_reconnect_request`, {
+    method: 'POST',
+    headers: {
+      'apikey': SUPABASE_ANON_KEY,
+      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: '{}',
+  })
+  if (!res.ok) throw new Error(`take_muqeem_reconnect_request ${res.status}`)
+  return (await res.json()) === true
 }
 
 // Prefer credentials stored in Supabase (editable from Jisr Settings → General).
@@ -258,25 +288,99 @@ async function loginOnce() {
 
 // ─── main loop ─────────────────────────────────────────────
 let cooldownUntil = 0
+let busy = false            // منع تشغيل جلستَي تسجيل دخول متوازيتين (loginOnce يفتح متصفحًا headless)
+let retryTimer = null       // مؤقّت إعادة المحاولة السريعة عند الفشل — واحد فقط في كل مرة
+let consecutiveFailures = 0 // عدّاد الفشل المتتالي — يُصفَّر عند أي نجاح، ويحدّ إعادات المحاولة السريعة
+let netDeadFailures = 0     // فشل شبكي متتالٍ في تسجيل الدخول — عند بلوغ الحدّ نخرج ليُعيدنا PM2
+let pollFailures = 0        // فشل متتالٍ في استطلاع أمر إعادة الاتصال (Supabase غير قابلة للوصول من داخل العملية)
+let lastForcedAt = 0        // آخر دخول قسري بطلب من الواجهة — لفرض أدنى فاصل بين الطلبات
+
+// جدولة إعادة محاولة سريعة بعد فشل غير قفل الحساب (تُلغى عند نجاح أي دورة لاحقة).
+function scheduleRetry() {
+  if (retryTimer) return                    // إعادة محاولة مجدولة أصلاً — لا تُكدّس
+  if (Date.now() < cooldownUntil) return    // الحساب في تهدئة — لا تُعِد بسرعة
+  if (consecutiveFailures > MAX_FAST_RETRIES) {
+    log(`  ⏸ ${consecutiveFailures} consecutive failures — pausing fast retries, waiting for the next scheduled tick (avoids OTP spam / lock). Likely the OTP is not arriving in Supabase.`)
+    return
+  }
+  log(`  ↻ Scheduling a fast retry in ${Math.round(RETRY_AFTER_MS / 1000)}s (failure #${consecutiveFailures})`)
+  retryTimer = setTimeout(() => { retryTimer = null; tick() }, RETRY_AFTER_MS)
+}
+
 async function tick() {
+  if (busy) { log('⏭ Skipping tick — a login run is already in progress'); return }
   if (Date.now() < cooldownUntil) {
     const waitMin = Math.ceil((cooldownUntil - Date.now()) / 60_000)
     log(`⏸ Skipping tick — account cooldown active (${waitMin} min remaining)`)
     return
   }
+  busy = true
   try {
     await loginOnce()
+    consecutiveFailures = 0                                           // نجحنا — صفّر العدّاد
+    netDeadFailures = 0
+    if (retryTimer) { clearTimeout(retryTimer); retryTimer = null }   // وألغِ أي إعادة محاولة معلّقة
   } catch (e) {
-    log(`✗ Login failed: ${e.message}`)
+    consecutiveFailures++
+    log(`✗ Login failed (#${consecutiveFailures}): ${e.message}`)
+    // عطل «الشبكة ميتة داخل العملية»: لا يتعافى ذاتياً مهما أعدنا المحاولة داخل نفس العملية —
+    // الخروج المتعمّد هنا يجعل PM2 يعيد التشغيل بعملية جديدة (مكافئ pm2 restart اليدوي).
+    if (NET_DEAD_RE.test(e.message || '')) {
+      netDeadFailures++
+      if (netDeadFailures >= NET_DEAD_EXIT_AFTER) {
+        log(`💀 ${netDeadFailures} consecutive network-dead login failures — process network stack is wedged. Exiting so PM2 restarts a fresh process.`)
+        process.exit(1)
+      }
+    } else {
+      netDeadFailures = 0
+    }
     if (e.code === 'ACCOUNT_LOCKED') {
       cooldownUntil = Date.now() + 17 * 60_000
       log(`  ⏸ Cooling down for 17 min to let Muqeem unlock the account`)
-    } else if (e.stack) log(e.stack.split('\n').slice(0, 5).join('\n'))
+    } else {
+      if (e.stack) log(e.stack.split('\n').slice(0, 5).join('\n'))
+      scheduleRetry()   // فشل عابر — أعد المحاولة سريعًا (ضمن الحدّ) حتى لا تطول فجوة انقطاع الجلسة
+    }
+  } finally {
+    busy = false
+  }
+}
+
+// استطلاع أمر «إعادة الاتصال» القادم من زر الواجهة — يلتقط الطلب ويطلق دخولاً فورياً
+// بدل انتظار الدورة المجدولة (كل 10 دقائق). يعمل حتى أثناء إيقاف «المحاولات السريعة».
+async function pollReconnectCommand() {
+  try {
+    const requested = await takeReconnectRequest()
+    pollFailures = 0
+    if (!requested) return
+    log('📣 Reconnect requested from the app (زر «إعادة الاتصال»)')
+    if (busy) { log('  ✓ A login run is already in progress — it covers this request'); return }
+    if (Date.now() < cooldownUntil) {
+      const waitMin = Math.ceil((cooldownUntil - Date.now()) / 60_000)
+      log(`  ⏸ Ignored — account cooldown active (${waitMin} min remaining)`)
+      return
+    }
+    if (Date.now() - lastForcedAt < MIN_FORCED_GAP_MS) { log('  ⏸ Ignored — a forced re-login ran moments ago'); return }
+    lastForcedAt = Date.now()
+    consecutiveFailures = 0                                           // الطلب اليدوي يرفع إيقاف المحاولات السريعة
+    if (retryTimer) { clearTimeout(retryTimer); retryTimer = null }
+    tick()
+  } catch (e) {
+    // فشل الاستطلاع نفسه = Supabase غير قابلة للوصول من داخل العملية. إن استمرّ ~دقيقتين
+    // فالعملية عالقة في عطل الشبكة الداخلي — نخرج ليُعيدنا PM2 بعملية سليمة، فيتعافى
+    // البوت وحده حتى لو لم يضغط أحد الزر.
+    pollFailures++
+    if (pollFailures % 4 === 1) log(`  ⚠ Reconnect-command poll failed (#${pollFailures}): ${e.message}`)
+    if (pollFailures >= 8) {
+      log('💀 8 consecutive Supabase poll failures (~2 min) — process network is dead. Exiting so PM2 restarts a fresh process.')
+      process.exit(1)
+    }
   }
 }
 
 ;(async function main() {
-  log(`Muqeem bot started (every ${RUN_EVERY_MS / 60_000} min, headless=${HEADLESS})`)
+  log(`Muqeem bot started (every ${RUN_EVERY_MS / 60_000} min, retry ${RETRY_AFTER_MS / 1000}s on failure, cmd-poll ${CMD_POLL_MS / 1000}s, headless=${HEADLESS})`)
+  setInterval(pollReconnectCommand, CMD_POLL_MS)
   await tick()
   setInterval(tick, RUN_EVERY_MS)
 })()

@@ -69,7 +69,7 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
       d.style.cssText = 'position:fixed;top:16px;left:16px;background:#111;color:#0ea5e9;padding:12px 18px;border-radius:10px;z-index:2147483647;font:700 13px/1.5 sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.5);max-width:420px;direction:rtl;text-align:right;border:1px solid rgba(14,165,233,.4)';
       document.body.appendChild(d);
     }
-    d.textContent = 'جسر مدد ٣: ' + m;
+    d.textContent = 'جسر مدد 3: ' + m;
     return d;
   };
 

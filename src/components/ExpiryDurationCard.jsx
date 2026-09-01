@@ -6,7 +6,7 @@ import { EXPIRY_DURATIONS, EXPIRY_DAYS_DEFAULT, getExpiryDaysMap, computeRenewal
 const F = `'Cairo','Tajawal',sans-serif`
 const C = { gold: '#B07D00', red: '#c0392b', ok: '#27a046' }
 const AR_DAYS = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت']
-const DUR_LABEL = { 3: '٣ أشهر', 6: '٦ أشهر', 9: '٩ أشهر', 12: '١٢ شهر' }
+const DUR_LABEL = { 3: '3 أشهر', 6: '6 أشهر', 9: '9 أشهر', 12: '12 شهر' }
 const fmtDate = (d) => `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`
 const todayYMD = () => { const d = new Date(); const p = n => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}` }
 
@@ -77,7 +77,7 @@ export default function ExpiryDurationCard({ pricing, canEdit, onSave }) {
         {/* شرح القاعدة */}
         <div style={{ fontSize: 11.5, color: 'var(--tx3)', fontWeight: 600, lineHeight: 1.9, background: 'rgba(176,125,0,.05)', border: `1px solid ${C.gold}30`, borderRadius: 10, padding: '11px 14px' }}>
           القاعدة: <b style={{ color: C.gold }}>التاريخ الجديد = تاريخ الانتهاء + عدد أيام ثابت حسب المدة</b> (مطابقة قوى للإقامات السارية).
-          وللإقامات المنتهية يُضاف <b style={{ color: C.gold }}>تعويض التأخير</b> = عدد الأرباع المنقضية × ٣ أشهر هجرية قبل المدة.
+          وللإقامات المنتهية يُضاف <b style={{ color: C.gold }}>تعويض التأخير</b> = عدد الأرباع المنقضية × 3 أشهر هجرية قبل المدة.
         </div>
 
         {/* عدد أيام كل مدة */}
@@ -102,7 +102,7 @@ export default function ExpiryDurationCard({ pricing, canEdit, onSave }) {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
               <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx2)' }}>تعويض تأخير الإقامات المنتهية</span>
-              <span style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 600 }}>لكل فترة تعويض منقضية تُضاف ٣ أشهر هجرية على الأساس</span>
+              <span style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 600 }}>لكل فترة تعويض منقضية تُضاف 3 أشهر هجرية على الأساس</span>
             </div>
             {edit
               ? <button type="button" onClick={() => setDraft(d => ({ ...d, overdueEnabled: d.overdueEnabled === false }))}

@@ -1120,6 +1120,22 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
   // from any environment (sandbox/prod/local). The prod anon key is publishable.
   const MUQEEM_FN_URL = 'https://gcvshzutdslmdkwqwteh.supabase.co/functions/v1/query-muqeem'
   const MUQEEM_FN_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdjdnNoenV0ZHNsbWRrd3F3dGVoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4OTkwNjgsImV4cCI6MjA5MDQ3NTA2OH0.5R0I5VvB7lp3wpSrtay3DMcXKsT9l1uK0Ukd1F4_ImM'
+  // عدد محاولات زر «إعادة الاتصال» (× 6 ثوانٍ ≈ دقيقتان ونصف) — يغطي دورة تسجيل دخول
+  // كاملة للبوت بما فيها انتظار OTP الذي قد يتأخر ~100 ثانية.
+  const MQ_RETRY_MAX = 25
+
+  // إشارة «أعد الاتصال الآن» لبوت مقيم: تُسجَّل في muqeem_control على مشروع الإنتاج
+  // (نفس نمط query-muqeem — تعمل من أي بيئة)، والبوت يستطلعها كل ~15 ثانية فيطلق
+  // تسجيل دخول فورياً بدل انتظار دورته المجدولة كل 10 دقائق. أفضل جهد: فشلها لا يوقف المحاولات.
+  async function requestBotReconnect() {
+    try {
+      await fetch('https://gcvshzutdslmdkwqwteh.supabase.co/rest/v1/rpc/request_muqeem_reconnect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', apikey: MUQEEM_FN_KEY, Authorization: `Bearer ${MUQEEM_FN_KEY}` },
+        body: '{}',
+      })
+    } catch { /* أفضل جهد */ }
+  }
 
   async function queryMuqeem(iqama) {
     try {
@@ -1166,12 +1182,14 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
 
   // إعادة محاولة الاتصال بمقيم يدويًا (زر «إعادة الاتصال») — يُستخدم حين تكون الخدمة غير متاحة
   // أو تعذّر الاتصال، فالـ useEffect لا يُعاد تشغيله لأن رقم الإقامة لم يتغيّر.
-  // جلسة مقيم قد تكون قيد التحديث لحظة الضغط (البوت يُعيد تسجيل الدخول)، لذا نُعيد المحاولة
-  // عدة مرات بمهلة قصيرة بدل محاولة واحدة — فتُلتقط الجلسة تلقائياً بمجرد عودتها.
+  // الضغطة تُرسل أولاً إشارة «أعد الاتصال الآن» للبوت (فيبدأ تسجيل دخول فوري بدل انتظار
+  // دورته المجدولة)، ثم نستطلع الجلسة الجديدة بمهلات قصيرة حتى تعود — دورة الدخول الكاملة
+  // مع OTP قد تستغرق حتى ~دقيقتين، لذا نافذة الاستطلاع دقيقتان ونصف.
   async function retryMuqeem() {
     const iq = (f.iqama || '').trim()
     if (!/^[12]\d{9}$/.test(iq) || muqeemFetchStatus === 'loading' || muqeemRetry > 0) return
-    const MAX = 5, GAP = 6000
+    requestBotReconnect()   // لا ننتظرها — البوت يلتقطها خلال ~15 ثانية بالتوازي مع الاستطلاع
+    const MAX = MQ_RETRY_MAX, GAP = 6000
     for (let attempt = 1; attempt <= MAX; attempt++) {
       setMuqeemRetry(attempt)
       const r = await queryMuqeem(iq)
@@ -1446,7 +1464,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
                 <div style={{ position: 'absolute', top: -3, insetInlineEnd: 0, display: 'inline-flex', alignItems: 'center', gap: 7, direction: dir, pointerEvents: 'none' }}>
                   {/* ① التاق: الحالة فقط (بدون أزرار) */}
                   <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, fontWeight: 600, padding: '5px 11px', borderRadius: 8, transition: '.15s', ...tagStyle }}>
-                    {muqeemRetry > 0 && <><span>{T(`جاري إعادة المحاولة… (${muqeemRetry}/5)`,`Retrying… (${muqeemRetry}/5)`)}</span>{spinner}</>}
+                    {muqeemRetry > 0 && <><span>{T(`جاري إعادة الاتصال… (${muqeemRetry}/${MQ_RETRY_MAX})`,`Reconnecting… (${muqeemRetry}/${MQ_RETRY_MAX})`)}</span>{spinner}</>}
                     {muqeemRetry === 0 && muqeemFetchStatus === 'loading' && <><span>{T('جاري جلب بيانات مقيم…','Fetching Muqeem data…')}</span>{spinner}</>}
                     {muqeemRetry === 0 && muqeemFetchStatus === 'ok' && <><span>{T('تم جلب بيانات مقيم','Muqeem data loaded')}</span><Check size={13} strokeWidth={3} /></>}
                     {isNotFound && <><Info size={13} strokeWidth={2.4} style={{ flexShrink: 0 }} /><span>{T('لا توجد بيانات لهذا العامل في مقيم — أدخلها يدوياً','No Muqeem record for this worker — enter manually')}</span></>}
