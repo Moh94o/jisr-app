@@ -183,10 +183,18 @@ function body({ sourceId, personId, force = false, resetAt = '' }) {
     // sections below both need labor_office_id / sequence_number / unified-no.
     const aData = activeCompany && activeCompany.data;
     const aAttr = aData && aData.attributes || {};
-    const laborOfficeId = aAttr['company-labor-office-id'];
-    const seqNo = aAttr['company-sequence-number'];
+    // ⚠️ أسماء الحقول في /context/company هي 'labor-office-id' و'sequence-number'
+    // بلا بادئة 'company-'. الكود القديم قرأ المبدوءة بـcompany- فرجعت undefined
+    // دائماً، فصار estId = null ومعه سقط بلوكا «ملف المنشأة» و«رخص العمل» كلياً
+    // (URL يُبنى بـlabor_office_id=undefined). نقرأ الاسمين والقديم احتياطاً.
+    const laborOfficeId = aAttr['labor-office-id'] || aAttr['company-labor-office-id'];
+    const seqNo = aAttr['sequence-number'] || aAttr['company-sequence-number'];
     const estId = (laborOfficeId && seqNo) ? (laborOfficeId + '-' + seqNo) : null;
-    const unifiedNo = aAttr['company-unified-number-id'] || (companies.find(w => w.company_id == (aData && aData.id)) || {}).company_unified_number_id;
+    const unifiedNo = aAttr['unified-number-id'] || aAttr['company-unified-number-id'] || (companies.find(w => w.company_id == (aData && aData.id)) || {}).company_unified_number_id;
+    // الرقم الموحّد الحقيقي (١٠ خانات يبدأ بـ70) — مفتاح الربط الوحيد مع
+    // facilities.unified_number؛ 'unified-number-id' معرّف قوى الداخلي (٧ خانات)
+    // ولا يطابق شيئاً عندنا. راجع [[project_unified_number_invariant]].
+    const sevenHundredNo = aAttr['unified-national-number'] || aAttr['seven-hundred-number'] || null;
 
     // 4) Indicators / criteria / cases (establishment + employee) / absher / nitaqat-indicator.
     let visaStatuses = null, employeeCases = null, nitaqatIndicator = null;
@@ -207,10 +215,20 @@ function body({ sourceId, personId, force = false, resetAt = '' }) {
 
     // 5) Visa statuses — depends on current entity_number from criteria.
     // Format is e.g. "6-4019841-100" which the visa-proxy needs to scope to company.
+    // العدّادات ترجع هيكلاً مصفَّراً لا خطأً، فلا يُكتشف الخلل من رمز الحالة.
+    // جُرّبت ١٢ صيغة (٤ أشكال لرقم الكيان × ٣ أنواع تأشيرة) على ٣٧ منشأة فلم
+    // تُنتج أي صيغةٍ رقماً غير صفري ولا مرة — فالبحث الشامل كلفةٌ بلا عائد
+    // (١١ نداءً زائداً × ١١٧٥ منشأة). نكتفي بالنداء الأصلي، ونُبقي وسم _probe
+    // ليبقى في الـraw ما يدلّ على الصيغة المستعملة. أما حسم سبب الأصفار فيكون
+    // على منشأةٍ واحدة ببوكماركت الفحص (scripts/qiwa-visa-probe.js) لا هنا.
     const entityNo = criteria && criteria.nitaqat && criteria.nitaqat.entity_number;
     if (entityNo) {
       const vs = await qiwaGet(API_CORE + '/visa-proxy/v3/visa-statuses/' + encodeURIComponent(entityNo) + '?visa_type_id=1');
-      if (vs.ok) visaStatuses = vs.data;
+      if (vs.ok && vs.data) {
+        const sum = ((vs.data.visa_statuses || []).reduce((s, x) => s + (Number(x.count) || 0), 0))
+          + (Number(vs.data.approved_visas) || 0);
+        visaStatuses = { ...vs.data, _probe: { entity: entityNo, visa_type_id: '1', empty: sum === 0 } };
+      }
     }
 
     // 5b) Part-2 visa endpoints — work/visit/seasonal quota + eligibility +
@@ -225,22 +243,42 @@ function body({ sourceId, personId, force = false, resetAt = '' }) {
       qiwaGet(API_CORE + '/visa-proxy/v3/other-visas?q%5Btype_id%5D%5Beq%5D=3&page=1&per=1000'),
       qiwaGet(API_CORE + '/visa-proxy/v3/expansion-work-visa-balance'),
       (async () => {
-        /* طلبات التأشيرات: النداء الافتراضي يُرجع المقبولة فقط، فنجلب الحالات
-           الثلاث صراحةً وندمجها مع إزالة التكرار حسب المعرّف (id). */
-        const vrBase = API_CORE + '/visa-proxy/v3/visa-requests?sort_by=desc&page=1&per=1000';
+        /* طلبات التأشيرات: النداء الافتراضي يُرجع المقبولة فقط، فنجلب كل حالة
+           صراحةً وندمجها مع إزالة التكرار حسب المعرّف (id).
+           تنبيهان تعلَّمناهما من هذه البوابة:
+           · قوى تُسكِت الحدّ الأعلى للصفحة (workspaces تُقصّ عند 100 مهما طلبت)،
+             فلا يُعوَّل على per=1000؛ نقرأ meta.total_count وندور على الصفحات.
+           · قائمة الحالات كانت ثلاثاً فقط، وأيّ طلبٍ بحالةٍ أخرى كان يسقط صامتاً. */
+        const vrBase = API_CORE + '/visa-proxy/v3/visa-requests?sort_by=desc&per=1000';
+        /* الحالات الثلاث هي وحدها التي ظهرت في بيانات حيّة؛ وما زيد عليها
+           تخميناً كان سبع نداءات ضائعة لكل منشأة. تُنفَّذ **متوازية** مع النداء
+           الافتراضي — التسلسل كان يضاعف زمن كل منشأة بلا مقابل.
+           المفتاح هنا request_id لا id: الأخير عابر ويتبدّل كل نداء، فلو
+           فُهرِست به لتكرّر الطلب الواحد عبر الحالات المتوازية. */
         const vrStatuses = ['accepted', 'rejected', 'pending'];
-        const vrRes = await Promise.all(
-          [qiwaGet(vrBase)].concat(vrStatuses.map(function (s) { return qiwaGet(vrBase + '&q%5Bstatus%5D%5Beq%5D=' + s); }))
-        );
-        const vrById = new Map();
+        const vrByReq = new Map();
         let vrOk = false;
-        for (const res of vrRes) {
-          if (res && res.ok && res.data && Array.isArray(res.data.data)) {
-            vrOk = true;
-            for (const row of res.data.data) { if (row && row.id != null) vrById.set(row.id, row); }
-          }
-        }
-        return { ok: vrOk, data: { data: Array.from(vrById.values()) } };
+        const take = (res) => {
+          const rows = (res && res.ok && res.data && Array.isArray(res.data.data)) ? res.data.data : null;
+          if (!rows) return 0;
+          vrOk = true;
+          for (const row of rows) { if (row && row.request_id) vrByReq.set(row.request_id, row); }
+          return rows.length;
+        };
+        const queries = [''].concat(vrStatuses.map(function (s) { return '&q%5Bstatus%5D%5Beq%5D=' + s }));
+        const firsts = await Promise.all(queries.map(function (q) { return qiwaGet(vrBase + '&page=1' + q) }));
+        /* الترقيم نادر (per=1000 مقبول من قوى)، فلا يُدفع ثمنه إلا عند اللزوم. */
+        const more = [];
+        firsts.forEach(function (first, i) {
+          const n = take(first);
+          const meta = (first.ok && first.data && first.data.meta) || {};
+          const total = meta.total_count != null ? meta.total_count : meta.total;
+          if (!n || !total || total <= n) return;
+          const pages = Math.min(20, Math.ceil(total / n));
+          for (let p = 2; p <= pages; p++) more.push(qiwaGet(vrBase + '&page=' + p + queries[i]));
+        });
+        if (more.length) (await Promise.all(more)).forEach(take);
+        return { ok: vrOk, data: { data: Array.from(vrByReq.values()) } };
       })(),
     ]);
     if (vb.ok)  visaBalances        = vb.data;
@@ -255,8 +293,8 @@ function body({ sourceId, personId, force = false, resetAt = '' }) {
     // page_size=1000 so we get everything in one shot for typical accounts.
     let wpValidate = null, wpRequests = null, wpPremiums = null,
         wpDebts = null, wpDebtsFinalExit = null, wpLaborers = null, wpLaborersExpired = null;
-    const wpClaimLO = aAttr['company-labor-office-id'];
-    const wpClaimSeq = aAttr['company-sequence-number'];
+    const wpClaimLO = laborOfficeId;
+    const wpClaimSeq = seqNo;
     if (wpClaimLO && wpClaimSeq) {
       const q = '?labor_office_id=' + wpClaimLO + '&sequence_number=' + wpClaimSeq;
       const pq = q + '&page_index=1&page_size=1000';
@@ -551,7 +589,7 @@ function body({ sourceId, personId, force = false, resetAt = '' }) {
         unit_no: addr['unit-no'] != null ? String(addr['unit-no']) : null,
         financial_year_gregorian: a['financial-year-gregorian'] || null,
         financial_year_hijri: a['financial-year-hijri'] || null,
-        seven_hundred_number: a['seven-hundred-number'] || null,
+        seven_hundred_number: sevenHundredNo,
         vat_number: a['vat-number'] || null,
         establishment_email: a['establishment-email'] || null,
         nic_account_number: a['nic-account-number'] || null,
@@ -1018,7 +1056,14 @@ function body({ sourceId, personId, force = false, resetAt = '' }) {
           raw: r,
           synced_at: new Date().toISOString(),
         }));
-        await supaFetch('/rest/v1/qiwa_visa_requests?on_conflict=id', {
+        /* ⚠️ الحقل id من قوى **عابر ولا يُعوَّل عليه**: نفس الطلبات الأربعة ترجع
+           بمعرّفاتٍ مختلفة في كل نداء (69,83,11,4 ثم 25,27,7,68 ثم 74,10,58,75)
+           وفي مدًى ضيّق (٣–٩٨). فمفتاح on_conflict=id كان يجعل منشأةً تدهس
+           صفوف منشأةٍ أخرى، ويسقف الجدول كلَّه عند ~٩٦ صفّاً مهما بلغ عدد
+           المنشآت — ولهذا بقي ٦٦ صفّاً لـ٣٨ منشأة.
+           المفتاح الثابت هو request_id (رقم الطلب في الواجهة، مثل
+           18-471-1448)، وعليه القيد الفريد (company_id, request_id). */
+        await supaFetch('/rest/v1/qiwa_visa_requests?on_conflict=company_id,request_id', {
           method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
           body: JSON.stringify(reqRows),
         });
@@ -1028,13 +1073,38 @@ function body({ sourceId, personId, force = false, resetAt = '' }) {
         // qiwa_visa_border_numbers by (company_id, request_id, border_number).
         const companyIdBn = Number(activeCompany.data.id);
         const bnRows = [];
-        for (const r of visaRequestsList.data) {
+        /* طلبات المنشأة تُجلب أرقامُ حدودها **متوازيةً**: كانت متسلسلة فيدفع
+           صاحبُ ستة طلبات ستّ رحلاتٍ متتابعة بلا داعٍ. */
+        const bnPerRequest = visaRequestsList.data.map(async (r) => {
           const reqId = r.request_id;
-          if (!reqId) continue;
-          const rt = r.type_id || '1';
-          const bn = await qiwaGet(API_CORE + '/visa-proxy/v3/visa-requests/' + encodeURIComponent(reqId) + '/border-numbers?page=1&request_type=' + encodeURIComponent(rt) + '&per=1000');
-          if (!bn.ok || !bn.data || !Array.isArray(bn.data.data)) continue;
-          for (const b of bn.data.data) {
+          if (!reqId) return;
+          /* request_type الصحيح ليس دائماً type_id: عند الفراغ نجرّب النوع
+             الآخر قبل أن نحكم بأن الطلب بلا أرقام حدود. المحاولتان تكفيان —
+             لم يُرَ في البيانات الحيّة إلا النوعان ١ و٣. */
+          const rows = [];
+          const tries = [];
+          for (const t of [r.type_id, '1', '3']) {
+            if (t && !tries.includes(String(t))) tries.push(String(t));
+          }
+          for (const rt of tries) {
+            const bnUrl = API_CORE + '/visa-proxy/v3/visa-requests/' + encodeURIComponent(reqId) + '/border-numbers?per=1000&request_type=' + encodeURIComponent(rt);
+            const bn = await qiwaGet(bnUrl + '&page=1');
+            if (!bn.ok || !bn.data || !Array.isArray(bn.data.data) || !bn.data.data.length) continue;
+            rows.push(...bn.data.data);
+            const meta = bn.data.meta || {};
+            const total = meta.total_count != null ? meta.total_count : meta.total;
+            if (total && total > bn.data.data.length) {
+              const pages = Math.min(50, Math.ceil(total / bn.data.data.length));
+              for (let p = 2; p <= pages; p++) {
+                const nx = await qiwaGet(bnUrl + '&page=' + p);
+                const nr = (nx.ok && nx.data && Array.isArray(nx.data.data)) ? nx.data.data : [];
+                if (!nr.length) break;
+                rows.push(...nr);
+              }
+            }
+            break;
+          }
+          for (const b of rows) {
             if (b.number == null) continue;
             bnRows.push({
               company_id: companyIdBn,
@@ -1060,7 +1130,8 @@ function body({ sourceId, personId, force = false, resetAt = '' }) {
               synced_at: new Date().toISOString(),
             });
           }
-        }
+        });
+        await Promise.all(bnPerRequest);
         if (bnRows.length) {
           await supaFetch('/rest/v1/qiwa_visa_border_numbers?on_conflict=company_id,request_id,border_number', {
             method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },

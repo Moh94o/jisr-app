@@ -4567,6 +4567,61 @@ function WeeklySyncReportModal({ sb, T, lang, onClose }) {
   )
 }
 
+/* ── لماذا لا نقول select('*') هنا ────────────────────────────────────────
+   الجدول ١١٨٧ صفّاً وفيه أحد عشر عمود jsonb خاماً، فردّ `*` بلغ **٢١٫٧
+   ميجابايت** من JSON فانقطع في منتصفه وسقطت الصفحة كلها بـ
+   «SyntaxError: Expected ',' or ']' … at position 21739581».
+   علاجان معاً، فأيٌّ منهما وحده يعود ليُكسر مع نموّ البيانات:
+   ١) لا نطلب الأعمدة الخام التي لا تقرأها هذه الصفحة إطلاقاً (raw_gosi_main
+      وحده ٣٫٦ م.ب). المُبقاة — raw_cr_data و hrsd_raw و raw_request_status —
+      تقرأها لوحة التفاصيل من صفّ القائمة نفسه (setDetail(r))، فحذفها يُفرغها.
+   ٢) نجلب على دفعات فلا يمرّ ردٌّ واحد ضخم على المُحلّل مهما كبر الجدول. */
+const SBC_LIST_COLS = [
+  'id,person_id,cr_national_number,cr_number,entity_full_name_ar,entity_full_name_en',
+  'legal_status,cr_status,is_main,is_partner,fetched_at,updated_at,user_id,sync_run_id',
+  'encrypted_cr_national_number,encrypted_cr_number,version_no,capital,capital_currency_id',
+  'capital_currency_ar,capital_currency_en,company_duration,main_cr_national_number,main_cr_number',
+  'encrypted_main_cr_national_number,encrypted_main_cr_number,is_license_based,is_survey_required',
+  'has_ecommerce,in_liquidation_process,is_in_confirmation_period,is_manager,delete_date',
+  'entity_name_lang_id,entity_name_lang_ar,entity_name_lang_en,entity_type_id,entity_type_ar',
+  'entity_type_en,headquarter_city_id,headquarter_city_ar,headquarter_city_en,company_form_id',
+  'company_form_ar,company_form_en,partners_nationality_id,partners_nationality_ar',
+  'partners_nationality_en,company_contract_from_date,cr_issue_date_gregorian,cr_issue_date_hijri',
+  'cr_confirm_date_gregorian,cr_confirm_date_hijri,last_cr_suspension_date,last_cr_reactivation_date',
+  'cr_status_id,cr_status_ar,cr_status_en,license_issuer,phone_no,mobile_no,email,website_url',
+  'management_structure_id,management_structure_ar,management_structure_en,activities_type_id',
+  'activities_type_ar,activities_type_en,full_activities_text,gosi_registration_number',
+  'gosi_mol_est_id,gosi_mol_est_office_id,gosi_mol_office_id,gosi_mol_uni_id',
+  'gosi_unified_national_number,gosi_number_of_contributors,gosi_number_of_saudi_contributors',
+  'gosi_number_of_non_saudi_contributors,gosi_number_of_registration_numbers,gosi_total_contribution',
+  'gosi_total_debit,gosi_total_penalties,total_violation_count,raw_cr_data,last_synced_at',
+  'sync_status,sync_error,created_at,hrsd_labor_office_id,hrsd_sequence_number,hrsd_labor_office_name',
+  'hrsd_nitaq_code,hrsd_nitaq_name,hrsd_nitaqat_activity_code,hrsd_nitaqat_activity_name',
+  'hrsd_saudi_laborers,hrsd_foreign_laborers,hrsd_total_laborers,hrsd_total_issued_permits',
+  'hrsd_total_expired_permits,hrsd_total_expiring_permits,hrsd_saudi_percentage',
+  'hrsd_unified_number_office,hrsd_unified_number_sequence,hrsd_synced_at,hrsd_raw',
+  'spl_national_address_id,spl_has_subscription,coc_chamber_number,coc_has_subscription',
+  'zakat_tax_number,sca_contractor_number,moj_contract_number,mc_contract_number,mc_aamaly_url',
+  'qawaem_total,momrah_licenses_count,is_gosi_only,requests_synced_at,request_reference_no',
+  'request_service_code,request_service_ar,request_status_ar,request_internal_id',
+  'raw_request_status,requests_files_synced_at',
+].join(',')
+
+const fetchSbcFacilities = async (client) => {
+  const PAGE = 250
+  const out = []
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await client.from('sbc_facilities')
+      .select(SBC_LIST_COLS)
+      .order('entity_full_name_ar', { ascending: true })
+      .range(from, from + PAGE - 1)
+    if (error) throw error
+    out.push(...(data || []))
+    if (!data || data.length < PAGE) return out
+  }
+}
+
+
 export default function SbcFacilities({ sb, toast, user, lang, personFilter, onTriggerSync, syncPersonId, onBack }) {
   const T = (ar, en) => (lang || 'ar') !== 'en' ? ar : en
 
@@ -4953,11 +5008,10 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
     if (!sb) return
     setLoading(true); setErr(null)
     try {
-      const [{ data, error }, { data: blk }] = await Promise.all([
-        sb.from('sbc_facilities').select('*').order('entity_full_name_ar', { ascending: true }),
+      const [data, { data: blk }] = await Promise.all([
+        fetchSbcFacilities(sb),
         sb.from('sync_blocked_facilities').select('*').order('blocked_at', { ascending: false }),
       ])
-      if (error) throw error
       setRows(data || [])
       setBlocked(blk || [])
       setLastSync((data && data.length) ? data.reduce((m, r) => (r.synced_at && (!m || r.synced_at > m)) ? r.synced_at : m, null) : null)
