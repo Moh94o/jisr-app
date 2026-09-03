@@ -6,7 +6,7 @@ import { DONE_INPUTS, SALARY_RETURN_INPUTS } from '../lib/doneInputs.js'
 import { TXN_SERVICES } from './txnServices.js'
 import { Modal, ModalSection, ActionButton, ConfirmDialog, Dropdown, CalendarPopup, TextField, TextArea, DateField, FileField } from '../components/ui/FormKit.jsx'
 import { buildAjeerContractBookmarklet, buildAjeerNoticeBookmarklet, buildAjeerSecondmentBookmarklet, buildAjeerSecondmentInvoiceBookmarklet, buildAjeerEligibilityScanBookmarklet, buildAjeerTraceBookmarklet } from './ajeerRequestBookmarklet.js'
-import { Save, Trash2, Search, RefreshCw, HeartPulse, ShieldOff, X as XIcon, HandCoins, BadgeCheck, ArrowUpDown, Zap, SlidersHorizontal, ListChecks, Pencil, ArrowUpNarrowWide, ArrowDownWideNarrow, Filter, Sigma, Pin, PinOff, Palette, Type, KeyRound, Eye, MoveHorizontal, SeparatorVertical } from 'lucide-react'
+import { Save, Trash2, Search, RefreshCw, HeartPulse, ShieldOff, X as XIcon, HandCoins, BadgeCheck, ArrowUpDown, Zap, SlidersHorizontal, ListChecks, Pencil, ArrowUpNarrowWide, ArrowDownWideNarrow, Filter, Sigma, Pin, PinOff, Palette, Type, KeyRound, Eye, MoveHorizontal, SeparatorVertical, ClipboardCopy } from 'lucide-react'
 
 /* ═══════════════════════════════════════════════════════════════════════════
    «جداول العمل» (كان اسمها «اكسلات العمليات») — تبويب رئيسي مستقلّ.
@@ -4377,7 +4377,11 @@ const colSummary = (rows, isAr) => {
    العروض نفسها فلا يظهر الشيت في المنتقي ولا يُفتح بمفتاحٍ محفوظ.
    ⚠️ «طلبات السداد» (`sadad_requests`) ليست منها عمداً: الموظف هو من يُدخل فيها
    طلبه والمحاسب يحدّث حالته — قفلُها يوقف العمل لا يحمي مالاً. */
-const GM_ONLY_VIEWS = new Set(['invoices', 'permanent_workers_invoices', 'deposits', 'sadad'])
+/* `client_dupes` هنا لسببٍ يختلف عن شيتات المال: الشيت لا يعرض بيانات فحسب،
+   بل **يدمج سجلّات ويحذفها** — ولا يُوكَل ذلك إلى دور. الحجب مكرَّرٌ في القاعدة
+   (سياسة `client_dupe_candidates` + `security_invoker` على العرض)، فسقوطُ هذا
+   القفل لا يفتح البيانات. */
+const GM_ONLY_VIEWS = new Set(['invoices', 'permanent_workers_invoices', 'deposits', 'sadad', 'client_dupes'])
 
 /* شيتات محجوبة عن **الجميع** بمن فيهم المدير العام — قسم «توريد العمالة» أُخفي
    مؤقتاً بطلبه (2026-09-01) حتى يطلب إظهاره. الإرجاع: أفرغ المجموعة (ومعها
@@ -5840,6 +5844,109 @@ const SV_SHEETS = [
   }),
 ]
 const SV_STATS = Object.fromEntries(SV_SHEETS.map((v) => [v.key, v._stats]))
+
+/* ═══ تكرار العملاء — بناء نافذة الدمج وتنفيذها ═══════════════════════════
+   الدمج ليس «أبقِ الأول واحذف الثاني»: القيمة الأصحّ لكل حقلٍ قد تكون في
+   السجلّ الذاهب — اسمٌ عربيّ هنا وهويةٌ هناك ورقمٌ أحدث في ثالث. فالنافذة
+   تعرض ما لدى كل سجلّ مع مصدره ويختار المدير قيمةً قيمة، والافتراض المقترَح
+   = أول قيمة غير فارغة بترتيب: الرئيسي ثم الأكثر فواتير. */
+const cdGroupRows = (row, rows) => (rows || []).filter((r) => r.group_key === row.group_key)
+
+function cdPickOptions(members, field, isAr) {
+  const seen = new Set(); const out = []
+  for (const m of members) {
+    const v = String(m[field] ?? '').trim()
+    if (!v || seen.has(v)) continue
+    seen.add(v)
+    const who = `${m.is_primary ? (isAr ? 'الرئيسي' : 'primary') : (isAr ? 'المكرر' : 'duplicate')}`
+      + ` · ${isAr ? 'فواتير' : 'invoices'} ${m.invoices || 0}`
+      + (m[`own_${field}`] ? '' : ` · ${isAr ? 'مُكمَّل من العمالة/الأشخاص' : 'filled from workers/persons'}`)
+    out.push({ value: v, from: who })
+  }
+  return out
+}
+
+function cdMergeForm(row, isAr, ctx) {
+  const members = cdGroupRows(row, ctx && ctx.rows)
+  const dups = members.filter((m) => !m.is_primary)
+  const F2 = ['name_ar', 'name_en', 'id_number', 'phone']
+  const LBL = {
+    name_ar: { ar: 'الاسم بالعربي', en: 'Name (AR)' },
+    name_en: { ar: 'الاسم بالإنجليزي', en: 'Name (EN)' },
+    id_number: { ar: 'رقم الهوية', en: 'ID number' },
+    phone: { ar: 'رقم الجوال', en: 'Mobile' },
+  }
+  return {
+    title: isAr ? `دمج مجموعة ${row.group_key}` : `Merge group ${row.group_key}`,
+    subtitle: isAr
+      ? `تُنقل فواتير ${dups.length} سجلّ إلى السجلّ الرئيسي ثم يُحذف المكرّر حذفاً ليّناً. اختر لكل حقل القيمة الأصحّ — والدمج قابلٌ للتراجع من سجلّ الدمج.`
+      : `Invoices from ${dups.length} record(s) move to the primary, which is then soft-deleted. Pick the right value per field — the merge can be undone.`,
+    lines: members.map((m) => [
+      (m.is_primary ? (isAr ? '⟵ يبقى' : '⟵ keep') : (isAr ? '✖ يُدمج' : '✖ merge')),
+      `${m.name_ar || m.name_en || '—'} · ${m.id_number || (isAr ? 'بلا هوية' : 'no ID')} · ${m.phone || '—'} · ${isAr ? 'فواتير' : 'inv'} ${m.invoices || 0}`,
+    ]),
+    fields: F2.map((k) => {
+      const opts = cdPickOptions(members, k, isAr)
+      return {
+        key: k, kind: 'pick', ar: LBL[k].ar, en: LBL[k].en,
+        options: opts, value: opts.length ? opts[0].value : '',
+        hint: opts.length > 1
+          ? (isAr ? 'القيمتان مختلفتان — اختر الصحيحة' : 'The records differ — pick the right one')
+          : (isAr ? 'السجلّات متّفقة على هذه القيمة' : 'All records agree'),
+      }
+    }).concat([{ key: '__note', kind: 'longtext', ar: 'سبب الدمج (اختياري)', en: 'Merge note (optional)' }]),
+    ok: isAr ? 'دمج' : 'Merge',
+  }
+}
+
+async function cdMerge(row, ctx) {
+  const { sb, isAr, form, rows, reload } = ctx
+  const members = cdGroupRows(row, rows)
+  const dups = members.filter((m) => !m.is_primary).map((m) => m.client_id)
+  if (!dups.length) return isAr ? 'لا سجلّ مكرّر في هذه المجموعة' : 'No duplicate in this group'
+  const final = {}
+  for (const k of ['name_ar', 'name_en', 'id_number', 'phone']) {
+    const v = String((form || {})[k] ?? '').trim()
+    if (v) final[k] = v
+  }
+  const { data, error } = await sb.rpc('merge_clients', {
+    p_keep: row.client_id, p_dups: dups, p_final: final,
+    p_note: String((form || {}).__note || '').trim() || null,
+  })
+  if (error) throw new Error(error.message)
+  if (reload) await reload()
+  const n = (data && data.invoices_moved) || 0
+  return isAr
+    ? `تم الدمج — ${dups.length} سجلّ، و${n} فاتورة نُقلت. رقم سجلّ الدمج ${data && data.log_id} (للتراجع)`
+    : `Merged ${dups.length} record(s); ${n} invoice(s) moved. Merge log #${data && data.log_id}`
+}
+
+async function cdNotSame(row, ctx) {
+  const { sb, isAr, rows, reload } = ctx
+  const members = cdGroupRows(row, rows)
+  const ids = members.map((m) => m.client_id)
+  if (ids.length < 2) return isAr ? 'المجموعة أقلّ من سجلّين' : 'Group has fewer than two records'
+  /* كل زوجٍ داخل المجموعة يُسجَّل على حدة: المجموعة بناءُ حسابٍ يتغيّر مع كل
+     تحديث، والزوج هو الحقيقة الثابتة التي حكم عليها الإنسان. */
+  const pairs = []
+  for (let i = 0; i < ids.length; i++) {
+    for (let j = i + 1; j < ids.length; j++) {
+      const [a, b] = ids[i] < ids[j] ? [ids[i], ids[j]] : [ids[j], ids[i]]
+      pairs.push({ a_id: a, b_id: b, note: `استُبعد من ${row.group_key}` })
+    }
+  }
+  const { error } = await sb.from('client_not_same').upsert(pairs, { onConflict: 'a_id,b_id' })
+  if (error) throw new Error(error.message)
+  // بانٍ جديد لكل حذف: بانِي supabase-js يُستهلَك بالنداء ولا يُعاد استعماله
+  for (const p of pairs) {
+    await sb.from('client_dupe_review').delete().eq('a_id', p.a_id).eq('b_id', p.b_id)
+  }
+  if (row.kind === 'مؤكد') {
+    await sb.from('client_dupe_candidates').delete().in('client_id', ids)
+  }
+  if (reload) await reload()
+  return isAr ? 'استُبعدت المجموعة — لن تعود في التحديثات' : 'Group dismissed — it will not come back'
+}
 
 const VIEWS = [
   {
@@ -9699,6 +9806,91 @@ const VIEWS = [
       { key: 'notes', ar: 'ملاحظات', en: 'Notes', w: 220, kind: 'text', manual: true },
     ],
   },
+  /* ═══ تكرار العملاء — «هل هذا نفس العميل؟» في جدولٍ واحد ═════════════════
+     الصفوف مجموعاتٌ لا سجلّات مفردة: كل مجموعة سجلّان أو أكثر يُشتبه أنهم شخصٌ
+     واحد، والصفّ الأول فيها هو المرشّح للبقاء. المصدر `v_ops_client_dupes`
+     يبنيه `refresh_client_dupes()` في القاعدة، وأعمدة الأدلّة (الفواتير ·
+     الخدمات · المنشآت · المرفقات) موضوعةٌ بجانب بعضها عمداً: التأكّد يجب أن
+     يتمّ بنظرةٍ أفقية واحدة على الصفّين لا بفتح بطاقتين. */
+  {
+    key: 'client_dupes',
+    ar: 'تكرار العملاء', en: 'Duplicate clients',
+    hintAr: 'مجموعات يُشتبه أنها عميلٌ واحد بسجلّين — قارن الصفّين ثم ادمج بأفضل القيم',
+    hintEn: 'Suspected duplicate client records — compare the rows, then merge with the best values',
+    /* «تحديث» هنا يعيد **الحساب** لا الجلب: المصدر جدولٌ مبنيّ لا مُزامَن. */
+    async beforeRefresh(sb) {
+      const { error } = await sb.rpc('refresh_client_dupes')
+      if (error) throw new Error(error.message)
+    },
+    async load(sb) {
+      const src = await fetchAll(sb, 'v_ops_client_dupes',
+        'group_key,group_no,kind,confidence,is_primary,_id,name_ar,name_en,id_number,phone,branch,'
+        + 'invoices,first_invoice,last_invoice,last_refs,services,facilities,beneficiaries,files,'
+        + 'reason,filled_from,is_worker,created_at,own_name_ar,own_name_en,own_id_number,own_phone,branch_id',
+        (q) => q.order('group_no').order('is_primary', { ascending: false }))
+      /* مفتاح الصفّ = المجموعة + العميل: العميل الواحد قد يظهر في أكثر من زوج
+         مراجعة، ومفتاحٌ بمعرّفه وحده يدمج صفّين مختلفين في overlay واحد. */
+      return src.map((r) => ({ ...r, client_id: r._id, _id: `${r.group_key}|${r._id}` }))
+    },
+    search: (r) => [r.name_ar, r.name_en, r.id_number, r.phone, r.group_key, r.reason, r.last_refs],
+    /* المجموعة تُقرأ ككتلة: الرئيسي أخضر والمكرّر أحمر، وصفوف المراجعة عنبرية
+       لأنها سؤالٌ لا حكم. */
+    rowBg: (r) => (r.kind === 'للمراجعة'
+      ? (r.is_primary ? 'rgba(176,125,0,.10)' : 'rgba(176,125,0,.05)')
+      : (r.is_primary ? 'rgba(46,204,113,.12)' : 'rgba(232,114,101,.13)')),
+    columns: [
+      { key: 'group_key', ar: 'المجموعة', en: 'Group', w: 85, kind: 'mono' },
+      { key: 'kind', ar: 'الحالة', en: 'Status', w: 95, kind: 'text',
+        fg: (v) => (v === 'مؤكد' ? '#e87265' : C.gold) },
+      { key: 'confidence', ar: 'الثقة', en: 'Confidence', w: 70, kind: 'num' },
+      { key: 'role', ar: 'الدور', en: 'Role', w: 95, kind: 'text',
+        get: (r, isAr2) => (r.is_primary ? (isAr2 ? 'يُبقى ✔' : 'Keep ✔') : (isAr2 ? 'مكرر ✖' : 'Dup ✖')),
+        fg: (_v, r) => (r && r.is_primary ? '#2ecc71' : '#e87265') },
+      /* ── زرّا القرار على الصفّ الرئيسي وحده: القرار يخصّ المجموعة لا الصفّ،
+            ووضعُه على كل صفٍّ يغري بضغطتين متعارضتين على نفس المجموعة. ── */
+      { key: 'do_merge', ar: 'دمج المجموعة', en: 'Merge group', w: 150, kind: 'fetch',
+        fetchGlyph: '⇥', noWrite: true,
+        fetchHide: (r) => !r.is_primary,
+        fetchTip: { ar: 'دمج سجلّات هذه المجموعة في السجلّ الرئيسي — تختار قيمة كل حقل',
+          en: 'Merge this group into the primary record — you pick each field value' },
+        form: cdMergeForm,
+        fetch: cdMerge },
+      { key: 'do_split', ar: 'ليسوا نفس الشخص', en: 'Not the same', w: 150, kind: 'fetch',
+        fetchGlyph: '✕', noWrite: true,
+        fetchHide: (r) => !r.is_primary,
+        fetchTip: { ar: 'استبعاد هذه المجموعة نهائياً — لا تعود في أي تحديث لاحق',
+          en: 'Dismiss this group for good — it will not come back on a later refresh' },
+        confirm: (r, isAr2) => ({
+          title: isAr2 ? 'ليسوا نفس الشخص' : 'Not the same person',
+          subtitle: isAr2
+            ? 'تُستبعد هذه المجموعة نهائياً ولا تعود في أي تحديثٍ لاحق. لا يمسّ هذا بيانات العملاء.'
+            : 'The group is dismissed permanently and will not reappear. Client data is untouched.',
+          lines: [[isAr2 ? 'المجموعة' : 'Group', r.group_key]],
+          ok: isAr2 ? 'استبعاد' : 'Dismiss',
+        }),
+        fetch: cdNotSame },
+      { key: 'name_ar', ar: 'الاسم بالعربي', en: 'Name (AR)', w: 210, kind: 'text' },
+      { key: 'name_en', ar: 'الاسم بالإنجليزي', en: 'Name (EN)', w: 200, kind: 'text' },
+      { key: 'id_number', ar: 'رقم الهوية', en: 'ID number', w: 130, kind: 'mono' },
+      { key: 'phone', ar: 'رقم الجوال', en: 'Mobile', w: 130, kind: 'mono' },
+      { key: 'branch', ar: 'الفرع', en: 'Branch', w: 165, kind: 'text' },
+      { key: 'invoices', ar: 'الفواتير', en: 'Invoices', w: 80, kind: 'num' },
+      { key: 'first_invoice', ar: 'أول فاتورة', en: 'First invoice', w: 110, kind: 'date', get: (r) => ymd(r.first_invoice) },
+      { key: 'last_invoice', ar: 'آخر فاتورة', en: 'Last invoice', w: 110, kind: 'date', get: (r) => ymd(r.last_invoice) },
+      { key: 'last_refs', ar: 'أرقام آخر الفواتير', en: 'Recent invoice nos.', w: 200, kind: 'mono' },
+      { key: 'services', ar: 'الخدمات', en: 'Services', w: 240, kind: 'text' },
+      { key: 'facilities', ar: 'المنشآت', en: 'Facilities', w: 240, kind: 'text' },
+      { key: 'beneficiaries', ar: 'العمّال المستفيدون', en: 'Beneficiaries', w: 200, kind: 'text' },
+      { key: 'files', ar: 'المرفقات', en: 'Files', w: 80, kind: 'num' },
+      { key: 'reason', ar: 'سبب الاشتباه', en: 'Why flagged', w: 340, kind: 'text' },
+      { key: 'kind_worker', ar: 'عميل/عامل', en: 'Client / worker', w: 110, kind: 'text',
+        get: (r, isAr2) => (r.is_worker ? (isAr2 ? 'عميل وعامل' : 'Client + worker') : (isAr2 ? 'عميل' : 'Client')) },
+      { key: 'filled_from', ar: 'بيانات أُكملت من', en: 'Filled from', w: 240, kind: 'text' },
+      { key: 'created_at', ar: 'تاريخ الإنشاء', en: 'Created', w: 110, kind: 'date', get: (r) => ymd(r.created_at) },
+      ...OPS_COLS,
+    ],
+  },
+
   /* جداول خدمات الطلبات (محرّك `svSheet` أعلاه) — عشرة جداول من مصدرٍ واحد */
   ...SV_SHEETS,
 ]
@@ -9960,6 +10152,57 @@ const cellStamp = (row, col, isAr) => {
    لها، ووضعُ شعار مقيم عليها كذبٌ بصريّ يقول إن النداء ذاهبٌ إليه. */
 /* `valTone`: لون القيمة متى اشتقّه العمود (`col.fg`) — سُلّم تواريخ الانتهاء
    مثلاً. الخليّة كانت تفرض لونها على الرقم فتسقط ألوان العمود صامتةً. */
+/* ── حقل «اختر القيمة» (`kind:'pick'`) ───────────────────────────────────────
+   دمجُ سجلّين ليس نسخاً من أحدهما فوق الآخر: لكل حقلٍ قيمةٌ أصحّ قد تكون في
+   السجلّ الذي سيُحذف — اسمٌ عربيّ هنا وهويةٌ هناك. فالحقل يعرض ما لدى كل سجلّ
+   مع مصدره، ويُختار منه بضغطة، ويبقى «قيمة أخرى» لمن أراد كتابةَ الصواب يدوياً. */
+function PickField({ label, hint, options, value, onChange }) {
+  const opts = (options || []).filter((o) => String(o.value ?? '').trim())
+  const known = opts.some((o) => String(o.value) === String(value ?? ''))
+  const [custom, setCustom] = React.useState(!known && !!String(value ?? '').trim())
+  return (
+    <div>
+      <label style={{ display: 'block', fontSize: 14, fontWeight: 600, color: 'var(--tx)', marginBottom: 9 }}>{label}</label>
+      <div style={{ border: '1px solid var(--bd)', borderRadius: 10, overflow: 'hidden' }}>
+        {opts.map((o, i) => {
+          const on = !custom && String(o.value) === String(value ?? '')
+          return (
+            <button type="button" key={i} onClick={() => { setCustom(false); onChange(o.value) }}
+              style={{ display: 'flex', width: '100%', boxSizing: 'border-box', alignItems: 'center', gap: 10,
+                padding: '8px 11px', border: 'none', cursor: 'pointer', textAlign: 'start', fontFamily: F,
+                borderBottom: '1px solid var(--bd2)',
+                background: on ? 'rgba(46,204,113,.10)' : 'transparent' }}>
+              <span style={{ width: 14, height: 14, borderRadius: '50%', flexShrink: 0,
+                border: `2px solid ${on ? '#2ecc71' : 'var(--bd)'}`, background: on ? '#2ecc71' : 'transparent' }} />
+              <span style={{ flex: 1, minWidth: 0 }}>
+                <span style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: 'var(--tx)',
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', direction: 'auto' }}>{o.value}</span>
+                {o.from && <span style={{ display: 'block', fontSize: 10.5, color: 'var(--tx4)' }}>{o.from}</span>}
+              </span>
+            </button>
+          )
+        })}
+        <button type="button" onClick={() => { setCustom(true); onChange('') }}
+          style={{ display: 'flex', width: '100%', boxSizing: 'border-box', alignItems: 'center', gap: 10,
+            padding: '8px 11px', border: 'none', cursor: 'pointer', textAlign: 'start', fontFamily: F,
+            background: custom ? 'rgba(176,125,0,.10)' : 'transparent' }}>
+          <span style={{ width: 14, height: 14, borderRadius: '50%', flexShrink: 0,
+            border: `2px solid ${custom ? C.gold : 'var(--bd)'}`, background: custom ? C.gold : 'transparent' }} />
+          <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx2)' }}>قيمة أخرى…</span>
+        </button>
+        {custom && (
+          <div style={{ padding: '0 11px 10px' }}>
+            <input className="ox-fld" autoFocus dir="auto" value={String(value ?? '')}
+              onChange={(e) => onChange(e.target.value)}
+              style={{ width: '100%', boxSizing: 'border-box', height: 32, fontSize: 12.5 }} />
+          </div>
+        )}
+      </div>
+      {hint && <div style={{ fontSize: 11, color: 'var(--tx4)', marginTop: 5 }}>{hint}</div>}
+    </div>
+  )
+}
+
 function FetchCell({ value, busy, tip, icon, glyph, onFetch, canEdit, blocked, label, tone, sub, valTone }) {
   /* `blocked` = سببٌ يمنع الإجراء الآن (بيانات ناقصة): الزرّ يبقى **ظاهراً**
      مطفأً وسببُه في تلميحه — إخفاؤه يترك الموظف يبحث عن زرٍّ يراه في صفٍّ آخر
@@ -11133,6 +11376,12 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView }) {
   const doRefresh = useCallback(async () => {
     // المصادر المشتركة (عمالة مركز المزامنة/أسماء السجل) تُجلب حقيقةً لا من كاش الدقائق
     opsBustShared()
+    /* `beforeRefresh`: جدولٌ مصدرُه **محسوبٌ** لا مُزامَن (كشف تكرار العملاء)
+       يعيد الحساب أولاً، وإلا كان «تحديث» يعيد رسم النتيجة القديمة نفسها. */
+    if (view.beforeRefresh) {
+      try { await view.beforeRefresh(sb) }
+      catch (e) { toast && toast((e && e.message) || String(e), 'error'); return }
+    }
     const fresh = await load()
     const snapped = (fresh && !fresh.archived && canSnapNow)
       ? await captureWeek({ silent: true, rows: fresh.src, overlay: fresh.ov })
@@ -11140,7 +11389,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView }) {
     toast && toast(snapped
       ? T('تم جلب أحدث بيانات المزامنة وتحديث لقطة الأسبوع · الإدخالات اليدوية المحفوظة سليمة', 'Latest synced data pulled and this week snapshot updated · saved manual entries preserved')
       : T('تم جلب أحدث بيانات المزامنة · الإدخالات اليدوية المحفوظة سليمة', 'Latest synced data pulled · saved manual entries preserved'))
-  }, [load, toast, T, canSnapNow, captureWeek])
+  }, [load, toast, T, canSnapNow, captureWeek, view, sb])
   /* الغلاف يسأل عن التعديلات غير المحفوظة بنافذة البرنامج ثم يمضي — لا
      `window.confirm` (انظر تعليق `confirmAsk`). */
   const refresh = useCallback(() => {
@@ -11872,7 +12121,11 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView }) {
     const key = `${row._id}|${col.key}`
     setFetchBusy(key)
     try {
-      const out = await col.fetch(row, { sb, isAr, user: userName, form, rows: allRows, chi: askChi })
+      /* `reload`: إجراءٌ يغيّر **مصدر** الشيت لا خليّةً فيه (دمج عميلين يحذف
+         صفّاً ويضمّ فواتيره) — فلا معنى لكتابة قيمة، والصواب إعادة الجلب.
+         كاش الجلسة يُبطَل أولاً وإلا رُسم الصفّ المحذوف من نسخةٍ قديمة. */
+      const reload = async () => { opsSwrCache.delete('ops:view:' + view.key); await load() }
+      const out = await col.fetch(row, { sb, isAr, user: userName, form, rows: allRows, chi: askChi, reload })
       /* `noWrite`: زرُّ **إجراء** لا جلبِ قيمة (إرسال طلب سداد) — نتيجته رسالةٌ
          تُقال، والخليّة تقرأ حالتها من مصدرها لا من ختمٍ يُكتب عليها. */
       if (col.noWrite) { toast && toast(out || T('تم', 'Done')); return }
@@ -11907,7 +12160,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView }) {
     } catch (e) {
       toast && toast((e && e.message) || T('تعذّر الجلب', 'Fetch failed'), 'error')
     } finally { setFetchBusy('') }
-  }, [sb, isAr, userName, colDefs, writeCells, toast, T, allRows, askChi])
+  }, [sb, isAr, userName, colDefs, writeCells, toast, T, allRows, askChi, view, load])
 
   const uploadCellFile = useCallback(async (row, col, file) => {
     if (!sb || !file || !canEdit) return
@@ -14095,6 +14348,20 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView }) {
               {sortCfg?.key === hdrCtx.colKey && <button onClick={() => { persistPrefs({ ...prefs, sort: null }); setHdrCtx(null) }}><XIcon size={14} className="ic" /> {T('إلغاء الفرز', 'Clear sort')}</button>}
               <button onClick={() => { const cur = colFilters[hdrCtx.colKey]; setFilterDraft({ text: cur?.text || '', values: Array.isArray(cur?.values) ? cur.values.slice() : null, conds: (cur?.conds || []).map((c) => ({ ...c })), join: cur?.join || 'and', q: '' }); setFilterModal(hdrCtx.colKey); setHdrCtx(null) }}><Filter size={14} className="ic" /> {T('تصفية وفرز', 'Filter & sort')}{colFilters[hdrCtx.colKey] && <span style={{ color: 'var(--accent)' }}>•</span>}</button>
               <button onClick={() => { setAggModal(hdrCtx.colKey); setHdrCtx(null) }}><Sigma size={14} className="ic" /> {T('إجمالي العمود', 'Column total')}{aggMap[hdrCtx.colKey] ? ` · ${aggLabel(aggMap[hdrCtx.colKey], isAr)}` : ''}</button>
+              {/* نسخ العمود: يأخذ `filtered` — كل الصفوف بعد التصفية والفرز، لا
+                  `viewRows` (الصفحة الحالية وحدها). الخالي يُنسَخ سطراً فارغاً
+                  لا يُحذف: المقصود عمودٌ يُلصَق في إكسل بمحاذاة صفوفه، وحذفُ
+                  الفراغات يزيح كل ما بعدها فيقابل الاسمُ صفَّ غيره. */}
+              <button onClick={async () => {
+                const c = hdrCtxCol || colDefs.get(hdrCtx.colKey)
+                setHdrCtx(null)
+                if (!c) return
+                const vals = filtered.map((r) => String(valOf(r, c) ?? ''))
+                const ok = await writeClipboard(vals.join('\n'))
+                toast && toast(ok
+                  ? T(`نُسخت ${enNum(vals.length)} قيمة`, `Copied ${enNum(vals.length)} values`)
+                  : T('تعذّر النسخ', 'Copy failed'))
+              }}><ClipboardCopy size={14} className="ic" /> {T('نسخ قيم العمود', 'Copy column values')}</button>
               <hr />
               {/* الفاصل الذهبي: جهتان وإلغاء. الجهة منطقية — «يمين» بداية السطر
                   في العربية، فتنقلب مع الواجهة كما تنقلب الأعمدة. */}
@@ -14336,6 +14603,9 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView }) {
                         </a>
                       )}
                     </>
+                  ) : f.kind === 'pick' ? (
+                    <PickField label={lbl} hint={f.hint} options={f.options}
+                      value={String(v ?? '')} onChange={(x) => set(f.key, x)} />
                   ) : f.kind === 'date' ? (
                     <DateField label={lbl} hint={f.hint} value={String(v ?? '')} onChange={(x) => set(f.key, x)} />
                   ) : f.kind === 'longtext' ? (
@@ -14678,11 +14948,20 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView }) {
         const family = familyOf(col)
         const ops = COND_OPS[family]
         const defOp = family === 'number' ? 'gt' : family === 'date' ? 'before' : 'contains'
+        /* الفراغ قيمةٌ يُبحَث بها لا نقصٌ يُخفى: «أرِني الصفوف بلا فرع» سؤالٌ
+           مشروع، وكان مستحيلاً لأن الخالي كان يُتخطّى فلا يظهر له مربّع.
+           يُمثَّل بالسلسلة الفارغة — وهي ما يُقارَن به المصفّي أصلاً
+           (`f.values.includes(v)` و`v` مُطبَّعٌ إلى '' عند الغياب)، فلا يحتاج
+           المطابِقُ تعديلاً. ويُثبَّت أول القائمة لأنه يُطلَب قصداً لا صدفةً. */
         const counts = new Map()
-        for (const row of visible) { const v = String(valOf(row, col) ?? ''); if (v === '') continue; counts.set(v, (counts.get(v) || 0) + 1) }
-        const allVals = [...counts.keys()].sort((a, b) => { const an = cfNum(a), bn = cfNum(b); if (an !== null && bn !== null) return an - bn; const da = cfDate(a), db = cfDate(b); if (da !== null && db !== null) return da - db; return a.localeCompare(b, 'ar') })
+        for (const row of visible) { const v = String(valOf(row, col) ?? ''); counts.set(v, (counts.get(v) || 0) + 1) }
+        const blankLbl = T('(فارغ)', '(Blank)')
+        const valLbl = (v) => (v === '' ? blankLbl : v)
+        const sortedVals = [...counts.keys()].filter((v) => v !== '').sort((a, b) => { const an = cfNum(a), bn = cfNum(b); if (an !== null && bn !== null) return an - bn; const da = cfDate(a), db = cfDate(b); if (da !== null && db !== null) return da - db; return a.localeCompare(b, 'ar') })
+        const allVals = counts.has('') ? ['', ...sortedVals] : sortedVals
         const q = latin(filterDraft.q || '').trim().toLowerCase()
-        const shown = q ? allVals.filter((v) => latin(v).toLowerCase().includes(q)) : allVals
+        // البحث يطابق النصّ المعروض، فكتابة «فارغ» تجد الخيار كما تجد أي قيمة
+        const shown = q ? allVals.filter((v) => latin(valLbl(v)).toLowerCase().includes(q)) : allVals
         const isAll = filterDraft.values === null
         const selSet = isAll ? null : new Set(filterDraft.values || [])
         const isChecked = (v) => isAll || selSet.has(v)
@@ -14828,7 +15107,8 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView }) {
                       <label key={v} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '7px 9px', borderRadius: 7, cursor: 'pointer', fontSize: 12.5, color: 'var(--tx2)' }}
                         onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--accent-soft)')} onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}>
                         <input type="checkbox" checked={isChecked(v)} onChange={() => toggle(v)} style={{ width: 15, height: 15, accentColor: C.gold, flexShrink: 0 }} />
-                        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v}</span>
+                        {/* «(فارغ)» يُميَّز خطّاً باهتاً: هو وصفُ حالةٍ لا قيمةٌ مكتوبة */}
+                        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', ...(v === '' ? { color: 'var(--tx4)', fontStyle: 'italic' } : null) }}>{valLbl(v)}</span>
                         <span style={{ fontSize: 10.5, fontFamily: MONO, color: 'var(--tx4)', background: 'var(--bd2)', borderRadius: 99, padding: '1px 8px', lineHeight: '16px', flexShrink: 0 }}>{enNum(counts.get(v))}</span>
                       </label>
                     ))}
