@@ -7,7 +7,7 @@ import {
   TextField, IdField, PhoneField, Select, MultiSelect, EmptyState,
 } from '../../components/ui/FormKit.jsx'
 import { Shimmer } from '../../components/ui/Skeleton.jsx'
-import { TAB_CARDS, CARD_GROUP_LABELS, MODULE_ACTIONS, TAB_FIELDS, TAB_MODALS, TAB_STAGES, TAB_SERVICE_SCOPE, TAB_STATS_MODE, groupFields, tabModule as catTabModule } from '../../lib/permCatalog.js'
+import { TAB_CARDS, CARD_GROUP_LABELS, MODULE_ACTIONS, TAB_FIELDS, TAB_MODALS, TAB_STAGES, TAB_SERVICE_SCOPE, TAB_STATS_MODE, groupFields, tabModule as catTabModule, registerOpsLayouts, cardOptIn } from '../../lib/permCatalog.js'
 import { isGM as isGmUser } from '../../lib/permissions.js'
 import { branchLabel } from '../../lib/utils.js'
 import { ALL_SERVICES, SVC_CODE_MAP } from '../../ServiceRequestPage.jsx'
@@ -622,6 +622,23 @@ export function PermissionsPanel({ sb, currentUser, u, role, mode = 'user', bran
   const [busy, setBusy] = useState(false)
   const [open, setOpen] = useState(() => new Set())   // expanded tab ids
   const [serviceTypes, setServiceTypes] = useState([]) // for the service-scope picker
+  /* تخطيطات «جداول العمل»: بها تطابق قائمةُ حقول كل جدول هنا الجدولَ كما هو
+     الآن — المحذوف نهائياً يختفي، والمعاد تسميتُه باسمه الجديد، والمخصّص يظهر.
+     تُجلب هنا استقلالاً (المدير قد يفتح الصلاحيات دون فتح الجداول)، والـtick
+     يعيد الرسم بعد التسجيل لأن الحقول تُحسب عند القراءة. */
+  const [, setOpsLayTick] = useState(0)
+  useEffect(() => {
+    let dead = false
+    ;(async () => {
+      try {
+        const { data } = await sb.from('ops_sheet_config').select('view_key,layout')
+        if (dead || !data) return
+        registerOpsLayouts(Object.fromEntries(data.map((r) => [r.view_key, r.layout || {}])))
+        setOpsLayTick((t) => t + 1)
+      } catch { /* تعذّر الجلب — تبقى قائمة الكود الافتراضية */ }
+    })()
+    return () => { dead = true }
+  }, [sb])
 
   // Effective permissions (user mode) OR the role's own grants (role mode).
   useEffect(() => {
@@ -660,7 +677,14 @@ export function PermissionsPanel({ sb, currentUser, u, role, mode = 'user', bran
   // `false` to hide/lock it (flipping back stores `true` = allowed). on = key !== false.
   const flip = (k) => patchVis({ [k]: visRef.current[k] === false ? true : false })
   const toggleTab = (tabId) => flip(tabId)
-  const toggleCard = (tabId, key) => flip(`card:${tabId}:${key}`)
+  /* بطاقات `optIn` (الكتالوج): الغياب = محجوب، فالتبديل يخزّن `true` للمنح
+     و`false` للسحب — والعرض يقرؤها بـ`cardOn` لا بـ`!== false` */
+  const cardOn = (tabId, c) => (c.optIn ? vis[`card:${tabId}:${c.key}`] === true : vis[`card:${tabId}:${c.key}`] !== false)
+  const toggleCard = (tabId, key) => {
+    const k = `card:${tabId}:${key}`
+    if (cardOptIn(tabId, key)) return patchVis({ [k]: visRef.current[k] !== true })
+    return flip(k)
+  }
   const toggleCardAct = (tabId, key, action) => flip(`cardact:${tabId}:${key}:${action}`)
   const toggleField = (tabId, key) => flip(`field:${tabId}:${key}`)
   const toggleFieldEdit = (tabId, key) => flip(`fieldedit:${tabId}:${key}`)
@@ -714,7 +738,7 @@ export function PermissionsPanel({ sb, currentUser, u, role, mode = 'user', bran
   const officeLabel = (tabId) => { const p = officePolicy(tabId); return p.mode === 'all' ? 'كل المكاتب' : p.mode === 'specific' ? `${(p.ids || []).length} مكتب محدد` : 'مكاتب الحساب' }
   const grantedCount = (tabId) => { const mod = moduleForTab(tabId); if (!mod || !eff) return [0, 0]; const on = mod.perms.filter(p => eff[p.id]?.is_granted).length; return [on, mod.perms.length] }
   // role-first: a card is hidden only when an explicit per-user exception (=== false).
-  const hiddenCards = (tabId) => (TAB_CARDS[tabId] || []).filter(c => vis[`card:${tabId}:${c.key}`] === false).length
+  const hiddenCards = (tabId) => (TAB_CARDS[tabId] || []).filter(c => !cardOn(tabId, c)).length
 
   const totalShown = (nav || []).reduce((acc, n) => {
     const leaves = hubTabs?.[n.id]
@@ -827,7 +851,7 @@ export function PermissionsPanel({ sb, currentUser, u, role, mode = 'user', bran
               </div>
             )}
             {/* cards (+ their fields) */}
-            {cards.length > 0 && <CardsSection tabId={id} cards={cards} fields={TAB_FIELDS[id] || []} vis={vis} disabled={busy || userIsGM} onToggle={toggleCard} onToggleAct={toggleCardAct} onToggleField={toggleField} onToggleFieldEdit={toggleFieldEdit} />}
+            {cards.length > 0 && <CardsSection tabId={id} cards={cards} fields={TAB_FIELDS[id] || []} vis={vis} cardOn={cardOn} disabled={busy || userIsGM} onToggle={toggleCard} onToggleAct={toggleCardAct} onToggleField={toggleField} onToggleFieldEdit={toggleFieldEdit} />}
             {/* wizard stages (+ their fields) */}
             {(TAB_STAGES[id] || []).length > 0 && <StagesSection tabId={id} stages={TAB_STAGES[id]} fields={TAB_FIELDS[id] || []} vis={vis} disabled={busy || userIsGM} onToggleStage={toggleStage} onToggleField={toggleField} onToggleFieldEdit={toggleFieldEdit} />}
             {/* modals / popups */}
@@ -1244,7 +1268,7 @@ function FieldList({ tabId, groupKey, fields, vis, disabled, parentShown, onTogg
 // Per-card visibility + per-card action buttons + per-field controls. Each card
 // is a tile: a show/hide toggle for the card, a toggle for every action button
 // inside it (edit/add/delete/special), and a row per field (show + edit-lock).
-function CardsSection({ tabId, cards, fields, vis, disabled, onToggle, onToggleAct, onToggleField, onToggleFieldEdit }) {
+function CardsSection({ tabId, cards, fields, vis, cardOn, disabled, onToggle, onToggleAct, onToggleField, onToggleFieldEdit }) {
   const groups = useMemo(() => {
     const g = {}
     cards.forEach(c => { const key = c.group || 'core'; (g[key] = g[key] || []).push(c) })
@@ -1265,7 +1289,7 @@ function CardsSection({ tabId, cards, fields, vis, disabled, onToggle, onToggleA
             {multiGroup && <div style={{ fontSize: 10.5, fontWeight: 600, color: C.gold, marginBottom: 6, opacity: .85 }}>{CARD_GROUP_LABELS[gk] || gk}</div>}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(232px,1fr))', gap: 8, alignItems: 'start' }}>
               {groups[gk].map(c => {
-                const shown = vis[`card:${tabId}:${c.key}`] !== false
+                const shown = cardOn(tabId, c)
                 const acts = c.actions || []
                 return (
                   <div key={c.key} style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '8px 11px', borderRadius: 10, background: shown ? 'var(--inputBg)' : 'rgba(192,57,43,.05)', border: '1px solid ' + (shown ? 'var(--bd)' : 'rgba(192,57,43,.16)') }}>

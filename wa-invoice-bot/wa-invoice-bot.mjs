@@ -5,6 +5,9 @@
 // own searchable message + PDF file. Plus a daily summary: preliminary at 01:00 Riyadh
 // and a corrected final at 05:0X (only if anything changed between 01:00 and 05:00).
 //
+// GROUP ONLY — the bot never messages clients. Direct-to-client messaging existed until
+// 2026-09-03 and was removed by the owner; nothing here may send to a personal number.
+//
 // Architecture: DB triggers enqueue events into public.wa_outbox. This bot polls
 // wa_claim_jobs, renders the message (+ PDF via the app's shared buildInvoiceDoc), sends
 // to the group via whatsapp-web.js, then marks each job done. Mirrors the muqeem-bot
@@ -23,7 +26,7 @@ import { initDb, db, fetchInvoice, fetchInvoiceData } from './lib/invoiceData.mj
 import { buildInvoiceDoc } from '../src/lib/invoicePrint.js'
 import { renderInvoicePdf } from './lib/pdf.mjs'
 import { businessDayOf, riyadh } from './lib/businessDay.mjs'
-import { formatEvent, formatCard, formatDayHeader, formatSummary, summaryKey, pdfFileName, party, clientLangs } from './lib/format.mjs'
+import { formatEvent, formatDayHeader, formatSummary, summaryKey, pdfFileName } from './lib/format.mjs'
 
 // ── config ──
 const env = (k, d) => (process.env[k] ?? d ?? '').toString().trim()
@@ -39,9 +42,6 @@ const FINAL_HOUR = int('SUMMARY_FINAL_HOUR', 5)
 const FINAL_MIN = int('SUMMARY_FINAL_MINUTE', 5)
 const DELAY_MIN = int('SEND_DELAY_MIN', 3000)
 const DELAY_MAX = int('SEND_DELAY_MAX', 8000)
-const SEND_TO_CLIENT = env('SEND_TO_CLIENT', 'true') !== 'false'
-const CLIENT_DELAY_MIN = int('CLIENT_DELAY_MIN', 5000)
-const CLIENT_DELAY_MAX = int('CLIENT_DELAY_MAX', 12000)
 const LIST_GROUPS = process.argv.includes('--list-groups')
 
 const log = (...a) => console.log(`[${new Date().toISOString()}]`, ...a)
@@ -137,43 +137,16 @@ client.on('ready', async () => {
 
 const waSend = (content, opts) => client.sendMessage(groupId, content, opts || {})
 
-// Resolve a phone (966xxxxxxxxx) to a WhatsApp chat id, or null if not a WhatsApp user.
-async function resolveWaId(waDigits) {
-  try { const id = await client.getNumberId(waDigits); return id?._serialized || null }
-  catch (e) { log('  getNumberId err', e.message); return null }
-}
-
 async function sendJob(j) {
   const { kind, invoice_id: invId, payload } = j
   if (kind === 'announce') { await client.sendMessage(groupId, (payload && payload.text) || ''); return }
-  if (kind === 'preview_card') { const pv = await fetchInvoice(payload.invoice_id); if (pv) await client.sendMessage(groupId, formatCard(payload.kind || 'invoice_created', pv, payload.payload || {}, payload.lang || 'ar')); return }
   if (!invId) return
   const inv = await fetchInvoice(invId)
   if (!inv) throw new Error('invoice not found ' + invId)
   const data = await fetchInvoiceData(inv)
-  const pdfCache = {}
-  const pdfFor = async lang => (pdfCache[lang] ||= await renderInvoicePdf(buildInvoiceDoc(inv, data, lang)))
-  const sendTo = async (to, lang, isClient) => {
-    const caption = isClient ? formatCard(kind, inv, payload || {}, lang) : formatEvent(kind, inv, payload || {}, lang)
-    const media = new MessageMedia('application/pdf', Buffer.from(await pdfFor(lang)).toString('base64'), pdfFileName(inv, lang))
-    await client.sendMessage(to, media, { caption })
-  }
-
-  // 1) office group — Arabic (compact)
-  await sendTo(groupId, 'ar', false)
-
-  // 2) client / worker direct — their language (by nationality) + Arabic base
-  if (SEND_TO_CLIENT) {
-    const { wa, natCode, name } = party(inv)
-    if (!wa) { log('  ↳ no client phone — group only'); return }
-    const chatId = await resolveWaId(wa)
-    if (!chatId) { log('  ↳ client not on WhatsApp — skip', wa); return }
-    for (const lang of clientLangs(natCode)) {
-      await sleep(rand(CLIENT_DELAY_MIN, CLIENT_DELAY_MAX))
-      await sendTo(chatId, lang, true)
-      log('  ✓ client', lang, '→', name)
-    }
-  }
+  const pdf = await renderInvoicePdf(buildInvoiceDoc(inv, data, 'ar'))
+  const media = new MessageMedia('application/pdf', Buffer.from(pdf).toString('base64'), pdfFileName(inv))
+  await waSend(media, { caption: formatEvent(kind, inv, payload || {}) })
 }
 
 // Overlap guard: each batch is sent serially with 3–8s gaps, so a 25-job batch takes

@@ -17,7 +17,7 @@
 //   • office:<tab>      → { mode:'inherit'|'all'|'specific', ids:[branchId…] }
 //                         per-tab office scope (default 'inherit' = account offices).
 
-import { tabModule, MODULE_ACTIONS, TAB_MODULE } from './permCatalog.js'
+import { tabModule, MODULE_ACTIONS, TAB_MODULE, cardOptIn } from './permCatalog.js'
 export { tabModule }
 
 // Merge several roles' granular ui_visibility maps into one effective map for a
@@ -35,6 +35,9 @@ export const mergeRoleVis = (roleVisList) => {
     const objVal = list.map(v => v[k]).find(x => x && typeof x === 'object')
     if (objVal) { out[k] = objVal; continue }
     if (list.every(v => v[k] === false)) { out[k] = false; continue }
+    /* المنح الصريح (`true`) يُحمَل متى منحه دورٌ واحد — لازمٌ لبطاقات `optIn`
+       المحجوبة افتراضياً، وبلا أثر على البقيّة (الغياب و`true` سواء عندها). */
+    if (list.some(v => v[k] === true)) { out[k] = true; continue }
     /* ⚠️ القيم **النصّية** كانت تسقط صامتةً: الدمج لم يكن يحمل إلا الكائنات
        و`false`. ولم يظهر أثرُ ذلك ما دام وضع كروت الإحصاء يفترض 'real' عند
        الغياب — فلمّا صار الافتراض 'zero' صار الدورُ الممنوح 'real' يصل الواجهةَ
@@ -139,6 +142,10 @@ export const PAGE_VIEW_PERM = {
   // جدول التأشيرات: نفس بوابة تأشيرات العمل — العرض بصلاحية العمالة،
   // والتحرير داخل الصفحة محكوم بـwork_visas.edit.
   visa_grid: 'workers.view',
+  // جداول ما بعد الإصدار (الوكالة · الإقامة · التوصيل): نفس البوابة والتحرير بـwork_visas.edit
+  visa_wakalah_grid: 'workers.view',
+  iqama_grid: 'workers.view',
+  iqama_delivery_grid: 'workers.view',
   invoices: 'invoices.view',
   jub1_receipts: 'jub1_receipts.view',
   transfer_calc: 'quotations.view',
@@ -206,7 +213,9 @@ export const sectionViewable = (user, tabId) => {
 export const cardVisible = (user, tabId, cardKey) => {
   if (isGM(user)) return true
   if (!sectionViewable(user, tabId)) return false
-  return user?.ui_visibility?.[`card:${tabId}:${cardKey}`] !== false
+  const v = user?.ui_visibility?.[`card:${tabId}:${cardKey}`]
+  /* بطاقات `optIn` (الكتالوج) محجوبة حتى يُمنح `true` صراحةً — عكس الافتراض العام */
+  return cardOptIn(tabId, cardKey) ? v === true : v !== false
 }
 // Convenience builder: a per-page predicate bound to one tab.
 export const cardGate = (user, tabId) => (cardKey) => cardVisible(user, tabId, cardKey)

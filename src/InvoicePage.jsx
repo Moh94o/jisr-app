@@ -7,7 +7,7 @@ import { noDash, clientEditChanges, branchLabel, branchNick } from './lib/utils.
 import { navSetHere } from './lib/navStack.js'
 import { OFFICE_LOGO_SVG } from './lib/officeBrand.js'
 import { Modal, SuccessView, EmptyState, ModalSection, InfoRow, InfoGrid, GRID, FULL, CurrencyField, Segmented, TextField, TextArea, IdField, PhoneField, DateField, Select as FKSelect, Dropdown as FKDropdown, FileField, Checkbox, ScrollBox, C as FKC, useFKLang } from './components/ui/FormKit.jsx'
-import { Plus, RotateCcw, RotateCw, Ban, Printer, Info, Wallet, FileText, Landmark, Building2, User, Search, CheckCircle2, Circle, CreditCard, Briefcase, Calendar, CalendarRange, BadgeCheck, Hash, Phone, Globe, Link2, MessageSquare, Paperclip, Percent, HeartPulse, RefreshCw, AlertCircle, Check, X, ExternalLink, ChevronLeft, ChevronRight, Receipt } from 'lucide-react'
+import { Plus, RotateCcw, RotateCw, Ban, Printer, Info, Wallet, FileText, Landmark, Building2, User, Search, CheckCircle2, Circle, CreditCard, Briefcase, Calendar, CalendarRange, BadgeCheck, Hash, Phone, Globe, Link2, MessageSquare, Paperclip, Percent, HeartPulse, RefreshCw, AlertCircle, Check, X, ExternalLink, ChevronLeft, ChevronRight, Receipt, Banknote } from 'lucide-react'
 import { Stepper as FKStepper } from './components/ui/FormKit.jsx'
 import { Shimmer } from './components/ui/Skeleton.jsx'
 import { TXN_SERVICES } from './pages/txnServices.js'
@@ -399,18 +399,35 @@ function InvCard({ d, row, sb, T, isAr, toast, onClick, user }) {
   const dayOut = Number(dm.refunded || 0) + Number(dm.cancelledAmt || 0)
   // شريحة حركة اليوم: سهم صاعد أخضر (مستلم) أو نازل أحمر (مُعاد) + المبلغ فقط — بدون خلفية.
   // big: نسخة أكبر تُعرض في منتصف رأس كرت التذكرة.
-  const moneyChip = (amount, color, up, title, big) => (
+  // methods: طرق الدفع [{method, amount?}] — أيقونة لكل طريقة بعد المبلغ (نقد/حوالة/شبكة)
+  //   فتُعرف الطريقة بنظرة، والتلميح يسمّيها بمبلغها. التصنيف بالنص لأن القائمة تُدار من الإعدادات.
+  const methodIconOf = (m) => {
+    const s = String(m || '').toLowerCase()
+    if (/نقد|كاش|cash/.test(s)) return Banknote
+    if (/شبكة|بطاقة|مدى|card|pos/.test(s)) return CreditCard
+    if (/حوالة|تحويل|بنك|إيداع|transfer|bank|iban/.test(s)) return Landmark
+    return Wallet
+  }
+  const moneyChip = (amount, color, up, title, big, methods) => (
     <span title={title} onClick={e => e.stopPropagation()} style={{ height: 26, padding: '0 4px', color, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: big ? 4 : 3, fontSize: big ? 13.5 : 11, fontWeight: 600, fontVariantNumeric: 'tabular-nums', direction: 'ltr', flexShrink: 0, boxSizing: 'border-box', cursor: 'default' }}>
       <svg width={big ? 14 : 11} height={big ? 14 : 11} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
         {up ? <><line x1="12" y1="19" x2="12" y2="5" /><polyline points="5 12 12 5 19 12" /></> : <><line x1="12" y1="5" x2="12" y2="19" /><polyline points="19 12 12 19 5 12" /></>}
       </svg>
       <span>{num(amount)}</span>
+      {(methods || []).map((b, i) => {
+        const Ico = methodIconOf(b.method)
+        return (
+          <span key={i} title={b.method + (b.amount != null && (methods.length > 1) ? `: ${num(b.amount)}` : '')} style={{ display: 'inline-flex', alignItems: 'center' }}>
+            <Ico size={big ? 14 : 11} strokeWidth={2.4} />
+          </span>
+        )
+      })}
     </span>
   )
   const dayChips = (dayIn > 0 || dayOut > 0) ? (
     <>
-      {dayIn > 0 && moneyChip(dayIn, C.ok, true, T('المستلم على الفاتورة في هذا اليوم', 'Received on this invoice that day'), true)}
-      {dayOut > 0 && moneyChip(dayOut, C.red, false, T('المُعاد للعميل في هذا اليوم (إلغاء/استرجاع)', 'Returned to customer that day (cancel/refund)'), true)}
+      {dayIn > 0 && moneyChip(dayIn, C.ok, true, T('المستلم على الفاتورة في هذا اليوم', 'Received on this invoice that day'), true, dm.recvBreakdown || [])}
+      {dayOut > 0 && moneyChip(dayOut, C.red, false, T('المُعاد للعميل في هذا اليوم (إلغاء/استرجاع)', 'Returned to customer that day (cancel/refund)'), true, (dm.refundMethods || []).map(m => ({ method: m })))}
     </>
   ) : null
   // أزرار الواتساب/الطباعة فقط (اليوم فقط) — شرائح الحركة تُعرض في منتصف رأس الكرت.
@@ -7994,11 +8011,14 @@ function BorderNumbersModal({ sb, toast, T, isAr, visas, editorId, editorName, o
     if (!nums.length) { setDbTaken(new Set()); return }
     let cancelled = false
     ;(async () => {
-      let q = sb.from('visa_applications').select('id,border_number').in('border_number', nums)
+      // الفحص من v_ops_work_visas لا من الجدول: تأشيرة الفاتورة **الملغية** لا تحجز
+      // رقم حدودها — التأشيرة نفسها انتقلت لفاتورة أخرى فليس الرقمان عاملين.
+      let q = sb.from('v_ops_work_visas').select('id,border_number,invoice_status_ar').in('border_number', nums)
       if (allRowIds.length) q = q.not('id', 'in', `(${allRowIds.join(',')})`)   // نستثني تأشيرات هذا النموذج
       const { data, error } = await q
       if (cancelled || error) return
-      setDbTaken(new Set((data || []).map(d => String(d.border_number || '').trim()).filter(Boolean)))
+      setDbTaken(new Set((data || []).filter(d => !/ملغ/.test(String(d.invoice_status_ar || '')))
+        .map(d => String(d.border_number || '').trim()).filter(Boolean)))
     })()
     return () => { cancelled = true }
   }, [bordersKey])   // eslint-disable-line react-hooks/exhaustive-deps
@@ -8030,11 +8050,13 @@ function BorderNumbersModal({ sb, toast, T, isAr, visas, editorId, editorName, o
       // تحقّق نهائي من تفرّد رقم الحدود لحظة الحفظ (يمنع التسابق إن أُدخِل نفس الرقم على تأشيرة أخرى بين الفحص والحفظ).
       const wantBorders = changed.map(r => String(vals[r.id] ?? '').trim()).filter(b => /^3\d{9}$/.test(b))
       if (wantBorders.length) {
-        let cq = sb.from('visa_applications').select('id,border_number').in('border_number', Array.from(new Set(wantBorders)))
+        // نفس قاعدة الفحص الحيّ: تأشيرات الفواتير الملغية لا تحجز أرقامها
+        let cq = sb.from('v_ops_work_visas').select('id,border_number,invoice_status_ar').in('border_number', Array.from(new Set(wantBorders)))
         if (allRowIds.length) cq = cq.not('id', 'in', `(${allRowIds.join(',')})`)
         const { data: clash, error: cErr } = await cq
         if (cErr) throw cErr
-        if (clash && clash.length) { setErr(T('رقم الحدود مستخدَم مسبقاً على تأشيرة أخرى','Border number is already used on another visa')); setSaving(false); return }
+        const liveClash = (clash || []).filter(d => !/ملغ/.test(String(d.invoice_status_ar || '')))
+        if (liveClash.length) { setErr(T('رقم الحدود مستخدَم مسبقاً على تأشيرة أخرى','Border number is already used on another visa')); setSaving(false); return }
       }
       for (const r of changed) {
         const nv = String(vals[r.id] ?? '').trim() || null

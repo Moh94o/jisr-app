@@ -1,53 +1,48 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { can as canPerm } from '../lib/permissions.js'
-import { Modal as FKModal, ModalSection, ActionButton, SuccessView, GRID } from '../components/ui/FormKit.jsx'
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   جدول إصدار التأشيرات — طوابير مراحل، لا جدول واحد عريض.
+   جداول ما بعد إصدار التأشيرة — الوكالة · إصدار الإقامة · توصيل الإقامة.
 
-   العمل فعلياً أربع مراحل متعاقبة، فالشاشة تتبعها بدل أن تعرض كل شيء دائماً:
+   نفس بنية «جدول إصدار التأشيرات» (VisaGridPage): طوابير مراحل لا جدول عريض،
+   كل تأشيرة في مرحلة واحدة، وكل مرحلة تعرض أعمدتها وحدها، وبيانات الفاتورة
+   تُكتب مرة واحدة في سطر عنوان فوق كتلتها. محرّك الشبكة كاملاً منقول كما هو:
+   تنقّل بالكيبورد، لصق من إكسل، تعبئة بالسحب، حفظ دفعي متسامح مع الفشل الجزئي.
 
-     تحديد المنشأة  →  طلب السداد  →  بانتظار السداد  →  الإصدار  →  مكتملة
+   الصفحة واحدة بثلاثة أوضاع (prop `mode`) لأن الأوضاع الثلاثة تتشارك الصفّ
+   نفسه (التأشيرة + صفّ إصدار إقامتها) ولا تختلف إلا في الأعمدة وإسناد المرحلة:
 
-   كل تأشيرة تقع في مرحلة واحدة فقط، وكل مرحلة تعرض أعمدتها وحدها (٣–٧ أعمدة).
-   وهذا يحلّ التمرير الأفقي من جذره: لا شيء يتجاوز عرض الشاشة، فلا حاجة لطيّ
-   أعمدة ولا لملاءمة تلقائية ولا لوضع ملء شاشة.
+     wakalah   — الوكالة: تُدخَل على صفّ التأشيرة نفسه (wakalah_*).
+     iqama     — إصدار الإقامة: الفحص الطبي ← التأمين ← رخصة العمل ← الإقامة،
+                 تُكتب على iqama_issuance_applications (يُنشأ الصفّ عند أول كتابة).
+                 التأمين ورخصة العمل يُحفظان في stage_data كما تفعل نافذة الفاتورة،
+                 مع مرآة في أعمدة الجدول القديمة ليقرأها من لا يعرف stage_data.
+     delivery  — طباعة الإقامة ثم توصيلها.
 
-   وبيانات الفاتورة (المكتب · الخدمة · العميل · الجنسية · المهنة) تُكتب مرة
-   واحدة في سطر عنوان فوق كتلتها، بدل تكرارها حرفياً مع كل تأشيرة.
+   فرق مقصود عن جدول التأشيرات: المرحلة تُحسب من القيم **المحفوظة** لا من
+   التعديلات المعلّقة، فلا يختفي السطر من طابوره قبل الحفظ.
 
-   بقي كما هو من النسخة السابقة: محرّك الشبكة كاملاً — تنقّل بالكيبورد، لصق
-   من إكسل، تعبئة بالسحب، حفظ دفعي متسامح مع الفشل الجزئي، نافذة طلب السداد،
-   ورفع ملف التأشيرة.
-
-   تنبيهان تقنيان مدفوعان بأخطاء وقعت فعلاً:
-   · لا تُدرِج في قائمة اعتماديات useEffect قيمةً مُعرَّفة أسفله — Vite لا يحلّل
-     TDZ فيمرّ البناء والصفحة بيضاء.
-   · لا ألوان ثابتة: اللون الداكن الثابت يصير شريطاً أسود على الثيم الفاتح.
-     استعمل var(--*) أو طبقة linear-gradient فوقها.
+   تنبيهان تقنيان موروثان:
+   · لا تُدرِج في اعتماديات useEffect قيمةً مُعرَّفة أسفله — Vite لا يحلّل TDZ.
+   · لا ألوان ثابتة: استعمل var(--*) أو طبقة linear-gradient فوقها.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 const F = "'Cairo','Tajawal',sans-serif"
 const MONO = 'ui-monospace,SFMono-Regular,Menlo,monospace'
 const C = {
   gold: '#B07D00', gold2: '#D4A017',
-  blue: '#5dade2', ok: '#2ecc71', red: '#e87265', gray: '#95a5a6', warn: '#d99400',
+  blue: '#5dade2', ok: '#2ecc71', red: '#e87265', gray: '#95a5a6', warn: '#d99400', purple: '#bb8fce',
 }
-const PAGE_ROWS = 100          // تقريبي: الكتلة لا تُشطر بين صفحتين
+const PAGE_ROWS = 100
 const ROW_H = 40
-const HEAD_H = 34              // سطر عنوان الفاتورة
+const HEAD_H = 34
 const COL_H = 36
 const SAVE_CONCURRENCY = 6
-const VISA_FEE_AMOUNT = 2000
-const FEE_KIND_CODE = 'visa_cost'
-/* صيغ الأرقام — هي نفسها التي تفرضها نافذة «بيانات التأشيرات» في الفاتورة.
-   الإدخال صار من مكانين، ولو تساهل الجدول لصار باباً خلفياً لبيانات لا تقبلها
-   النافذة ثم تظهر ناقصة في «حالة المعاملة». */
-const FMT = {
-  visa_number: /^1\d{9}$/,
-  border_number: /^3\d{9}$/,
-  unified_number: /^7\d{9}$/,
-}
+const TEMP_CODE = 'work_visa_temporary'   // المؤقتة: فحص ← إقامة، بلا تأمين ولا رخصة عمل
+const AUTH_RE = /توكيل|تفويض|authoriz|wakal/i
+const FILE_NOTES = ['wakalah_file', 'visa_ins_file', 'visa_wp_file', 'muqeem']
+/* رقم الإقامة: نفس شرط نافذة «إصدار الإقامات» في الفاتورة */
+const FMT = { iqama_number: /^2\d{9}$/ }
 
 const latin = (s) => String(s ?? '')
   .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660))
@@ -55,6 +50,7 @@ const latin = (s) => String(s ?? '')
 const p2 = (n) => String(n).padStart(2, '0')
 const ymd = (v) => (v ? String(v).slice(0, 10) : '')
 const enNum = (n) => Number(n || 0).toLocaleString('en-US')
+const doneish = (s) => /^(done|delivered|accomplished)$/i.test(String(s || '').trim())
 
 const parseDate = (v) => {
   const s = latin(v).trim()
@@ -68,49 +64,145 @@ const parseDate = (v) => {
 }
 
 const GENDER_AR = { male: 'ذكر', female: 'أنثى' }
-const STATUS_COLOR = { unused: C.gray, used: C.ok, awaiting_cancellation: C.gold2, cancelled: C.red }
-/* لون لكل ملف تأشيرات داخل الفاتورة — الملف يسع ٤ تأشيرات */
 const FILE_COLORS = ['#B07D00', '#5dade2', '#bb8fce', '#16a085', '#e8834e', '#5f9ea0']
 const fileColor = (n) => (n == null ? 'var(--bd)' : FILE_COLORS[(Number(n) - 1 + FILE_COLORS.length) % FILE_COLORS.length])
 
-/* ── سجلّ الأعمدة ───────────────────────────────────────────────────────────
-   kind: rownum | facname | text | date | status | uni | hrsd | fee | sadad | file
-   owns: الحقول الحقيقية التي يكتبها العمود (عمود واحد قد يكتب حقلين)        */
+/* ── خيارات الأعمدة الاختيارية ─────────────────────────────────────────── */
+const DUR_OPTS = [3, 6, 9, 12, 24].map((n) => ({ v: n, ar: `${n} أشهر`, en: `${n} months`, c: C.gold2 }))
+const ST_PD = [{ v: 'pending', ar: 'قيد الإجراء', en: 'Pending', c: C.warn }, { v: 'done', ar: 'منجز', en: 'Done', c: C.ok }]
+const ST_PRINT = [{ v: 'pending', ar: 'لم تُطبع', en: 'Not printed', c: C.warn }, { v: 'done', ar: 'طُبعت', en: 'Printed', c: C.ok }]
+const ST_DELIV = [{ v: 'pending', ar: 'لم تُوصَّل', en: 'Not delivered', c: C.warn }, { v: 'done', ar: 'تم التوصيل', en: 'Delivered', c: C.ok }]
+
+/* ── سجلّ الأعمدة (مشترك بين الأوضاع) ──────────────────────────────────────
+   kind: rownum | facname | vstate | pay | text | date | money | select | lookup | ro | file
+   الحقول المكتوبة «مسطّحة» على الصفّ (flatten) ثم تُوزَّع عند الحفظ على جدولها. */
 const COL_DEFS = {
-  _row: { ar: 'التأشيرة', en: 'Visa', w: 156, kind: 'rownum' },
-  unified_number: { ar: 'الرقم الموحد', en: 'Unified no.', w: 172, kind: 'uni', edit: true, mono: true, owns: ['unified_number', 'main_facility_id'] },
-  _hrsd: { ar: 'رقم الموارد البشرية', en: 'HRSD no.', w: 176, kind: 'hrsd', edit: true, mono: true, owns: ['main_facility_id', 'unified_number'] },
-  _gosi: { ar: 'رقم التأمينات', en: 'GOSI no.', w: 160, kind: 'gosi', edit: true, mono: true, owns: ['main_facility_id', 'unified_number'] },
-  _facility: { ar: 'المنشأة', en: 'Facility', w: 250, kind: 'facname' },
-  _fee: { ar: 'رسوم التأشيرة', en: 'Visa fee', w: 172, kind: 'fee' },
-  _sadad: { ar: 'رقم السداد', en: 'SADAD no.', w: 160, kind: 'sadad', mono: true },
-  visa_number: { ar: 'رقم التأشيرة', en: 'Visa no.', w: 158, kind: 'text', edit: true, mono: true, color: C.gold2, owns: ['visa_number'] },
-  border_number: { ar: 'رقم الحدود', en: 'Border no.', w: 148, kind: 'text', edit: true, mono: true, color: C.blue, owns: ['border_number'] },
-  visa_issue_date: { ar: 'تاريخ الإصدار', en: 'Issue date', w: 138, kind: 'date', edit: true, mono: true, owns: ['visa_issue_date'] },
-  _file: { ar: 'ملف التأشيرة', en: 'Visa file', w: 118, kind: 'file' },
-  usage_status_id: { ar: 'حالة التأشيرة', en: 'Visa status', w: 150, kind: 'status', edit: true, owns: ['usage_status_id'] },
+  _row: { ar: 'التأشيرة', en: 'Visa', w: 150, kind: 'rownum' },
+  _facility: { ar: 'المنشأة', en: 'Facility', w: 220, kind: 'facname' },
+  _vstate: { ar: 'الحالة', en: 'State', w: 260, kind: 'vstate' },
+  _wkpay: { ar: 'دفعة التوكيل', en: 'PoA payment', w: 112, kind: 'pay', pay: 'auth' },
+  _iqpay: { ar: 'دفعة الإقامة', en: 'Iqama payment', w: 112, kind: 'pay', pay: 'residence' },
+  /* الوكالة — على صفّ التأشيرة */
+  wakalah_number: { ar: 'رقم الوكالة', en: 'PoA no.', w: 138, kind: 'text', edit: true, mono: true, color: C.gold2 },
+  wakalah_date: { ar: 'تاريخ الوكالة', en: 'PoA date', w: 124, kind: 'date', edit: true, mono: true },
+  wakalah_office: { ar: 'مكتب الوكالة', en: 'PoA office', w: 150, kind: 'text', edit: true },
+  wakalah_status_id: { ar: 'حالة الوكالة', en: 'PoA status', w: 132, kind: 'lookup', edit: true },
+  _wkfile: { ar: 'ملف الوكالة', en: 'PoA file', w: 104, kind: 'file', note: 'wakalah_file', pathKey: 'wakalah_file_path' },
+  /* إصدار الإقامة — على صفّ الإقامة */
+  medical_status: { ar: 'الفحص الطبي', en: 'Medical exam', w: 140, kind: 'select', opts: ST_PD, edit: true },
+  medical_amount: { ar: 'مبلغ الفحص', en: 'Exam amount', w: 124, kind: 'money', edit: true, mono: true },
+  ins_expiry: { ar: 'انتهاء التأمين', en: 'Insurance expiry', w: 130, kind: 'date', edit: true, mono: true },
+  ins_amount: { ar: 'مبلغ التأمين', en: 'Insurance amount', w: 120, kind: 'money', edit: true, mono: true },
+  ins_company: { ar: 'شركة التأمين', en: 'Insurer', w: 150, kind: 'text', edit: true },
+  ins_policy: { ar: 'رقم البوليصة', en: 'Policy no.', w: 136, kind: 'text', edit: true, mono: true },
+  _insfile: { ar: 'ملف التأمين', en: 'Policy file', w: 104, kind: 'file', note: 'visa_ins_file' },
+  wp_duration: { ar: 'مدة الرخصة', en: 'Permit duration', w: 116, kind: 'select', opts: DUR_OPTS, edit: true },
+  wp_expiry: { ar: 'انتهاء الرخصة', en: 'Permit expiry', w: 130, kind: 'date', edit: true, mono: true },
+  wp_amount: { ar: 'مبلغ الرخصة', en: 'Permit amount', w: 120, kind: 'money', edit: true, mono: true },
+  _wpfile: { ar: 'ملف الرخصة', en: 'Permit file', w: 104, kind: 'file', note: 'visa_wp_file' },
+  worker_name: { ar: 'اسم العامل', en: 'Worker name', w: 176, kind: 'text', edit: true },
+  iqama_number: { ar: 'رقم الإقامة', en: 'Iqama no.', w: 146, kind: 'text', edit: true, mono: true, color: C.gold2 },
+  iqama_expiry: { ar: 'انتهاء الإقامة', en: 'Iqama expiry', w: 130, kind: 'date', edit: true, mono: true },
+  _muqeem: { ar: 'ملف مقيم', en: 'Muqeem file', w: 104, kind: 'file', note: 'muqeem' },
+  /* التوصيل */
+  _iqno: { ar: 'رقم الإقامة', en: 'Iqama no.', w: 146, kind: 'ro', src: 'iqama_number', mono: true, color: C.gold2 },
+  _worker: { ar: 'اسم العامل', en: 'Worker', w: 170, kind: 'ro', src: 'worker_name' },
+  print_status: { ar: 'طباعة الإقامة', en: 'Iqama print', w: 130, kind: 'select', opts: ST_PRINT, edit: true },
+  print_amount: { ar: 'مبلغ الطباعة', en: 'Print amount', w: 120, kind: 'money', edit: true, mono: true },
+  delivery_request_no: { ar: 'رقم طلب التوصيل', en: 'Delivery request no.', w: 150, kind: 'text', edit: true, mono: true, color: C.gold2 },
+  delivery_date: { ar: 'تاريخ التوصيل', en: 'Delivery date', w: 130, kind: 'date', edit: true, mono: true },
+  delivery_status: { ar: 'حالة التوصيل', en: 'Delivery status', w: 136, kind: 'select', opts: ST_DELIV, edit: true },
 }
 
-const STAGES = [
-  { key: 'facility', ar: 'تحديد المنشأة', en: 'Set facility', c: C.gold2,
-    cols: ['_row', 'unified_number', '_hrsd', '_gosi', '_facility'] },
-  /* أرقام المنشأة الثلاثة تُعاد هنا أيضاً: بعد الحفظ يغادر السطر مرحلة «تحديد
-     المنشأة» إلى الأبد، فلولا ذلك لتعذّر تصحيح منشأة أُسنِدت خطأً. */
-  { key: 'request', ar: 'طلب السداد', en: 'Request payment', c: C.blue,
-    cols: ['_row', 'unified_number', '_hrsd', '_gosi', '_facility', '_fee'] },
-  { key: 'awaiting', ar: 'بانتظار السداد', en: 'Awaiting payment', c: C.warn,
-    cols: ['_row', '_facility', '_fee', '_sadad'] },
-  { key: 'issue', ar: 'الإصدار', en: 'Issuance', c: C.ok,
-    cols: ['_row', '_facility', 'visa_number', 'border_number', 'visa_issue_date', '_file', 'usage_status_id'] },
-  { key: 'done', ar: 'مكتملة', en: 'Completed', c: C.gray,
-    cols: ['_row', '_facility', 'visa_number', 'border_number', 'visa_issue_date', '_file', 'usage_status_id'] },
-]
+/* ── الأوضاع الثلاثة ───────────────────────────────────────────────────────
+   stageOf يقرأ القيم المحفوظة فقط (لا التعديلات المعلّقة). الاكتمال يُفحص
+   أولاً كما في جدول التأشيرات: صفوف قديمة كثيرة أُكملت قبل وجود المراحل. */
+const WK_COLS = ['_row', '_facility', '_wkpay', 'wakalah_number', 'wakalah_date', 'wakalah_office', 'wakalah_status_id', '_wkfile']
+const IQ_DONE_COLS = ['_row', '_facility', 'worker_name', 'iqama_number', 'iqama_expiry', '_muqeem']
+const DL_DONE_COLS = ['_row', '_facility', '_iqno', '_worker', 'print_status', 'delivery_request_no', 'delivery_date', 'delivery_status']
+const isPermanent = (row) => (row.sr?.service_type?.code || '') !== TEMP_CODE
 
-const CORE_KEYS = ['visa_number', 'border_number', 'visa_issue_date']
+const MODES = {
+  wakalah: {
+    tab: 'visa_wakalah_grid',
+    waitAr: 'لم تُصدر التأشيرة بعد — تُستكمل من جدول إصدار التأشيرات', waitEn: 'Visa not issued yet — complete it in the visa issuance grid',
+    emptyAr: 'لا توجد تأشيرات في هذه المرحلة', emptyEn: 'No visas in this stage',
+    stages: [
+      { key: 'waiting', ar: 'بانتظار إصدار التأشيرة', en: 'Awaiting visa', c: C.gray, cols: ['_row', '_facility', '_vstate'] },
+      { key: 'entry', ar: 'إدخال الوكالة', en: 'Enter PoA', c: C.gold2, cols: WK_COLS },
+      { key: 'pending', ar: 'قيد الإصدار', en: 'In progress', c: C.blue, cols: WK_COLS },
+      { key: 'done', ar: 'مكتملة', en: 'Completed', c: C.ok, cols: WK_COLS },
+    ],
+    stageOf: (row, ctx) => {
+      if (!row.visa_number && !row.border_number) return 'waiting'
+      const code = ctx.wkCode(row.wakalah_status_id)
+      if (code === 'accomplished' || (!code && row.wakalah_number && row.wakalah_date)) return 'done'
+      if (code === 'rejected') return 'entry'
+      if (code === 'pending' || row.wakalah_number || row.wakalah_date || row.wakalah_office) return 'pending'
+      return 'entry'
+    },
+    steps: (row, ctx) => [{ ar: 'الوكالة', en: 'PoA', ok: ctx.stage === 'done' }],
+  },
+  iqama: {
+    tab: 'iqama_grid',
+    waitAr: 'بانتظار رقم الحدود — يُدخَل في جدول إصدار التأشيرات', waitEn: 'Awaiting border number — entered in the visa issuance grid',
+    emptyAr: 'لا توجد إقامات في هذه المرحلة', emptyEn: 'No iqamas in this stage',
+    stages: [
+      { key: 'waiting', ar: 'بانتظار إصدار التأشيرة', en: 'Awaiting visa', c: C.gray, cols: ['_row', '_facility', '_vstate'] },
+      { key: 'medical', ar: 'الفحص الطبي', en: 'Medical exam', c: C.gold2, cols: ['_row', '_facility', '_iqpay', 'worker_name', 'medical_status', 'medical_amount'] },
+      { key: 'insurance', ar: 'التأمين الطبي', en: 'Medical insurance', c: C.blue, cols: ['_row', '_facility', 'ins_expiry', 'ins_amount', 'ins_company', 'ins_policy', '_insfile'] },
+      { key: 'work_permit', ar: 'رخصة العمل', en: 'Work permit', c: C.purple, cols: ['_row', '_facility', 'wp_duration', 'wp_expiry', 'wp_amount', '_wpfile'] },
+      { key: 'iqama', ar: 'إصدار الإقامة', en: 'Iqama issuance', c: C.warn, cols: ['_row', '_facility', '_iqpay', 'worker_name', 'iqama_number', 'iqama_expiry', '_muqeem'] },
+      { key: 'done', ar: 'مكتملة', en: 'Completed', c: C.ok, cols: IQ_DONE_COLS },
+    ],
+    stageOf: (row) => {
+      if (!row.border_number) return 'waiting'
+      if (row.iqama_number) return 'done'
+      if (row.medical_status !== 'done') return 'medical'
+      if (isPermanent(row)) {
+        if (!row._ins_done) return 'insurance'
+        if (!row._wp_done) return 'work_permit'
+      }
+      return 'iqama'
+    },
+    steps: (row) => {
+      const s = [{ ar: 'الفحص', en: 'Exam', ok: row.medical_status === 'done' }]
+      if (isPermanent(row)) s.push({ ar: 'التأمين', en: 'Insurance', ok: row._ins_done }, { ar: 'الرخصة', en: 'Permit', ok: row._wp_done })
+      s.push({ ar: 'الإقامة', en: 'Iqama', ok: !!row.iqama_number })
+      return s
+    },
+  },
+  delivery: {
+    tab: 'iqama_delivery_grid',
+    waitAr: 'بانتظار إصدار الإقامة — تُدخَل في جدول إصدار الإقامات', waitEn: 'Awaiting iqama — entered in the iqama issuance grid',
+    emptyAr: 'لا توجد إقامات في هذه المرحلة', emptyEn: 'No iqamas in this stage',
+    stages: [
+      { key: 'waiting', ar: 'بانتظار إصدار الإقامة', en: 'Awaiting iqama', c: C.gray, cols: ['_row', '_facility', '_worker', '_vstate'] },
+      { key: 'print', ar: 'طباعة الإقامة', en: 'Iqama print', c: C.gold2, cols: ['_row', '_facility', '_iqno', '_worker', 'print_status', 'print_amount'] },
+      { key: 'delivery', ar: 'توصيل الإقامة', en: 'Iqama delivery', c: C.blue, cols: ['_row', '_facility', '_iqno', '_worker', 'delivery_request_no', 'delivery_date', 'delivery_status'] },
+      { key: 'done', ar: 'مكتملة', en: 'Completed', c: C.ok, cols: DL_DONE_COLS },
+    ],
+    stageOf: (row) => {
+      if (!row.iqama_number) return 'waiting'
+      if (row.delivery_status === 'done' || row.delivery_date) return 'done'
+      if (row.print_status !== 'done') return 'print'
+      return 'delivery'
+    },
+    steps: (row) => [
+      { ar: 'الطباعة', en: 'Print', ok: row.print_status === 'done' },
+      { ar: 'التوصيل', en: 'Delivery', ok: row.delivery_status === 'done' || !!row.delivery_date },
+    ],
+  },
+}
 
+/* الحقول التي تُكتب على visa_applications؛ الباقي على iqama_issuance_applications */
+const VISA_KEYS = new Set(['wakalah_number', 'wakalah_date', 'wakalah_office', 'wakalah_status_id', 'worker_name'])
+
+const IQ_FIELDS = 'id,deleted_at,medical_status,medical_amount,insurance_status,insurance_expiry,insurance_amount,work_permit_status,work_permit_expiry,work_permit_amount,work_permit_duration_months,iqama_status,iqama_number,iqama_expiry,iqama_print_status,iqama_print_amount,iqama_delivery_status,iqama_delivery_date,delivery_request_no,stage_data'
 const VISA_SELECT = `
   id, visa_number, border_number, unified_number, gender, file_number,
-  visa_issue_date, visa_file_path, usage_status_id, main_facility_id, created_at,
+  visa_issue_date, usage_status_id, main_facility_id, created_at,
+  wakalah_number, wakalah_date, wakalah_office, wakalah_status_id, wakalah_file_path, worker_name,
   nationality:nationality_id(id,name_ar,name_en),
   occupation:occupation_id(id,name_ar,name_en),
   embassy:embassy_id(id,name_ar,name_en),
@@ -119,16 +211,113 @@ const VISA_SELECT = `
     branch:branch_id(id,branch_code),
     client:client_id(id,name_ar,name_en),
     service_type:service_type_id(id,code,value_ar,value_en)
-  )
+  ),
+  iq:iqama_issuance_applications(${IQ_FIELDS})
 `
 
+/* ── تسطيح الصفّ: التأشيرة + صفّ إقامتها في كائن واحد بمفاتيح الأعمدة ──────
+   القيم المرآة (insurance_expiry…) تُقرأ كاحتياط حين لا يوجد stage_data —
+   صفوف مستوردة كثيرة (khb1_import) لها حالة «done» بلا تفاصيل. */
+function flatten(v) {
+  const iqArr = Array.isArray(v.iq) ? v.iq : (v.iq ? [v.iq] : [])
+  const iq = iqArr.find((x) => x && x.deleted_at == null) || null
+  const sd = (iq?.stage_data && typeof iq.stage_data === 'object') ? iq.stage_data : {}
+  const ins = sd.insurance && typeof sd.insurance === 'object' ? sd.insurance : null
+  const wp = sd.work_permit && typeof sd.work_permit === 'object' ? sd.work_permit : null
+  const insDone = (!!ins && (doneish(ins.status) || (!!ins.expiry && Number(ins.amount) > 0))) || doneish(iq?.insurance_status)
+  const wpDone = (!!wp && (doneish(wp.status) || (!!wp.expiry && Number(wp.amount) > 0))) || doneish(iq?.work_permit_status)
+  const st = (s) => (doneish(s) ? 'done' : (s ? 'pending' : null))
+  const { iq: _drop, ...rest } = v
+  return {
+    ...rest, _iq: iq,
+    medical_status: st(iq?.medical_status),
+    medical_amount: iq?.medical_amount ?? null,
+    ins_expiry: ins?.expiry || iq?.insurance_expiry || null,
+    ins_amount: ins?.amount ?? iq?.insurance_amount ?? null,
+    ins_company: ins?.company || null,
+    ins_policy: ins?.policy_no || null,
+    _ins_done: insDone,
+    wp_duration: wp?.duration_months ?? iq?.work_permit_duration_months ?? null,
+    wp_expiry: wp?.expiry || iq?.work_permit_expiry || null,
+    wp_amount: wp?.amount ?? iq?.work_permit_amount ?? null,
+    _wp_done: wpDone,
+    iqama_number: iq?.iqama_number || null,
+    iqama_expiry: iq?.iqama_expiry || null,
+    print_status: st(iq?.iqama_print_status),
+    print_amount: iq?.iqama_print_amount ?? null,
+    delivery_status: st(iq?.iqama_delivery_status),
+    delivery_request_no: iq?.delivery_request_no || null,
+    delivery_date: iq?.iqama_delivery_date || null,
+  }
+}
+
+/* ── تحويل تعديلات الإقامة المسطّحة إلى patch لجدول iqama_issuance_applications ── */
+function buildIqPatch(row, p, user, byName, nowIso) {
+  const has = (k) => Object.prototype.hasOwnProperty.call(p, k)
+  const out = {}
+  const iq = row._iq || {}
+  const sd = { ...((iq.stage_data && typeof iq.stage_data === 'object') ? iq.stage_data : {}) }
+  let sdChanged = false
+  if (has('medical_status')) out.medical_status = p.medical_status
+  if (has('medical_amount')) out.medical_amount = p.medical_amount
+  if (['ins_expiry', 'ins_amount', 'ins_company', 'ins_policy'].some(has)) {
+    const cur = (sd.insurance && typeof sd.insurance === 'object') ? sd.insurance : {}
+    const next = {
+      ...cur,
+      expiry: has('ins_expiry') ? p.ins_expiry : (row.ins_expiry || null),
+      amount: has('ins_amount') ? p.ins_amount : (row.ins_amount ?? null),
+      company: has('ins_company') ? p.ins_company : (row.ins_company || null),
+      policy_no: has('ins_policy') ? p.ins_policy : (row.ins_policy || null),
+      by_id: user?.id || null, by_name: byName, at: nowIso,
+    }
+    const complete = !!next.expiry && Number(next.amount) > 0
+    if (complete) next.status = 'done'
+    sd.insurance = next; sdChanged = true
+    out.insurance_expiry = next.expiry
+    out.insurance_amount = next.amount
+    out.insurance_status = complete ? 'done' : (doneish(iq.insurance_status) ? 'done' : 'pending')
+  }
+  if (['wp_duration', 'wp_expiry', 'wp_amount'].some(has)) {
+    const cur = (sd.work_permit && typeof sd.work_permit === 'object') ? sd.work_permit : {}
+    const next = {
+      ...cur,
+      duration_months: has('wp_duration') ? p.wp_duration : (row.wp_duration ?? null),
+      expiry: has('wp_expiry') ? p.wp_expiry : (row.wp_expiry || null),
+      amount: has('wp_amount') ? p.wp_amount : (row.wp_amount ?? null),
+      by_id: user?.id || null, by_name: byName, at: nowIso,
+    }
+    const complete = !!next.duration_months && !!next.expiry && Number(next.amount) > 0
+    if (complete) next.status = 'done'
+    sd.work_permit = next; sdChanged = true
+    out.work_permit_duration_months = next.duration_months
+    out.work_permit_expiry = next.expiry
+    out.work_permit_amount = next.amount
+    out.work_permit_status = complete ? 'done' : (doneish(iq.work_permit_status) ? 'done' : 'pending')
+  }
+  if (has('iqama_number')) { out.iqama_number = p.iqama_number; out.iqama_status = p.iqama_number ? 'done' : 'pending' }
+  if (has('iqama_expiry')) out.iqama_expiry = p.iqama_expiry
+  if (has('print_status')) out.iqama_print_status = p.print_status
+  if (has('print_amount')) out.iqama_print_amount = p.print_amount
+  if (has('delivery_status')) out.iqama_delivery_status = p.delivery_status
+  if (has('delivery_request_no')) out.delivery_request_no = p.delivery_request_no
+  if (has('delivery_date')) {
+    out.iqama_delivery_date = p.delivery_date
+    /* تاريخ توصيل بلا حالة = تمّ التوصيل (كما يقرؤه شيت «تسليم الإقامة») */
+    if (p.delivery_date && !has('delivery_status')) out.iqama_delivery_status = 'done'
+  }
+  if (sdChanged) out.stage_data = sd
+  out.updated_at = nowIso
+  out.updated_by = user?.id || null
+  return out
+}
+
 function GridSkeleton() {
-  const sh = { display: 'block', borderRadius: 5, background: 'linear-gradient(90deg,var(--bd2) 25%,var(--bd) 37%,var(--bd2) 63%)', backgroundSize: '400% 100%', animation: 'vg-sh 1.4s ease infinite' }
+  const sh = { display: 'block', borderRadius: 5, background: 'linear-gradient(90deg,var(--bd2) 25%,var(--bd) 37%,var(--bd2) 63%)', backgroundSize: '400% 100%', animation: 'pg-sh 1.4s ease infinite' }
   return (
     <div>
-      <style>{'@keyframes vg-sh{0%{background-position:100% 0}100%{background-position:-100% 0}}'}</style>
+      <style>{'@keyframes pg-sh{0%{background-position:100% 0}100%{background-position:-100% 0}}'}</style>
       <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-        {[130, 110, 130, 90, 100].map((w, i) => <span key={i} style={{ ...sh, width: w, height: 28, borderRadius: 8 }} />)}
+        {[150, 110, 110, 100, 90].map((w, i) => <span key={i} style={{ ...sh, width: w, height: 28, borderRadius: 8 }} />)}
       </div>
       <div style={{ border: '1px solid var(--bd)', borderRadius: 12, overflow: 'hidden' }}>
         {Array.from({ length: 14 }).map((_, i) => (
@@ -142,20 +331,20 @@ function GridSkeleton() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════ */
-export default function VisaGridPage({ sb, user, toast, lang, onTabChange }) {
+export default function VisaPipelineGridPage({ sb, user, toast, lang, onTabChange, mode = 'iqama' }) {
   const isAr = lang !== 'en'
   const T = (a, e) => (isAr ? a : e)
   const canEdit = canPerm(user, 'work_visas.edit')
+  const M = MODES[mode] || MODES.iqama
 
   const [rows, setRows] = useState([])
   const [facilities, setFacilities] = useState([])
-  const [statuses, setStatuses] = useState([])
-  const [fees, setFees] = useState({})
-  const [fileAtt, setFileAtt] = useState({})   // visa_id → ملف التأشيرة المرفوع من نافذة الفاتورة
-  const [feeKindId, setFeeKindId] = useState(null)
+  const [statuses, setStatuses] = useState([])      // حالات الوكالة (lookup)
+  const [fileAtt, setFileAtt] = useState({})        // note → { visaId → url }
+  const [insts, setInsts] = useState({})            // visaId → [installments]
   const [loading, setLoading] = useState(true)
 
-  const [stage, setStage] = useState('facility')
+  const [stage, setStage] = useState(M.stages[1].key)
   const [search, setSearch] = useState('')
   const [fBranch, setFBranch] = useState('')
   const [fService, setFService] = useState('')
@@ -165,10 +354,6 @@ export default function VisaGridPage({ sb, user, toast, lang, onTabChange }) {
   const [rowErr, setRowErr] = useState({})
   const [saving, setSaving] = useState(false)
 
-  const [feeTarget, setFeeTarget] = useState(null)
-  const [feeBusy, setFeeBusy] = useState(false)
-  const [feeErr, setFeeErr] = useState(null)
-  const [feeDone, setFeeDone] = useState(false)
   const [uploading, setUploading] = useState(null)
   const fileInputRef = useRef(null)
   const uploadTargetRef = useRef(null)
@@ -187,31 +372,31 @@ export default function VisaGridPage({ sb, user, toast, lang, onTabChange }) {
   const scrollRef = useRef(null)
   const hdrRef = useRef(null)
 
-  useEffect(() => { onTabChange && onTabChange({ tab: 'visa_grid' }) }, [])
+  useEffect(() => { onTabChange && onTabChange({ tab: M.tab }) }, [])   // eslint-disable-line react-hooks/exhaustive-deps
+  /* تبديل الوضع (نفس المكوّن يُعاد استخدامه لتبويب آخر) يعيد المرحلة الافتراضية */
+  useEffect(() => { setStage(M.stages[1].key); setEdits({}); setRowErr({}) }, [mode])   // eslint-disable-line react-hooks/exhaustive-deps
 
-  const stageDef = useMemo(() => STAGES.find((s) => s.key === stage) || STAGES[0], [stage])
-  const COLS = useMemo(() => stageDef.cols.map((k) => ({ key: k, ...COL_DEFS[k] })), [stageDef])
+  const stageDef = useMemo(() => M.stages.find((s) => s.key === stage) || M.stages[0], [M, stage])
+  const COLS = useMemo(() => stageDef.cols.map((k) => ({ key: k, ...COL_DEFS[k], owns: COL_DEFS[k].owns || (COL_DEFS[k].edit ? [k] : undefined) })), [stageDef])
   const firstEditable = useMemo(() => Math.max(0, COLS.findIndex((c) => c.edit)), [COLS])
 
   /* ── التحميل ─────────────────────────────────────────────────────────── */
   const load = useCallback(async () => {
     if (!sb) return
     setLoading(true)
-    const [visaR, facR, catR, feeKindR, attR] = await Promise.all([
-      sb.from('visa_applications').select(VISA_SELECT).is('deleted_at', null).order('created_at', { ascending: false }),
-      /* range صريح: المنشآت ١,١٩١ صفاً وسقف PostgREST الافتراضي ١٠٠٠ — بدونه تختفي
-         ~٢٠٠ منشأة من بحث الأرقام فيُقال «لا توجد منشأة» وهي موجودة. */
-      sb.from('facilities').select('id,name_ar,name_en,unified_number,cr_number,hrsd_number,gosi_number').is('deleted_at', null).order('name_ar').range(0, 4999),
-      sb.from('lookup_categories').select('id').eq('category_key', 'visa_usage_status').maybeSingle(),
-      sb.from('lookup_items').select('id').eq('code', FEE_KIND_CODE).limit(1).maybeSingle(),
-      /* ملف التأشيرة المرفوع من نافذة الفاتورة يُسجَّل صفاً في attachments بلا
-         visa_file_path — فبدون قراءته يظهر الصفّ هنا «بلا ملف» وهو مرفوع فعلاً. */
-      sb.from('attachments').select('entity_id,file_url,created_at')
-        .eq('entity_type', 'visa_application').eq('notes', 'visa_file')
-        .is('deleted_at', null).order('created_at', { ascending: false }).range(0, 4999),
+    const [visaR, facR, catR, attR, instR] = await Promise.all([
+      /* range صريح: تأشيرات العمل تجاوزت ٣,٠٠٠ صف وسقف PostgREST الافتراضي ١٠٠٠ */
+      sb.from('visa_applications').select(VISA_SELECT).is('deleted_at', null).order('created_at', { ascending: false }).range(0, 9999),
+      sb.from('facilities').select('id,name_ar,name_en,unified_number,hrsd_number,gosi_number').is('deleted_at', null).order('name_ar').range(0, 4999),
+      sb.from('lookup_categories').select('id').eq('category_key', 'wakalah_status').maybeSingle(),
+      sb.from('attachments').select('entity_id,file_url,notes,created_at')
+        .eq('entity_type', 'visa_application').in('notes', FILE_NOTES)
+        .is('deleted_at', null).order('created_at', { ascending: false }).range(0, 9999),
+      /* دفعات التوكيل/الإقامة المرتبطة بتأشيرة — للتحذير فقط، لا قفل */
+      sb.from('installments').select('id,visa_application_id,total_amount,paid_amount,notes,payment_milestone:payment_milestone_id(value_ar,value_en)')
+        .not('visa_application_id', 'is', null).is('deleted_at', null).range(0, 9999),
     ])
-    const list = (visaR.data || []).filter((v) => /^work_visa/.test(v.sr?.service_type?.code || ''))
-    /* ترتيب يُبقي تأشيرات الفاتورة متلاصقة ثم مرتّبة بملفّها */
+    const list = (visaR.data || []).filter((v) => /^work_visa/.test(v.sr?.service_type?.code || '')).map(flatten)
     list.sort((a, b) => {
       const d = String(b.created_at || '').localeCompare(String(a.created_at || ''))
       if (d) return d
@@ -221,79 +406,50 @@ export default function VisaGridPage({ sb, user, toast, lang, onTabChange }) {
     })
     setRows(list)
     setFacilities(facR.data || [])
-    setFeeKindId(feeKindR.data?.id || null)
     if (catR.data?.id) {
       const { data } = await sb.from('lookup_items').select('id,code,value_ar,value_en,sort_order')
         .eq('category_id', catR.data.id).eq('is_active', true).order('sort_order')
       setStatuses(data || [])
     }
-    const { data: feeRows } = await sb.from('transaction_fees')
-      .select('id,visa_application_id,amount,paid_amount,status,sadad_no')
-      .not('visa_application_id', 'is', null).is('deleted_at', null)
-    const map = {}
-    for (const f of (feeRows || [])) if (!map[f.visa_application_id]) map[f.visa_application_id] = f
-    setFees(map)
     const att = {}
-    for (const a of (attR.data || [])) if (a.entity_id && !att[a.entity_id]) att[a.entity_id] = a.file_url
+    for (const a of (attR.data || [])) {
+      if (!a.entity_id || !a.notes) continue
+      if (!att[a.notes]) att[a.notes] = {}
+      if (!att[a.notes][a.entity_id]) att[a.notes][a.entity_id] = a.file_url
+    }
     setFileAtt(att)
+    const im = {}
+    for (const it of (instR.data || [])) { (im[it.visa_application_id] ||= []).push(it) }
+    setInsts(im)
     setLoading(false)
   }, [sb])
   useEffect(() => { load() }, [load])
 
   const facById = useMemo(() => { const m = new Map(); for (const f of facilities) m.set(f.id, f); return m }, [facilities])
-  /* ── فهرس أرقام المنشأة ─────────────────────────────────────────────────
-     مفتاح واحد لكل رقم تعرفه المنشأة: الموحّد · التأمينات · الموارد — بصيغته
-     كما هي وبأرقامه المجرّدة (رقم الموارد يُكتب `18-4048702` وقد يُلصق بلا
-     شرطة). فأي عمود من الثلاثة يقبل أيّ رقم منها ويحدّد المنشأة نفسها. */
-  const digits = (v) => latin(v).replace(/\D+/g, '')
-  const facIndex = useMemo(() => {
-    const m = new Map()
-    const put = (k, f) => { const s = String(k ?? '').trim(); if (s && !m.has(s)) m.set(s, f) }
-    for (const f of facilities) {
-      for (const v of [f.unified_number, f.gosi_number, f.hrsd_number]) {
-        if (!v) continue
-        put(latin(v).trim(), f)
-        put(digits(v), f)
-      }
-    }
-    return m
-  }, [facilities])
-  const facLookup = useCallback((text) => {
-    const s = latin(text).trim()
-    if (!s) return null
-    return facIndex.get(s) || facIndex.get(digits(s)) || null
-  }, [facIndex])
   const statusById = useMemo(() => { const m = new Map(); for (const s of statuses) m.set(s.id, s); return m }, [statuses])
+  const wkCode = useCallback((id) => statusById.get(id)?.code || null, [statusById])
+  const rowById = useMemo(() => { const m = new Map(); for (const r of rows) m.set(r.id, r); return m }, [rows])
 
   const fieldOf = useCallback((row, key) => {
     const e = edits[row.id]
     if (e && Object.prototype.hasOwnProperty.call(e, key)) return e[key]
     return row[key] ?? null
   }, [edits])
-  /* المنشأة المعروضة: الرابط أولاً، وإلا استُدلّ عليها بالرقم الموحّد المكتوب على
-     التأشيرة. بدون هذا الاستدلال يبقى عمودا الموارد والتأمينات فارغَين أبداً في
-     مرحلة «تحديد المنشأة» — فهي بتعريفها المرحلة التي لا رابط فيها. */
-  const facOf = useCallback((row) => (
-    facById.get(fieldOf(row, 'main_facility_id'))
-    || facLookup(fieldOf(row, 'unified_number'))
-    || null
-  ), [facById, fieldOf, facLookup])
+  const facOf = useCallback((row) => facById.get(row.main_facility_id) || null, [facById])
 
-  /* ── إسناد المرحلة ──────────────────────────────────────────────────────
-     الاكتمال أولاً: صفوف قديمة كثيرة أُصدرت قبل وجود مسار السداد، فلو قُدّم
-     شرط الرسم عليها لعادت إلى طابور لا معنى له.
-     والمنشأة تُقرأ من القيمة **المحفوظة** لا من التعديل غير المحفوظ: لو قُرئت من
-     التعديل لقفز السطر خارج طابوره فور كتابة رقم المنشأة، فلا يرى الموظف أثر ما
-     كتبه ولا يستطيع مراجعته. ينتقل بعد الحفظ فقط (كما في VisaPipelineGridPage). */
-  const stageOf = useCallback((row) => {
-    const complete = CORE_KEYS.every((k) => { const v = row[k]; return v != null && v !== '' })
-    if (complete) return 'done'
-    if (!row.main_facility_id) return 'facility'
-    const fee = fees[row.id]
-    if (!fee) return 'request'
-    if (fee.status !== 'paid') return 'awaiting'
-    return 'issue'
-  }, [fees])
+  /* دفعة التأشيرة حسب نوعها: توكيل أو إقامة (نفس تصنيف صفحة الفاتورة) */
+  const payOf = useCallback((row, kind) => {
+    const list = insts[row.id] || []
+    const label = (it) => (it.payment_milestone?.value_ar || '') + ' ' + (it.payment_milestone?.value_en || '') + ' ' + (it.notes || '')
+    const it = list.find((x) => (kind === 'auth') === AUTH_RE.test(label(x)))
+    if (!it) return null
+    const total = Number(it.total_amount || 0), paid = Number(it.paid_amount || 0)
+    const state = total - paid <= 0.005 ? 'paid' : paid > 0 ? 'partial' : 'pending'
+    return { state, total, paid }
+  }, [insts])
+
+  /* ── إسناد المرحلة (قيم محفوظة فقط) ─────────────────────────────────── */
+  const stageOf = useCallback((row) => M.stageOf(row, { wkCode }), [M, wkCode])
 
   /* ── الفلترة ─────────────────────────────────────────────────────────── */
   const branchOpts = useMemo(() => {
@@ -307,27 +463,28 @@ export default function VisaGridPage({ sb, user, toast, lang, onTabChange }) {
     return [...m.entries()]
   }, [rows])
 
-  /* المصفّى قبل المرحلة — منه تُحسب أعداد التبويبات */
   const preStage = useMemo(() => rows.filter((r) => {
     if (fService && r.sr?.service_type?.code !== fService) return false
     if (fBranch && r.sr?.branch?.branch_code !== fBranch) return false
     if (search.trim()) {
       const s = latin(search).trim().toLowerCase()
-      const fac = facOf(r)
-      const hay = [r.visa_number, r.border_number, r.unified_number,
+      const fac = facById.get(r.main_facility_id)
+      const hay = [r.visa_number, r.border_number, r.unified_number, r.worker_name,
+        r.wakalah_number, r.iqama_number, r.delivery_request_no,
         r.sr?.request_ref_no, r.sr?.branch?.branch_code, r.sr?.client?.name_ar,
         r.nationality?.name_ar, r.occupation?.name_ar, r.embassy?.name_ar,
         fac?.name_ar, fac?.unified_number, fac?.hrsd_number, fac?.gosi_number]
       if (!hay.some((v) => String(v || '').toLowerCase().includes(s))) return false
     }
     return true
-  }), [rows, fService, fBranch, search, facOf])
+  }), [rows, fService, fBranch, search, facById])
 
   const stageCounts = useMemo(() => {
-    const m = { facility: 0, request: 0, awaiting: 0, issue: 0, done: 0 }
+    const m = {}
+    for (const s of M.stages) m[s.key] = 0
     for (const r of preStage) m[stageOf(r)]++
     return m
-  }, [preStage, stageOf])
+  }, [M, preStage, stageOf])
 
   const filtered = useMemo(() => preStage.filter((r) => stageOf(r) === stage), [preStage, stageOf, stage])
 
@@ -343,7 +500,6 @@ export default function VisaGridPage({ sb, user, toast, lang, onTabChange }) {
     return out
   }, [filtered])
 
-  /* ترقيم الصفحات بالكتل — الكتلة لا تُشطر بين صفحتين */
   const pages = useMemo(() => {
     const out = []
     let cur = [], n = 0
@@ -358,12 +514,11 @@ export default function VisaGridPage({ sb, user, toast, lang, onTabChange }) {
   const totalPages = pages.length
   const pageSafe = Math.min(page, totalPages - 1)
   const pageBlocks = pages[pageSafe] || []
-  /* الصفوف المسطّحة للصفحة — عليها يقوم التحديد والتنقّل */
   const view = useMemo(() => pageBlocks.flatMap((b) => b.rows), [pageBlocks])
   const rowIndex = useMemo(() => { const m = new Map(); view.forEach((r, i) => m.set(r.id, i)); return m }, [view])
   const firstNo = useMemo(() => pages.slice(0, pageSafe).reduce((a, p) => a + p.reduce((x, b) => x + b.rows.length, 0), 0) + 1, [pages, pageSafe])
 
-  const filterKey = `${stage}|${fService}|${fBranch}|${search}`
+  const filterKey = `${mode}|${stage}|${fService}|${fBranch}|${search}`
   useEffect(() => { setPage(0) }, [filterKey])
   useEffect(() => {
     setAnchor({ r: 0, c: firstEditable }); setHead({ r: 0, c: firstEditable })
@@ -374,9 +529,7 @@ export default function VisaGridPage({ sb, user, toast, lang, onTabChange }) {
   const [widthMap, setWidthMap] = useState({})
   const resizeRef = useRef(null)
   const widths = useMemo(() => COLS.map((c) => widthMap[c.key] ?? c.w), [COLS, widthMap])
-  const offsets = useMemo(() => { const o = []; let x = 0; for (const w of widths) { o.push(x); x += w } return o }, [widths])
   const totalW = useMemo(() => widths.reduce((a, b) => a + b, 0), [widths])
-  /* آخر عمود يتمدّد ليملأ العرض — الجدول ضيق أصلاً فلا يبقى فراغ مبتور */
   const tmpl = useMemo(() => widths.map((w, i) => (i === widths.length - 1 ? `minmax(${w}px,1fr)` : `${w}px`)).join(' '), [widths])
 
   const range = useMemo(() => ({
@@ -397,84 +550,68 @@ export default function VisaGridPage({ sb, user, toast, lang, onTabChange }) {
     if (cell) cell.scrollIntoView({ block: 'nearest', inline: 'nearest' })
   }, [head, editing])
 
-  /* ── تحويل النص إلى تعديل ───────────────────────────────────────────────
-     عمود واحد قد يكتب حقلين: رقم الموارد البشرية يحدّد المنشأة ويملأ الموحد. */
+  /* ── تحويل النص إلى تعديل ───────────────────────────────────────────── */
   const coercePatch = useCallback((col, text) => {
     const s = String(text ?? '').trim()
     switch (col.kind) {
       case 'text': {
-        const v = latin(s).trim()
+        const v = col.mono ? latin(s).trim() : s
         if (!v) return { [col.key]: null }
         const re = FMT[col.key]
         return (re && !re.test(v)) ? undefined : { [col.key]: v }
       }
       case 'date': { const d = parseDate(s); return d === undefined ? undefined : { [col.key]: d } }
-      case 'status': {
-        if (!s) return { usage_status_id: null }
+      case 'money': {
+        const v = latin(s).replace(/[,\s]/g, '')
+        if (!v) return { [col.key]: null }
+        const n = Number(v)
+        return (!Number.isFinite(n) || n < 0) ? undefined : { [col.key]: n }
+      }
+      case 'select': {
+        if (!s) return { [col.key]: null }
+        const low = latin(s).toLowerCase()
+        const hit = (col.opts || []).find((o) => String(o.v) === low || o.ar === s || o.en.toLowerCase() === low)
+        return hit ? { [col.key]: hit.v } : undefined
+      }
+      case 'lookup': {
+        if (!s) return { [col.key]: null }
         const low = s.toLowerCase()
         const hit = statuses.find((o) => o.value_ar === s || (o.value_en || '').toLowerCase() === low || (o.code || '').toLowerCase() === low)
-        return hit ? { usage_status_id: hit.id } : undefined
-      }
-      /* الأعمدة الثلاثة تمرّ على الفهرس نفسه: اكتب الموحّد أو التأمينات أو
-         الموارد في أيٍّ منها فتُحدَّد المنشأة وتُملأ بقيّة الخلايا منها. */
-      case 'uni': {
-        const v = latin(s).trim()
-        if (!v) return { unified_number: null, main_facility_id: null }
-        const fac = facLookup(v)
-        /* الرقم يُحفظ حتى بلا منشأة مطابقة — بيانات قديمة فيها أرقام بلا منشأة
-           مسجّلة، ومنعُها يمنع تصحيحها — لكن بصيغته الرسمية (يبدأ بـ7 و10 أرقام)
-           كما تشترط نافذة الفاتورة. ورقمٌ بلا منشأة يفكّ الرابط القديم أيضاً،
-           وإلا بقيت التأشيرة مرتبطة بمنشأة لا تطابق رقمها المعروض. */
-        if (fac) return { unified_number: fac.unified_number || v, main_facility_id: fac.id }
-        return FMT.unified_number.test(v) ? { unified_number: v, main_facility_id: null } : undefined
-      }
-      /* المسح في أيٍّ من الثلاثة يفكّ الهوية كاملةً (الرابط + الرقم الموحّد).
-         لو بقي الموحّد لعادت المنشأة — ومعها رقما الموارد والتأمينات — فور
-         إعادة الرسم، فيبدو أن الحذف «لم يُقبل». */
-      case 'hrsd':
-      case 'gosi': {
-        const v = latin(s).trim()
-        if (!v) return { main_facility_id: null, unified_number: null }
-        const fac = facLookup(v)
-        return fac ? { main_facility_id: fac.id, unified_number: fac.unified_number || null } : undefined
+        return hit ? { [col.key]: hit.id } : undefined
       }
       default: return undefined
     }
-  }, [statuses, facLookup])
+  }, [statuses])
 
   const dispOf = useCallback((row, col) => {
     if (!row || !col) return ''
     switch (col.kind) {
-      case 'uni': return fieldOf(row, 'unified_number') || facOf(row)?.unified_number || ''
-      case 'hrsd': return facOf(row)?.hrsd_number || ''
-      case 'gosi': return facOf(row)?.gosi_number || ''
       case 'facname': return facOf(row)?.name_ar || facOf(row)?.name_en || ''
-      case 'status': { const s = statusById.get(fieldOf(row, 'usage_status_id')); return s ? (isAr ? s.value_ar : (s.value_en || s.value_ar)) : '' }
-      case 'date': return ymd(fieldOf(row, col.key))
       case 'text': { const v = fieldOf(row, col.key); return v == null ? '' : String(v) }
-      case 'sadad': return fees[row.id]?.sadad_no || ''
+      case 'ro': { const v = row[col.src]; return v == null ? '' : String(v) }
+      case 'date': return ymd(fieldOf(row, col.key))
+      case 'money': { const v = fieldOf(row, col.key); return v == null || v === '' ? '' : enNum(v) }
+      case 'select': { const v = fieldOf(row, col.key); const o = (col.opts || []).find((x) => String(x.v) === String(v)); return o ? (isAr ? o.ar : o.en) : (v == null ? '' : String(v)) }
+      case 'lookup': { const s = statusById.get(fieldOf(row, col.key)); return s ? (isAr ? s.value_ar : (s.value_en || s.value_ar)) : '' }
+      case 'vstate': return isAr ? M.waitAr : M.waitEn
       default: return ''
     }
-  }, [fieldOf, facOf, statusById, isAr, fees])
+  }, [fieldOf, facOf, statusById, isAr, M])
 
-  /* رسالة الرفض تُسمّي الشرط المخالف — «قيمة غير صالحة» وحدها تترك الموظف يخمّن. */
   const invalidMsg = useCallback((col) => {
-    if (col.kind === 'hrsd' || col.kind === 'gosi') return T('لا توجد منشأة بهذا الرقم', 'No facility with that number')
-    if (col.key === 'visa_number') return T('رقم التأشيرة يبدأ بـ1 ويكون 10 أرقام', 'Visa number must start with 1 and be 10 digits')
-    if (col.key === 'border_number') return T('رقم الحدود يبدأ بـ3 ويكون 10 أرقام', 'Border number must start with 3 and be 10 digits')
-    if (col.kind === 'uni') return T('الرقم الموحد يبدأ بـ7 ويكون 10 أرقام، أو اكتب رقم منشأة معروفة', 'Unified number must start with 7 and be 10 digits, or type a known facility number')
+    if (col.key === 'iqama_number') return T('رقم الإقامة يبدأ بـ2 ويكون 10 أرقام', 'Iqama number must start with 2 and be 10 digits')
+    if (col.kind === 'date') return T('تاريخ غير مفهوم — اكتبه YYYY-MM-DD', 'Unrecognized date — use YYYY-MM-DD')
+    if (col.kind === 'money') return T('المبلغ يجب أن يكون رقماً', 'Amount must be a number')
+    if (col.kind === 'select' || col.kind === 'lookup') return T('اختر قيمة من القائمة', 'Pick a value from the list')
     return T('قيمة غير صالحة — لم تُحفظ', 'Invalid value — not applied')
   }, [T])
 
-  /* ── تفرّد رقم الحدود ───────────────────────────────────────────────────
-     نافذة الفاتورة تمنع تكرار رقم الحدود بين التأشيرات، فالجدول يمنعه أيضاً:
-     نقطة حمراء فور الكتابة، وفحص في القاعدة عند الحفظ (يمنع التسابق ويكشف
-     تكراراً مع تأشيرة خارج الصفحة). */
-  const borderDup = useMemo(() => {
+  /* ── تفرّد رقم الإقامة (كما رقم الحدود في جدول التأشيرات) ────────────── */
+  const iqDup = useMemo(() => {
     const seen = new Map(), dup = new Set()
     for (const r of rows) {
       const e = edits[r.id]
-      const b = String((e && Object.prototype.hasOwnProperty.call(e, 'border_number') ? e.border_number : r.border_number) || '').trim()
+      const b = String((e && Object.prototype.hasOwnProperty.call(e, 'iqama_number') ? e.iqama_number : r.iqama_number) || '').trim()
       if (!b) continue
       if (seen.has(b)) { dup.add(r.id); dup.add(seen.get(b)) } else seen.set(b, r.id)
     }
@@ -634,7 +771,6 @@ export default function VisaGridPage({ sb, user, toast, lang, onTabChange }) {
     if (ctrl && (k === 'd' || k === 'D')) { e.preventDefault(); doFillDown(); return }
     if (ctrl && (k === 'a' || k === 'A')) { e.preventDefault(); setAnchor({ r: 0, c: 0 }); setHead({ r: maxR, c: maxC }); return }
     switch (k) {
-      /* في RTL: السهم الأيمن يرجع للخلف والأيسر يتقدّم — كما في إكسل العربي */
       case 'ArrowUp': e.preventDefault(); move(-1, 0, e.shiftKey); return
       case 'ArrowDown': e.preventDefault(); move(1, 0, e.shiftKey); return
       case 'ArrowRight': e.preventDefault(); move(0, isAr ? -1 : 1, e.shiftKey); return
@@ -660,45 +796,73 @@ export default function VisaGridPage({ sb, user, toast, lang, onTabChange }) {
     setSaving(true)
     const entries = Object.entries(edits)
     const nowIso = new Date().toISOString()
+    const byName = user?.person?.name_ar || user?.person?.name_en || null
     const errs = {}, saved = []
-    /* تفرّد رقم الحدود قبل أي كتابة — نفس شرط نافذة الفاتورة:
-       ما تكرّر داخل الجدول يُرفض فوراً، وما بقي يُفحص في القاعدة (قد يكون على
-       تأشيرة لا يعرضها هذا الطابور). الصفوف المرفوضة تبقى متسخة بنقطة حمراء. */
-    const dupMsg = T('رقم الحدود مستخدَم مسبقاً على تأشيرة أخرى', 'Border number is already used on another visa')
+    /* تفرّد رقم الإقامة قبل أي كتابة: المكرّر داخل الجدول يُرفض فوراً، والباقي
+       يُفحص في القاعدة (قد يكون على إقامة لا يعرضها هذا الطابور). */
+    const dupMsg = T('رقم الإقامة مستخدَم مسبقاً على تأشيرة أخرى', 'Iqama number is already used on another visa')
     const blocked = new Set()
-    const wantBorder = new Map()   // رقم الحدود → معرّف الصف
+    const wantIq = new Map()
     for (const [id, patch] of entries) {
-      if (!Object.prototype.hasOwnProperty.call(patch, 'border_number')) continue
-      if (borderDup.has(id)) { errs[id] = dupMsg; blocked.add(id); continue }
-      const b = String(patch.border_number || '').trim()
-      if (b) wantBorder.set(b, id)
+      if (!Object.prototype.hasOwnProperty.call(patch, 'iqama_number')) continue
+      if (iqDup.has(id)) { errs[id] = dupMsg; blocked.add(id); continue }
+      const b = String(patch.iqama_number || '').trim()
+      if (b) wantIq.set(b, id)
     }
-    if (wantBorder.size) {
-      const ids = [...new Set(wantBorder.values())]
-      let q = sb.from('visa_applications').select('id,border_number').in('border_number', [...wantBorder.keys()]).is('deleted_at', null)
-      if (ids.length) q = q.not('id', 'in', `(${ids.join(',')})`)
+    if (wantIq.size) {
+      const ids = [...new Set(wantIq.values())]
+      let q = sb.from('iqama_issuance_applications').select('visa_application_id,iqama_number').in('iqama_number', [...wantIq.keys()]).is('deleted_at', null)
+      if (ids.length) q = q.not('visa_application_id', 'in', `(${ids.join(',')})`)
       const { data: clash } = await q
       for (const c of (clash || [])) {
-        const id = wantBorder.get(String(c.border_number || '').trim())
+        const id = wantIq.get(String(c.iqama_number || '').trim())
         if (id) { errs[id] = dupMsg; blocked.add(id) }
       }
     }
     const todo = entries.filter(([id]) => !blocked.has(id))
     for (let i = 0; i < todo.length; i += SAVE_CONCURRENCY) {
       await Promise.all(todo.slice(i, i + SAVE_CONCURRENCY).map(async ([id, patch]) => {
-        const body = { ...patch, updated_by: user?.id || null, updated_at: nowIso }
-        if (Object.prototype.hasOwnProperty.call(patch, 'usage_status_id')) {
-          body.usage_status_changed_at = nowIso
-          body.usage_status_changed_by = user?.id || null
-        }
-        const { error } = await sb.from('visa_applications').update(body).eq('id', id)
-        if (error) errs[id] = error.message || String(error)
-        else saved.push([id, patch])
+        const row = rowById.get(id)
+        if (!row) return
+        const visa = {}, iq = {}
+        for (const [k, v] of Object.entries(patch)) { if (VISA_KEYS.has(k)) visa[k] = v; else iq[k] = v }
+        try {
+          if (Object.keys(visa).length) {
+            const { error } = await sb.from('visa_applications').update({ ...visa, updated_by: user?.id || null, updated_at: nowIso }).eq('id', id)
+            if (error) throw new Error(error.message)
+          }
+          let newIq = null
+          if (Object.keys(iq).length) {
+            const body = buildIqPatch(row, iq, user, byName, nowIso)
+            if (row._iq?.id) {
+              const { data, error } = await sb.from('iqama_issuance_applications').update(body).eq('id', row._iq.id).select(IQ_FIELDS).single()
+              if (error) throw new Error(error.message)
+              newIq = data
+            } else {
+              /* صفّ الإقامة يُنشأ عند أول كتابة — كما تفعل نافذة التأمين/رخصة العمل في الفاتورة */
+              const { data, error } = await sb.from('iqama_issuance_applications').insert({
+                service_request_id: row.sr?.id || null,
+                visa_application_id: row.id,
+                main_facility_id: row.main_facility_id || null,
+                created_by: user?.id || null,
+                medical_status: 'pending',
+                ...body,
+              }).select(IQ_FIELDS).single()
+              if (error) throw new Error(error.message)
+              newIq = data
+            }
+          }
+          saved.push([id, visa, newIq])
+        } catch (e) { errs[id] = e.message || String(e) }
       }))
     }
     if (saved.length) {
-      const m = new Map(saved)
-      setRows((rs) => rs.map((r) => (m.has(r.id) ? { ...r, ...m.get(r.id) } : r)))
+      const m = new Map(saved.map(([id, visa, iq]) => [id, { visa, iq }]))
+      setRows((rs) => rs.map((r) => {
+        const s = m.get(r.id)
+        if (!s) return r
+        return flatten({ ...r, ...s.visa, iq: s.iq || r._iq })
+      }))
       setEdits((prev) => { const n = { ...prev }; for (const [id] of saved) delete n[id]; return n })
     }
     setRowErr(errs); setSaving(false); setSeq((s) => s + 1)
@@ -706,7 +870,7 @@ export default function VisaGridPage({ sb, user, toast, lang, onTabChange }) {
     toast && toast(failed
       ? T(`حُفظ ${saved.length} سطراً · فشل ${failed}`, `Saved ${saved.length} · ${failed} failed`)
       : T(`تم حفظ ${saved.length} سطراً`, `Saved ${saved.length} rows`))
-  }, [sb, saving, dirtyRowCount, edits, user, toast, T, borderDup])
+  }, [sb, saving, dirtyRowCount, edits, user, toast, T, iqDup, rowById])
 
   const discard = useCallback(() => { setEdits({}); setRowErr({}); setSeq((s) => s + 1) }, [])
 
@@ -717,60 +881,40 @@ export default function VisaGridPage({ sb, user, toast, lang, onTabChange }) {
     return () => window.removeEventListener('beforeunload', h)
   }, [dirtyCount])
 
-  /* ── طلب السداد ──────────────────────────────────────────────────────── */
-  const requestFee = useCallback(async () => {
-    if (!sb || !feeTarget || feeBusy) return
-    setFeeBusy(true); setFeeErr(null)
-    try {
-      const { data, error } = await sb.from('transaction_fees').insert({
-        service_request_id: feeTarget.sr?.id || null,
-        facility_id: fieldOf(feeTarget, 'main_facility_id') || null,
-        visa_application_id: feeTarget.id,
-        fee_kind_id: feeKindId,
-        fee_label_ar: 'رسوم التأشيرة',
-        amount: VISA_FEE_AMOUNT, paid_amount: 0, status: 'pending',
-        file_number: feeTarget.file_number ?? null,
-        notes: 'visa_grid_request', created_by: user?.id || null,
-      }).select('id,visa_application_id,amount,paid_amount,status,sadad_no').single()
-      if (error) throw new Error(error.message)
-      setFees((f) => ({ ...f, [feeTarget.id]: data }))
-      setFeeDone(true)
-    } catch (e) {
-      setFeeErr(T('فشل إنشاء طلب السداد: ' + (e.message || e), 'Failed: ' + (e.message || e)))
-    } finally { setFeeBusy(false) }
-  }, [sb, feeTarget, feeBusy, feeKindId, fieldOf, user, T])
-
-  const closeFee = useCallback(() => { if (!feeBusy) { setFeeTarget(null); setFeeErr(null); setFeeDone(false) } }, [feeBusy])
-
-  /* ── رفع ملف التأشيرة ────────────────────────────────────────────────── */
-  const pickFile = useCallback((row) => {
+  /* ── رفع ملفات المراحل ───────────────────────────────────────────────── */
+  const pickFile = useCallback((row, col) => {
     if (!canEdit) return
-    uploadTargetRef.current = row
+    uploadTargetRef.current = { row, col }
     if (fileInputRef.current) { fileInputRef.current.value = ''; fileInputRef.current.click() }
   }, [canEdit])
 
   const onFileChosen = useCallback(async (e) => {
     const file = e.target.files?.[0]
-    const row = uploadTargetRef.current
-    if (!file || !row || !sb) return
-    setUploading(row.id)
+    const tgt = uploadTargetRef.current
+    if (!file || !tgt || !sb) return
+    const { row, col } = tgt
+    setUploading(row.id + '|' + col.key)
     try {
-      const safe = (file.name || 'visa').replace(/[^\w.\-]+/g, '_')
-      const path = `visa_application/${row.id}/visa_file/${Date.now()}_${Math.random().toString(36).slice(2, 6)}_${safe}`
+      const safe = (file.name || col.note).replace(/[^\w.\-]+/g, '_')
+      const path = `visa-applications/${row.id}/${col.note}/${Date.now()}_${Math.random().toString(36).slice(2, 6)}_${safe}`
       const { error: upErr } = await sb.storage.from('attachments').upload(path, file, { cacheControl: '3600', upsert: false })
       if (upErr) throw new Error(upErr.message)
       const { data: pub } = sb.storage.from('attachments').getPublicUrl(path)
       const url = pub?.publicUrl || path
-      const { error } = await sb.from('visa_applications').update({ visa_file_path: url, updated_by: user?.id || null }).eq('id', row.id)
-      if (error) throw new Error(error.message)
-      await sb.from('attachments').insert({
+      const { error } = await sb.from('attachments').insert({
         entity_type: 'visa_application', entity_id: row.id,
         file_name: file.name, file_url: url, storage_path: path,
         mime_type: file.type || null, size_bytes: file.size || null,
-        notes: 'visa_file', uploaded_by: user?.id || null,
+        notes: col.note, uploaded_by: user?.id || null,
       })
-      setRows((rs) => rs.map((r) => (r.id === row.id ? { ...r, visa_file_path: url } : r)))
-      toast && toast(T('تم رفع ملف التأشيرة', 'Visa file uploaded'))
+      if (error) throw new Error(error.message)
+      if (col.pathKey) {
+        const { error: e2 } = await sb.from('visa_applications').update({ [col.pathKey]: url, updated_by: user?.id || null }).eq('id', row.id)
+        if (e2) throw new Error(e2.message)
+        setRows((rs) => rs.map((r) => (r.id === row.id ? { ...r, [col.pathKey]: url } : r)))
+      }
+      setFileAtt((m) => ({ ...m, [col.note]: { ...(m[col.note] || {}), [row.id]: url } }))
+      toast && toast(T('تم رفع الملف', 'File uploaded'))
     } catch (err) {
       toast && toast(T('فشل الرفع: ' + (err.message || err), 'Upload failed: ' + (err.message || err)))
     } finally { setUploading(null); uploadTargetRef.current = null }
@@ -806,37 +950,37 @@ export default function VisaGridPage({ sb, user, toast, lang, onTabChange }) {
   return (
     <div style={{ fontFamily: F }}>
       <style>{`
-        .vg-hdrwrap{overflow:hidden;border:1px solid var(--bd);border-bottom:none;border-radius:12px 12px 0 0;background:var(--hd)}
-        .vg-scroll{overflow-x:auto;overflow-y:hidden;border:1px solid var(--bd);border-top:none;
+        .pg-hdrwrap{overflow:hidden;border:1px solid var(--bd);border-bottom:none;border-radius:12px 12px 0 0;background:var(--hd)}
+        .pg-scroll{overflow-x:auto;overflow-y:hidden;border:1px solid var(--bd);border-top:none;
           border-radius:0 0 12px 12px;background:var(--card-grad2);outline:none}
-        .vg-scroll::-webkit-scrollbar{height:10px}
-        .vg-scroll::-webkit-scrollbar-thumb{background:rgba(176,125,0,.45);border-radius:5px}
-        .vg-scroll{scrollbar-width:thin;scrollbar-color:rgba(176,125,0,.45) transparent}
-        .vg-hdr-cell{position:relative;height:${COL_H}px;display:flex;align-items:center;justify-content:center;
+        .pg-scroll::-webkit-scrollbar{height:10px}
+        .pg-scroll::-webkit-scrollbar-thumb{background:rgba(176,125,0,.45);border-radius:5px}
+        .pg-scroll{scrollbar-width:thin;scrollbar-color:rgba(176,125,0,.45) transparent}
+        .pg-hdr-cell{position:relative;height:${COL_H}px;display:flex;align-items:center;justify-content:center;
           padding:0 8px;font-size:12.5px;font-weight:600;color:var(--hdtx);background:var(--hd);
           border-inline-end:1px solid var(--bd);box-shadow:inset 0 -2px 0 rgba(176,125,0,.55);
           white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-sizing:border-box;user-select:none}
-        .vg-grip{position:absolute;inset-inline-start:-3px;top:0;bottom:0;width:6px;cursor:col-resize;z-index:8}
-        .vg-row:hover .vg-cell{background-color:rgba(176,125,0,.05)}
-        .vg-in{width:100%;height:100%;background:transparent;border:none;outline:none;font-family:${F};font-size:12.5px;padding:0;box-sizing:border-box}
-        .vg-btn{height:36px;padding:0 13px;border-radius:9px;border:1px solid transparent;cursor:pointer;
+        .pg-grip{position:absolute;inset-inline-start:-3px;top:0;bottom:0;width:6px;cursor:col-resize;z-index:8}
+        .pg-row:hover .pg-cell{background-color:rgba(176,125,0,.05)}
+        .pg-in{width:100%;height:100%;background:transparent;border:none;outline:none;font-family:${F};font-size:12.5px;padding:0;box-sizing:border-box}
+        .pg-btn{height:36px;padding:0 13px;border-radius:9px;border:1px solid transparent;cursor:pointer;
           font-family:${F};font-size:12.5px;font-weight:600;display:inline-flex;align-items:center;gap:7px;
           background:var(--search-bg);color:var(--tx2);transition:.15s;box-sizing:border-box;flex-shrink:0;white-space:nowrap}
-        .vg-btn:hover:not(:disabled){background:var(--accent-soft);color:var(--accent);border-color:var(--accent-bd)}
-        .vg-btn:disabled{opacity:.4;cursor:not-allowed}
-        .vg-btn.pri{background:${C.gold};color:#000;border-color:${C.gold}}
-        .vg-btn.pri:hover:not(:disabled){filter:brightness(1.12);background:${C.gold};color:#000}
-        .vg-cellbtn{height:26px;padding:0 10px;border-radius:7px;border:1px solid;cursor:pointer;
+        .pg-btn:hover:not(:disabled){background:var(--accent-soft);color:var(--accent);border-color:var(--accent-bd)}
+        .pg-btn:disabled{opacity:.4;cursor:not-allowed}
+        .pg-btn.pri{background:${C.gold};color:#000;border-color:${C.gold}}
+        .pg-btn.pri:hover:not(:disabled){filter:brightness(1.12);background:${C.gold};color:#000}
+        .pg-cellbtn{height:26px;padding:0 10px;border-radius:7px;border:1px solid;cursor:pointer;
           font-family:${F};font-size:11px;font-weight:600;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
-        .vg-stage{padding:7px 14px;border-radius:9px;font-size:12.5px;font-weight:600;cursor:pointer;
+        .pg-stage{padding:7px 14px;border-radius:9px;font-size:12.5px;font-weight:600;cursor:pointer;
           font-family:${F};border:1px solid transparent;background:var(--search-bg);color:var(--tx3);
           display:inline-flex;align-items:center;gap:8px;transition:.15s;flex-shrink:0}
-        .vg-stage:hover{color:var(--tx)}
-        .vg-pg{width:32px;height:32px;border-radius:8px;background:var(--search-bg);border:none;color:${C.gold2};
+        .pg-stage:hover{color:var(--tx)}
+        .pg-pg{width:32px;height:32px;border-radius:8px;background:var(--search-bg);border:none;color:${C.gold2};
           cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
-        .vg-pg:hover:not(:disabled){background:${C.gold};color:#000}
-        .vg-pg:disabled{color:var(--tx4);cursor:not-allowed;opacity:.5}
-        .vg-fh{position:absolute;width:9px;height:9px;background:${C.gold};border:1px solid var(--bg);
+        .pg-pg:hover:not(:disabled){background:${C.gold};color:#000}
+        .pg-pg:disabled{color:var(--tx4);cursor:not-allowed;opacity:.5}
+        .pg-fh{position:absolute;width:9px;height:9px;background:${C.gold};border:1px solid var(--bg);
           cursor:crosshair;z-index:5;bottom:-5px;inset-inline-start:-5px}
       `}</style>
 
@@ -844,10 +988,10 @@ export default function VisaGridPage({ sb, user, toast, lang, onTabChange }) {
 
       {/* ── المراحل ── */}
       <div style={{ display: 'flex', gap: 7, marginBottom: 11, flexWrap: 'wrap' }}>
-        {STAGES.map((s) => {
+        {M.stages.map((s) => {
           const on = s.key === stage
           return (
-            <button key={s.key} type="button" className="vg-stage" onClick={() => setStage(s.key)}
+            <button key={s.key} type="button" className="pg-stage" onClick={() => setStage(s.key)}
               style={on ? { background: s.c + '22', borderColor: s.c + '66', color: s.c } : undefined}>
               <span style={{ width: 7, height: 7, borderRadius: '50%', background: s.c, opacity: on ? 1 : .45 }} />
               {isAr ? s.ar : s.en}
@@ -865,7 +1009,7 @@ export default function VisaGridPage({ sb, user, toast, lang, onTabChange }) {
             <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
           </svg>
           <input value={search} onChange={(e) => setSearch(e.target.value)}
-            placeholder={T('ابحث برقم التأشيرة، الحدود، الموحد، المرجع، العميل، المنشأة…', 'Search visa, border, unified, ref, client, facility…')}
+            placeholder={T('ابحث بالتأشيرة، الحدود، الإقامة، الوكالة، العامل، المرجع، العميل، المنشأة…', 'Search visa, border, iqama, PoA, worker, ref, client, facility…')}
             style={{ width: '100%', height: 36, padding: '0 36px 0 12px', borderRadius: 9, background: 'var(--search-bg)', border: '1px solid transparent', color: 'var(--tx)', fontSize: 12.5, fontFamily: F, boxSizing: 'border-box', outline: 'none' }} />
         </div>
         <select value={fBranch} onChange={(e) => setFBranch(e.target.value)} style={selCss}>
@@ -891,7 +1035,7 @@ export default function VisaGridPage({ sb, user, toast, lang, onTabChange }) {
           R{activeRow ? firstNo + head.r : 0}
           <span style={{ fontFamily: F, marginInlineStart: 7, opacity: .85 }}>{activeCol ? (isAr ? activeCol.ar : activeCol.en) : ''}</span>
         </span>
-        <input key={`fb-${stage}-${pageSafe}-${head.r}-${head.c}-${seq}`} ref={fbRef}
+        <input key={`fb-${mode}-${stage}-${pageSafe}-${head.r}-${head.c}-${seq}`} ref={fbRef}
           defaultValue={dispOf(activeRow, activeCol)}
           readOnly={!fbEditable}
           placeholder={fbEditable ? T('اكتب هنا أو الصق…', 'Type here or paste…') : T('عمود للقراءة فقط', 'Read-only column')}
@@ -909,21 +1053,19 @@ export default function VisaGridPage({ sb, user, toast, lang, onTabChange }) {
 
       {/* ── الشبكة ── */}
       <div style={{ position: 'relative' }}>
-        {/* الرأس خارج حاوية التمرير: sticky يُقاس على أقرب حاوية تمرير، والجسم
-            لا يُمرَّر رأسياً — فلو بقي الرأس بداخله لما تجمّد أصلاً. */}
-        <div ref={hdrRef} className="vg-hdrwrap" style={{ position: 'sticky', top: 0, zIndex: 6 }}>
+        <div ref={hdrRef} className="pg-hdrwrap" style={{ position: 'sticky', top: 0, zIndex: 6 }}>
           <div style={{ display: 'grid', gridTemplateColumns: tmpl, minWidth: totalW }}>
             {COLS.map((col, i) => (
-              <div key={col.key} className="vg-hdr-cell" title={isAr ? col.ar : col.en}>
+              <div key={col.key} className="pg-hdr-cell" title={isAr ? col.ar : col.en}>
                 {col.edit && <span style={{ width: 5, height: 5, borderRadius: '50%', background: C.gold2, marginInlineEnd: 6, flexShrink: 0 }} />}
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{isAr ? col.ar : col.en}</span>
-                {i > 0 && <span className="vg-grip" onMouseDown={(e) => { e.preventDefault(); resizeRef.current = { key: col.key, x0: e.clientX, w0: widths[i] } }} />}
+                {i > 0 && <span className="pg-grip" onMouseDown={(e) => { e.preventDefault(); resizeRef.current = { key: col.key, x0: e.clientX, w0: widths[i] } }} />}
               </div>
             ))}
           </div>
         </div>
 
-        <div ref={scrollRef} className="vg-scroll" tabIndex={0} onKeyDown={onKeyDown} onPaste={onPaste}
+        <div ref={scrollRef} className="pg-scroll" tabIndex={0} onKeyDown={onKeyDown} onPaste={onPaste}
           onScroll={(e) => { if (hdrRef.current) hdrRef.current.scrollLeft = e.currentTarget.scrollLeft }}>
           <div style={{ minWidth: totalW }}>
             {pageBlocks.map((b) => {
@@ -931,7 +1073,6 @@ export default function VisaGridPage({ sb, user, toast, lang, onTabChange }) {
               const fileSet = new Set(b.rows.map((x) => x.file_number ?? '-'))
               return (
                 <div key={b.sid}>
-                  {/* سطر عنوان الفاتورة — بياناتها مرة واحدة لا مع كل تأشيرة */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, height: HEAD_H, padding: '0 12px',
                     background: 'var(--bd2)', borderBottom: '1px solid var(--bd)', borderTop: '2px solid var(--bd)',
                     borderInlineStart: `3px solid ${C.gold}`, whiteSpace: 'nowrap', overflow: 'hidden' }}>
@@ -949,13 +1090,10 @@ export default function VisaGridPage({ sb, user, toast, lang, onTabChange }) {
 
                   {b.rows.map((row) => {
                     const r = rowIndex.get(row.id)
-                    /* التكرار يُعلَّم فوراً — لا ينتظر محاولة حفظ تفشل */
-                    const err = rowErr[row.id] || (borderDup.has(row.id)
-                      ? T('رقم الحدود مكرّر — يجب أن يكون فريداً', 'Border number is duplicated — it must be unique') : null)
-                    const fee = fees[row.id]
-                    const hasIssuance = CORE_KEYS.some((k) => { const v = fieldOf(row, k); return v != null && v !== '' })
+                    const err = rowErr[row.id] || (iqDup.has(row.id)
+                      ? T('رقم الإقامة مكرّر — يجب أن يكون فريداً', 'Iqama number is duplicated — it must be unique') : null)
                     return (
-                      <div key={row.id} className="vg-row" style={{ display: 'grid', gridTemplateColumns: tmpl, minWidth: totalW }}>
+                      <div key={row.id} className="pg-row" style={{ display: 'grid', gridTemplateColumns: tmpl, minWidth: totalW }}>
                         {COLS.map((col, c) => {
                           const active = head.r === r && head.c === c
                           const sel = inRange(r, c)
@@ -970,84 +1108,77 @@ export default function VisaGridPage({ sb, user, toast, lang, onTabChange }) {
                           if (fill) bg = 'rgba(176,125,0,.08)'
                           if (err && col.edit) bg = 'rgba(232,114,101,.14)'
 
+                          const centered = col.mono || col.kind === 'pay' || col.kind === 'file' || col.kind === 'select' || col.kind === 'lookup' || (col.edit && txt === '')
                           const style = {
                             ...cellBase, background: bg,
                             color: col.color || 'var(--tx)',
                             fontWeight: col.mono ? 600 : 500,
                             fontFamily: col.mono ? MONO : F,
                             direction: col.mono ? 'ltr' : undefined,
-                            justifyContent: col.mono || col.kind === 'fee' || col.kind === 'file' || (col.edit && txt === '') ? 'center' : 'flex-start',
+                            justifyContent: centered ? 'center' : 'flex-start',
                             cursor: col.edit && canEdit ? 'cell' : 'default',
                           }
                           if (active) style.boxShadow = `inset 0 0 0 2px ${C.gold2}`
 
                           let content = txt
                           if (col.kind === 'rownum') {
-                            const done = CORE_KEYS.map((k) => { const v = fieldOf(row, k); return v != null && v !== '' })
-                            const n = done.filter(Boolean).length
+                            const steps = M.steps(row, { stage: stageOf(row) })
+                            const n = steps.filter((s) => s.ok).length
                             content = (
                               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
                                 <span style={{ width: 5, height: ROW_H - 14, borderRadius: 2, background: fileColor(row.file_number), flexShrink: 0 }} />
                                 <span style={{ fontSize: 11.5, color: 'var(--tx3)', fontWeight: 600 }}>
                                   {T('ملف', 'File')} {row.file_number ?? '—'}
                                 </span>
-                                <span style={{ display: 'inline-flex', gap: 1.5 }} title={T(`${n} من ${CORE_KEYS.length} حقول إصدار`, `${n}/${CORE_KEYS.length} issuance fields`)}>
-                                  {done.map((d, k) => <i key={k} style={{ width: 4, height: 11, borderRadius: 1, background: d ? C.ok : 'var(--bd)' }} />)}
+                                <span style={{ display: 'inline-flex', gap: 1.5 }} title={steps.map((s) => `${s.ok ? '✓' : '·'} ${isAr ? s.ar : s.en}`).join('  ') + `  (${n}/${steps.length})`}>
+                                  {steps.map((s, k) => <i key={k} style={{ width: 4, height: 11, borderRadius: 1, background: s.ok ? C.ok : 'var(--bd)' }} />)}
                                 </span>
                               </span>
                             )
                           } else if (col.kind === 'facname') {
                             const f = facOf(row)
-                            /* مُستدَلّة = عُرفت من الرقم الموحّد وحده بلا رابط محفوظ.
-                               تُميَّز لأن السطر يبقى في «تحديد المنشأة» حتى يُربط. */
-                            const derived = f && !fieldOf(row, 'main_facility_id')
                             content = f
                               ? <span style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0 }}>
-                                  <span style={{ fontSize: 12, fontWeight: 600, color: derived ? 'var(--tx4)' : 'var(--tx2)', overflow: 'hidden', textOverflow: 'ellipsis' }}>{f.name_ar || f.name_en}</span>
-                                  <span style={{ display: 'flex', gap: 6, alignItems: 'center', minWidth: 0 }}>
-                                    {f.hrsd_number && <span style={{ fontSize: 10, color: 'var(--tx4)', fontFamily: MONO, direction: 'ltr' }}>{f.hrsd_number}</span>}
-                                    {derived && <span style={{ fontSize: 9.5, color: C.gold2, whiteSpace: 'nowrap' }}>{T('غير مربوطة', 'not linked')}</span>}
-                                  </span>
+                                  <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx2)', overflow: 'hidden', textOverflow: 'ellipsis' }}>{f.name_ar || f.name_en}</span>
+                                  {f.hrsd_number && <span style={{ fontSize: 10, color: 'var(--tx4)', fontFamily: MONO, direction: 'ltr' }}>{f.hrsd_number}</span>}
                                 </span>
                               : <span style={{ fontSize: 11.5, color: 'var(--tx5)' }}>{T('لم تُحدَّد', 'not set')}</span>
-                          } else if (col.kind === 'fee') {
-                            content = <FeeCell T={T} fee={fee} hasIssuance={hasIssuance} canEdit={canEdit}
-                              onRequest={() => { setFeeErr(null); setFeeDone(false); setFeeTarget(row) }} />
-                          } else if (col.kind === 'sadad') {
-                            content = txt ? <span style={{ color: C.gold2, fontWeight: 600 }}>{txt}</span>
-                                          : <span style={{ fontSize: 11, color: 'var(--tx5)' }}>{T('لم يُسجَّل بعد', 'not set yet')}</span>
+                          } else if (col.kind === 'vstate') {
+                            content = <span style={{ fontSize: 11.5, color: 'var(--tx4)', overflow: 'hidden', textOverflow: 'ellipsis' }}>{txt}</span>
+                          } else if (col.kind === 'pay') {
+                            content = <PayCell T={T} pay={payOf(row, col.pay)} />
                           } else if (col.kind === 'file') {
-                            /* المصدران معاً: الجدول يكتب visa_file_path، ونافذة الفاتورة
-                               تكتب صفّ attachments فقط — فأيّهما وُجد فالملف موجود. */
-                            const url = fieldOf(row, 'visa_file_path') || fileAtt[row.id] || ''
-                            content = uploading === row.id
+                            const url = (col.pathKey ? row[col.pathKey] : null) || fileAtt[col.note]?.[row.id] || ''
+                            content = uploading === row.id + '|' + col.key
                               ? <span style={{ fontSize: 11, color: C.gold2, fontWeight: 600 }}>{T('جارٍ الرفع…', 'Uploading…')}</span>
                               : url
-                                ? <a href={url} target="_blank" rel="noreferrer" onClick={(ev) => ev.stopPropagation()} className="vg-cellbtn"
+                                ? <a href={url} target="_blank" rel="noreferrer" onClick={(ev) => ev.stopPropagation()} className="pg-cellbtn"
                                     style={{ background: 'rgba(46,204,113,.12)', borderColor: 'rgba(46,204,113,.4)', color: C.ok, textDecoration: 'none' }}>
                                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
                                     {T('عرض', 'View')}
                                   </a>
                                 : canEdit
-                                  ? <button type="button" className="vg-cellbtn" onMouseDown={(ev) => ev.stopPropagation()} onClick={(ev) => { ev.stopPropagation(); pickFile(row) }}
-                                      title={hasIssuance ? T('أُدخلت بيانات الإصدار بلا ملف تأشيرة — النافذة في الفاتورة تشترطه', 'Issuance data entered without a visa file — the invoice modal requires it') : undefined}
-                                      style={hasIssuance
-                                        ? { background: 'rgba(217,148,0,.12)', borderColor: 'rgba(217,148,0,.45)', color: C.warn }
-                                        : { background: 'transparent', borderColor: 'var(--bd)', color: 'var(--tx4)' }}>
+                                  ? <button type="button" className="pg-cellbtn" onMouseDown={(ev) => ev.stopPropagation()} onClick={(ev) => { ev.stopPropagation(); pickFile(row, col) }}
+                                      style={{ background: 'transparent', borderColor: 'var(--bd)', color: 'var(--tx4)' }}>
                                       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
-                                      {hasIssuance ? T('رفع ⚠', 'Upload ⚠') : T('رفع', 'Upload')}
+                                      {T('رفع', 'Upload')}
                                     </button>
                                   : <span style={{ color: 'var(--tx5)' }}>—</span>
-                          } else if (col.kind === 'status' && txt) {
-                            const code = statusById.get(fieldOf(row, 'usage_status_id'))?.code
-                            content = <span style={{ color: STATUS_COLOR[code] || 'var(--tx)', fontWeight: 600 }}>{txt}</span>
+                          } else if (col.kind === 'select' && txt) {
+                            const v = fieldOf(row, col.key)
+                            const o = (col.opts || []).find((x) => String(x.v) === String(v))
+                            content = <span style={{ color: o?.c || 'var(--tx)', fontWeight: 600 }}>{txt}</span>
+                          } else if (col.kind === 'lookup' && txt) {
+                            const code = statusById.get(fieldOf(row, col.key))?.code
+                            const c2 = code === 'accomplished' ? C.ok : code === 'rejected' ? C.red : C.warn
+                            content = <span style={{ color: c2, fontWeight: 600 }}>{txt}</span>
                           } else if (col.edit && txt === '') {
                             content = <span style={{ width: '55%', height: 1, borderBottom: '1px dotted rgba(212,160,23,.45)' }} />
                           }
 
                           const showFill = canEdit && !editing && r === range.r2 && c === range.c2 && col.edit
                           return (
-                            <div key={col.key} className="vg-cell" style={style} data-active={active ? '1' : undefined}
+                            <div key={col.key} className="pg-cell" style={style} data-active={active ? '1' : undefined}
                               title={err && col.edit ? err : (typeof content === 'string' ? content : undefined)}
                               onMouseDown={(e) => {
                                 if (e.button !== 0) return
@@ -1063,11 +1194,9 @@ export default function VisaGridPage({ sb, user, toast, lang, onTabChange }) {
                               onDoubleClick={() => beginEdit(r, c)}>
                               {isEditing
                                 ? <CellEditor col={col} seed={editing.seed} initial={dispOf(row, col)} inputRef={cellInRef}
-                                    statuses={statuses} facilities={facilities} isAr={isAr} commit={commitEdit} cancel={cancelEdit} />
+                                    statuses={statuses} isAr={isAr} commit={commitEdit} cancel={cancelEdit} />
                                 : content}
-                              {/* مقبض التعبئة داخل الخلية — لا حساب إحداثيات عام مع اختلاف
-                                  ارتفاعات الأسطر بسبب عناوين الفواتير */}
-                              {showFill && <span className="vg-fh" onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); fillRef.current = range.r2; setFillTo(range.r2) }} />}
+                              {showFill && <span className="pg-fh" onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); fillRef.current = range.r2; setFillTo(range.r2) }} />}
                             </div>
                           )
                         })}
@@ -1081,7 +1210,7 @@ export default function VisaGridPage({ sb, user, toast, lang, onTabChange }) {
 
             {view.length === 0 && (
               <div style={{ padding: 70, textAlign: 'center', color: 'var(--tx4)', fontSize: 13.5 }}>
-                {T('لا توجد تأشيرات في هذه المرحلة', 'No visas in this stage')}
+                {isAr ? M.emptyAr : M.emptyEn}
               </div>
             )}
           </div>
@@ -1098,13 +1227,13 @@ export default function VisaGridPage({ sb, user, toast, lang, onTabChange }) {
         </span>
         {totalPages > 1 && (
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            <button className="vg-pg" disabled={pageSafe === 0} onClick={() => setPage((p) => Math.max(0, p - 1))}>
+            <button className="pg-pg" disabled={pageSafe === 0} onClick={() => setPage((p) => Math.max(0, p - 1))}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
             </button>
             <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx3)' }}>
               {T('صفحة', 'Page')} <span style={{ color: C.gold2, direction: 'ltr', display: 'inline-block' }}>{pageSafe + 1}</span> / <span style={{ direction: 'ltr', display: 'inline-block' }}>{totalPages}</span>
             </span>
-            <button className="vg-pg" disabled={pageSafe + 1 >= totalPages} onClick={() => setPage((p) => p + 1)}>
+            <button className="pg-pg" disabled={pageSafe + 1 >= totalPages} onClick={() => setPage((p) => p + 1)}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
             </button>
           </div>
@@ -1130,78 +1259,34 @@ export default function VisaGridPage({ sb, user, toast, lang, onTabChange }) {
             </span>
           )}
           <div style={{ marginInlineStart: 'auto', display: 'flex', gap: 8 }}>
-            <button type="button" className="vg-btn" onClick={discard} disabled={saving}>{T('تراجع عن الكل', 'Discard all')}</button>
-            <button type="button" className="vg-btn pri" onClick={save} disabled={saving}>{saving ? T('جاري الحفظ…', 'Saving…') : T('حفظ التعديلات', 'Save changes')}</button>
+            <button type="button" className="pg-btn" onClick={discard} disabled={saving}>{T('تراجع عن الكل', 'Discard all')}</button>
+            <button type="button" className="pg-btn pri" onClick={save} disabled={saving}>{saving ? T('جاري الحفظ…', 'Saving…') : T('حفظ التعديلات', 'Save changes')}</button>
           </div>
         </div>
       )}
-
-      {/* ── نافذة طلب السداد ── */}
-      {feeTarget && (() => {
-        const fac = facById.get(fieldOf(feeTarget, 'main_facility_id'))
-        return (
-          <FKModal open onClose={closeFee} width={480} variant="create"
-            title={T('طلب سداد رسوم التأشيرة', 'Request visa fee payment')}
-            errorMsg={feeErr}
-            success={feeDone ? <SuccessView title={T('أُرسل الطلب إلى السدادات', 'Sent to payments')} /> : undefined}
-            footer={<ActionButton disabled={feeBusy} onClick={requestFee}>
-              {feeBusy ? T('جارٍ الإرسال…', 'Sending…') : T('إرسال للسدادات', 'Send to payments')}
-            </ActionButton>}>
-            <ModalSection label={T('تفاصيل الطلب', 'Request details')}>
-              <div style={{ ...GRID, paddingBlock: 8 }}>
-                <InfoRow l={T('رقم المرجع', 'Ref no.')} v={feeTarget.sr?.request_ref_no || '—'} mono />
-                <InfoRow l={T('المنشأة', 'Facility')} v={fac ? (fac.name_ar || fac.name_en) : T('لم تُحدَّد', 'not set')} />
-                <InfoRow l={T('الرقم الموحد', 'Unified no.')} v={fieldOf(feeTarget, 'unified_number') || '—'} mono />
-                <InfoRow l={T('رقم الموارد البشرية', 'HRSD no.')} v={fac?.hrsd_number || '—'} mono />
-                <InfoRow l={T('المبلغ', 'Amount')} v={`${enNum(VISA_FEE_AMOUNT)} ${T('ريال', 'SAR')}`} strong />
-              </div>
-              <div style={{ fontSize: 11.5, color: 'var(--tx4)', lineHeight: 1.7, marginTop: 6 }}>
-                {T('يُنشأ طلب سداد معلّق يظهر في «سدادات الخدمات»، ويُستكمل هناك برقم السداد بعد الدفع.',
-                   'Creates a pending fee that appears in Service Payments, completed there with the SADAD number.')}
-              </div>
-            </ModalSection>
-          </FKModal>
-        )
-      })()}
     </div>
   )
 }
 
-/* ═══ خلية السداد ═══ */
-function FeeCell({ T, fee, hasIssuance, canEdit, onRequest }) {
-  if (!fee) {
-    if (!canEdit) return <span style={{ color: 'var(--tx5)' }}>—</span>
-    return (
-      <button type="button" className="vg-cellbtn" onMouseDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onRequest() }}
-        style={{ background: 'rgba(176,125,0,.14)', borderColor: 'rgba(176,125,0,.45)', color: '#D4A017' }}>
-        {T('طلب سداد 2٬000', 'Request 2,000')}
-      </button>
-    )
-  }
-  const paid = fee.status === 'paid'
-  const c = paid ? '#2ecc71' : '#d99400'
+/* ═══ خلية الدفعة — تحذير لا قفل ═══ */
+function PayCell({ T, pay }) {
+  if (!pay) return <span style={{ fontSize: 11, color: 'var(--tx5)' }}>{T('لا دفعة', 'no installment')}</span>
+  const c = pay.state === 'paid' ? C.ok : C.warn
+  const label = pay.state === 'paid' ? T('مدفوعة', 'paid')
+    : pay.state === 'partial' ? T(`جزئية ${enNum(pay.paid)}/${enNum(pay.total)}`, `partial ${enNum(pay.paid)}/${enNum(pay.total)}`)
+    : T('غير مدفوعة', 'unpaid')
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, fontWeight: 600, color: c }}>
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, fontWeight: 600, color: c }}
+      title={pay.state === 'paid' ? undefined : T('الدفعة غير مسدّدة بالكامل — الإدخال مسموح مع التحذير', 'Installment not fully paid — entry allowed with a warning')}>
       <span style={{ width: 6, height: 6, borderRadius: '50%', background: c }} />
-      {paid ? T('مدفوع', 'paid') : T('بانتظار السداد', 'pending')}
-      {/* لا قفل صلب — تحذير فقط، بقرار المستخدم */}
-      {!paid && hasIssuance && <span title={T('أُدخلت بيانات الإصدار قبل سداد الرسم', 'Issuance data entered before the fee was paid')}>⚠</span>}
+      {label}
+      {pay.state !== 'paid' && <span>⚠</span>}
     </span>
   )
 }
 
-function InfoRow({ l, v, mono, strong }) {
-  return (
-    <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '7px 0', borderBottom: '1px solid var(--bd2)' }}>
-      <span style={{ fontSize: 12, color: 'var(--tx4)', fontWeight: 600 }}>{l}</span>
-      <span style={{ fontSize: strong ? 14 : 12.5, fontWeight: 600, color: strong ? '#D4A017' : 'var(--tx)',
-        fontFamily: mono ? MONO : F, direction: mono ? 'ltr' : undefined }}>{v}</span>
-    </div>
-  )
-}
-
 /* ═══ محرّر الخلية — غير متحكَّم به: القيمة تُقرأ من الـref عند الإنهاء ═══ */
-function CellEditor({ col, seed, initial, inputRef, statuses, facilities, isAr, commit, cancel }) {
+function CellEditor({ col, seed, initial, inputRef, statuses, isAr, commit, cancel }) {
   const stop = (e) => e.stopPropagation()
   const onKey = (e) => {
     e.stopPropagation()
@@ -1209,40 +1294,34 @@ function CellEditor({ col, seed, initial, inputRef, statuses, facilities, isAr, 
     else if (e.key === 'Escape') { e.preventDefault(); cancel() }
     else if (e.key === 'Tab') { e.preventDefault(); commit([0, e.shiftKey ? -1 : 1]) }
   }
+  const selStyle = { width: '100%', height: '100%', background: 'var(--modal-bg,#1a1a1a)', color: 'var(--tx)', border: 'none', outline: 'none', fontFamily: F, fontSize: 12.5 }
 
-  if (col.kind === 'status') {
+  if (col.kind === 'select') {
     return (
       <select autoFocus defaultValue={initial} onMouseDown={stop} onKeyDown={onKey}
-        onChange={(e) => commit(null, e.target.value)} onBlur={() => commit(null, initial)}
-        style={{ width: '100%', height: '100%', background: 'var(--modal-bg,#1a1a1a)', color: 'var(--tx)', border: 'none', outline: 'none', fontFamily: F, fontSize: 12.5 }}>
+        onChange={(e) => commit(null, e.target.value)} onBlur={() => commit(null, initial)} style={selStyle}>
         <option value="">—</option>
-        {statuses.map((s) => {
-          const label = isAr ? s.value_ar : (s.value_en || s.value_ar)
-          return <option key={s.id} value={label}>{label}</option>
-        })}
+        {(col.opts || []).map((o) => { const label = isAr ? o.ar : o.en; return <option key={String(o.v)} value={label}>{label}</option> })}
       </select>
     )
   }
-
-  const listId = col.kind === 'uni' ? 'vg-uni-list' : col.kind === 'hrsd' ? 'vg-hrsd-list' : col.kind === 'gosi' ? 'vg-gosi-list' : undefined
+  if (col.kind === 'lookup') {
+    return (
+      <select autoFocus defaultValue={initial} onMouseDown={stop} onKeyDown={onKey}
+        onChange={(e) => commit(null, e.target.value)} onBlur={() => commit(null, initial)} style={selStyle}>
+        <option value="">—</option>
+        {statuses.map((s) => { const label = isAr ? s.value_ar : (s.value_en || s.value_ar); return <option key={s.id} value={label}>{label}</option> })}
+      </select>
+    )
+  }
   return (
-    <>
-      <input className="vg-in" autoFocus ref={inputRef} list={listId}
-        defaultValue={seed != null ? seed : initial}
-        onMouseDown={stop} onKeyDown={onKey} onBlur={() => commit(null)}
-        onFocus={(e) => { if (seed == null) e.target.select(); else e.target.setSelectionRange(seed.length, seed.length) }}
-        placeholder={col.kind === 'date' ? 'YYYY-MM-DD' : undefined}
-        style={{ textAlign: col.mono ? 'center' : 'start', direction: col.mono ? 'ltr' : undefined,
-          fontFamily: col.mono ? MONO : F, fontWeight: 600, color: '#D4A017' }} />
-      {listId && (
-        <datalist id={listId}>
-          {facilities.slice(0, 1500).map((f) => {
-            const v = col.kind === 'uni' ? f.unified_number : col.kind === 'gosi' ? f.gosi_number : f.hrsd_number
-            return v ? <option key={f.id} value={v}>{f.name_ar || f.name_en || ''}</option> : null
-          })}
-        </datalist>
-      )}
-    </>
+    <input className="pg-in" autoFocus ref={inputRef}
+      defaultValue={seed != null ? seed : initial}
+      onMouseDown={stop} onKeyDown={onKey} onBlur={() => commit(null)}
+      onFocus={(e) => { if (seed == null) e.target.select(); else e.target.setSelectionRange(seed.length, seed.length) }}
+      placeholder={col.kind === 'date' ? 'YYYY-MM-DD' : undefined}
+      style={{ textAlign: col.mono ? 'center' : 'start', direction: col.mono ? 'ltr' : undefined,
+        fontFamily: col.mono ? MONO : F, fontWeight: 600, color: '#D4A017' }} />
   )
 }
 

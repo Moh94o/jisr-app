@@ -165,6 +165,9 @@ export const MODULE_ACTIONS = {
   ops_excels: [
     A('view', 'عرض جداول العمل', 'view'),
     A('edit', 'تعديل الخلايا', 'edit'),
+    /* فكّ الصفوف المقفولة (مثل صفّ التأشيرة بعد رفع ملفها) — امتيازٌ صريح:
+       لا يتسرّب بالتوافق القديم لدورٍ لم يُضبط، ويُمنح قصداً لمن يُراد. */
+    A('unlock_rows', 'السماح بالتعديل — فك قفل الصفوف المقفولة', 'special'),
     A('create', 'إضافة صف', 'create'),
     A('delete', 'حذف صف', 'delete'),
     A('columns', 'إدارة الأعمدة (إضافة/إخفاء/تنسيق/صيغ)', 'special'),
@@ -217,6 +220,7 @@ export const TAB_MODULE = {
   home: 'home',
   facilities: 'facilities', workers: 'workers', temp_workers: 'temp_workers', work_visas: 'work_visas',
   visa_grid: 'work_visas',
+  visa_wakalah_grid: 'work_visas', iqama_grid: 'work_visas', iqama_delivery_grid: 'work_visas',
   invoices: 'invoices',
   jub1_receipts: 'jub1_receipts',
   transfer_calc: 'quotations', renewal_calc: 'renewal_calc', manpower_calc: 'manpower_calc',
@@ -268,7 +272,12 @@ export const MODULE_META = {
 // exclude it on a specific card. Card lists are verified against the real
 // detail page of each tab (a card listed here actually renders there).
 const ca = (action, label_ar, kind = 'special') => ({ action, label_ar, kind })
-const C = (key, label_ar, group = 'core', actions = []) => ({ key, label_ar, group, actions })
+/* `optIn` — بطاقةٌ **محجوبة افتراضياً**: لا تُرى إلا بمنحٍ صريح (`card:…=true`)
+   من «الأدوار والصلاحيات»، خلافاً للنموذج العام (ظاهرة ما لم تُستثنَ). قرار
+   المستخدم 2026-09-02: كل ما يُبنى جديداً يُقفل حتى يُفتح من البرنامج. */
+const C = (key, label_ar, group = 'core', actions = [], optIn = false) => ({ key, label_ar, group, actions, optIn })
+/* هل هذه البطاقة من نوع «منحٌ صريح»؟ تُستشار من حرّاس الظهور والمحرّر معاً */
+export const cardOptIn = (tabId, key) => !!((TAB_CARDS[tabId] || []).find((c) => c.key === key) || {}).optIn
 
 // Reusable action sets.
 /* ── «جداول العمل»: كل خاصيّة تُستثنى على مستوى الجدول الواحد ───────────────
@@ -276,6 +285,7 @@ const C = (key, label_ar, group = 'core', actions = []) => ({ key, label_ar, gro
    ممنوحة عموماً، لكن ليست على هذا الجدول». */
 const OPS_SHEET_ACTS = [
   ca('edit', 'تعديل الخلايا', 'edit'),
+  ca('unlock_rows', 'السماح بالتعديل (الصفوف المقفولة)'),
   ca('create', 'إضافة صف', 'create'),
   ca('delete', 'حذف صف', 'delete'),
   ca('columns', 'إدارة الأعمدة'),
@@ -287,31 +297,55 @@ const OPS_SHEET_ACTS = [
   ca('rename', 'التسمية'),
 ]
 /* قائمة الجداول = مفاتيح `VIEWS` في OpsExcelsPage بترتيبها ومجموعاتها.
-   ⚠️ عند إضافة جدول هناك أضف سطره هنا وإلا لم يظهر في تبويب الصلاحيات. */
+   ⚠️ عند إضافة جدول هناك أضف سطره هنا وإلا لم يظهر في تبويب الصلاحيات.
+   ⚠️ والتسمية هنا يجب أن تطابق **الاسم المعروض** (بما فيه ما أُعيدت تسميته في
+   ops_sheet_config.layout.name_ar) — وإلا بحث المدير عن جدولٍ باسمه الظاهر
+   في الشيتات فلم يجده في الصلاحيات. */
 const OPS_SHEETS = [
   ['persons', 'الأشخاص', 'مركز المزامنة'],
-  ['companies', 'الشركات', 'مركز المزامنة'],
+  ['companies', 'المنشآت الرئيسية', 'مركز المزامنة'],
+  ['exemption', 'الإعفاء', 'مركز المزامنة'],
+  ['owner_exemption', 'إعفاء الملاك', 'مركز المزامنة', true],
   ['companies_detailed', 'المنشآت تفصيلي', 'مركز المزامنة'],
+  ['fac_sbc', 'المنشآت المركز السعودي', 'مركز المزامنة'],
+  ['fac_qiwa', 'المنشآت قوى', 'مركز المزامنة'],
+  ['fac_gosi', 'المنشآت التأمينات', 'مركز المزامنة'],
+  ['fac_muqeem', 'المنشآت مقيم', 'مركز المزامنة'],
+  ['fac_attachments', 'مرفقات المنشآت', 'مركز المزامنة'],
   ['subscriptions', 'الاشتراكات', 'مركز المزامنة'],
   ['nitaqat', 'نطاقات والاستقطاب', 'مركز المزامنة'],
   ['qawaem', 'القوائم المالية', 'مركز المزامنة'],
   ['mudad', 'مدد', 'مركز المزامنة'],
-  ['ajeer', 'اجير', 'مركز المزامنة'],
-  ['baladi_licenses', 'الرخص البلدية', 'مركز المزامنة'],
-  ['permanent_workers', 'العمالة الدائمة — البيانات الأساسية', 'العمالة'],
+  ['ajeer', 'المنشآت أجير', 'مركز المزامنة'],
+  ['baladi_licenses', 'رخص البلدية', 'مركز المزامنة'],
+  ['permanent_workers', 'العمالة — البيانات الأساسية', 'العمالة'],
   ['permanent_workers_dates', 'العمالة الدائمة — التواريخ والتأشيرات', 'العمالة'],
   ['permanent_workers_actual', 'العمالة الدائمة — البيانات الفعلية', 'العمالة'],
   ['permanent_workers_invoices', 'العمالة الدائمة — الفواتير', 'العمالة'],
   ['recoveries', 'الاسترجاعات', 'العمالة'],
   ['final_exit', 'خروج نهائي', 'العمالة'],
   ['saudization', 'السعودة — مزامنة', 'السعودة'],
+  // ⬇ مساران: التأشيرة بإقامة = إصدار التأشيرات ← الوكالة ← الإقامات ← الطباعة والاستلام
   ['saudization_entry', 'السعودة — إدخال', 'السعودة'],
-  ['work_visas', 'تأشيرات العمل', 'الخدمات'],
-  ['visa_wakalas', 'وكالات التأشيرات', 'الخدمات'],
+  ['work_visas', 'إصدار التأشيرات', 'الخدمات'],
+  ['visa_wakalas', 'وكالة التأشيرات', 'الخدمات'],
   ['iqama_issuance', 'إصدار الإقامات', 'الخدمات'],
+  ['iqama_delivery', 'طباعة واستلام الإقامات', 'الخدمات'],
   ['transfer_txn', 'نقل الكفالة', 'الخدمات'],
   ['ajeer_requests', 'رفع طلبات أجير', 'الخدمات'],
   ['ajeer_secondment', 'الإعارة (أجير)', 'الخدمات'],
+  // ⬇ جداول خدمات الطلبات (محرّك svSheet في OpsExcelsPage) — مصدرها الفواتير.
+  //    العنصر الرابع `true` = محجوب افتراضياً حتى يُمنح صراحةً (optIn).
+  ['svc_exit_visas', 'تأشيرات الخروج والعودة والخروج النهائي', 'الخدمات', true],
+  ['svc_chamber', 'تصديق الغرفة التجارية', 'الخدمات', true],
+  ['svc_ajeer', 'عقود أجير', 'الخدمات', true],
+  ['svc_medical', 'التأمين الطبي', 'الخدمات', true],
+  ['svc_profession', 'تغيير المهنة', 'الخدمات', true],
+  ['svc_ext_transfer', 'الموافقة للنقل الخارجي', 'الخدمات', true],
+  ['svc_salary', 'تعديل الراتب', 'الخدمات', true],
+  ['svc_passport', 'تحديث بيانات الجواز', 'الخدمات', true],
+  ['svc_documents', 'المستندات', 'الخدمات', true],
+  ['svc_supplier_payroll', 'طلب رواتب سبلاير', 'الخدمات', true],
   ['invoices', 'الفواتير', 'المالية'],
   ['agent_commissions', 'عمولات الوسطاء', 'المالية'],
   ['collections', 'تحصيل الفواتير', 'المالية'],
@@ -442,7 +476,7 @@ export const TAB_CARDS = {
      القائمة — وكل خاصيّة داخله زرٌّ يُستثنى وحده. مفاتيح البطاقات هي `view_key`
      نفسها في `OpsExcelsPage.VIEWS`، فأي جدول جديد يُضاف هناك يُضاف سطره هنا.
      الجداول المخصّصة (`custom_*`) لا تُدرَج — تُنشأ وقت التشغيل. */
-  ops_excels: OPS_SHEETS.map(([k, ar, grp]) => C(k, ar, grp, OPS_SHEET_ACTS)),
+  ops_excels: OPS_SHEETS.map(([k, ar, grp, optIn]) => C(k, ar, grp, OPS_SHEET_ACTS, !!optIn)),
   sync_log: [C('sync_activities_feed', 'أنشطة المزامنة')],
   admin_clients: [
     C('client_info', 'بيانات العميل', 'core', EDIT), C('invoices_log', 'سجل الفواتير'),
@@ -801,14 +835,40 @@ export const opsFieldKey = (viewKey, colKey) => `${viewKey}__${colKey}`
    ترتيب التحميل — لا يهمّ أيّهما حُمّل أوّلاً. */
 const OPS_REG = (globalThis.__jisrOpsColumns ||= {})
 export const registerOpsColumns = (byView) => { Object.assign(OPS_REG, byView || {}) }
+/* تخطيطات الجداول (`ops_sheet_config.layout`) — بها تُطابق قائمةُ الحقول في
+   الصلاحيات **الجدولَ كما يراه المستخدم الآن**: العمود المحذوف نهائياً يختفي،
+   والمعاد تسميتُه يظهر باسمه الجديد، والأعمدة المخصّصة (＋ عمود) تُدرَج،
+   والترتيب ترتيبُ الجدول المحفوظ. تُسجَّل من OpsExcelsPage عند التحميل/الحفظ
+   ومن لوحة الصلاحيات نفسها عند فتحها (جلبٌ مستقل — المدير قد لا يفتح الجداول). */
+const OPS_LAY = (globalThis.__jisrOpsLayouts ||= {})
+export const registerOpsLayouts = (byView) => { Object.assign(OPS_LAY, byView || {}) }
 const opsColumnFields = () => {
   const out = []
   for (const [vk, cols] of Object.entries(OPS_REG)) {
-    for (const c of (cols || [])) {
-      if (!c || !c.key) continue
-      // `edit:false` لعمودٍ مشتقٍّ لا يُكتب أصلاً — مبدّل قفلٍ بلا معنى تشويش
-      out.push(F(opsFieldKey(vk, c.key), c.label || c.key, vk, { edit: !c.readOnly }))
+    const lay = OPS_LAY[vk] || {}
+    const removed = new Set(Array.isArray(lay.removed) ? lay.removed : [])
+    const labels = lay.labels || {}
+    const labOf = (k, fb) => {
+      const l = labels[k]
+      if (!l) return fb
+      return typeof l === 'string' ? l : (l.ar || l.en || fb)
     }
+    const fields = []
+    for (const c of (cols || [])) {
+      if (!c || !c.key || removed.has(c.key)) continue
+      // `edit:false` لعمودٍ مشتقٍّ لا يُكتب أصلاً — مبدّل قفلٍ بلا معنى تشويش
+      fields.push(F(opsFieldKey(vk, c.key), labOf(c.key, c.label || c.key), vk, { edit: !c.readOnly }))
+    }
+    for (const cc of (Array.isArray(lay.custom) ? lay.custom : [])) {
+      if (!cc || !cc.key || removed.has(cc.key)) continue
+      fields.push(F(opsFieldKey(vk, cc.key), labOf(cc.key, cc.ar || cc.key), vk, { edit: true }))
+    }
+    // ترتيب الحقول = ترتيب أعمدة الجدول المحفوظ؛ ما ليس في `order` يبقى بترتيب الكود في الذيل
+    if (Array.isArray(lay.order) && lay.order.length) {
+      const pos = new Map(lay.order.map((k, i) => [opsFieldKey(vk, k), i]))
+      fields.sort((a, b) => (pos.get(a.key) ?? 1e6) - (pos.get(b.key) ?? 1e6))
+    }
+    out.push(...fields)
   }
   return out
 }
