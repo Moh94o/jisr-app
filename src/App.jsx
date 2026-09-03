@@ -645,7 +645,11 @@ const T=(ar,en)=>lang==='ar'?ar:en;const TL=(ar)=>lang==='ar'?ar:(TR[ar]||ar);co
 {id:'admin_hub',l:T('الإدارة','Admin'),i:'settings'}
 ];
 const hubTabs={
-  workforce:[{id:'facilities',l:T('المنشآت','Facilities'),i:'facility'},{id:'workers',l:T('العمالة الدائمة','Permanent Workforce'),i:'labor'},{id:'temp_workers',l:T('العمالة المؤقتة','Temporary Workforce'),i:'labor'},{id:'visa_grid',l:T('جدول إصدار التأشيرات','Visa Issuance Grid'),i:'calendar'},{id:'visa_wakalah_grid',l:T('جدول الوكالات','PoA Grid'),i:'notes'},{id:'iqama_grid',l:T('جدول إصدار الإقامات','Iqama Issuance Grid'),i:'worker'},{id:'iqama_delivery_grid',l:T('جدول توصيل الإقامات','Iqama Delivery Grid'),i:'transaction'}],
+  /* أُزيلت من القائمة الجانبية بطلب المستخدم: «العمالة المؤقتة» وجداول
+     التأشيرات/الوكالات/إصدار الإقامات/توصيل الإقامات. مسارات الصفحات باقية
+     أدناه عمداً — «العمالة المؤقتة» يُفتح من رابطٍ داخل الفاتورة
+     (`app-navigate-temp-worker` في InvoicePage)، فحذف المسار يكسر ذلك الرابط. */
+  workforce:[{id:'facilities',l:T('المنشآت','Facilities'),i:'facility'},{id:'workers',l:T('العمالة الدائمة','Permanent Workforce'),i:'labor'}],
   // «اكسلات العمليات» خرجت من هنا إلى تبويب رئيسي مستقلّ — لم تعد تابعة للمزامنة
   sync_center:[{id:'sync_hub',l:T('مركز المزامنة','Sync Hub'),i:'refresh'}],
   finance_hub:[{id:'invoices',l:T('الفواتير','Invoices'),i:'invoice'},{id:'jub1_receipts',l:T('سندات JUB1','JUB1 Receipts'),i:'receipt'}],
@@ -653,7 +657,9 @@ const hubTabs={
   // «توريد العمالة» قسمٌ مستقلّ: التسعيرة تصير عقداً، والعقد يُستخلَص منه شهرياً — وبطاقة الأسعار مرجع الجميع
   manpower_hub:[{id:'manpower_calc',l:T('التسعيرات','Quotations'),i:'calc'},{id:'manpower_rates',l:T('بطاقة الأسعار','Rate Card'),i:'coins'},{id:'manpower_contracts',l:T('العقود','Contracts'),i:'notes'},{id:'manpower_timesheets',l:T('كشوف الدوام','Timesheets'),i:'calendar'},{id:'manpower_claims',l:T('المستخلصات','Progress Claims'),i:'receipt'},{id:'manpower_invoices',l:T('الفواتير','Invoices'),i:'invoice'},{id:'manpower_payroll',l:T('الرواتب والأرباح','Payroll & P&L'),i:'payment'},{id:'manpower_pool',l:T('العمالة المتاحة','Labour Pool'),i:'labor'}],
   persons_hub:[{id:'admin_clients',l:T('العملاء','Clients'),i:'clients'},{id:'admin_agents',l:T('الوسطاء','Agents'),i:'broker'}],
-  admin_hub:[{id:'admin_offices',l:T('المكاتب','Offices'),i:'branch'},{id:'admin_bank_accounts',l:T('الحسابات البنكية','Bank Accounts'),i:'bank'},{id:'admin_permissions',l:T('المستخدمون','Users'),i:'userPerm'},{id:'admin_roles',l:T('الأدوار والصلاحيات','Roles & Permissions'),i:'userPerm'},{id:'admin_services',l:T('الخدمات','Services'),i:'notes'},{id:'admin_fees',l:T('الرسوم','Fees'),i:'payment'},{id:'settings_fields',l:T('الحقول','Fields'),i:'settings'}]
+  /* أُزيلت من القائمة بطلب المستخدم: «الحسابات البنكية» و«الرسوم».
+     لا رابط لهما من صفحةٍ أخرى، فمسارهما أدناه باقٍ للرجوع لا للاستعمال. */
+  admin_hub:[{id:'admin_offices',l:T('المكاتب','Offices'),i:'branch'},{id:'admin_permissions',l:T('المستخدمون','Users'),i:'userPerm'},{id:'admin_roles',l:T('الأدوار والصلاحيات','Roles & Permissions'),i:'userPerm'},{id:'admin_services',l:T('الخدمات','Services'),i:'notes'},{id:'settings_fields',l:T('الحقول','Fields'),i:'settings'}]
 };
 // Single source of truth for a page's icon: resolve a tab's nav icon (by page id) rendered
 // in gold at empty-state size, so any "no records" card automatically matches its tab icon.
