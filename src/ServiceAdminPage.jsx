@@ -479,6 +479,8 @@ if(svcId==='kafala_transfer'){
   out.kafalaFloorDailyNoExempt=src.kafalaFloorDailyNoExempt!==undefined?src.kafalaFloorDailyNoExempt:0
   out.kafalaPeriodsExempt=Array.isArray(src.kafalaPeriodsExempt)?src.kafalaPeriodsExempt:[3,6,9,12]
   out.kafalaPeriodsNoExempt=Array.isArray(src.kafalaPeriodsNoExempt)?src.kafalaPeriodsNoExempt:[3,6,9,12]
+  out.iqamaPeriodsExempt=Array.isArray(src.iqamaPeriodsExempt)?src.iqamaPeriodsExempt:[3,6,9,12]
+  out.iqamaPeriodsNoExempt=Array.isArray(src.iqamaPeriodsNoExempt)?src.iqamaPeriodsNoExempt:[3,6,9,12]
 }
 return out
 }
@@ -2098,6 +2100,33 @@ const renderIqamaInlineEditor=(s,opts={})=>{
       {grid(3,[Stat('سريان التأمين',v.medicalGraceMonths??2,'شهر'),Stat('أيام إضافية',v.medicalGraceDays??10,'يوم'),Stat('حد تغطية المكتب',fmtThousands(v.medGovCover??1000),'ريال')])}
       {bk.length?<div style={{display:'flex',flexWrap:'wrap',gap:8}}>{bk.map((b,i)=>(<span key={i} style={{display:'inline-flex',alignItems:'center',gap:6,padding:'7px 12px',borderRadius:10,background:'var(--card-bg)',border:'1px solid var(--bd)',fontSize:11.5,fontWeight:600}}><span style={{color:'var(--tx3)'}}>{b.min}-{b.max} سنة</span><span style={{color:C.gold,fontWeight:600,direction:'ltr'}}>{fmtThousands(b.rate)} ريال</span></span>))}</div>:<div style={{fontSize:11,color:'var(--tx5)',textAlign:'center',padding:'8px 0'}}>لا توجد فئات</div>}
     </div>)}
+    /* مدد التجديد المتاحة — نظير بطاقة نقل الكفالة بحذافيرها ليقرأها من يعرف تلك.
+       تعطيلٌ من سياسة المكتب، ويجتمع في الحاسبة مع تعطيل قاعدة قوى (تأخّر رخصة
+       العمل): ذاك يخصّ عاملاً بعينه، وهذا يخصّ الخدمة كلها. */
+    if(title==='مدد التجديد المتاحة'){
+      const listOf=(key)=>{const x=v[key];return Array.isArray(x)?x.map(Number):[3,6,9,12]}
+      const toggle=(key,m)=>{const cur=listOf(key);const next=cur.includes(m)?cur.filter(x=>x!==m):[...cur,m].sort((a,b)=>a-b);setPriceState(p=>({...p,[key]:next}))}
+      const row=(key)=>(
+        <div style={{display:'flex',gap:6}}>
+          {[3,6,9,12].map(m=>{
+            const on=listOf(key).includes(m)
+            return(<button key={m} type="button" disabled={!ed} onClick={ed?()=>toggle(key,m):undefined}
+              style={{flex:1,height:38,borderRadius:9,border:`1px solid ${on?C.gold:'var(--bd)'}`,background:on?'rgba(176,125,0,.12)':'var(--bd2)',color:on?C.gold:'var(--tx4)',fontFamily:F,fontSize:12,fontWeight:600,cursor:ed?'pointer':'default',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:1,textDecoration:on?'none':'line-through'}}>
+              <span>{m} شهر</span>
+              <span style={{fontSize:9,opacity:.8}}>{on?'متاح':'معطّل'}</span>
+            </button>)
+          })}
+        </div>
+      )
+      return(<div style={{display:'flex',flexDirection:'column',gap:12}}>
+        <div style={{fontSize:11,color:'var(--tx4)',fontWeight:600,lineHeight:1.9}}>تحديد مدد التجديد التي يستطيع الموظف اختيارها في حاسبة تجديد الإقامة، لكل حالة إعفاء على حدة. المدة المعطّلة يظهر زرّها باهتاً وغير قابل للضغط، وإن كانت مختارة تنتقل الحاسبة تلقائياً لأقرب مدة متاحة.</div>
+        {sub('بإعفاء')}
+        {row('iqamaPeriodsExempt')}
+        {sub('بدون إعفاء')}
+        {row('iqamaPeriodsNoExempt')}
+        <div style={{fontSize:10,color:'var(--tx5)',fontWeight:600,lineHeight:1.7}}>تعطيل كل المدد في حالة ما = إتاحتها كلها (لا يمكن ترك الموظف بلا خيار). وقاعدة قوى قد تُعطّل مدداً إضافية حسب تأخّر رخصة العمل لكل عامل.</div>
+      </div>)
+    }
     return null
   }
   const saveMap={
@@ -2107,8 +2136,10 @@ const renderIqamaInlineEditor=(s,opts={})=>{
     'رسوم تغيير المهنة':{keys:['profChange'],extra:['profChangeFreeOccupations']},
     'رسوم المكتب':{keys:['officeFee','officeDailyRate','iqamaOfficeFeeMode','iqamaPricingModel','iqamaOfficeShare3M','iqamaOfficeShare6M','iqamaOfficeShare9M','iqamaOfficeShare12M','iqamaExclFineTotal3M','iqamaExclFineTotal6M','iqamaExclFineTotal9M','iqamaExclFineTotal12M','iqamaOfficeDiscountEnabled','iqamaApprovalDiscountCap3M','iqamaApprovalDiscountCap6M','iqamaApprovalDiscountCap9M','iqamaApprovalDiscountCap12M']},
     'التأمين الطبي':{keys:['medicalGraceMonths','medicalGraceDays','medGovCover'],extra:['medicalBrackets']},
+    // قوائم لا حقول رقمية، فتُحفظ عبر extra كما تُحفظ فئات التأمين والمهن المعفاة
+    'مدد التجديد المتاحة':{keys:[],extra:['iqamaPeriodsExempt','iqamaPeriodsNoExempt']},
   }
-  const titles=['الرسوم الحكومية لتجديد الإقامة','المهلة والغرامات','كرت العمل (رخصة العمل)','رسوم تغيير المهنة','رسوم المكتب','التأمين الطبي']
+  const titles=['الرسوم الحكومية لتجديد الإقامة','المهلة والغرامات','كرت العمل (رخصة العمل)','رسوم تغيير المهنة','رسوم المكتب','التأمين الطبي','مدد التجديد المتاحة']
   return(<div style={{display:'flex',flexDirection:'column',gap:12}}>
     {titles.map(title=>{const col=isC(title),ed=isE(title);const cfgS=saveMap[title]
       return(<div key={title} {...secCardProps(col)}>

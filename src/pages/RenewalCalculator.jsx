@@ -490,14 +490,28 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
     return { expired, inGrace, renewalBase, fine, workPermit, medical, officeFee, profChange, iqamaExcess, wpExcess, medExcess, govExcess, extrasTotal, subtotal, flatModel, officeShare, billedMonths, expectedExpiry, coverIqama, coverWorkPermit, medGovCover, medInsuredValid, medDaysLeft, wpBilledMonths, wpExpired, wpBasisFellBack, wpLongExpired, disabledPeriods, profChangeIsFree, officeMode, officeDays, officeDailyRate, officeFloor }
   }, [worker, f, cfg])
 
-  // قاعدة قوى: إن أصبحت مدة التجديد المختارة غير متاحة (أقصر من تأخّر الرخصة) انتقل تلقائياً لأصغر مدة مسموحة.
+  /* مدد معطّلة من مصدرين يجتمعان:
+     · سياسة المكتب (الإدارة ← الخدمات ← تجديد الإقامة ← «مدد التجديد المتاحة»)
+       لكل حالة إعفاء على حدة — تسري على كل العمال.
+     · قاعدة قوى (`calc.disabledPeriods`) — تخصّ عاملاً بعينه حسب تأخّر رخصته.
+     قائمة سياسةٍ فارغة تعني «الكل متاح»: لا يُترك الموظف بلا خيار. */
+  const policyDisabled = useMemo(() => {
+    const raw = f.exemption === false ? cfg.iqamaPeriodsNoExempt : cfg.iqamaPeriodsExempt
+    const allowed = (Array.isArray(raw) ? raw : []).map(Number).filter(n => [3, 6, 9, 12].includes(n))
+    if (!allowed.length) return []
+    return [3, 6, 9, 12].filter(n => !allowed.includes(n))
+  }, [f.exemption, cfg])
+  const blockedPeriods = useMemo(
+    () => Array.from(new Set([...(calc?.disabledPeriods || []), ...policyDisabled])),
+    [calc?.disabledPeriods, policyDisabled])
+
+  // إن أصبحت المدة المختارة معطّلة (بأيّ المصدرين) انتقل تلقائياً لأصغر مدة متاحة.
   useEffect(() => {
-    const disabled = calc?.disabledPeriods || []
-    if (disabled.length && disabled.includes(parseInt(f.renewalMonths))) {
-      const next = ['3', '6', '9', '12'].find(m => !disabled.includes(parseInt(m)))
+    if (blockedPeriods.length && blockedPeriods.includes(parseInt(f.renewalMonths))) {
+      const next = ['3', '6', '9', '12'].find(m => !blockedPeriods.includes(parseInt(m)))
       if (next && next !== f.renewalMonths) setF(p => ({ ...p, renewalMonths: next }))
     }
-  }, [calc?.disabledPeriods, f.renewalMonths])
+  }, [blockedPeriods, f.renewalMonths])
 
   // سقف خصم أبشر = رسوم تجديد الإقامة + أي غرامة تأخير (لا يشمل الرخصة/التأمين/رسوم المكتب).
   const absherCap = calc ? Math.max(0, (calc.renewalBase || 0) + (calc.fine || 0)) : 0
@@ -969,7 +983,13 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
             {stShow('rw_renewal_options') && fShow('rw_period') && (
             <KCard Icon={Calendar} label={T('مدة التجديد', 'Renewal Period')} span={2}>
               <ToggleGroup value={f.renewalMonths} onChange={v => set('renewalMonths', v)} height={60}
-                options={['3', '6', '9', '12'].map(m => ({ v: m, l: m, sub: T('شهر', 'mo'), disabled: (calc.disabledPeriods || []).includes(parseInt(m)) }))} />
+                options={['3', '6', '9', '12'].map(m => ({ v: m, l: m, sub: T('شهر', 'mo'), disabled: blockedPeriods.includes(parseInt(m)) }))} />
+              {policyDisabled.length > 0 && (
+                <div style={{ marginTop: 9, display: 'flex', alignItems: 'flex-start', gap: 7, fontSize: 10.5, fontWeight: 600, color: 'var(--tx3)', background: 'var(--bd2)', border: '1px solid var(--bd)', borderRadius: 8, padding: '8px 10px', lineHeight: 1.6 }}>
+                  <AlertCircle size={13} style={{ flexShrink: 0, marginTop: 1 }} />
+                  {T('مدد معطّلة بسياسة المكتب — تُضبط من الإدارة ← الخدمات ← تجديد الإقامة ← «مدد التجديد المتاحة».', 'Periods disabled by office policy — set in Admin → Services → Iqama Renewal → “Available renewal periods”.')}
+                </div>
+              )}
               {(calc.disabledPeriods || []).length > 0 && (
                 <div style={{ marginTop: 9, display: 'flex', alignItems: 'flex-start', gap: 7, fontSize: 10.5, fontWeight: 600, color: C.gold, background: 'rgba(176,125,0,.07)', border: '1px solid rgba(176,125,0,.25)', borderRadius: 8, padding: '8px 10px', lineHeight: 1.6 }}>
                   <AlertCircle size={13} style={{ flexShrink: 0, marginTop: 1 }} />

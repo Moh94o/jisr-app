@@ -26,6 +26,9 @@ export const KAFALA_DEFAULTS={
   kafalaFloorMode:'daily',kafalaFloorFixed:0,
   // مدد التجديد المتاحة في الحاسبة لكل حالة إعفاء (زر المدة يُعطَّل إن لم تكن ضمن القائمة).
   kafalaPeriodsExempt:[3,6,9,12],kafalaPeriodsNoExempt:[3,6,9,12],
+  // ونظيرتها لتجديد الإقامة. تُجمَع مع تعطيل قاعدة قوى (فترة تأخّر رخصة العمل)
+  // في حاسبة التجديد: ذاك تعطيلٌ لحالةٍ بعينها، وهذا سياسة مكتبٍ عامة.
+  iqamaPeriodsExempt:[3,6,9,12],iqamaPeriodsNoExempt:[3,6,9,12],
   // أرضية الخصم لحالة «بدون إعفاء» (0 = استخدم قيمة الإعفاء نفسها).
   kafalaFloorFixedNoExempt:0,kafalaFloorDailyNoExempt:0,
   profChange:1000,profChangeFreeOccupations:['2381e970-e939-4c6b-a7a9-8862f2133d41','1b4568be-0ea5-4079-bc90-ecca71d30adb'],officeFee:6500,officeFeeNoExempt:6500,officeDailyRate:18.06,
