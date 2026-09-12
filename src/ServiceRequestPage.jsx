@@ -167,7 +167,11 @@ const CLIENT_SERVICES=new Set(['work_visa_permanent','work_visa_9m','work_visa_6
 const QUOTE_SVCS=new Set(['kafala_transfer','iqama_renewal'])
 // الرسوم الحكومية لحسبة تجديد الإقامة — نفس قيمة صفحة التفاصيل (government_fees المجمّد) مع حساب احتياطي للسجلات القديمة.
 // تُستخدم في عرض الكرت + الحد الأدنى للدفعة الواحدة + الحد الأدنى للدفعة الأولى في الدفعات المتعددة.
-const iqamaQuoteGovFees=q=>q?.government_fees!=null?Number(q.government_fees):Math.max(0,Number(q?.iqama_renewal_fee||0)+Number(q?.work_permit_fee||0)+Number(q?.medical_fee||0)+Number(q?.late_fine_amount||0)+Number(q?.prof_change_fee||0))
+// استثناء: تجديد 9 أشهر له حدّ أدنى ثابت 5000 ريال بدل مجموع الرسوم الحكومية الفعلي.
+const iqamaQuoteGovFees=q=>{
+if(Number(q?.renewal_months)===9)return 5000
+return q?.government_fees!=null?Number(q.government_fees):Math.max(0,Number(q?.iqama_renewal_fee||0)+Number(q?.work_permit_fee||0)+Number(q?.medical_fee||0)+Number(q?.late_fine_amount||0)+Number(q?.prof_change_fee||0))
+}
 
 // Shared column projection for worker queries (workers / temproryworkers share the same FK shape).
 const WORKER_SELECT='id,name_ar,name_en,phone,iqama_number,iqama_expiry_date,work_permit_expiry,passport_number,passport_expiry,occupation_ar,nationality_ar,birth_date,nationality:nationality_id(id,name_ar,code:code,flag_url),current_occupation:current_occupation_id(name_ar),current_facility:current_facility_id(id,name_ar,unified_number,gosi_number,hrsd_number)'
@@ -1452,8 +1456,9 @@ if(step===4&&selSvc==='custom'&&(Number(pricing?.total)||0)<=0){setErr(T('يرج
 if(step===4&&(selSvc==='kafala_transfer'||selSvc==='iqama_renewal'||selSvc==='custom')&&kafalaPayStep&&kafalaPayMode==='split'){
 const total=Number(pricing.total)||0
 const officeFee=selSvc==='custom'?0:((selSvc==='iqama_renewal'||selSvc==='kafala_transfer')?Number(selKafalaQuote?.office_fee||0):Number((kafalaLines&&kafalaLines.officeFee)||0))
-// الدفعة الأولى يجب ألا تقل عن الرسوم الحكومية. تجديد الإقامة = نفس قيمة صفحة التفاصيل (government_fees)؛ نقل الكفالة = subtotal − رسوم المكتب − خصم أبشر. خدمة عامة بلا حد أدنى.
-const minFirst=selSvc==='custom'?0:(selSvc==='iqama_renewal'?iqamaQuoteGovFees(selKafalaQuote):((Number(selKafalaQuote?.subtotal||0)>0)?Math.max(0,Number(selKafalaQuote.subtotal)-Number(selKafalaQuote?.office_fee||0)-Number(selKafalaQuote?.absher_discount||0)):Math.max(0,total-officeFee)))
+// الدفعة الأولى يجب ألا تقل عن رسوم النقل الحكومية. تجديد الإقامة = نفس قيمة صفحة التفاصيل (government_fees)؛
+// نقل الكفالة = رسوم النقل فقط (net من خصم أبشر) — رخصة العمل والتأمين الطبي وتغيير المهنة ورسوم المكتب كلها قابلة للتأجيل. خدمة عامة بلا حد أدنى.
+const minFirst=selSvc==='custom'?0:(selSvc==='iqama_renewal'?iqamaQuoteGovFees(selKafalaQuote):((Number(selKafalaQuote?.subtotal||0)>0)?Math.max(0,Number(selKafalaQuote?.transfer_fee||0)-Number(selKafalaQuote?.absher_discount||0)):Math.max(0,Number(kafalaLines?.transferFee||0)-Number(kafalaLines?.absherBalance||0))))
 const rows=kafalaInstallments
 const first=parseFloat(rows[0]?.amount)||0
 // «دفعات متعددة» تتطلب دفعتين على الأقل — وإلا فهي دفعة واحدة
@@ -1461,7 +1466,7 @@ if(rows.length<2){setErr(T('الدفعات المتعددة تتطلب دفعت�
 // ⚠️ استثناء لمرة واحدة (حالة خاصة يوم 2026-07-03): السماح بدفعة أولى أقل من الرسوم
 // الحكومية — يبطل تلقائياً بعد نهاية هذا اليوم ويعود الشرط للعمل. يُحذف لاحقاً.
 const oneTimeBypass=new Date().toISOString().slice(0,10)==='2026-07-03'
-if(first<minFirst&&!oneTimeBypass&&!gm){setErr(T(`الدفعة الأولى يجب ألا تقل عن ${fmtAmt(minFirst.toFixed(2))} ريال (مجموع الرسوم الحكومية)`,`The first installment must be at least ${fmtAmt(minFirst.toFixed(2))} SAR (total government fees)`));return false}
+if(first<minFirst&&!oneTimeBypass&&!gm){const _lbl=selSvc==='iqama_renewal'?T('مجموع الرسوم الحكومية','total government fees'):T('رسوم النقل','the transfer fee');setErr(T(`الدفعة الأولى يجب ألا تقل عن ${fmtAmt(minFirst.toFixed(2))} ريال (${_lbl})`,`The first installment must be at least ${fmtAmt(minFirst.toFixed(2))} SAR (${_lbl})`));return false}
 // كل دفعة يجب أن تحمل مبلغاً موجباً
 if(rows.some(r=>(parseFloat(r.amount)||0)<=0)){setErr(T('يرجى إدخال مبلغ لكل دفعة','Please enter an amount for each installment'));return false}
 // خدمة عامة: الدفعة الأولى تاريخ عادي مثل البقية فتُطلب تواريخ الكل؛ باقي الخدمات الأولى «عند الإصدار» فتُستثنى.
@@ -1479,13 +1484,13 @@ const issuanceVal=visaInstallments.issuance===''?defaultEach:(Number(visaInstall
 const paid=Number(paidAmount)||0
 if(paid<issuanceVal-0.01&&!gm){setErr(T(`المبلغ المدفوع يجب أن يغطي دفعة «عند إصدار التأشيرة» (${fmtAmt(issuanceVal.toFixed(2))} ريال)`,`The paid amount must cover the "on visa issuance" installment (${fmtAmt(issuanceVal.toFixed(2))} SAR)`));return false}
 }
-// Step 5 (payment entry) — نقل كفالة / تجديد الإقامة (دفعة واحدة): المبلغ المدفوع يجب ألا يقل عن الرسوم الحكومية.
-// تجديد الإقامة = نفس قيمة صفحة التفاصيل (government_fees)؛ نقل الكفالة = الإجمالي الابتدائي − رسوم المكتب − خصم أبشر.
+// Step 5 (payment entry) — نقل كفالة / تجديد الإقامة (دفعة واحدة): المبلغ المدفوع يجب ألا يقل عن الحد الأدنى.
+// تجديد الإقامة = نفس قيمة صفحة التفاصيل (government_fees)؛ نقل الكفالة = رسوم النقل فقط (net من خصم أبشر).
 if(step===5&&!showSummaryScreen&&!showBrokerNoteScreen&&(selSvc==='kafala_transfer'||selSvc==='iqama_renewal')&&kafalaPayMode!=='split'){
 const _sub=Number(selKafalaQuote?.subtotal||0)
-const govFees=selSvc==='iqama_renewal'?iqamaQuoteGovFees(selKafalaQuote):(_sub>0?Math.max(0,_sub-Number(selKafalaQuote?.office_fee||0)-Number(selKafalaQuote?.absher_discount||0)):Math.max(0,(Number(pricing?.total)||0)-Number((kafalaLines&&kafalaLines.officeFee)||0)))
+const govFees=selSvc==='iqama_renewal'?iqamaQuoteGovFees(selKafalaQuote):(_sub>0?Math.max(0,Number(selKafalaQuote?.transfer_fee||0)-Number(selKafalaQuote?.absher_discount||0)):Math.max(0,Number(kafalaLines?.transferFee||0)-Number(kafalaLines?.absherBalance||0)))
 const paid=Number(paidAmount)||0
-if(paid<govFees-0.01&&!gm){setErr(T(`المبلغ المدفوع يجب ألا يقل عن الرسوم الحكومية (${fmtAmt(govFees.toFixed(2))} ريال)`,`The paid amount must not be less than the government fees (${fmtAmt(govFees.toFixed(2))} SAR)`));return false}
+if(paid<govFees-0.01&&!gm){const _lbl2=selSvc==='iqama_renewal'?T('الرسوم الحكومية','the government fees'):T('رسوم النقل','the transfer fee');setErr(T(`المبلغ المدفوع يجب ألا يقل عن ${_lbl2} (${fmtAmt(govFees.toFixed(2))} ريال)`,`The paid amount must not be less than ${_lbl2} (${fmtAmt(govFees.toFixed(2))} SAR)`));return false}
 }
 // Step 5 (payment entry) — نقل كفالة/تجديد (دفعات متعددة): المبلغ المدفوع (الدفعة المقدّمة) يجب ألا يقل عن الدفعة الأولى «عند الإصدار».
 // خدمة عامة مستثناة: دفعاتها كلها بتواريخ مجدولة (لا دفعة «عند الإصدار») فلا حدّ أدنى على المدفوع.
@@ -3346,8 +3351,8 @@ return<ModalSection flex Icon={Receipt} label={QL.title} hint={QL.hint} style={{
 </div>}
 {/* Selected quote summary */}
 {selKafalaQuote&&(()=>{const qt=selKafalaQuote;const _tot=Number((pricing&&pricing.total)||0)||Number(qt.client_charge||0);const _office=isIq?Number(qt.office_fee||0):Number((kafalaLines&&kafalaLines.officeFee)||0);
-// الرسوم الحكومية = نفس معادلة الحسبة: الإجمالي الابتدائي − رسوم المكتب − خصم أبشر (تُطرح أبشر من جهة الحكومية).
-const _sub=Number(qt.subtotal||0);const _gov=_sub>0?Math.max(0,_sub-Number(qt.office_fee||0)-Number(qt.absher_discount||0)):Math.max(0,_tot-_office);
+// نقل الكفالة: الحد الأدنى = رسوم النقل فقط (net من خصم أبشر) — لا رخصة العمل ولا التأمين الطبي ولا تغيير المهنة ولا رسوم المكتب.
+const _sub=Number(qt.subtotal||0);const _gov=_sub>0?Math.max(0,Number(qt.transfer_fee||0)-Number(qt.absher_discount||0)):Math.max(0,Number((kafalaLines&&kafalaLines.transferFee)||0)-Number((kafalaLines&&kafalaLines.absherBalance)||0));
 // تجديد الإقامة: الرسوم الحكومية = نفس قيمة صفحة تفاصيل التجديد (government_fees المجمّد)
 const minFees=isIq?iqamaQuoteGovFees(qt):_gov;return<div style={{borderRadius:12,border:'1.5px solid rgba(176,125,0,.45)',background:'linear-gradient(135deg,rgba(176,125,0,.08),rgba(176,125,0,.02))',padding:14,position:'relative',display:'flex',flexDirection:'column',gap:10}}>
 <div style={{position:'absolute',top:-9,right:14,background:'var(--modal-bg)',padding:'0 8px',fontSize:12,fontWeight:600,color:C.bentoGold,fontFamily:F,display:'inline-flex',alignItems:'center',gap:6}}>
@@ -3359,7 +3364,7 @@ const minFees=isIq?iqamaQuoteGovFees(qt):_gov;return<div style={{borderRadius:12
 <div><div style={{fontSize:10,color:'var(--tx5)',fontWeight:600,marginBottom:3}}>{T('العامل','Worker')}</div><div style={{fontSize:13,fontWeight:600,color:'var(--tx)',fontFamily:F}}>{qt.worker_name||'—'}</div></div>
 <div><div style={{fontSize:10,color:'var(--tx5)',fontWeight:600,marginBottom:3}}>{T('رقم الإقامة','Iqama No')}</div><div style={{fontSize:13,fontWeight:600,color:'var(--tx)',direction:'ltr',textAlign:'right'}}>{qt.iqama_number||'—'}</div></div>
 <div><div style={{fontSize:10,color:'var(--tx5)',fontWeight:600,marginBottom:3}}>{T('رقم طلب التسعيرة','Quote No.')}</div><div style={{fontSize:13,fontWeight:600,color:C.gold,direction:'ltr',textAlign:'right'}}>{qt.quote_no?noDash(qt.quote_no):'—'}</div></div>
-<div><div style={{fontSize:10,color:'var(--tx5)',fontWeight:600,marginBottom:3}}>{T('الرسوم الحكومية','Government Fees')}</div><div style={{fontSize:13,fontWeight:600,color:C.gold,textAlign:'right'}}><bdi>{fmtPrice(minFees)}</bdi> <span style={{fontSize:10,color:'var(--tx5)'}}>{T('ريال','SAR')}</span></div></div>
+<div><div style={{fontSize:10,color:'var(--tx5)',fontWeight:600,marginBottom:3}}>{isIq?T('الرسوم الحكومية','Government Fees'):T('رسوم النقل','Transfer Fee')}</div><div style={{fontSize:13,fontWeight:600,color:C.gold,textAlign:'right'}}><bdi>{fmtPrice(minFees)}</bdi> <span style={{fontSize:10,color:'var(--tx5)'}}>{T('ريال','SAR')}</span></div></div>
 <div><div style={{fontSize:10,color:'var(--tx5)',fontWeight:600,marginBottom:3}}>{T('الإجمالي','Total')}</div><div style={{fontSize:13,fontWeight:600,color:C.gold,textAlign:'right'}}><bdi>{fmtPrice(qt.client_charge)}</bdi> <span style={{fontSize:10,color:'var(--tx5)'}}>{T('ريال','SAR')}</span></div></div>
 </div>
 </div>})()}
@@ -3591,8 +3596,9 @@ return<div style={{marginTop:10,borderRadius:12,border:'1.5px solid rgba(176,125
 {(selSvc==='kafala_transfer'||selSvc==='iqama_renewal'||selSvc==='custom')&&kafalaPayStep&&(()=>{
 const total=Number(pricing.total)||0
 const officeFee=selSvc==='custom'?0:((selSvc==='iqama_renewal'||selSvc==='kafala_transfer')?Number(selKafalaQuote?.office_fee||0):Number((kafalaLines&&kafalaLines.officeFee)||0))
-// First payment must cover the government fees (subtotal − office fee − Absher); only the office fee may be deferred to later installments. خدمة عامة بلا حد أدنى.
-const minFirst=selSvc==='custom'?0:((Number(selKafalaQuote?.subtotal||0)>0)?Math.max(0,Number(selKafalaQuote.subtotal)-Number(selKafalaQuote?.office_fee||0)-Number(selKafalaQuote?.absher_discount||0)):Math.max(0,total-officeFee))
+// First payment must cover: iqama_renewal → government fees; kafala_transfer → transfer fee only (net Absher) — work permit, medical,
+// occupation change and office fee may all be deferred to later installments. خدمة عامة بلا حد أدنى.
+const minFirst=selSvc==='custom'?0:(selSvc==='iqama_renewal'?iqamaQuoteGovFees(selKafalaQuote):((Number(selKafalaQuote?.subtotal||0)>0)?Math.max(0,Number(selKafalaQuote?.transfer_fee||0)-Number(selKafalaQuote?.absher_discount||0)):Math.max(0,Number(kafalaLines?.transferFee||0)-Number(kafalaLines?.absherBalance||0))))
 // خدمة عامة: حتى 12 دفعة واسم الدفعة قابل للكتابة؛ باقي الخدمات تبقى 5 دفعات بأسماء ترتيبية.
 const isCustom=selSvc==='custom'
 const maxInst=isCustom?12:5
