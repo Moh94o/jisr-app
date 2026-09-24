@@ -1166,7 +1166,7 @@ const sAct=pg===t.id;const subClr=sAct?C.gold:'var(--sbtx)';const subIcon=DT(sub
 {/* ═══ MAIN AREA ═══ */}
 <div style={{flex:1,display:'flex',flexDirection:'column',background:'var(--bg)',minWidth:0}}>
 {/* ═══ TOPBAR ═══ */}
-<header className='dash-header' style={{height:56,background:'var(--sb)',display:'flex',alignItems:'center',gap:14,padding:'0 20px',flexShrink:0,boxShadow:'0 2px 12px rgba(0,0,0,.12)',minWidth:0}}>
+<header className='dash-header' style={{minHeight:56,background:'var(--sb)',display:'flex',alignItems:'center',gap:14,padding:'max(0px, env(safe-area-inset-top)) 20px 0',flexShrink:0,boxShadow:'0 2px 12px rgba(0,0,0,.12)',minWidth:0}}>
 <div className='mob-hamburger' onClick={()=>setSideOpen(!sideOpen)} onMouseEnter={()=>setHbHover(true)} onMouseLeave={()=>setHbHover(false)} style={{display:'none',width:40,height:40,borderRadius:10,background:sideOpen?'rgba(176,125,0,.12)':(hbHover?'rgba(176,125,0,.07)':'transparent'),flexDirection:'column',alignItems:'center',justifyContent:'center',gap:5,cursor:'pointer',flexShrink:0,transition:'.18s'}}><span style={{width:22,height:2.2,borderRadius:2,background:'linear-gradient(90deg,var(--accent-strong),var(--accent))',transition:'.22s'}}/><span style={{width:22,height:2.2,borderRadius:2,background:'linear-gradient(90deg,var(--accent-strong),var(--accent))',transition:'.22s'}}/><span style={{width:22,height:2.2,borderRadius:2,background:'linear-gradient(90deg,var(--accent-strong),var(--accent))',transition:'.22s'}}/></div>
 {/* عنوان الصفحة الحالية — يعكس اختيار السايد بار */}
 {(()=>{
@@ -1355,7 +1355,7 @@ e.target.value='';
 </>})()}
 <Css/>
 {/* ═══ MOBILE BOTTOM NAV ═══ */}
-<nav className='mob-bottom-nav'>{(()=>{
+<nav className='mob-bottom-nav' style={{paddingBottom:'max(0px, env(safe-area-inset-bottom))'}}>{(()=>{
 /* شريط الجوال السفلي: أوّل أربعة أقسامٍ يراها المستخدم بترتيب الأولوية ثم «المزيد»
    (القائمة الكاملة). يتبع صلاحيات القائمة الجانبية نفسها، والقسم يُضاء متى كانت
    الصفحة المفتوحة أحد تبويباته. */
@@ -1370,7 +1370,7 @@ return[...items.map(n=>({id:n.id,l:n.l,on:isOn(n),icon:(()=>{const el=DT(isOn(n)
 {n.icon}<span style={{fontSize:10,fontWeight:n.on?600:500,color:n.on?C.gold:'var(--sbtx2)',transition:'color .15s ease',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',maxWidth:'100%'}}>{n.l}</span>
 </div>)})()}</nav>
 {/* ═══ INSTALL BANNER ═══ */}
-{showInstallBanner&&!isStandalone&&<div className='install-banner' style={{position:'fixed',bottom:'calc(70px + var(--safe-b, 0px))',left:12,right:12,zIndex:197,background:'linear-gradient(135deg,#1a1a1a,#252525)',border:'1px solid rgba(176,125,0,.25)',borderRadius:16,padding:'14px 16px',display:'flex',alignItems:'center',gap:12,boxShadow:'0 8px 32px rgba(0,0,0,.5)',fontFamily:"'Cairo',sans-serif"}}>
+{showInstallBanner&&!isStandalone&&<div className='install-banner' style={{position:'fixed',bottom:'calc(70px + max(0px, env(safe-area-inset-bottom)))',left:12,right:12,zIndex:197,background:'linear-gradient(135deg,#1a1a1a,#252525)',border:'1px solid rgba(176,125,0,.25)',borderRadius:16,padding:'14px 16px',display:'flex',alignItems:'center',gap:12,boxShadow:'0 8px 32px rgba(0,0,0,.5)',fontFamily:"'Cairo',sans-serif"}}>
 <div style={{width:44,height:44,borderRadius:12,background:'rgba(176,125,0,.12)',border:'1px solid rgba(176,125,0,.2)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
 <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12l7 7 7-7" stroke={C.gold} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
 </div>
