@@ -438,6 +438,9 @@ export const canTabService = (user, tabId, serviceTypeId) => {
 const STATS_DENY_BY_DEFAULT = new Set(['invoices'])
 export const statsMode = (user, tabId) => {
   if (isGM(user)) return 'real'
+  // «صانع الفواتير» يغلب: يرى إحصاء اليوم الحقيقي حتى لو صفّرها/أخفاها دورٌ آخر
+  // (مرآة current_user_stats_mode في القاعدة).
+  if (tabId === 'invoices' && isInvoiceCreator(user)) return 'real'
   const v = user?.ui_visibility?.[`stats:${tabId}`]
   if (v === 'zero' || v === 'hidden') return v
   if (v === 'real') return 'real'
