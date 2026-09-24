@@ -551,7 +551,8 @@ export default function HomeDashboard({ sb, user, lang = 'ar', onNavigate }) {
         {/* جديدة (صدرت في الفترة) | سابقة سُدِّد عليها داخل الفترة */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1px 1fr', gap: 12, alignItems: 'stretch' }}>
           {[
-            { n: I.cnt, l: T('فواتير جديدة', 'New invoices'), sub: T('بقيمة', 'Worth'), v: I.sum },
+            /* «دُفع» تحت الجديدة = ما سُدِّد داخل الفترة على فواتير صدرت فيها (oldPay.newSum) — بطلب المستخدم 2026-09-24 */
+            { n: I.cnt, l: T('فواتير جديدة', 'New invoices'), sub: T('بقيمة', 'Worth'), v: I.sum, sub2: T('دُفع', 'Paid'), v2: P.newSum },
             null,
             { n: P.oldCnt, l: T('فواتير دفعات', 'Invoices with payments'), sub: T('دُفع', 'Paid'), v: P.oldSum },
           ].map((c, i) => c ? (
@@ -559,6 +560,7 @@ export default function HomeDashboard({ sb, user, lang = 'ar', onNavigate }) {
               <span style={{ fontSize: 11.5, color: 'var(--tx3)', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.l}</span>
               <span style={{ ...num, fontSize: 24, fontWeight: 600, color: 'var(--tx)', lineHeight: 1.15 }}>{fmt(c.n)}</span>
               {money && <span style={{ fontSize: 11, color: 'var(--tx4)', whiteSpace: 'nowrap' }}>{c.sub} <b style={{ ...num, color: 'var(--tx2)', fontWeight: 600 }}>{fmt(c.v)}</b></span>}
+              {money && c.sub2 && <span style={{ fontSize: 11, color: 'var(--tx4)', whiteSpace: 'nowrap' }}>{c.sub2} <b style={{ ...num, color: 'var(--tx2)', fontWeight: 600 }}>{fmt(c.v2)}</b></span>}
             </div>
           ) : <div key={i} style={{ background: 'var(--bd)' }} />)}
         </div>
