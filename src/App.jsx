@@ -529,7 +529,7 @@ function DashPage({sb,user,onLogout,toast,lang,switchLang,setLang}){const[pg,set
 const lp=user?.landing_page;
 if(lp&&typeof lp==='string')return lp;
 return landsOnInvoices(user)?'invoices':'home';
-});const[toastMsg,setToastMsg]=useState(null);const tt=(m,type)=>{setToastMsg({m:String(m??''),t:type||''});setTimeout(()=>setToastMsg(null),2500)};const[showProfile,setShowProfile]=useState(false);const[emailConfirmStep,setEmailConfirmStep]=useState(false);const[profileData,setProfileData]=useState(null);const[profileBusy,setProfileBusy]=useState(false);const[,setProfileTab]=useState('info');const[,setProfileErr]=useState({});const[,setStats]=useState(null);useEffect(()=>{document.documentElement.setAttribute('data-theme','light');localStorage.setItem('jisr_theme','light');const m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('content','#e2dac6');document.body.style.background='#f2ece0'},[]);
+});const[toastMsg,setToastMsg]=useState(null);const tt=(m,type)=>{setToastMsg({m:String(m??''),t:type||''});setTimeout(()=>setToastMsg(null),2500)};const[showProfile,setShowProfile]=useState(false);const[emailConfirmStep,setEmailConfirmStep]=useState(false);const[profileData,setProfileData]=useState(null);const[profileBusy,setProfileBusy]=useState(false);const[,setProfileTab]=useState('info');const[,setProfileErr]=useState({});useEffect(()=>{document.documentElement.setAttribute('data-theme','light');localStorage.setItem('jisr_theme','light');const m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('content','#e2dac6');document.body.style.background='#f2ece0'},[]);
 // Pull service-admin config (pricing minimums, overrides, etc.) from system_settings on login —
 // otherwise pages that read these synchronously from localStorage (ServiceRequestPage, InvoicePage…)
 // would use stale or default values for users who never opened ServiceAdminPage on this browser.
@@ -650,23 +650,27 @@ const setPage=(id)=>{const mapped=hubDefaults[id]||id;if(mapped===pg)setNavReset
 // Normalize the URL so pages with internal hash routing return to their
 // default view (pages without hash routing are unaffected).
 try{const target=pageHashes[mapped]||'';if(window.location.hash!==target){window.history.replaceState(null,'',target||window.location.pathname);window.dispatchEvent(new HashChangeEvent('hashchange'))}}catch{}};
-const loadStats=useCallback(()=>{const brId=dashBranch||null;Promise.all([sb.rpc('get_branch_stats',{p_branch_id:brId}),sb.from('branches').select('id,name_ar,branch_code').is('deleted_at',null).eq('is_active',true).order('name_ar')]).then(([statsR,branchesR])=>{if(statsR.data)setStats(statsR.data);setDashBranches(branchesR.data||[])})},[sb,dashBranch]);useEffect(()=>{loadStats()},[loadStats]);
-useEffect(()=>{if(!sb)return;const ch=sb.channel('jisr-realtime-sync').on('postgres_changes',{event:'*',schema:'public',table:'invoices'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'clients'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'workers'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'facilities'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'activity_log'},()=>loadStats()).on('postgres_changes',{event:'*',schema:'public',table:'invoice_payments'},()=>loadStats()).subscribe();return()=>{sb.removeChannel(ch)}},[sb,loadStats]);
+/* قائمة المكاتب لشريحة المستخدم في الترويسة. كان معها نداء get_branch_stats لا تُعرض نتيجته
+   (ويفشل 400) ويُعاد مع كل تغيّرٍ حيّ في الفواتير والعمّال والمنشآت — حُذف 2026-09-24 */
+const loadStats=useCallback(()=>{sb.from('branches').select('id,name_ar,branch_code').is('deleted_at',null).eq('is_active',true).order('name_ar').then(({data})=>setDashBranches(data||[]))},[sb]);useEffect(()=>{loadStats()},[loadStats]);
+useEffect(()=>{if(!sb)return;const ch=sb.channel('jisr-realtime-sync').on('postgres_changes',{event:'*',schema:'public',table:'branches'},()=>loadStats()).subscribe();return()=>{sb.removeChannel(ch)}},[sb,loadStats]);
 useEffect(()=>{const cleanup=setupKeyboardShortcuts({'ctrl+n':()=>{},'ctrl+/':()=>{tt(T('Ctrl+N إضافة جديد','Ctrl+N New'))},'escape':()=>{setSideOpen(false)}});return cleanup},[]);
 const T=(ar,en)=>lang==='ar'?ar:en;const nav=[
+/* ترتيب القائمة (طلب المستخدم 2026-09-24): الرئيسية · المالية · الحسبات · المكاتب ·
+   المنشآت · العمالة · التأشيرات · الإقامات — ثم البقيّة بترتيبها السابق */
 {id:'home',l:T('الرئيسية','Dashboard'),i:'home'},
-{id:'workforce',l:T('المنشآت والعمالة','Workforce'),i:'worker'},
 {id:'finance_hub',l:T('المالية','Operations'),i:'invoice'},
 {id:'pricing_hub',l:T('الحسبات','Calc'),i:'calc'},
-{id:'persons_hub',l:T('الأشخاص','Persons'),i:'client'},
-{id:'facilities_hub',l:T('المنشآت','Facilities'),i:'facility'},
 {id:'offices_hub',l:T('المكاتب','Offices'),i:'branch'},
+{id:'facilities_hub',l:T('المنشآت','Facilities'),i:'facility'},
+{id:'labor_hub',l:T('العمالة','Workforce'),i:'worker'},
+{id:'visa_hub',l:T('التأشيرات','Visas'),i:'labor'},
+{id:'iqama_hub',l:T('الإقامات','Iqamas'),i:'role'},
+{id:'workforce',l:T('المنشآت والعمالة','Workforce'),i:'worker'},
+{id:'persons_hub',l:T('الأشخاص','Persons'),i:'client'},
 {id:'saudi_hub',l:T('السعودة','Saudization'),i:'chart'},
 {id:'svc_hub',l:T('الخدمات','Services'),i:'notes'},
 {id:'services_hub',l:T('أخرى','Other'),i:'calendar'},
-{id:'visa_hub',l:T('التأشيرات','Visas'),i:'labor'},
-{id:'iqama_hub',l:T('الإقامات','Iqamas'),i:'role'},
-{id:'labor_hub',l:T('العمالة','Workforce'),i:'worker'},
 /* «جداول العمل» أُسقط من القائمة (طلب المستخدم 2026-09-21): صار لكل جدولٍ
    تبويبُه تحت «الخدمات»، فلم يبقَ في الصفحة إلا الجداولُ المخصّصة — ولا
    واحدةَ منها في النظام. والصفحة نفسها باقيةٌ (مسار ops_excels أدناه) تُفتح
@@ -699,7 +703,9 @@ const visaTabs=VISA_SHEET_KEYS.map(k=>{const t=OPS_SHEET_TABS.find(x=>x.key===k)
    بمحرّك «الخدمات» نفسه (`opsheet_<key>`)، فالصفحة والصلاحية (`card:ops_excels:<key>`)
    لم تتغيّرا، وأُسقطت من قائمة «الخدمات» أعلاه بتخطّي مفاتيحها. */
 /* قسما «المنشآت» و«السعودة» (طلب المستخدم 2026-09-24) — بمحرّك «الخدمات» نفسه؛ الصلاحية بطاقة `card:ops_excels:<key>` كما هي */
-const sheetTabsOf=(keys)=>keys.map(k=>{const t=OPS_SHEET_TABS.find(x=>x.key===k);if(!t)return null;const nm=sheetNames[k];return{id:opsTabId(k),l:nm?(lang==='ar'?nm.ar:(nm.en||nm.ar)):T(t.ar,t.en),i:t.icon,sheet:k}}).filter(Boolean);
+/* أيقونةٌ خاصّة لجدولٍ بعينه بدل أيقونة مجموعته في الصلاحيات (الأشخاص = أيقونة الأشخاص لا «المزامنة») */
+const SHEET_TAB_ICON={persons:'client'};
+const sheetTabsOf=(keys)=>keys.map(k=>{const t=OPS_SHEET_TABS.find(x=>x.key===k);if(!t)return null;const nm=sheetNames[k];return{id:opsTabId(k),l:nm?(lang==='ar'?nm.ar:(nm.en||nm.ar)):T(t.ar,t.en),i:SHEET_TAB_ICON[k]||t.icon,sheet:k}}).filter(Boolean);
 const facTabs=sheetTabsOf(FAC_SHEET_KEYS);
 const officeTabs=sheetTabsOf(OFFICE_SHEET_KEYS);
 const saudiTabs=sheetTabsOf(SAUDI_SHEET_KEYS);

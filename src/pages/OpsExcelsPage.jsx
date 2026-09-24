@@ -4159,16 +4159,30 @@ const SR_BRANCH_PALETTE = [
   'rgba(30,60,120,.34)',    // كحلي
   'rgba(72,90,110,.40)',    // أردوازي
 ]
+/* لونٌ **فريد لكل مكتبٍ نشط** (طلب المستخدم 2026-09-24: نجران-المفرق والجبيل-سوني
+   كانا يتشاركان لوناً — الأوّل خارج الخريطة فأخذ لوناً بالتجزئة وقع على لون غيره).
+   الخمسة الأولى بقيت على ألوانها، وJUB1/NJR9 أخذا لونَي الفرعين المغلقين. */
 const SR_BRANCH_BG = {
   JUB5: SR_BRANCH_PALETTE[0],    // نيلي — الأكثر وروداً
   KHB1: SR_BRANCH_PALETTE[1],    // بترولي
   KHB2: SR_BRANCH_PALETTE[2],    // زيتوني
   DMM3: SR_BRANCH_PALETTE[3],    // بنّي
   RYD8: SR_BRANCH_PALETTE[4],    // باذنجاني
-  JUB6: SR_BRANCH_PALETTE[5],    // طحلبي
-  KHB102: SR_BRANCH_PALETTE[6],  // كحلي — فرع مغلق
-  DMM4: SR_BRANCH_PALETTE[7],    // أردوازي
+  JUB1: SR_BRANCH_PALETTE[5],    // طحلبي
+  NJR9: SR_BRANCH_PALETTE[6],    // كحلي
+  HAL1: SR_BRANCH_PALETTE[7],    // أردوازي — المكتب التجريبي
 }
+/* المكاتب المغلقة لونٌ رماديّ واحد: لا تظهر إلا في صفوفٍ قديمة، ولا تستحقّ لوناً
+   يُزاحم لون مكتبٍ نشط. */
+const SR_BRANCH_INACTIVE = new Set(['DMM4', 'JUB3', 'JUB4', 'JUB6', 'JUB11', 'JUB20', 'KHB102'])
+const SR_BRANCH_INACTIVE_BG = 'rgba(128,120,108,.24)'
+/* مكتبٌ جديد لم يُسمَّ له لونٌ بعد يأخذ من لوحةٍ **احتياطية** منفصلة — فلا يقع
+   على لون مكتبٍ نشطٍ قائم. (يُستحسن تسميته في الخريطة أعلاه متى افتُتح.) */
+const SR_BRANCH_EXTRA = [
+  'rgba(168,64,110,.30)',   // توتي
+  'rgba(40,120,170,.30)',   // أزرق فولاذي
+  'rgba(115,95,75,.36)',    // رمادي بنّي
+]
 /* فرعٌ غير مذكور يأخذ لوناً من اللوحة نفسها بمفتاحٍ مشتقّ من رمزه — ثابت له عبر
    الجلسات، ويبقى خارج ألوان النظام (لا يُولَّد لونٌ عشوائي قد يقع على الذهبي). */
 /* لون المكتب **لا يتأثّر بلون الصفّ**: تُسنَد الغسلة على أرضية الصفحة نفسها
@@ -4181,11 +4195,11 @@ const solidBg = (tint) => `linear-gradient(${tint},${tint}), var(--bg)`
 const srBranchBg = (code) => {
   const c = String(code ?? '').trim()
   if (!c) return undefined
-  let tint = SR_BRANCH_BG[c]
+  let tint = SR_BRANCH_BG[c] || (SR_BRANCH_INACTIVE.has(c) ? SR_BRANCH_INACTIVE_BG : null)
   if (!tint) {
     let h = 0
     for (let i = 0; i < c.length; i++) h = (h * 31 + c.charCodeAt(i)) % 997
-    tint = SR_BRANCH_PALETTE[h % SR_BRANCH_PALETTE.length]
+    tint = SR_BRANCH_EXTRA[h % SR_BRANCH_EXTRA.length]
   }
   return solidBg(tint)
 }
@@ -6570,6 +6584,19 @@ function AcRatesPanel({ rows, isAr, layout, persistLayout, canEdit, writeCells, 
    أعمدة الهويّة الثابتة الأربعة بنفس تنسيق «المنشآت الرئيسية»: اسم المنشأة ·
    الرقم الموحّد · رقم التأمينات · رقم الموارد البشرية. الجدول يبدأ بها،
    واسم السجل التجاري يفوز عبر view.sbcName. */
+/* ترتيب مستندات المنشأة في «مرفقات المنشآت» (طلب المستخدم 2026-09-24) — ما لم يُذكر بعدها */
+const FAC_FILE_ORDER = new Map([
+  'السجل التجاري', 'السجل التجاري (إنجليزي)', 'عقد التأسيس',
+  'تقرير المقيمين', 'تقرير التابعين', 'شهادة السلامة والصحة المهنية',
+].map((d, i) => [d, i]))
+/* اسم العرض لنوع المستند حيث يختلف عن اسمه الخام */
+const FAC_DOC_LABEL = {
+  'السجل التجاري': 'السجل التجاري (عربي)',
+  'تقرير المقيمين': 'تقرير المقيمين (مقيم)',
+  'تقرير التابعين': 'تقرير التابعين (مقيم)',
+}
+/* مصدر الملف (source_ar في v_ops_facility_files) ← منصّته في facility_sources.source_id */
+const FAC_FILE_SRC = { 'المركز السعودي': 'sbc', 'بلدي (المركز السعودي)': 'sbc', 'التأمينات': 'gosi', 'مقيم': 'muqeem' }
 const PLAT_FAC_COLS = [
   { key: 'facility_ar', ar: 'اسم المنشأة', en: 'Facility', w: 280, kind: 'text' },
   /* بطاقة المنشأة خلف الرقم كشيت «تجديد الإقامات» (طلب المستخدم 2026-09-24) */
@@ -9009,33 +9036,40 @@ const personFacsText = (fc, isAr) => {
 }
 
 const VIEWS = [
-  /* ── المكاتب (طلب المستخدم 2026-09-24): الاسم المستعار والمكتب والمدينة والحي ──
+  /* ── المكاتب (طلب المستخدم 2026-09-24): اسم المكتب والكود والمدينة والحي ──
      من جدول `branches` مباشرة — للعرض فقط: التعديل مكانه صفحة «المكاتب» في
      الإدارة، وخليّةٌ هنا تُكتب في طبقة الشيت وحدها فتوهم بتعديلٍ لم يحدث.
      المكتب التجريبي لا يُدرج (كما في كل تجميعات المكاتب). */
   {
     key: 'offices',
     ar: 'المكاتب', en: 'Offices',
-    hintAr: 'المكاتب — الاسم المستعار والمدينة والحي',
-    hintEn: 'Offices — nickname, city & district',
+    hintAr: 'المكاتب النشطة وبياناتها التفصيلية',
+    hintEn: 'Active offices and their details',
+    // بلا شريط البحث/الإضافة/التصدير فوق الجدول (طلب المستخدم 2026-09-24)
+    noToolbar: true,
     noSync: true,
     async load(sb) {
       const { data, error } = await sb.from('branches')
         .select('id,branch_code,name_ar,is_test,city:city_id(name_ar),district:district_id(name_ar)')
-        .is('deleted_at', null).order('branch_code')
+        // النشطة وحدها (طلب المستخدم 2026-09-24)
+        .is('deleted_at', null).eq('is_active', true).order('branch_code')
       if (error) throw error
       return (data || []).filter((b) => !b.is_test).map((b) => ({
         _id: b.id,
         nickname: branchNick(b),
         branch_code: b.branch_code || '',
         city_ar: (b.city && b.city.name_ar) || '',
-        district_ar: (b.district && b.district.name_ar) || '',
+        // العمود عنوانه «الحي» فتُسقط كلمة «حي» من أوّل الاسم (حي البلد ← البلد) — طلب المستخدم 2026-09-24
+        district_ar: String((b.district && b.district.name_ar) || '').replace(/^\s*حي\s+/, '').trim(),
       }))
     },
     search: (r) => [r.nickname, r.branch_code, r.city_ar, r.district_ar],
     columns: [
-      { key: 'nickname', ar: 'الاسم المستعار', en: 'Nickname', w: 230, kind: 'text', readOnly: true },
-      { key: 'branch_code', ar: 'المكتب', en: 'Office', w: 130, kind: 'mono', readOnly: true },
+      /* خلفية الخليّتين = لون المكتب نفسه في كل الجداول (srBranchBg) — طلب المستخدم 2026-09-24 */
+      { key: 'nickname', ar: 'اسم المكتب', en: 'Office name', w: 230, kind: 'text', readOnly: true,
+        bg: (_v, r) => srBranchBg(r && r.branch_code), fg: () => 'var(--tx)' },
+      { key: 'branch_code', ar: 'الكود', en: 'Code', w: 130, kind: 'mono', readOnly: true,
+        bg: (_v, r) => srBranchBg(r && r.branch_code), fg: () => 'var(--tx)' },
       { key: 'city_ar', ar: 'المدينة', en: 'City', w: 160, kind: 'text', readOnly: true },
       { key: 'district_ar', ar: 'الحي', en: 'District', w: 180, kind: 'text', readOnly: true },
     ],
@@ -9043,8 +9077,10 @@ const VIEWS = [
   {
     key: 'persons',
     ar: 'الأشخاص', en: 'Persons',
-    hintAr: 'الملّاك والشركاء الرئيسيون',
-    hintEn: 'Owners & main partners',
+    hintAr: 'ملّاك المنشآت وشركاؤها وبياناتهم التفصيلية',
+    hintEn: 'Facility owners & partners and their details',
+    // بلا شريط البحث/الإضافة/التصدير فوق الجدول (طلب المستخدم 2026-09-24)
+    noToolbar: true,
     /* جدولٌ مُلئ مرّةً وصار يُعمل عليه يدوياً — لا مزامنة بعد اليوم (بطلب
        المستخدم 2026-09-21): يسقط زرّ التحديث ومنتقي لقطات الأسبوع والتسمية. */
     noSync: true,
@@ -9107,35 +9143,17 @@ const VIEWS = [
       { key: 'birth_date', ar: 'الميلاد (ميلادي)', en: 'Birth (Greg.)', type: 'date' },
     ],
     columns: [
-      /* الاسم عمودٌ واحد باللغتين (طلب المستخدم 2026-09-23): العربي سطراً أوّل
-         والإنجليزي تحته — والتحرير في الخليّة للعربي، والإنجليزي عمودُه المخفيّ. */
-      { key: 'name_ar', ar: 'الاسم', en: 'Name', w: 300, kind: 'text', manual: true, get: (r, isAr) => (isAr ? r.name_ar : (r.name_en || r.name_ar)) || '',
-        render: (r, raw) => {
-          const en = String((r._ops && r._ops.name_en) || r.name_en || '').trim()
-          return (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, minWidth: 0, width: '100%', lineHeight: 1.35, textAlign: 'center' }}>
-              <span style={{ maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{raw || '—'}</span>
-              {en && <span dir="ltr" style={{ maxWidth: '100%', fontSize: 11, color: 'var(--tx4)', fontWeight: 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'center', letterSpacing: .2 }}>{en}</span>}
-            </div>
-          )
-        } },
+      /* الاسم بلغة الواجهة وحدها (طلب المستخدم 2026-09-24): العربي في الواجهة العربية
+         والإنجليزي في الإنجليزية (وإلا فالعربي). والإنجليزي عمودُه المخفيّ للتصحيح. */
+      { key: 'name_ar', ar: 'الاسم', en: 'Name', w: 300, kind: 'text', manual: true,
+        get: (r, isAr) => (isAr === false ? (r.name_en || r.name_ar) : r.name_ar) || '' },
       // الاسم باللغتين (طلب المستخدم 2026-09-23) — الإنجليزي من السجل التجاري، ويُصحَّح يدوياً
       { key: 'name_en', ar: 'الاسم (إنجليزي)', en: 'Name (English)', w: 260, kind: 'text', manual: true, get: (r) => r.name_en || '' },
       { key: 'id_number', ar: 'رقم الهوية', en: 'ID number', w: 150, kind: 'mono', manual: true },
-      /* الميلاد عمودٌ واحد: الميلادي سطراً والهجري تحته (الهجري المحفوظ يدوياً
-         أوّلاً ثم تحويل أم القرى — نفس قاعدة عمود `birth_h` المخفيّ). */
-      { key: 'birth_date', ar: 'تاريخ الميلاد', en: 'Birth date', w: 150, kind: 'date', manual: true, get: (r) => ymd(r.birth_date),
-        render: (r, raw) => {
-          const h = String((r._ops && r._ops.birth_h) || (raw ? toHijri(raw) : '') || '').trim()
-          return (
-            <div dir="ltr" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, lineHeight: 1.35, fontFamily: MONO }}>
-              <span>{raw || '—'}</span>
-              {h && <span style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 400 }}>{h}</span>}
-            </div>
-          )
-        } },
+      /* الميلاد عمودان (طلب المستخدم 2026-09-24): الميلادي، ثم الهجري بجواره */
+      { key: 'birth_date', ar: 'تاريخ الميلاد - ميلادي', en: 'Birth date (Greg.)', w: 150, kind: 'date', manual: true, get: (r) => ymd(r.birth_date) },
       // هجين: الافتراضي تحويل أم القرى (مركز المزامنة يوفّر الميلادي فقط)، وقابل للتعديل اليدوي للقيمة الرسمية الأدق
-      { key: 'birth_h', ar: 'الميلاد - هجري', en: 'Birth (Hijri)', w: 150, kind: 'mono', ops: true, get: (r) => toHijri(r.birth_date) },
+      { key: 'birth_h', ar: 'تاريخ الميلاد - هجري', en: 'Birth date (Hijri)', w: 150, kind: 'mono', ops: true, get: (r) => toHijri(r.birth_date) },
       { key: 'nafath', ar: 'نفاذ', en: 'Nafath', w: 160, kind: 'text', ops: true },
       { key: 'qiwa', ar: 'قوى', en: 'Qiwa', w: 170, kind: 'text', ops: true },
       // عمود إدخال: التطبيع يقع على المكتوب نفسه (`coerce`) لا على عرضه
@@ -9169,8 +9187,8 @@ const VIEWS = [
   {
     key: 'companies',
     ar: 'الشركات', en: 'Companies',
-    hintAr: 'منشآت السجل التجاري',
-    hintEn: 'Commercial-registry establishments',
+    hintAr: 'المنشآت وبياناتها الرئيسية لدى الجهات المختلفة',
+    hintEn: 'Establishments and their key data across government platforms',
     rowBg: (r) => (r.cr_status_ar === 'مشطوب' ? 'rgba(232,114,101,.20)' : null),   // صف أحمر للمنشأة المشطوبة من SBC
     async load(sb) {
       /* «آخر مزامنة» لا تُقرأ من last_synced_at وحده — 404 من 1185 منشأة تتركه فارغاً
@@ -9433,27 +9451,68 @@ const VIEWS = [
     key: 'fac_attachments',
     ar: 'مرفقات المنشآت', en: 'Facility attachments',
     sbcName: { unified: (r) => r.unified_number, field: 'facility_ar' },
-    hintAr: 'ملفات المنشآت — صف لكل ملف',
-    hintEn: 'Establishment files — one row per file',
+    hintAr: 'مستندات المنشآت وشهاداتها لدى الجهات المختلفة',
+    hintEn: 'Establishment documents and certificates across government platforms',
     mergeKey: (r) => (r.unified_number ? String(r.unified_number) : null),
     mergeCols: ['facility_ar', 'unified_number', 'gosi_number', 'hrsd_number'],
     async load(sb) {
       // الترتيب ينتهي بمِرقاة فريدة (file_url) — شرط صفحات fetchAll
-      const [rows] = await Promise.all([
+      const [rows, fsrc, persons] = await Promise.all([
         fetchAll(sb, 'v_ops_facility_files', '*',
           (q) => q.order('unified_number', { nullsFirst: false }).order('source_ar').order('doc_type_ar').order('file_url')),
+        /* «مزامنة المصدر»: آخر مزامنةٍ لمنصّة الملف على منشأته ومَن أجراها — من
+           `facility_sources` (نفس مصدر تاقات «مصادر البيانات»). تعذّرُها لا يُسقط الشيت. */
+        fetchAll(sb, 'facility_sources', 'source_id,person_id,last_synced_at,facility:facility_id(unified_number)').catch(() => []),
+        fetchAll(sb, 'sync_persons', 'id,name_ar,name_en,color').catch(() => []),
         // فهرس الأرقام ومرفق السجل لبطاقة المنشأة — تعذّرُهما لا يُسقط الشيت
         Promise.resolve().then(() => loadFacNums(sb)).catch(() => null),
         Promise.resolve().then(() => loadCrDocs(sb)).catch(() => null),
       ])
-      return rows.map((r) => ({ ...r, _id: r.file_url }))
+      const who = new Map((persons || []).map((p) => [p.id, p]))
+      const last = new Map()   // «موحّد|منصّة» ← أحدث مزامنة
+      for (const x of fsrc || []) {
+        const uni = String((x.facility && x.facility.unified_number) || '').trim()
+        if (!uni || !x.last_synced_at) continue
+        const k = uni + '|' + x.source_id
+        const cur = last.get(k)
+        if (!cur || String(x.last_synced_at) > String(cur.last_synced_at)) last.set(k, x)
+      }
+      return rows.map((r) => {
+        const src = FAC_FILE_SRC[String(r.source_ar || '').trim()]
+        const hit = src ? last.get(String(r.unified_number || '').trim() + '|' + src) : null
+        const p = hit && hit.person_id ? who.get(hit.person_id) : null
+        return {
+          ...r, _id: r.file_url,
+          src_sync_at: hit ? ymd(hit.last_synced_at) : '',
+          src_sync_by: (p && p.name_ar) || '', src_sync_by_en: (p && (p.name_en || p.name_ar)) || '',
+          src_sync_color: (p && p.color) || '',
+        }
+      })
     },
     search: (r) => [...platFacSearch(r), r.doc_type_ar, r.file_name, r.src_key],
+    /* ترتيب ملفات كل منشأة (طلب المستخدم 2026-09-24): السجل عربي · السجل إنجليزي ·
+       عقد التأسيس · تقرير المقيمين · تقرير التابعين · شهادة السلامة، ثم البقيّة.
+       المنشأة أوّلاً في المفتاح فتبقى ملفّاتها متجاورةً (شرط الدمج الرأسي). */
+    rowRank: (r) => [
+      String(r.unified_number || '~'),
+      String(FAC_FILE_ORDER.has(String(r.doc_type_ar || '').trim()) ? FAC_FILE_ORDER.get(String(r.doc_type_ar).trim()) : 99).padStart(2, '0'),
+      String(r.doc_type_ar || ''), String(r.file_url || ''),
+    ].join('|'),
     columns: [
       ...PLAT_FAC_COLS,
       { key: 'source_ar', ar: 'المنصة', en: 'Platform', w: 160, kind: 'text', sectionStart: true,
         get: (r, isAr) => (isAr ? r.source_ar : (r.source_en || r.source_ar)) || '' },
-      { key: 'doc_type_ar', ar: 'نوع المستند', en: 'Document type', w: 210, kind: 'text' },
+      /* مزامنة المصدر عمودان (طلب المستخدم 2026-09-24): صاحب الحساب الذي زامن منصّة الملف
+         على المنشأة (بلونه كما في «الاشتراكات») وتاريخ آخر مزامنة. المرفوع يدوياً لا منصّة له. */
+      { key: 'src_sync_by', ar: 'الشخص', en: 'Synced by', w: 130, kind: 'text', readOnly: true,
+        get: (r, isAr) => (isAr === false ? r.src_sync_by_en : r.src_sync_by) || '',
+        bg: (v, r) => (v && r && r.src_sync_color ? hexTint(r.src_sync_color) : null) },
+      { key: 'src_sync_at', ar: 'تاريخ مزامنة المصدر', en: 'Source sync date', w: 150, kind: 'date', readOnly: true,
+        get: (r) => r.src_sync_at || '' },
+      /* أسماء عرضٍ أوضح (طلب المستخدم 2026-09-24): «السجل التجاري (عربي)» يقابل «(إنجليزي)»،
+         وتقريرا مقيم يحملان منصّتهما. القيمة الخام باقية — عليها ترتيب FAC_FILE_ORDER والبحث. */
+      { key: 'doc_type_ar', ar: 'نوع المستند', en: 'Document type', w: 210, kind: 'text',
+        get: (r) => { const d = String(r.doc_type_ar || '').trim(); return FAC_DOC_LABEL[d] || d } },
       { key: 'file_url', ar: 'الملف', en: 'File', w: 110, kind: 'link', doc: true,
         linkLabel: 'فتح', linkLabelEn: 'Open' },
       { key: 'file_date', ar: 'تاريخ الملف', en: 'File date', w: 115, kind: 'date' },
@@ -10991,7 +11050,7 @@ const VIEWS = [
      تُدخَل من هنا — فالشيت مرآةُ المعاملة لا دفتراً موازياً لها. */
   {
     key: 'transfer_txn',
-    ar: 'نقل الكفالة', en: 'Sponsorship transfer',
+    ar: 'نقل الكفالات', en: 'Sponsorship transfers',
     /* عدسةٌ **شهرية** لا أسبوعية (طلب المستخدم): معاملة النقل تمتدّ أسابيع —
        النقل ثم التأمين ثم رخصة العمل ثم الإقامة — فنافذةُ أسبوعٍ تقطعها وتُري
        نصفَ عمل. والشهر بتاريخ **الفاتورة**: هو ميلاد المعاملة وقيمةٌ ثابتة لا
@@ -13963,6 +14022,8 @@ const VIEW_STATS = {
      فإخلاء واحدةٍ يُبقي الكروت تظهر وتختفي مع كل تبديل. ومصفوفةٌ فارغة **صراحةً**
      لا حذفُ السطر: الحذف يُسقطها على الاحتياطي (كرت «عدد الصفوف») فتعود. */
   permanent_workers: [],
+  offices: [],
+  fac_attachments: [],
   recoveries: [
     SC('rows', 'العمّال', 'Workers'),
     SC('sum', 'إجمالي الرصيد', 'Total balance', { k: 'jawazat_balance', money: true }),
@@ -15236,7 +15297,11 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
   // ── مطوّرات المحرّك (كلها مخزّنة في layout — يعدّلها المستخدم بلا كود) ──
   /* الفلترة والفرز من `prefs` لا من `layout` — شخصيّان لا مشتركان (انظر تعريف
      `prefs`). `sort` غير المعرَّف يرجع لافتراضي الجدول، و`null` إلغاءٌ صريح. */
-  const sortCfg = (prefs.sort !== undefined ? prefs.sort : layout.sort) || null   // { key, dir:'asc'|'desc' }
+  /* فرزٌ محفوظ على عمودٍ حُذف أو أُخفي يُهمَل: لا سهمَ في رأسٍ غائب يدلّ عليه ولا زرَّ
+     يُلغيه، فيبقى الجدول مفروزاً بما لا يُرى ويُحجب ترتيبُه الافتراضي (بلاغ المستخدم
+     2026-09-24: فرزٌ على «الحجم» بعد حذف عموده أخفى ترتيب مستندات المنشأة). */
+  const sortRaw = (prefs.sort !== undefined ? prefs.sort : layout.sort) || null
+  const sortCfg = sortRaw && COLS.some((c) => c && c.key === sortRaw.key) ? sortRaw : null   // { key, dir:'asc'|'desc' }
   const colFilters = useMemo(() => prefs.filters || {}, [prefs])   // { key: {values:[], text:''} }
   /* إجماليات **افتراضية** يعرّفها العرض (`view.agg`): صفُّ الإجماليات يظهر من أول
      فتحة بلا أن يضبطه كل مستخدمٍ بيده على أعمدةٍ معناها واحد لا يختلف (الإجمالي
@@ -16877,7 +16942,10 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
   const rowResizeRef = useRef(null)
   const widths = useMemo(() => COLS.map((c) => widthMap[c.key] ?? layout.widths?.[c.key] ?? c.w), [COLS, widthMap, layout])
   const totalW = useMemo(() => widths.reduce((a, b) => a + b, 0), [widths])
-  const tmpl = useMemo(() => widths.map((w, i) => (i === widths.length - 1 ? `minmax(${w}px,1fr)` : `${w}px`)).join(' '), [widths])
+  /* كل عمودٍ بعرضه هو بالضبط، والفراغ المتبقّي مسارٌ فارغ بعد آخر عمود (كالمساحة
+     بعد آخر عمودٍ في إكسل). كان آخر عمود `minmax(w,1fr)` يتمدّد ليملأ العرض: تضييقُه
+     لا يظهر، وتوسيعُه يدفع الجدول يساراً — فلا يُتحكّم في عرضه (بلاغ المستخدم 2026-09-24). */
+  const tmpl = useMemo(() => [...widths.map((w) => `${w}px`), 'minmax(0,1fr)'].join(' '), [widths])
   // إزاحات تراكمية لتثبيت الأعمدة (sticky) — الجهة تتبع الاتجاه
   const offsets = useMemo(() => { const o = []; let x = 0; for (const w of widths) { o.push(x); x += w } return o }, [widths])
   const stickSide = isAr ? 'right' : 'left'
@@ -17294,7 +17362,8 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
       {/* العرض المقفول فقد منتقيَه الذي كان يسمّيه — فيحمل عنوانه بنفسه،
           كأي صفحة في التطبيق: الاسم ثم سطر تعريفه. */}
       {forceView && (
-        <div style={{ marginBottom: 22 }}>
+        /* بلا شريط أدوات (`noToolbar`) يلي الوصفَ الجدولُ مباشرةً — فمسافةٌ أقصر (طلب المستخدم 2026-09-24) */
+        <div style={{ marginBottom: view.noToolbar ? 10 : 22 }}>
           {/* العنوان من التعريف لا من العرض المحمَّل: جدولٌ لا يملكه المستخدم
               يسقط إلى العرض الفارغ، فيبقى الاسم يقول أيّ تبويبٍ هو. */}
           <div style={{ fontSize: 24, fontWeight: 600, color: 'var(--tx)', letterSpacing: '-.3px', lineHeight: 1.2 }}>
@@ -17523,8 +17592,8 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
         </div>
       )}
 
-      {/* ── الأدوات ── */}
-      {!isEmptyView && <div style={{ display: 'flex', gap: 8, marginBottom: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+      {/* ── الأدوات ── (`view.noToolbar`: جدولٌ بلا شريط البحث والإضافة والتصدير) */}
+      {!isEmptyView && !view.noToolbar && <div style={{ display: 'flex', gap: 8, marginBottom: 10, alignItems: 'center', flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 240px', position: 'relative', minWidth: 200 }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"
             style={{ position: 'absolute', top: '50%', insetInlineEnd: 13, transform: 'translateY(-50%)', color: 'var(--tx4)', pointerEvents: 'none' }}>

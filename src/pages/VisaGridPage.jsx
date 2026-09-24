@@ -376,7 +376,10 @@ export default function VisaGridPage({ sb, user, toast, lang, onTabChange }) {
   const widths = useMemo(() => COLS.map((c) => widthMap[c.key] ?? c.w), [COLS, widthMap])
   const totalW = useMemo(() => widths.reduce((a, b) => a + b, 0), [widths])
   /* آخر عمود يتمدّد ليملأ العرض — الجدول ضيق أصلاً فلا يبقى فراغ مبتور */
-  const tmpl = useMemo(() => widths.map((w, i) => (i === widths.length - 1 ? `minmax(${w}px,1fr)` : `${w}px`)).join(' '), [widths])
+  /* كل عمودٍ بعرضه هو بالضبط، والفراغ المتبقّي مسارٌ فارغ بعد آخر عمود (كالمساحة
+     بعد آخر عمودٍ في إكسل). كان آخر عمود `minmax(w,1fr)` يتمدّد ليملأ العرض: تضييقُه
+     لا يظهر، وتوسيعُه يدفع الجدول يساراً — فلا يُتحكّم في عرضه (بلاغ المستخدم 2026-09-24). */
+  const tmpl = useMemo(() => [...widths.map((w) => `${w}px`), 'minmax(0,1fr)'].join(' '), [widths])
 
   const range = useMemo(() => ({
     r1: Math.min(anchor.r, head.r), r2: Math.max(anchor.r, head.r),
