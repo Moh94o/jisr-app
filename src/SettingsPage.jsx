@@ -3,7 +3,7 @@ import FormKitShowcase from './components/ui/FormKitShowcase.jsx'
 import { Modal as FKModal, ConfirmDialog, ModalSection, ActionButton, GRID, Field, TextField, TextArea, Select, Segmented, SuccessView, C as FKC } from './components/ui/FormKit.jsx'
 import { Briefcase, Flag, Landmark, MapPin, Tag, Banknote, Globe, FileText } from 'lucide-react'
 import PageSkeleton from './components/ui/Skeleton.jsx'
-import { can, cardVisible } from './lib/permissions.js'
+import { can } from './lib/permissions.js'
 const F="'Cairo','Tajawal',sans-serif"
 const C={dk:'#171717',fm:'#1e1e1e',gold:'#B07D00',red:'#c0392b',blue:'#3483b4',ok:'#27a046'}
 const GLASS_CARD={background:'var(--card-grad)',backdropFilter:'blur(20px) saturate(160%)',WebkitBackdropFilter:'blur(20px) saturate(160%)',border:'1px solid var(--bd)',borderRadius:16,boxShadow:'0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)'}
@@ -13,8 +13,6 @@ const FORM_INPUT={height:42,padding:'0 14px',borderRadius:10,border:'1px solid v
 
 // ═══ Components OUTSIDE main function (prevents re-creation) ═══
 const bS={height:40,padding:'0 18px',borderRadius:11,border:'1px solid rgba(176,125,0,.45)',background:'linear-gradient(180deg,rgba(176,125,0,.22) 0%,rgba(176,125,0,.10) 100%)',color:C.gold,fontFamily:F,fontSize:12,fontWeight:600,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8,boxShadow:'0 2px 8px rgba(176,125,0,.18), inset 0 1px 0 rgba(176,125,0,.18)',transition:'.2s'}
-
-const ArrowIcon=({isOpen})=><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{transition:'.2s',transform:isOpen?'rotate(90deg)':'none',opacity:.7,flexShrink:0}}><polyline points="9 18 15 12 9 6"/></svg>
 
 const EditIcon=()=><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
 
@@ -28,10 +26,6 @@ const CopyIcon=()=><svg width="12" height="12" viewBox="0 0 24 24" fill="none" s
 
 const CheckIcon=()=><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
 const CopyBtn=({text,toast,isAr})=>{const[copied,setCopied]=useState(false);return <button type="button" onClick={e=>{e.stopPropagation();e.preventDefault();if(!text)return;try{navigator.clipboard.writeText(String(text));setCopied(true);setTimeout(()=>setCopied(false),1200)}catch{}}} title={isAr?'نسخ':'Copy'} onMouseEnter={e=>{if(!copied)e.currentTarget.style.color=C.gold}} onMouseLeave={e=>{if(!copied)e.currentTarget.style.color='var(--tx5)'}} style={{width:20,height:20,borderRadius:5,border:'none',background:'transparent',color:copied?C.ok:'var(--tx5)',cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',padding:0,flexShrink:0,transition:'color .15s'}}>{copied?<CheckIcon/>:<CopyIcon/>}</button>}
-
-const BadgeStatus=({v,isAr})=><span style={{fontSize:10,fontWeight:600,padding:'3px 8px',borderRadius:6,background:v?'rgba(39,160,70,.1)':'var(--bd)',color:v?C.ok:'var(--tx5)'}}>{v?(isAr?'نشطة':'Active'):(isAr?'معطّلة':'Inactive')}</span>
-
-const MetaText=({t})=><span style={{fontSize:10,color:'var(--tx5)',direction:'ltr'}}>{t}</span>
 
 // ═══ Delete Confirmation Popup ═══
 function DeletePopup({isAr,onConfirm,onCancel,itemName,cascadeCount,cascadeLabel}){
@@ -278,12 +272,12 @@ const[syncAccts,setSyncAccts]=useState([])
 const[loading,setLoading]=useState(false)
 const[q,setQ]=useState('');const[pop,setPop]=useState(null)
 const[form,setForm]=useState({});const[saving,setSaving]=useState(false);const[formErr,setFormErr]=useState(null)
-const[listFilter,setListFilter]=useState('')
+const[,setListFilter]=useState('')
 const[occCatFilter,setOccCatFilter]=useState('active')
 const[natCatFilter,setNatCatFilter]=useState('all')
 const[open,setOpen]=useState({})
 const[delTarget,setDelTarget]=useState(null)
-const[svcSubTab,setSvcSubTab]=useState('services')
+const[svcSubTab]=useState('services')
 const[muqeemCreds,setMuqeemCreds]=useState({username:'',password:'',updated_at:null})
 const[muqeemInputs,setMuqeemInputs]=useState({username:'',password:''})
 const[muqeemShowPw,setMuqeemShowPw]=useState(false)
@@ -301,7 +295,7 @@ sb.from('regions').select('*').order('sort_order').order('name_ar'),
 sb.from('cities').select('*').order('sort_order').order('name_ar'),
 sb.from('lookup_categories').select('*').order('sort_order').order('name_ar'),
 sb.from('lookup_items').select('*').order('sort_order'),
-sb.from('documents').select('*').is('deleted_at',null).order('created_at',{ascending:false}).limit(200),
+sb.from('documents').select('*').is('deleted_at',null).order('created_at',{ascending:false}).limit(5000),
 sb.from('districts').select('*').order('sort_order').order('name_ar'),
 (async()=>{let all=[];for(let from=0;;from+=1000){const{data}=await sb.from('occupations').select('*').order('sort_order',{nullsFirst:false}).order('name_ar').range(from,from+999);if(!data||!data.length)break;all=all.concat(data);if(data.length<1000)break}return{data:all}})(),
 (async()=>{let all=[];for(let from=0;;from+=1000){const{data}=await sb.from('nationalities').select('*').order('sort_order',{nullsFirst:false}).order('name_ar').range(from,from+999);if(!data||!data.length)break;all=all.concat(data);if(data.length<1000)break}return{data:all}})(),
@@ -358,12 +352,8 @@ childCount=count||0
 setDelTarget({table,id,name,childCount,cascade:childCount>0})
 }
 
-const getRef=(val,list,ak='name_ar',ek='name_en')=>{if(!val)return'—';const r=list.find(x=>x.id===val);return r?(isAr?r[ak]:r[ek]||r[ak]):'—'}
-
 const secS={display:'flex',alignItems:'center',gap:8,padding:'10px 0',fontSize:13,fontWeight:600,color:'var(--tx2)'}
 const cardS={...GLASS_CARD,overflow:'hidden'}
-const parentRow={display:'flex',alignItems:'center',gap:10,padding:'12px 16px',cursor:'pointer',borderBottom:'1px solid var(--bd2)',transition:'.1s'}
-const childRow={display:'flex',alignItems:'center',gap:10,padding:'9px 16px 9px 42px',borderBottom:'1px solid var(--bd2)',background:'var(--bd2)'}
 
 const tabGroups=[
 {id:'general_group',l:'الإعدادات العامة',le:'General Settings',tabs:[
@@ -379,7 +369,6 @@ const tabGroups=[
 {id:'formkit',l:'معرض الفورمات',le:'FormKit'},
 ]},
 ]
-const tabs=tabGroups.flatMap(g=>g.tabs)
 const currentGroup=tabGroups.find(g=>g.id===mainTab)||tabGroups[0]
 
 const popFields={
@@ -408,8 +397,6 @@ doc:form._id?(isAr?'تعديل وثيقة':'Edit Document'):(isAr?'إضافة و
 occ:form._id?(isAr?'تعديل مهنة':'Edit Occupation'):(isAr?'إضافة مهنة':'Add Occupation'),
 sa:form._id?(isAr?'تعديل صاحب حساب':'Edit Account Owner'):(isAr?'إضافة صاحب حساب':'Add Account Owner')
 }
-
-const fLItems=lItems.filter(i=>{if(listFilter&&i.category_id!==listFilter)return false;if(q)return(i.value_ar||'').includes(q)||(i.value_en||'').toLowerCase().includes(q.toLowerCase());return true})
 
 return<div>
 <style>{`
@@ -678,8 +665,11 @@ e.preventDefault()
 const fromIdx=parseInt(e.dataTransfer.getData('text/plain'),10)
 if(isNaN(fromIdx)||fromIdx===dropIdx||q)return
 const next=[...occupationsList]
-const[moved]=next.splice(fromIdx,1)
-next.splice(dropIdx,0,moved)
+// idx مأخوذ من القائمة المعروضة (قد تكون مصفّاة بالفئة) — نحوّله لموضعه في القائمة الكاملة.
+const fi=next.findIndex(o=>o.id===shown[fromIdx]?.id),ti=next.findIndex(o=>o.id===shown[dropIdx]?.id)
+if(fi<0||ti<0)return
+const[moved]=next.splice(fi,1)
+next.splice(ti,0,moved)
 setOccupationsList(next.map((o,i)=>({...o,sort_order:i+1})))
 const updates=next.map((o,i)=>({id:o.id,sort_order:i+1}))
 const affected=updates.filter((u,i)=>occupationsList[i]?.id!==u.id||occupationsList[i]?.sort_order!==u.sort_order)
@@ -740,8 +730,11 @@ e.preventDefault()
 const fromIdx=parseInt(e.dataTransfer.getData('text/plain'),10)
 if(isNaN(fromIdx)||fromIdx===dropIdx||q)return
 const next=[...natList]
-const[moved]=next.splice(fromIdx,1)
-next.splice(dropIdx,0,moved)
+// idx مأخوذ من القائمة المعروضة (قد تكون مصفّاة بالفئة) — نحوّله لموضعه في القائمة الكاملة.
+const fi=next.findIndex(o=>o.id===shown[fromIdx]?.id),ti=next.findIndex(o=>o.id===shown[dropIdx]?.id)
+if(fi<0||ti<0)return
+const[moved]=next.splice(fi,1)
+next.splice(ti,0,moved)
 setNatList(next.map((o,i)=>({...o,sort_order:i+1})))
 const updates=next.map((o,i)=>({id:o.id,sort_order:i+1}))
 const affected=updates.filter((u,i)=>natList[i]?.id!==u.id||natList[i]?.sort_order!==u.sort_order)
@@ -832,7 +825,7 @@ const onDragOver=(e)=>{e.preventDefault();e.dataTransfer.dropEffect='move'}
 const onDrop=async(e,dropIdx)=>{if(!canEditSettings)return;e.preventDefault();const raw=e.dataTransfer.getData('text/plain');if(!raw||raw.startsWith('{'))return;const fromIdx=parseInt(raw,10);if(isNaN(fromIdx)||fromIdx===dropIdx||q)return;const next=[...lLists];const[moved]=next.splice(fromIdx,1);next.splice(dropIdx,0,moved);setLLists(next.map((o,i)=>({...o,sort_order:i+1})));for(let i=0;i<next.length;i++){await sb.from('lookup_categories').update({sort_order:i+1}).eq('id',next[i].id)}}
 const onItemDragStart=(e,fromIdx,catId)=>{e.stopPropagation();e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',JSON.stringify({kind:'item',catId,fromIdx}))}
 const onItemDragOver=(e)=>{e.preventDefault();e.stopPropagation();e.dataTransfer.dropEffect='move'}
-const onItemDrop=async(e,dropIdx,catId,catItems)=>{e.preventDefault();e.stopPropagation();if(q)return;let data;try{data=JSON.parse(e.dataTransfer.getData('text/plain'))}catch{return}if(!data||data.kind!=='item'||data.catId!==catId)return;const fromIdx=data.fromIdx;if(fromIdx===dropIdx)return;const next=[...catItems];const[moved]=next.splice(fromIdx,1);next.splice(dropIdx,0,moved);const updatedIds=new Set(next.map(x=>x.id));setLItems(prev=>{const others=prev.filter(x=>!updatedIds.has(x.id));const updatedInCat=next.map((o,i)=>({...o,sort_order:i+1}));return[...others,...updatedInCat]});for(let i=0;i<next.length;i++){await sb.from('lookup_items').update({sort_order:i+1}).eq('id',next[i].id)}}
+const onItemDrop=async(e,dropIdx,catId,catItems)=>{e.preventDefault();e.stopPropagation();if(!canEditSettings||q)return;let data;try{data=JSON.parse(e.dataTransfer.getData('text/plain'))}catch{return}if(!data||data.kind!=='item'||data.catId!==catId)return;const fromIdx=data.fromIdx;if(fromIdx===dropIdx)return;const next=[...catItems];const[moved]=next.splice(fromIdx,1);next.splice(dropIdx,0,moved);const updatedIds=new Set(next.map(x=>x.id));setLItems(prev=>{const others=prev.filter(x=>!updatedIds.has(x.id));const updatedInCat=next.map((o,i)=>({...o,sort_order:i+1}));return[...others,...updatedInCat]});for(let i=0;i<next.length;i++){await sb.from('lookup_items').update({sort_order:i+1}).eq('id',next[i].id)}}
 return<>
 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14,gap:12,flexWrap:'wrap'}}>
 <div style={{display:'flex',flexDirection:'column',gap:4,flexShrink:0}}><div style={{display:'flex',alignItems:'center',gap:10}}><span style={{width:8,height:8,borderRadius:'50%',background:C.gold,boxShadow:'0 0 6px '+C.gold}}/><span style={{fontSize:15,fontWeight:600,color:'var(--tx2)',letterSpacing:'-.2px'}}>{isAr?'الخانات والعناصر':'Categories & Items'}</span></div><span style={{fontSize:11,color:'var(--tx5)',paddingInlineStart:18}}>{(q?filtered.length:lLists.length)} {isAr?'خانة':'categories'} · {lItems.length} {isAr?'عنصر':'items'}</span></div>
@@ -845,7 +838,7 @@ return<>
 </div></div>
 {loading&&lLists.length===0?<PageSkeleton variant="list" listRows={7}/>:
 <div style={cardS}>{filtered.length===0?<div style={{textAlign:'center',padding:40,color:'var(--tx6)',fontSize:12}}>{isAr?'لا توجد خانات':'No categories'}</div>:<>
-{filtered.map((ll,idx)=>{const cActive=ll.is_active!==false;const toggleCat=async()=>{const next=!cActive;setLLists(p=>p.map(o=>o.id===ll.id?{...o,is_active:next}:o));const{error}=await sb.from('lookup_categories').update({is_active:next}).eq('id',ll.id);if(error){setLLists(p=>p.map(o=>o.id===ll.id?{...o,is_active:cActive}:o));toast&&toast(isAr?'فشل تحديث الحالة':'Failed to update status')}};const li2=lItems.filter(i=>i.category_id===ll.id);const itemsKey='ll_'+ll.id;const itemsOpen=!!open[itemsKey]||(q&&catMatchChild.has(ll.id));const isBnk=ll.category_key==='bank_name';const addItem=()=>{setForm({_table:'lookup_items',category_id:ll.id,name_ar:'',name_en:'',code:'',is_active:'true',is_system:'false',...(isBnk?{type_id:''}:{})});setPop(isBnk?'bnk':'li')};return<div key={ll.id} style={{borderBottom:'1px solid var(--bd)'}}>
+{filtered.map((ll,idx)=>{const cActive=ll.is_active!==false;const toggleCat=async()=>{if(!canEditSettings)return;const next=!cActive;setLLists(p=>p.map(o=>o.id===ll.id?{...o,is_active:next}:o));const{error}=await sb.from('lookup_categories').update({is_active:next}).eq('id',ll.id);if(error){setLLists(p=>p.map(o=>o.id===ll.id?{...o,is_active:cActive}:o));toast&&toast(isAr?'فشل تحديث الحالة':'Failed to update status')}};const li2=lItems.filter(i=>i.category_id===ll.id);const itemsKey='ll_'+ll.id;const itemsOpen=!!open[itemsKey]||(q&&catMatchChild.has(ll.id));const isBnk=ll.category_key==='bank_name';const addItem=()=>{setForm({_table:'lookup_items',category_id:ll.id,name_ar:'',name_en:'',code:'',is_active:'true',is_system:'false',...(isBnk?{type_id:''}:{})});setPop(isBnk?'bnk':'li')};return<div key={ll.id} style={{borderBottom:'1px solid var(--bd)'}}>
 <div className="jisr-list-row" role="button" tabIndex={0} draggable={!q} onDragStart={e=>onDragStart(e,idx)} onDragOver={onDragOver} onDrop={e=>onDrop(e,idx)} onClick={()=>toggle(itemsKey)} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle(itemsKey)}}} style={{display:'flex',alignItems:'center',gap:10,padding:'12px 14px',borderBottom:itemsOpen?'1px solid rgba(176,125,0,.15)':'none',cursor:q?'default':'pointer',opacity:cActive?1:0.55,flexWrap:'wrap'}}>
 {!q&&<svg className="jisr-drag-handle" width="16" height="24" viewBox="0 0 16 24" fill="var(--tx4)" style={{flexShrink:0,cursor:'grab'}} aria-label="drag"><circle cx="3" cy="6" r="1.1"/><circle cx="8" cy="6" r="1.1"/><circle cx="13" cy="6" r="1.1"/><circle cx="3" cy="12" r="1.1"/><circle cx="8" cy="12" r="1.1"/><circle cx="13" cy="12" r="1.1"/><circle cx="3" cy="18" r="1.1"/><circle cx="8" cy="18" r="1.1"/><circle cx="13" cy="18" r="1.1"/></svg>}
 <div style={{width:6,height:6,borderRadius:'50%',background:C.gold,flexShrink:0}}/>
@@ -871,7 +864,7 @@ return<>
 </div></div>
 {itemsOpen&&<div style={{background:'rgba(52,131,180,.03)',borderBottom:'1px solid var(--bd)',padding:'6px 16px 10px'}}>
 {li2.length===0?<div style={{padding:'10px 44px',color:'var(--tx6)',fontSize:11}}>{isAr?'لا توجد عناصر لهذه الخانة':'No items for this category'}</div>:
-li2.map((it,iIdx)=>{const iActive=it.is_active!==false;const toggleItem=async()=>{const next=!iActive;setLItems(p=>p.map(x=>x.id===it.id?{...x,is_active:next}:x));const{error}=await sb.from('lookup_items').update({is_active:next}).eq('id',it.id);if(error){setLItems(p=>p.map(x=>x.id===it.id?{...x,is_active:iActive}:x));toast&&toast(isAr?'فشل تحديث الحالة':'Failed to update status')}};const typeName=isBnk&&it.type_id?lItems.find(x=>x.id===it.type_id)?.value_ar:'';return<div key={it.id} className="jisr-list-row" draggable={!q} onDragStart={e=>onItemDragStart(e,iIdx,ll.id)} onDragOver={onItemDragOver} onDrop={e=>onItemDrop(e,iIdx,ll.id,li2)} style={{display:'flex',alignItems:'center',gap:10,padding:'7px 14px 7px 20px',borderBottom:'1px dashed var(--bd2)',opacity:iActive?1:0.55,flexWrap:'wrap',cursor:q?'default':'grab'}}>
+li2.map((it,iIdx)=>{const iActive=it.is_active!==false;const toggleItem=async()=>{if(!canEditSettings)return;const next=!iActive;setLItems(p=>p.map(x=>x.id===it.id?{...x,is_active:next}:x));const{error}=await sb.from('lookup_items').update({is_active:next}).eq('id',it.id);if(error){setLItems(p=>p.map(x=>x.id===it.id?{...x,is_active:iActive}:x));toast&&toast(isAr?'فشل تحديث الحالة':'Failed to update status')}};const typeName=isBnk&&it.type_id?lItems.find(x=>x.id===it.type_id)?.value_ar:'';return<div key={it.id} className="jisr-list-row" draggable={!q} onDragStart={e=>onItemDragStart(e,iIdx,ll.id)} onDragOver={onItemDragOver} onDrop={e=>onItemDrop(e,iIdx,ll.id,li2)} style={{display:'flex',alignItems:'center',gap:10,padding:'7px 14px 7px 20px',borderBottom:'1px dashed var(--bd2)',opacity:iActive?1:0.55,flexWrap:'wrap',cursor:q?'default':'grab'}}>
 {!q&&<svg className="jisr-drag-handle" width="12" height="18" viewBox="0 0 16 24" fill="var(--tx5)" style={{flexShrink:0,cursor:'grab'}} aria-label="drag"><circle cx="3" cy="6" r="1"/><circle cx="8" cy="6" r="1"/><circle cx="13" cy="6" r="1"/><circle cx="3" cy="12" r="1"/><circle cx="8" cy="12" r="1"/><circle cx="13" cy="12" r="1"/><circle cx="3" cy="18" r="1"/><circle cx="8" cy="18" r="1"/><circle cx="13" cy="18" r="1"/></svg>}
 <div style={{width:5,height:5,borderRadius:'50%',background:'rgba(52,131,180,.7)',flexShrink:0}}/>
 <div style={{display:'flex',flexDirection:'column',lineHeight:1.6,minWidth:60,flexShrink:0,alignItems:'flex-start'}}>

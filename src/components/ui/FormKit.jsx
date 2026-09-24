@@ -145,7 +145,6 @@ export const GRID = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, mi
 // لجعل حقل يأخذ عرض الصف كامل ضع style={FULL} على غلافه
 export const FULL = { gridColumn: '1 / -1' }
 
-const errBorder = err => (err ? C.red + '80' : 'transparent')
 // حلقة خطأ بالظل (الحدود معطّلة عالمياً في index.html، فالظل يتجاوز القاعدة) — لا ظل داخلي افتراضي
 const errRing = err => (err ? `inset 0 0 0 1.6px ${C.red}` : 'none')
 
@@ -176,20 +175,20 @@ const isFakeNumber = () => false
 // تحقق هوية/إقامة: 10 خانات تبدأ بـ1/2/3، وليست رقماً وهمياً.
 // بسيط عمداً — لا نرفض أي رقم واقعي، فقط الأنماط الوهمية الواضحة.
 // تُرجع نص الخطأ، أو '' إذا صحيحة/غير مكتملة. (لا نُزعج المستخدم قبل اكتمال 10 خانات)
-export const validateSaudiId = id => {
+export const validateSaudiId = (id, isAr = true) => {
   const s = String(id || '')
   if (s.length < 10) return ''
-  if (!/^[123]\d{9}$/.test(s)) return 'رقم هوية غير صحيح'
-  if (isFakeNumber(s)) return 'أدخل رقم هوية حقيقياً'
+  if (!/^[123]\d{9}$/.test(s)) return isAr ? 'رقم هوية غير صحيح' : 'Invalid ID number'
+  if (isFakeNumber(s)) return isAr ? 'أدخل رقم هوية حقيقياً' : 'Enter a real ID number'
   return ''
 }
 
 // تحقق جوال سعودي: 9 خانات تبدأ بـ5 وليست وهمية. تُرجع نص الخطأ أو ''.
-export const validatePhone = ph => {
+export const validatePhone = (ph, isAr = true) => {
   const s = String(ph || '')
   if (s.length < 9) return ''
-  if (!/^5\d{8}$/.test(s)) return 'رقم جوال غير صحيح'
-  if (isFakeNumber(s)) return 'أدخل رقم جوال حقيقياً'
+  if (!/^5\d{8}$/.test(s)) return isAr ? 'رقم جوال غير صحيح' : 'Invalid mobile number'
+  if (isFakeNumber(s)) return isAr ? 'أدخل رقم جوال حقيقياً' : 'Enter a real mobile number'
   return ''
 }
 
@@ -197,9 +196,10 @@ export const validatePhone = ph => {
 // صيغة التخزين والكتابة الموحّدة في كل الموقع: yyyy-mm-dd (ميلادي)
 const MONTHS_AR = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر']
 const DAYS_AR   = ['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت']
-const DAYS_SHORT = ['أحد','إثن','ثلا','أرب','خمي','جمع','سبت']   // مختصرة كي لا تتداخل في التقويم
 const MONTHS_EN = ['January','February','March','April','May','June','July','August','September','October','November','December']
 const DAYS_EN   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
+// أعمدة التقويم تبدأ بالجمعة — المصفوفات أعلاه تبقى بترتيب getDay()
+const fridayFirst = (days) => [...days.slice(5), ...days.slice(0, 5)]
 const pad2 = n => String(n).padStart(2, '0')
 export const fmtDate = (y, m, d) => `${y}-${pad2(m + 1)}-${pad2(d)}`           // (m صفري)
 // عرض التاريخ للمستخدم: "12 مايو 2026"
@@ -260,7 +260,7 @@ export { ModalSection as KCard }
 /* ════════════════════════════ الدروب داون ═════════════════════════════ */
 // Dropdown أساسي بالبورتال + بحث + خلية مخصّصة. هو محرّك Select / MultiSelect.
 export const Dropdown = ({ value, onChange, options, placeholder, getKey, getLabel, getSub, searchable = true, renderCell, renderSelected, error, multi = false, selectedKeys, disabled = false }) => {
-  const { dir, isAr, T } = useFKLang()
+  const { dir, T } = useFKLang()
   const ac = useContext(AccentContext)
   const btnRef = useRef(null)
   const portalRef = useRef(null)
@@ -270,7 +270,7 @@ export const Dropdown = ({ value, onChange, options, placeholder, getKey, getLab
   const getK = getKey || (o => o)
   const getL = getLabel || (o => String(o))
   const filtered = q
-    ? options.filter(o => getL(o).toLowerCase().includes(q.toLowerCase()) || (getSub?.(o) || '').toLowerCase().includes(q.toLowerCase()))
+    ? options.filter(o => String(getL(o) ?? '').toLowerCase().includes(q.toLowerCase()) || String(getSub?.(o) || '').toLowerCase().includes(q.toLowerCase()))
     : options
 
   const toggle = () => {
@@ -294,8 +294,8 @@ export const Dropdown = ({ value, onChange, options, placeholder, getKey, getLab
       if (portalRef.current && portalRef.current.contains(e.target)) return
       setOpen(false)
     }
-    setTimeout(() => document.addEventListener('mousedown', onDoc), 0)
-    return () => document.removeEventListener('mousedown', onDoc)
+    const t = setTimeout(() => document.addEventListener('mousedown', onDoc), 0)
+    return () => { clearTimeout(t); document.removeEventListener('mousedown', onDoc) }
   }, [open])
 
   const selKeys = multi ? (selectedKeys || []) : []
@@ -365,7 +365,8 @@ export const CalendarPopup = ({ value, onPick, onClose, anchor, min, max }) => {
   const parsed = value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value.split('-').map(Number) : null
   const initial = parsed ? { y: parsed[0], m: parsed[1] - 1 } : { y: today.getFullYear(), m: today.getMonth() }
   const [cur, setCur] = useState(initial)
-  const firstDay = new Date(cur.y, cur.m, 1).getDay()
+  // الأسبوع يبدأ الجمعة: عدد الخانات الفارغة قبل يوم 1 = أيامه منذ الجمعة
+  const firstDay = (new Date(cur.y, cur.m, 1).getDay() + 2) % 7
   const daysInMonth = new Date(cur.y, cur.m + 1, 0).getDate()
   const prevMonth = () => setCur(c => c.m === 0 ? { y: c.y - 1, m: 11 } : { y: c.y, m: c.m - 1 })
   const nextMonth = () => setCur(c => c.m === 11 ? { y: c.y + 1, m: 0 } : { y: c.y, m: c.m + 1 })
@@ -392,7 +393,7 @@ export const CalendarPopup = ({ value, onPick, onClose, anchor, min, max }) => {
           </button>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, fontSize: 10, fontWeight: 600, color: C.tx4, marginBottom: 6 }}>
-          {(dir === 'ltr' ? DAYS_EN : DAYS_AR).map((d, i) => <div key={i} style={{ textAlign: 'center', padding: '4px 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d}</div>)}
+          {fridayFirst(dir === 'ltr' ? DAYS_EN : DAYS_AR).map((d, i) => <div key={i} style={{ textAlign: 'center', padding: '4px 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d}</div>)}
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
           {cells.map((d, i) => {
@@ -495,8 +496,9 @@ export const CurrencyField = ({ label, req, error, hint, value, onChange, placeh
 // جوال سعودي — بادئة +966 ثابتة، 9 أرقام تبدأ بـ 5.
 export const PhoneField = ({ label, req, error, hint, value, onChange, full, silent, disabled }) => {
   const ac = useContext(AccentContext)
+  const { isAr } = useFKLang()
   // silent: لا نلوّن الحقل ولا نُظهر ملاحظة تحته — التحقق يُعرض في الشريط السفلي للنافذة بدلاً منه.
-  const err = silent ? (error || '') : (error || validatePhone(value))  // خطأ خارجي أو تحقق داخلي
+  const err = silent ? (error || '') : (error || validatePhone(value, isAr))  // خطأ خارجي أو تحقق داخلي
   return (
     <Field label={label} req={req} error={err} hint={hint} full={full}>
       <div style={{ display: 'flex', direction: 'ltr', border: '1px solid transparent', borderRadius: 9, overflow: 'hidden', background: C.inputBg, boxShadow: errRing(err), height: 42, ...(disabled ? { opacity: .5 } : {}) }}>
@@ -511,8 +513,10 @@ export const PhoneField = ({ label, req, error, hint, value, onChange, full, sil
 // قائمة جوالات سعودية — مصفوفة أرقام مخزّنة بصيغة 9665XXXXXXXX (نفس صيغة عمود phone
 // في الموقع). الإدخال محلي (5XXXXXXXX) ثم زر «إضافة» أو Enter؛ كل رقم يظهر كشريحة
 // قابلة للحذف بصيغة العرض 05XXXXXXXX. تتفادى تكرار نفس الرقم تلقائياً.
-export const PhoneListField = ({ label, req, error, hint, value, onChange, full, addTitle = 'إضافة رقم' }) => {
+export const PhoneListField = ({ label, req, error, hint, value, onChange, full, addTitle }) => {
   const ac = useContext(AccentContext)
+  const { T } = useFKLang()
+  addTitle = addTitle ?? T('إضافة رقم', 'Add number')
   const list = Array.isArray(value) ? value.filter(Boolean) : []
   const [draft, setDraft] = useState('')
   const localOf = v => String(v || '').replace(RE_DIGITS, '').replace(/^966/, '').replace(/^0/, '').slice(-9)
@@ -556,8 +560,9 @@ export const PhoneListField = ({ label, req, error, hint, value, onChange, full,
 
 // رقم هوية/إقامة — 10 خانات، بادئة أولى اختيارية (1 وطنية / 2 إقامة).
 export const IdField = ({ label, req, error, hint, value, onChange, prefix, placeholder = 'XXXXXXXXXX', full, silent, disabled }) => {
+  const { isAr } = useFKLang()
   // silent: لا نلوّن الحقل ولا نُظهر ملاحظة تحته — التحقق يُعرض في الشريط السفلي للنافذة بدلاً منه.
-  const err = silent ? (error || '') : (error || validateSaudiId(value))   // خطأ خارجي أو تحقق داخلي
+  const err = silent ? (error || '') : (error || validateSaudiId(value, isAr))   // خطأ خارجي أو تحقق داخلي
   return (
     <Field label={label} req={req} error={err} hint={hint} full={full}>
       <input value={value || ''} dir="ltr" maxLength={10} disabled={disabled}
@@ -830,8 +835,8 @@ export const ColorField = ({ label, req, error, hint, value, onChange, swatches 
   useEffect(() => {
     if (!open) return
     const onDoc = e => { if (btnRef.current?.contains(e.target)) return; if (portalRef.current?.contains(e.target)) return; setOpen(false) }
-    setTimeout(() => document.addEventListener('mousedown', onDoc), 0)
-    return () => document.removeEventListener('mousedown', onDoc)
+    const t = setTimeout(() => document.addEventListener('mousedown', onDoc), 0)
+    return () => { clearTimeout(t); document.removeEventListener('mousedown', onDoc) }
   }, [open])
   return (
     <Field label={label} req={req} error={error} hint={hint} full={full}>
@@ -904,8 +909,8 @@ export const TimeField = ({ label, req, error, hint, value, onChange, full, minu
   useEffect(() => {
     if (!open) return
     const onDoc = e => { if (wrapRef.current?.contains(e.target)) return; if (portalRef.current?.contains(e.target)) return; setOpen(false) }
-    setTimeout(() => document.addEventListener('mousedown', onDoc), 0)
-    return () => document.removeEventListener('mousedown', onDoc)
+    const t = setTimeout(() => document.addEventListener('mousedown', onDoc), 0)
+    return () => { clearTimeout(t); document.removeEventListener('mousedown', onDoc) }
   }, [open])
   const hours = Array.from({ length: 12 }, (_, i) => i + 1)
   const mins = Array.from({ length: Math.ceil(60 / minuteStep) }, (_, i) => i * minuteStep)

@@ -77,7 +77,8 @@ export default function KPIPage({ sb, toast, user, lang, branchId }) {
   // تحديث القيم الفعلية
   const refreshActuals = async () => {
     try {
-      await sb.rpc('update_kpi_actuals', { p_month: month + '-01' })
+      const { error } = await sb.rpc('update_kpi_actuals', { p_month: month + '-01' })
+      if (error) throw error
       toast(T('تم تحديث البيانات', 'Data updated'))
       load()
     } catch (e) { toast(T('خطأ في التحديث', 'Update error')) }
@@ -106,11 +107,12 @@ export default function KPIPage({ sb, toast, user, lang, branchId }) {
         if (isNaN(val)) continue
         const existing = targets.find(t => t.metric_key === m.key)
         if (existing) {
-          await sb.from('monthly_targets').update({
+          const { error } = await sb.from('monthly_targets').update({
             target_value: val, updated_at: new Date().toISOString()
           }).eq('id', existing.id)
+          if (error) throw error
         } else {
-          await sb.from('monthly_targets').insert({
+          const { error } = await sb.from('monthly_targets').insert({
             target_month: monthDate,
             branch_id: branchFilter || null,
             metric_key: m.key,
@@ -118,6 +120,7 @@ export default function KPIPage({ sb, toast, user, lang, branchId }) {
             unit: m.unit,
             created_by: user?.id
           })
+          if (error) throw error
         }
       }
       toast(T('تم حفظ الأهداف', 'Targets saved'))
@@ -154,7 +157,7 @@ export default function KPIPage({ sb, toast, user, lang, branchId }) {
 
   const monthLabel = (() => {
     const d = new Date(month + '-01')
-    return d.toLocaleDateString(isAr ? 'ar-SA' : 'en', { month: 'long', year: 'numeric' })
+    return d.toLocaleDateString(isAr ? 'ar-SA-u-ca-gregory-nu-latn' : 'en', { month: 'long', year: 'numeric' })
   })()
 
   if (loading) return <div style={{ fontFamily: F }}>
@@ -308,10 +311,10 @@ export default function KPIPage({ sb, toast, user, lang, branchId }) {
             <div style={{ padding: '7px 12px', borderRadius: 10, background: 'var(--card-grad2)', border: '1px solid rgba(255,255,255,.06)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.05), 0 2px 4px rgba(0,0,0,.22)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 12 }}>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
                 <div style={{ fontSize: 20, fontWeight: 600, color: clr, letterSpacing: '-.3px', direction: 'ltr', lineHeight: 1 }}>
-                  {m.unit === 'currency' ? num(t.actual_value) : Number(t.actual_value || 0).toLocaleString()}
+                  {m.unit === 'currency' ? num(t.actual_value) : Number(t.actual_value || 0).toLocaleString('en-US')}
                 </div>
                 <div style={{ fontSize: 12, color: 'var(--tx5)', direction: 'ltr' }}>
-                  / {m.unit === 'currency' ? num(t.target_value) : Number(t.target_value || 0).toLocaleString()}
+                  / {m.unit === 'currency' ? num(t.target_value) : Number(t.target_value || 0).toLocaleString('en-US')}
                 </div>
               </div>
               <div style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600 }}>{m.unit === 'currency' ? T('ر.س', 'SAR') : ''}</div>

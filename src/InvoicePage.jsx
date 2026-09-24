@@ -5,9 +5,8 @@ import { can as canPerm, isGM, isAccountant, cardVisible, canCardBtn, tabOffices
 import { ALL_SERVICES, SVC_CODE_MAP } from './ServiceRequestPage.jsx'
 import { noDash, clientEditChanges, branchLabel, branchNick } from './lib/utils.js'
 import { navSetHere } from './lib/navStack.js'
-import { OFFICE_LOGO_SVG } from './lib/officeBrand.js'
-import { Modal, SuccessView, EmptyState, ModalSection, InfoRow, InfoGrid, GRID, FULL, CurrencyField, Segmented, TextField, TextArea, IdField, PhoneField, DateField, Select as FKSelect, Dropdown as FKDropdown, FileField, Checkbox, ScrollBox, C as FKC, useFKLang } from './components/ui/FormKit.jsx'
-import { Plus, RotateCcw, RotateCw, Ban, Printer, Info, Wallet, FileText, Landmark, Building2, User, Search, CheckCircle2, Circle, CreditCard, Briefcase, Calendar, CalendarRange, BadgeCheck, Hash, Phone, Globe, Link2, MessageSquare, Paperclip, Percent, HeartPulse, RefreshCw, AlertCircle, Check, X, ExternalLink, ChevronLeft, ChevronRight, Receipt, Banknote } from 'lucide-react'
+import { Modal, SuccessView, EmptyState, ModalSection, GRID, FULL, CurrencyField, Segmented, TextField, TextArea, IdField, PhoneField, DateField, Select as FKSelect, Dropdown as FKDropdown, FileField, Checkbox, ScrollBox, C as FKC, useFKLang } from './components/ui/FormKit.jsx'
+import { Plus, RotateCcw, RotateCw, Ban, Printer, Info, Wallet, FileText, Landmark, Building2, User, Search, CheckCircle2, Circle, CreditCard, Briefcase, Calendar, CalendarRange, BadgeCheck, Hash, Phone, Globe, Link2, MessageSquare, Paperclip, HeartPulse, RefreshCw, AlertCircle, Check, X, ExternalLink, ChevronLeft, ChevronRight, Receipt, Banknote } from 'lucide-react'
 import { Stepper as FKStepper } from './components/ui/FormKit.jsx'
 import { Shimmer } from './components/ui/Skeleton.jsx'
 import { TXN_SERVICES } from './pages/txnServices.js'
@@ -58,10 +57,6 @@ const fmtDateTime = (iso, ar = true) => {
     return `${yyyy}-${mm}-${dd} · ${hh}:${mn}`
   } catch { return '—' }
 }
-const fmtShort = (iso) => {
-  if (!iso) return '—'
-  try { const d = new Date(iso); const y = d.getFullYear() % 100; return String(d.getDate()).padStart(2,'0') + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(y).padStart(2,'0') } catch { return '—' }
-}
 
 // Business "day" boundary = 05:00 AM Riyadh (UTC+3) = 02:00 UTC.
 // Times before 05:00 Riyadh count as the previous business day.
@@ -101,6 +96,44 @@ const baseSvcCode = (code) => (VISA_SVC_CODES.has(code) ? 'work_visa' : code)
 // تأشيرات «بإقامة» بمسار الإقامة الكامل (١٢ شهر و٦ أشهر): مراحل التأمين/رخصة العمل + إقامة لكل تأشيرة + توزيع المنشآت.
 // «تأشيرة بإقامة 3 شهور» (المؤقتة) ليست منها. أي فحص كان يقارن بـ 'work_visa_permanent' يجب أن يستعمل هذه المجموعة.
 const RESIDENCE_VISA_CODES = new Set(['work_visa_permanent', 'work_visa_9m', 'work_visa_6m'])
+
+/* ── مراحل التأشيرة كما تراها «جداول العمل» ───────────────────────────────────
+   مصدر بيانات المعاملة في فواتير «تأشيرة بإقامة» هو الجداول الثلاثة:
+   إصدار التأشيرات (visa_applications) · وكالة التأشيرات (wakalah_* على نفس الصفّ) ·
+   إصدار الإقامات وتوصيلها (iqama_issuance_applications). لذلك تُقرأ القيم هنا
+   بنفس منطق `flatten` في pages/VisaPipelineGridPage.jsx حرفياً — ومنه:
+   الاحتياط بالأعمدة المرآة حين لا يوجد stage_data (صفوف مستوردة لها حالة
+   «done» بلا تفاصيل)، فلا تفترق الفاتورة عن الجدول. */
+const stageDoneish = (s) => /^(done|delivered|accomplished)$/i.test(String(s || '').trim())
+const visaGridView = (iq) => {
+  const sd = (iq?.stage_data && typeof iq.stage_data === 'object') ? iq.stage_data : {}
+  const ins = (sd.insurance && typeof sd.insurance === 'object') ? sd.insurance : null
+  const wp = (sd.work_permit && typeof sd.work_permit === 'object') ? sd.work_permit : null
+  return {
+    medicalDone: stageDoneish(iq?.medical_status),
+    medicalPending: !!iq?.medical_status && !stageDoneish(iq?.medical_status),
+    medicalAmount: iq?.medical_amount ?? null,
+    insDone: (!!ins && (stageDoneish(ins.status) || (!!ins.expiry && Number(ins.amount) > 0))) || stageDoneish(iq?.insurance_status),
+    insExpiry: ins?.expiry || iq?.insurance_expiry || null,
+    insAmount: ins?.amount ?? iq?.insurance_amount ?? null,
+    insCompany: ins?.company || null,
+    insPolicy: ins?.policy_no || null,
+    insAt: ins?.at || null,
+    insBy: ins?.by_name || null,
+    wpDone: (!!wp && (stageDoneish(wp.status) || (!!wp.expiry && Number(wp.amount) > 0))) || stageDoneish(iq?.work_permit_status),
+    wpDuration: wp?.duration_months ?? iq?.work_permit_duration_months ?? null,
+    wpExpiry: wp?.expiry || iq?.work_permit_expiry || null,
+    wpAmount: wp?.amount ?? iq?.work_permit_amount ?? null,
+    wpAt: wp?.at || null,
+    wpBy: wp?.by_name || null,
+    printDone: stageDoneish(iq?.iqama_print_status),
+    printAmount: iq?.iqama_print_amount ?? null,
+    deliveryDone: stageDoneish(iq?.iqama_delivery_status) || !!iq?.iqama_delivery_date,
+    deliveryNo: iq?.delivery_request_no || null,
+    deliveryDate: iq?.iqama_delivery_date || null,
+  }
+}
+
 // خدمات «الفاتورة الصفرية» المبسّطة — طلب بلا تسعير/دفع، تأخذ نفس معاملة صفحة التفاصيل والكرت والطباعة
 // (رواتب سبلاير، المستندات). تُخفى الكروت المالية/التسعير/الدفع وزر الإلغاء، وتظهر كتلة حالة المعاملة.
 const ZERO_INVOICE_SVCS = new Set(['supplier_payroll', 'documents'])
@@ -180,12 +213,6 @@ const svcTypeSwitchable = (code) => {
   return INVOICE_SVC_CODES.has(base) && !!TXN_SERVICES[base] && !SVC_TYPE_SWITCH_EXCLUDE.has(base) && !SVC_FIELDS_FROZEN.has(base) && !SVC_COLUMN_TBL[base]
 }
 
-const INV_STATUS_THEME = {
-  new:        { c: C.blue,   stamp_ar: 'جديدة',           stamp_en: 'NEW' },
-  active:     { c: C.gold,   stamp_ar: 'نشطة',            stamp_en: 'ACTIVE' },
-  fully_paid: { c: C.ok,     stamp_ar: 'مدفوعة بالكامل',  stamp_en: 'PAID' },
-  cancelled:  { c: C.red,    stamp_ar: 'ملغية',           stamp_en: 'CANCELLED' },
-}
 // Compute synthetic status from amounts when status_id is missing or generic
 const inferPayState = (inv) => {
   const total = Number(inv.total_amount || 0)
@@ -363,10 +390,10 @@ function InvCard({ d, row, sb, T, isAr, toast, onClick, user }) {
   // ── إجراءات الكرت: نسخ رسالة الواتساب (نفس صيغة القروب) + طباعة الفاتورة ──
   const [waCopied, setWaCopied] = useState(false)
   const [printing, setPrinting] = useState(false)
-  const copyWa = e => {
+  const copyWa = async e => {
     e.stopPropagation()
     try {
-      navigator.clipboard?.writeText(buildInvoiceWaMessage(row, d.dayMoney))
+      await navigator.clipboard?.writeText(buildInvoiceWaMessage(row, d.dayMoney))
       setWaCopied(true); setTimeout(() => setWaCopied(false), 1500)
       toast?.(T('تم نسخ رسالة الواتساب', 'WhatsApp message copied'))
     } catch { toast?.(T('تعذّر النسخ', 'Copy failed')) }
@@ -727,82 +754,6 @@ function InvCard({ d, row, sb, T, isAr, toast, onClick, user }) {
   )
 }
 
-/* ─── Tiny bits ─── */
-const Pill = ({ count, label, color, money }) => (
-  <div style={{
-    display: 'flex', alignItems: 'center', gap: 8,
-    padding: '7px 14px', borderRadius: 999,
-    background: 'var(--inputBg)', border: '1px solid var(--bd)',
-  }}>
-    <span style={{ width: 7, height: 7, borderRadius: '50%', background: color, boxShadow: '0 0 6px ' + color }} />
-    <span style={{ fontSize: money ? 14 : 18, fontWeight: 600, color, fontVariantNumeric: 'tabular-nums', direction: 'ltr', lineHeight: 1 }}>{count}</span>
-    <span style={{ fontSize: 11, color: 'var(--tx2)', fontWeight: 600 }}>{label}</span>
-  </div>
-)
-
-const StatCard = ({ label, value, sub, color, sup }) => {
-  const c = color || C.gold
-  return (
-    <div style={{
-      minWidth: 0, minHeight: 130,
-      padding: '14px 18px', borderRadius: 16,
-      background: 'var(--card-grad2)',
-      border: '1px solid var(--bd)',
-      boxShadow: 'var(--shadow-md)',
-      position: 'relative', overflow: 'hidden',
-      display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
-    }}>
-      {/* Subtle top color accent */}
-      <div style={{ position: 'absolute', top: 0, insetInlineStart: 0, insetInlineEnd: 0, height: 2, background: `linear-gradient(90deg, ${c}55, transparent 70%)` }} />
-      {/* Faded watermark glow */}
-      <div style={{ position: 'absolute', insetInlineStart: -40, top: -40, width: 110, height: 110, borderRadius: '50%', background: `radial-gradient(circle, ${c}12 0%, transparent 70%)`, pointerEvents: 'none' }} />
-
-      {/* Top: label + glowing dot */}
-      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600, letterSpacing: '.1px' }}>{label}</div>
-        <span style={{ width: 7, height: 7, borderRadius: '50%', background: c, boxShadow: `0 0 8px ${c}aa` }} />
-      </div>
-
-      {/* Big value — centered vertically in available space, right-aligned in RTL */}
-      <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', justifyContent: 'flex-start', gap: 5, padding: '6px 0' }}>
-        <div style={{ fontSize: 32, fontWeight: 600, color: c, letterSpacing: '-1px', lineHeight: 1, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{value}</div>
-        {sup && <span style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600 }}>{sup}</span>}
-      </div>
-
-      {/* Bottom: divider + sub aligned right */}
-      {sub && (
-        <div style={{ position: 'relative', paddingTop: 8, borderTop: '1px solid var(--bd)', fontSize: 11, color: 'var(--tx3)', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span>{sub}</span>
-        </div>
-      )}
-    </div>
-  )
-}
-
-function Sparkline({ points, width = 360, height = 90 }) {
-  if (!points?.length) return null
-  const max = Math.max(1, ...points)
-  const W = width, H = height
-  const px = i => (i / Math.max(1, points.length - 1)) * W
-  const py = v => H - (v / max) * (H - 8) - 4
-  const linePath = points.map((v, i) => (i === 0 ? 'M' : 'L') + px(i).toFixed(1) + ',' + py(v).toFixed(1)).join(' ')
-  const areaPath = linePath + ` L${W},${H} L0,${H} Z`
-  return (
-    <svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ display: 'block' }}>
-      <defs>
-        <linearGradient id="inv-spark-fill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={C.gold} stopOpacity="0.42" />
-          <stop offset="100%" stopColor={C.gold} stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <path d={areaPath} fill="url(#inv-spark-fill)" />
-      <path d={linePath} stroke={C.gold} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx={px(0)} cy={py(points[0])} r="3.5" fill={C.ok} stroke="#1a1a1a" strokeWidth="2" />
-      <circle cx={px(points.length - 1)} cy={py(points[points.length - 1])} r="3.5" fill={C.gold} stroke="#1a1a1a" strokeWidth="2" />
-    </svg>
-  )
-}
-
 /* ═══════════════════════════════════════════════════════════════ */
 // Full invoice row shape used by the list and by deep-link open-by-id.
 const INVOICE_SELECT = `
@@ -824,12 +775,12 @@ const INVOICE_SELECT = `
           accountant:accountant_by(person:person_id(name_ar,name_en)),
           status:status_id(code,value_ar,value_en),
           client:client_id(id,name_ar,name_en,phone,id_number,nationality_id,edit_log,nationality:nationality_id(code,name_ar,flag_url)),
-          visa_applications(id,border_number,visa_type:visa_type_id(code,value_ar,value_en),iqama_issuance_applications(id,deleted_at,iqama_number,stage_data)),
-          transfer_applications(worker:worker_id(id,name_ar,name_en,phone,iqama_number,nationality:nationality_id(code,name_ar,flag_url)),facility:main_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),
-          ajeer_applications(worker:worker_id(id,name_ar,name_en,phone,iqama_number,nationality:nationality_id(code,name_ar,flag_url)),facility:main_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),
-          iqama_renewal_applications(duration_months,deleted_at,worker:worker_id(id,name_ar,name_en,phone,iqama_number,nationality:nationality_id(code,name_ar,flag_url)),facility:worker_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),
-          other_applications(worker_phone,details,worker:worker_id(id,name_ar,name_en,phone,iqama_number,birth_date,nationality:nationality_id(code,name_ar,flag_url)),facility:worker_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),
-          supplier_payroll_applications(worker_phone,total_amount,unpaid_salaries_count,worker:worker_id(id,name_ar,name_en,phone,iqama_number,nationality:nationality_id(code,name_ar,flag_url)),facility:worker_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),
+          visa_applications(id,border_number,visa_type:visa_type_id(code,value_ar,value_en),iqama_issuance_applications(id,deleted_at,iqama_number,stage_data,medical_status,insurance_status,work_permit_status,iqama_print_status,iqama_delivery_status,iqama_delivery_date)),
+          transfer_applications(worker:worker_id(id,name_ar,name_en,phone,iqama_number,nationality:nationality_id(code,name_ar,flag_url),current_facility:current_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),facility:main_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),
+          ajeer_applications(worker:worker_id(id,name_ar,name_en,phone,iqama_number,nationality:nationality_id(code,name_ar,flag_url),current_facility:current_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),facility:main_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),
+          iqama_renewal_applications(duration_months,deleted_at,worker:worker_id(id,name_ar,name_en,phone,iqama_number,nationality:nationality_id(code,name_ar,flag_url),current_facility:current_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),facility:worker_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),
+          other_applications(worker_phone,details,worker:worker_id(id,name_ar,name_en,phone,iqama_number,birth_date,nationality:nationality_id(code,name_ar,flag_url),current_facility:current_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),facility:worker_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),
+          supplier_payroll_applications(worker_phone,total_amount,unpaid_salaries_count,worker:worker_id(id,name_ar,name_en,phone,iqama_number,nationality:nationality_id(code,name_ar,flag_url),current_facility:current_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),facility:worker_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),
           service_request_agents(agent:agent_id(id,name_ar,name_en,id_number,phone,nationality_id,edit_log,nationality:nationality_id(code,name_ar,flag_url)))
         )
       `
@@ -1005,11 +956,6 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
   const [page, setPage] = useState(0)
 
   // Stats
-  const [statsAgg, setStatsAgg] = useState({ services: [], statuses: [] })
-  const [statsDaily, setStatsDaily] = useState([])
-  const [statsTotalCount, setStatsTotalCount] = useState(0)
-  const [aging, setAging] = useState([])
-  const [dailyCash, setDailyCash] = useState(0)
   const [periodStats, setPeriodStats] = useState({
     cash: { cnt: 0, sum: 0 },
     bank: { cnt: 0, sum: 0 },
@@ -1017,13 +963,7 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
     voided: { cnt: 0, sum: 0 },      // المرتجعات المسجّلة (دفعات سالبة) ضمن الفترة
     returned: { cnt: 0, sum: 0 },    // الخروج النقدي الفعلي — هو ما يُخصم من الصافي
   })
-  const [weekStats, setWeekStats] = useState({
-    cash: { cnt: 0, sum: 0 },
-    bank: { cnt: 0, sum: 0 },
-    voided: { cnt: 0, sum: 0 },
-  })
   const [svcToday, setSvcToday] = useState([])
-  const [svcWeek, setSvcWeek] = useState([])
 
   // Filters
   const [q, setQ] = useState('')
@@ -1066,7 +1006,6 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
     return () => navSetHere(null)
   }, [detail])
   const [cancelledStatusId, setCancelledStatusId] = useState(null)
-  const [busyId, setBusyId] = useState(null)
   const [refreshTick, setRefreshTick] = useState(0)
 
   // تحديث تلقائي: أي دفعة/فاتورة/إلغاء/استرجاع/معاملة (من هذا الجهاز أو مستخدم آخر)
@@ -1125,47 +1064,6 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
 
   // ملاحظة: الإلغاء والاسترجاع يتمّان عبر ActionModal الموحّد (FormKit) أدناه —
   // أُزيلت الدوال القديمة المعتمدة على window.confirm لأنها كانت كوداً ميتاً.
-
-  // Aggregations
-  useEffect(() => {
-    let alive = true
-    const dayStart = riyadhDayStart()
-    const dayEnd = new Date(dayStart.getTime() + 24 * 3600 * 1000)
-    const applyAgg = ([s, d, a, c, pc]) => {
-      const items = s.data || []
-      setStatsAgg({
-        services: items.filter(i => i.dim === 'service_type'),
-        statuses: items.filter(i => i.dim === 'status'),
-      })
-      setStatsDaily(d.data || [])
-      setAging(a.data || [])
-      setStatsTotalCount(c.count || 0)
-      setDailyCash((pc.data || []).reduce((s2, p) => s2 + (Number(p.amount) || 0), 0))
-    }
-    const ck = 'inv:agg:' + JSON.stringify(officeScope || null)
-    const cached = swrGet(ck)
-    if (cached) applyAgg(cached)
-    Promise.all([
-      sb.from('v_invoice_stats').select('*'),
-      sb.from('v_invoice_daily').select('*'),
-      sb.from('v_invoice_aging').select('*'),
-      // العدّاد يخضع لـ RLS مثل القائمة تماماً: المستخدم المحصور لا يرى إلا فواتير مكاتبه (بلا فواتير عديمة المكتب)،
-      // فنقصر العدّ على مكاتبه ليطابق ما يظهر له فعلاً (كان يضمّ branch_id IS NULL وهو مستبعَد أصلاً بـ RLS).
-      (officeScope ? sb.from('invoices').select('id', { count: 'exact', head: true }).is('deleted_at', null).in('branch_id', officeScope)
-                   : sb.from('invoices').select('id', { count: 'exact', head: true }).is('deleted_at', null)),
-      sb.from('payments').select('amount,payment_method:payment_method_id!inner(code)')
-        .eq('payment_method.code', 'cash')
-        .eq('is_valid', true)
-        .is('deleted_at', null)
-        .gte('payment_date', dayStart.toISOString())
-        .lt('payment_date', dayEnd.toISOString()),
-    ]).then((res) => {
-      if (!alive) return
-      swrSet(ck, res)
-      applyAgg(res)
-    })
-    return () => { alive = false }
-  }, [sb, officeScope, refreshTick])
 
   // كروت الإحصاء تعكس التصفية: بلا تصفية تعمل بمنطق «اليوم» (p_start = بداية اليوم)؛
   // ومع أي تصفية نمرّر p_start=null + بقية الفلاتر فتُحسب على الفواتير المطابقة.
@@ -1241,13 +1139,12 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
     })
   }, [stageOptions])
 
-  // KPI breakdown (cash / bank+pos / cancelled / voided) + service distribution — today AND last 7 days.
-  // مدمج في تأثير واحد: استدعاءان فقط لـ invoice_period_stats (اليوم + الأسبوع) — كل استجابة تحمل
-  // cash/bank/cancelled/voided + services معًا، فلا داعي لتكرار الاستعلام أربع مرات (نصف حِمل البحث).
+  // KPI breakdown (cash / bank+pos / cancelled / voided) + service distribution.
+  // استدعاء واحد لـ invoice_period_stats — الاستجابة تحمل cash/bank/cancelled/voided + services معًا.
+  // (استدعاء «الأسبوع» الثاني أُزيل: نتيجته لم تكن تُعرض في أي مكان.)
   useEffect(() => {
     let alive = true
     const todayStart = riyadhDayStart()
-    const weekStart = new Date(todayStart.getTime() - 6 * 24 * 3600 * 1000)
     const normKpi = (x) => ({ cnt: Number(x?.cnt) || 0, sum: Number(x?.sum) || 0, cash: Number(x?.cash) || 0, bank: Number(x?.bank) || 0 })
     const normSvc = (rows) => (rows || []).map(s => ({ code: s.code, cnt: Number(s.cnt) || 0, sum: Number(s.sum) || 0 }))
     // كروت الإحصاء: المدير العام والمحاسب تتبع عوامل التصفية المختارة (يوم/مدى/كل التواريخ).
@@ -1258,14 +1155,10 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
     const { active: _rawActive, ...rawF } = statFilters
     const active = fullStats ? _rawActive : false
     const f = fullStats ? rawF : { p_branch_ids: rawF.p_branch_ids, p_branch_exact_ids: rawF.p_branch_exact_ids }
-    const applyPeriod = ([t, w]) => {
+    const applyPeriod = ([t]) => {
       if (t.data) {
         setPeriodStats({ cash: normKpi(t.data.cash), bank: normKpi(t.data.bank), cancelled: normKpi(t.data.cancelled), voided: normKpi(t.data.voided), returned: normKpi(t.data.returned) })
         setSvcToday(normSvc(t.data.services))
-      }
-      if (w.data) {
-        setWeekStats({ cash: normKpi(w.data.cash), bank: normKpi(w.data.bank), voided: normKpi(w.data.voided) })
-        setSvcWeek(normSvc(w.data.services))
       }
     }
     const ck = 'inv:period:' + todayStart.toISOString().slice(0, 10) + ':' + JSON.stringify(f) + ':' + (active ? 1 : 0)
@@ -1273,7 +1166,6 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
     if (cached) applyPeriod(cached)
     Promise.all([
       sb.rpc('invoice_period_stats', { p_start: active ? null : todayStart.toISOString(), ...f }),
-      sb.rpc('invoice_period_stats', { p_start: active ? null : weekStart.toISOString(), ...f }),
     ]).then((res) => {
       if (!alive) return
       swrSet(ck, res)
@@ -1340,25 +1232,6 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
     return () => { alive = false }
   }, [sb, page, statFilters, sortMode, refreshTick])
 
-  const stats = useMemo(() => {
-    const total = statsTotalCount
-    const byService = Object.fromEntries(statsAgg.services.map(s => [s.code || 'general', { cnt: Number(s.cnt) || 0, total: Number(s.total) || 0, paid: Number(s.paid) || 0 }]))
-    const totalAmt = Object.values(byService).reduce((s, v) => s + v.total, 0)
-    const totalPaid = Object.values(byService).reduce((s, v) => s + v.paid, 0)
-    const totalRemaining = Math.max(0, totalAmt - totalPaid)
-
-    const days = 14, today = new Date(); today.setHours(0,0,0,0)
-    const buckets = new Array(days).fill(0)
-    statsDaily.forEach(d => {
-      const dt = new Date(d.day); dt.setHours(0,0,0,0)
-      const age = Math.round((today - dt) / 86400000)
-      if (age >= 0 && age < days) buckets[days - 1 - age] = Number(d.cnt) || 0
-    })
-
-    // Pay state buckets — derived from invoices select payload below
-    return { total, byService, totalAmt, totalPaid, totalRemaining, sparkline: buckets, aging }
-  }, [statsAgg, statsDaily, statsTotalCount, aging])
-
   // Day grouping — uses 05:00 AM Riyadh business-day boundary
   const businessDayKey = (iso) => {
     if (!iso) return ''
@@ -1422,7 +1295,8 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
       let idSet = null
       if (needIds) {
         const { active: _a, ...f } = statFilters
-        const { data: idRows } = await sb.rpc('search_invoice_ids', { ...f, p_limit: 5000, p_offset: 0 })
+        const { data: idRows, error: idErr } = await sb.rpc('search_invoice_ids', { ...f, p_limit: 100000, p_offset: 0 })
+        if (idErr) throw idErr
         idSet = new Set((idRows || []).map(r => r.id))
       }
 
@@ -1548,14 +1422,13 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
           bank: sumOf(bankP) - returnedBank,
         },
       })
-      navigator.clipboard?.writeText(msg)
+      await navigator.clipboard?.writeText(msg)
       setWaSumCopied(true); setTimeout(() => setWaSumCopied(false), 1500)
       toast?.(T('تم نسخ الملخص', 'Summary copied'))
     } catch { toast?.(T('تعذّر النسخ', 'Copy failed')) }
     finally { setWaSumBusy(false) }
   }
   const dayNames = [T('الأحد','Sun'), T('الاثنين','Mon'), T('الثلاثاء','Tue'), T('الأربعاء','Wed'), T('الخميس','Thu'), T('الجمعة','Fri'), T('السبت','Sat')]
-  const monthNames = [T('يناير','Jan'),T('فبراير','Feb'),T('مارس','Mar'),T('أبريل','Apr'),T('مايو','May'),T('يونيو','Jun'),T('يوليو','Jul'),T('أغسطس','Aug'),T('سبتمبر','Sep'),T('أكتوبر','Oct'),T('نوفمبر','Nov'),T('ديسمبر','Dec')]
   const dayLabel = (k) => k === todayStr ? T('اليوم','Today') : (() => { try { const d = new Date(k + 'T12:00:00'); return dayNames[d.getDay()] } catch { return k } })()
   const dayFull  = (k) => { try { const d = new Date(k + 'T12:00:00'); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') } catch { return k } }
   const totalPages = Math.max(1, Math.ceil(total / PAGE))
@@ -1653,16 +1526,14 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
       {/* Advanced filter panel — matches Transfer Calc design */}
       {advOpen && (() => {
         const fLbl = { fontSize: 12, fontWeight: 500, color: 'var(--tx3)', paddingInlineStart: 2, marginBottom: 7 }
-        const fInp = { height: 42, padding: '0 14px', borderRadius: 9, border: '1px solid transparent', background: 'var(--inputBg)', color: 'var(--tx)', fontFamily: F, fontSize: 14, fontWeight: 600, outline: 'none', boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)', transition: '.2s', width: '100%', boxSizing: 'border-box' }
         // اختصارات الفترة — تعتمد بداية اليوم 5 صباحًا (todayStr = يوم العمل الحالي)
         const dShift = (key, n) => { const d = new Date(key + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10) }
         const datePresets = [
           { l: T('اليوم','Today'),         f: todayStr,                    t: todayStr },
           { l: T('أمس','Yesterday'),       f: dShift(todayStr, -1),        t: dShift(todayStr, -1) },
-          { l: T('هذا الأسبوع','This week'), f: dShift(todayStr, -new Date(todayStr + 'T12:00:00Z').getUTCDay()), t: todayStr }, // من الأحد (بداية الأسبوع) إلى اليوم
+          { l: T('هذا الأسبوع','This week'), f: dShift(todayStr, -((new Date(todayStr + 'T12:00:00Z').getUTCDay() + 2) % 7)), t: todayStr }, // من الجمعة (بداية الأسبوع) إلى اليوم
           { l: T('هذا الشهر','This month'), f: todayStr.slice(0, 8) + '01', t: todayStr },
         ]
-        const chip = (active) => ({ height: 30, padding: '0 14px', borderRadius: 8, fontFamily: F, fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', transition: '.15s', border: `1px solid ${active ? 'var(--accent)' : 'var(--bd)'}`, background: active ? 'var(--accent-bg)' : 'var(--inputBg)', color: active ? 'var(--accent)' : 'var(--tx2)' })
         return (
           <div style={{ marginBottom: 22, padding: '16px 18px', background: 'var(--card-grad2)', border: '1px solid var(--bd)', borderRadius: 14 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', borderBottom: '1px solid var(--bd)', paddingBottom: 2, marginBottom: 14 }}>
@@ -1862,15 +1733,18 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
                 // حالة كل تأشيرة على حدة (للتأشيرات المتعددة): إقامة صادرة→منجز، رقم حدود→قيد التنفيذ, وإلا جديد.
                 const visaStages = isPermVisaCard ? visaApps.map(v => iqamaNumFilled(v) ? 'done' : (v.border_number ? 'progress' : 'new')) : []
                 // عنوان (tooltip) لكل تأشيرة عند المرور — يسرد مراحلها وحالة كلٍّ (تم الإصدار / بانتظار الإصدار).
-                // المؤقتة: تأشيرة ← إقامة. الدائمة: تأشيرة ← تأمين ← رخصة عمل ← إقامة (التأمين/الرخصة بلا ترتيب).
+                // نفس تسلسل «جداول العمل» ومنطقها (راجع visaGridView): المؤقتة تقفز التأمين والرخصة.
                 const isPermanentCard = RESIDENCE_VISA_CODES.has(r.service_type?.code)
-                const stageDataOfVisa = v => { const iq = v?.iqama_issuance_applications; const arr = Array.isArray(iq) ? iq : (iq ? [iq] : []); const row = arr.find(x => x && x.deleted_at == null) || null; return (row?.stage_data && typeof row.stage_data === 'object') ? row.stage_data : {} }
+                const iqRowOfVisa = v => { const iq = v?.iqama_issuance_applications; const arr = Array.isArray(iq) ? iq : (iq ? [iq] : []); return arr.find(x => x && x.deleted_at == null) || null }
                 const visaStageTips = isPermVisaCard ? visaApps.map((v, i) => {
-                  const sd = stageDataOfVisa(v)
+                  const g = visaGridView(iqRowOfVisa(v))
                   const st = done => done ? 'done' : 'awaiting'
                   const stages = [{ label: T('التأشيرة', 'Visa'), state: st(!!v.border_number) }]
-                  if (isPermanentCard) { stages.push({ label: T('التأمين', 'Insurance'), state: st(!!sd.insurance) }); stages.push({ label: T('رخصة العمل', 'Work Permit'), state: st(!!sd.work_permit) }) }
+                  stages.push({ label: T('الفحص الطبي', 'Medical Exam'), state: st(g.medicalDone) })
+                  if (isPermanentCard) { stages.push({ label: T('التأمين', 'Insurance'), state: st(g.insDone) }); stages.push({ label: T('رخصة العمل', 'Work Permit'), state: st(g.wpDone) }) }
                   stages.push({ label: T('الإقامة', 'Iqama'), state: st(iqamaNumFilled(v)) })
+                  stages.push({ label: T('طباعة الإقامة', 'Iqama Print'), state: st(g.printDone) })
+                  stages.push({ label: T('توصيل الإقامة', 'Iqama Delivery'), state: st(g.deliveryDone) })
                   return { title: `${T('التأشيرة', 'Visa')} ${i + 1}`, stages }
                 }) : []
                 // الكودان الجديدان (دائمة/مؤقتة) يحملان النوع في اسم الخدمة نفسه، فلا نُلحق نوع التأشيرة ثانيةً.
@@ -2073,7 +1947,7 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user }) {
       const srId = inv.service_request?.id
 
       const SELECTS = {
-        work_visa: `id,visa_number,visa_cost,border_number,unified_number,worker_name,wakalah_number,wakalah_date,wakalah_office,visa_used,visa_used_date_check,gender,file_number,visa_issue_date,visa_file_path,created_at,updated_at,
+        work_visa: `id,visa_number,visa_cost,border_number,unified_number,worker_name,wakalah_number,wakalah_date,wakalah_office,wakalah_chamber_no,wakalah_chamber_status,wakalah_file_path,visa_used,visa_used_date_check,gender,file_number,visa_issue_date,visa_file_path,created_at,updated_at,
           main_facility:main_facility_id(name_ar,unified_number,gosi_number,qiwa_prefix,qiwa_number),
           nationality:nationality_id(name_ar,name_en),
           occupation:occupation_id(name_ar,name_en),
@@ -2209,21 +2083,31 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user }) {
       const visaFileByVisa = {} // visa_id → مرفق «ملف التأشيرة» الأحدث (يُرفق مع رقم الحدود)
       const visaInsFileByVisa = {} // visa_id → مرفق «ملف التأمين» (تأشيرة دائمة)
       const visaWpFileByVisa = {}  // visa_id → مرفق «ملف رخصة العمل» (تأشيرة دائمة)
+      const wakalahFileByVisa = {} // visa_id → مرفق «ملف الوكالة» (يرفعه جدول وكالة التأشيرات)
+      /* مستندا المرحلتين — غير فاتورتيهما: لكل مرحلةٍ مرفقان لا واحد (الفاتورة
+         سندُ ما دُفع، والمستند ثمرةُ المرحلة). يرفعهما «جدول إصدار الإقامات». */
+      const insPolicyByVisa = {}   // بوليصة التأمين
+      const wpCardByVisa = {}      // كرت العمل
       if (baseSvcCode(code) === 'work_visa') {
         const visaIds = (det.data || []).map(v => v.id).filter(Boolean)
         if (visaIds.length) {
+          /* الحقول كلها كما يقرؤها «جدول إصدار الإقامات» (VisaPipelineGridPage) — الجداول هي
+             مصدر بيانات المعاملة، فما يُدخَل فيها يجب أن يظهر هنا حرفياً بلا نقص. */
           const { data: iqRows } = await sb.from('iqama_issuance_applications')
-            .select('visa_application_id,iqama_number,iqama_expiry,stage_data,created_at,creator:created_by(person:person_id(name_ar,name_en))').in('visa_application_id', visaIds).is('deleted_at', null)
+            .select('visa_application_id,iqama_number,iqama_expiry,stage_data,created_at,updated_at,medical_status,medical_amount,insurance_status,insurance_expiry,insurance_amount,work_permit_status,work_permit_expiry,work_permit_amount,work_permit_duration_months,iqama_print_status,iqama_print_amount,iqama_delivery_status,iqama_delivery_date,delivery_request_no,creator:created_by(person:person_id(name_ar,name_en))').in('visa_application_id', visaIds).is('deleted_at', null)
           iqamaVisaIds = (iqRows || []).map(r => r.visa_application_id).filter(Boolean)
           for (const r of (iqRows || [])) if (r.visa_application_id) iqamaByVisa[r.visa_application_id] = r
           const { data: mAtts } = await sb.from('attachments')
             .select('entity_id,file_name,file_url,notes,created_at')
-            .eq('entity_type', 'visa_application').in('notes', ['muqeem', 'visa_file', 'visa_ins_file', 'visa_wp_file'])
+            .eq('entity_type', 'visa_application').in('notes', ['muqeem', 'visa_file', 'visa_ins_file', 'visa_wp_file', 'wakalah_file', 'visa_ins_policy', 'visa_wp_card'])
             .in('entity_id', visaIds).is('deleted_at', null).order('created_at', { ascending: false })
           for (const a of (mAtts || [])) {
             if (a.notes === 'visa_file') { if (!visaFileByVisa[a.entity_id]) visaFileByVisa[a.entity_id] = a }
             else if (a.notes === 'visa_ins_file') { if (!visaInsFileByVisa[a.entity_id]) visaInsFileByVisa[a.entity_id] = a }
             else if (a.notes === 'visa_wp_file') { if (!visaWpFileByVisa[a.entity_id]) visaWpFileByVisa[a.entity_id] = a }
+            else if (a.notes === 'wakalah_file') { if (!wakalahFileByVisa[a.entity_id]) wakalahFileByVisa[a.entity_id] = a }
+            else if (a.notes === 'visa_ins_policy') { if (!insPolicyByVisa[a.entity_id]) insPolicyByVisa[a.entity_id] = a }
+            else if (a.notes === 'visa_wp_card') { if (!wpCardByVisa[a.entity_id]) wpCardByVisa[a.entity_id] = a }
             else if (a.notes === 'muqeem') { if (!muqeemByVisa[a.entity_id]) muqeemByVisa[a.entity_id] = a }
           }
         }
@@ -2300,7 +2184,7 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user }) {
           matchedWorker = (wp.data || [])[0] || (wt.data || [])[0] || null
         }
       }
-      if (alive) setData({ loading: false, insts: insts.data || [], pays: paysWithReceipts, det: det.data || [], code, matchedWorker, quote: quote?.data?.quote_no || null, absherDiscount: Number(quote?.data?.absher_discount || 0), tc, officeAccounts, passports: passportByVisa, occMap, iqamaVisaIds, iqamaByVisa, muqeemByVisa, visaFileByVisa, visaInsFileByVisa, visaWpFileByVisa, muqeemFile, insFileAtt, wpFileAtt, moveFileAtt, documentFile, doneFilesMap, receiptImgs })
+      if (alive) setData({ loading: false, insts: insts.data || [], pays: paysWithReceipts, det: det.data || [], code, matchedWorker, quote: quote?.data?.quote_no || null, absherDiscount: Number(quote?.data?.absher_discount || 0), tc, officeAccounts, passports: passportByVisa, occMap, iqamaVisaIds, iqamaByVisa, muqeemByVisa, visaFileByVisa, visaInsFileByVisa, visaWpFileByVisa, wakalahFileByVisa, insPolicyByVisa, wpCardByVisa, muqeemFile, insFileAtt, wpFileAtt, moveFileAtt, documentFile, doneFilesMap, receiptImgs })
     })()
     return () => { alive = false }
     // refreshTick forces a re-fetch after a payment/refund/cancel so installments+payments stay in sync.
@@ -2373,7 +2257,6 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user }) {
   const issuancePaid = issuanceInsts.length ? issuanceInsts.every(instSettled) : true
   // دفعة الإقامة الخاصة بتأشيرة (المرتبطة بـ visa_application_id) مسدّدة بالكامل.
   const residencePaidOf = vid => { const it = stageInsts.find(x => x.visa_application_id === vid); return it ? instSettled(it) : false }
-  const visaStageOf = v => iqamaSet.has(v.id) ? 'iqama' : (v.border_number ? 'visa' : 'pending')
   const visasAllIssued = stageVisaSrc.length > 0 && stageVisaSrc.every(v => !!v.border_number)
   const iqamasAllIssued = stageVisaSrc.length > 0 && stageVisaSrc.every(visaIqamaDone)
   // Branch gate: the user's role must grant invoices in THIS invoice's branch.
@@ -2405,7 +2288,9 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user }) {
     const anyPending = stageVisaSrc.some(v => !String(v.border_number || '').trim())
     // تأشيرة دائمة: الإقامة لا تُفتح لتأشيرةٍ حتى يُنجَز تأمينها ورخصة عملها معاً. المؤقتة بلا هذا الشرط.
     const isPermanentVisa = RESIDENCE_VISA_CODES.has(inv.service_type?.code)
-    const permStagesDoneOf = v => { const sd = (data.iqamaByVisa || {})[v.id]?.stage_data || {}; return !!sd.insurance && !!sd.work_permit }
+    /* الاكتمال يُقرأ بمنطق «جداول العمل» (stage_data ثم الأعمدة المرآة) — فما أُدخل
+       في جدول إصدار الإقامات يفتح الإقامة هنا ولا يُطلب إدخاله مرّتين. */
+    const permStagesDoneOf = v => { const g = visaGridView((data.iqamaByVisa || {})[v.id]); return g.insDone && g.wpDone }
     const iqamaStagesReady = v => !isPermanentVisa || permStagesDoneOf(v)
     const anyReadyForIqama = stageVisaSrc.some(v => !!String(v.border_number || '').trim() && !visaIqamaDone(v) && iqamaStagesReady(v))
     if (iqamasAllIssued) {
@@ -2431,9 +2316,9 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user }) {
     // بلا ترتيب بينهما وبلا ربط بالدفع. تُخزَّن في stage_data على صف إصدار الإقامة لكل تأشيرة.
     if (RESIDENCE_VISA_CODES.has(inv.service_type?.code)) {
       const issuedVisas = (data.det || []).filter(v => v && v.id && String(v.border_number || '').trim())
-      const stageDataOf = vid => (data.iqamaByVisa || {})[vid]?.stage_data || {}
-      const insAllDone = issuedVisas.length > 0 && issuedVisas.every(v => !!stageDataOf(v.id).insurance)
-      const wpAllDone = issuedVisas.length > 0 && issuedVisas.every(v => !!stageDataOf(v.id).work_permit)
+      const gridViewOf = vid => visaGridView((data.iqamaByVisa || {})[vid])
+      const insAllDone = issuedVisas.length > 0 && issuedVisas.every(v => gridViewOf(v.id).insDone)
+      const wpAllDone = issuedVisas.length > 0 && issuedVisas.every(v => gridViewOf(v.id).wpDone)
       if (!data.loading && issuedVisas.length > 0) {
         if (insAllDone) stageStatus.push(<StageRow key="st-ins" done icon={<DoneCheckIco />} label={T('تم إدخال بيانات التأمين', 'Insurance saved')} />)
         else if (canStageEdit && stageModalOk('inv_visa_stage_insurance')) stageActions.push(<StageRow key="ins" color={C.gold} label={T('التأمين', 'Insurance')} icon={<RenewalDataIco />} onClick={() => setInsuranceModal(true)} />)
@@ -2787,25 +2672,6 @@ const fmtAmt = (v) => {
   const withSep = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
   return decPart !== undefined ? `${withSep}.${decPart}` : withSep
 }
-const unfmtAmt = (s) => String(s ?? '').replace(/,/g, '').trim()
-
-// خانة اختيار الحساب البنكي — تعرض كل التفاصيل بوضوح: البنك، اسم الحساب، الآيبان، رقم الحساب.
-// مشترَكة بين تسجيل الدفعة (الحساب الوارد) والاسترجاع (الحساب الصادر) لتوحيد الشكل.
-const bankAcctLabel  = a => `${a.bank_name || ''}${a.account_name ? ' — ' + a.account_name : ''}`
-// نص البحث — كل الحقول كي يطابق البحث على البنك أو الاسم أو الآيبان أو رقم الحساب.
-const bankAcctSearch = a => [a.bank_name, a.account_name, a.iban, a.account_number].filter(Boolean).join(' ')
-const renderBankAcctCell = (accent, T) => (a, sel) => (
-  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, width: '100%' }}>
-    <span style={{ fontSize: 14, fontWeight: 600, color: sel ? accent : 'var(--tx)', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-      <Landmark size={13} strokeWidth={2} style={{ flexShrink: 0, opacity: .85 }} />
-      {a.bank_name || '—'}
-      {a.is_primary && <span style={{ fontSize: 9.5, fontWeight: 600, color: C.gold, background: 'rgba(176,125,0,.12)', border: '1px solid rgba(176,125,0,.3)', borderRadius: 5, padding: '1px 6px' }}>{T('رئيسي', 'Primary')}</span>}
-    </span>
-    {a.account_name && <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx3)' }}>{a.account_name}</span>}
-    {a.iban && <span style={{ fontSize: 11, color: 'var(--tx3)', direction: 'ltr', fontFamily: 'ui-monospace, monospace', letterSpacing: '.4px' }}>{a.iban}</span>}
-    {a.account_number && <span style={{ fontSize: 10.5, color: 'var(--tx4)' }}>{T('رقم الحساب', 'Acct No')}: {a.account_number}</span>}
-  </div>
-)
 
 // نموذج تفاصيل الدفع — حقول FormKit بالكامل؛ تتلوّن الأقسام تلقائياً بلون العملية (AccentContext).
 // حالة البيانات (المبلغ/الطريقة/المرجع/الإيصال/الحساب) تبقى في ActionModal ليُرسلها onSubmit.
@@ -3363,7 +3229,7 @@ const ActionModal = ({ type, stage = null, onClose, sb, T, isAr, inv, total, pai
   }, [type, svcCode])
   // تعديل الراتب — نافذة «إرجاع الراتب» (المرحلة الثانية): الراتب الأساسي + صورة شاشته.
   // الراتب الأساسي يبدأ دائماً بـ400 (القيمة الافتراضية المعتمدة).
-  const [salReturnVals, setSalReturnVals] = useState({ base_salary: '400' })
+  const [salReturnVals] = useState({ base_salary: '400' })
   const [salReturnFiles, setSalReturnFiles] = useState({})
   // خدمات موافقة المحاسب (النقل الخارجي · خروج وعودة · خروج نهائي) — آلة حالات: موافقة المحاسب (نعم/لا) ثم إنجاز/إلغاء.
   const isExtTransfer = baseSvcCode(svcCode) === 'external_transfer_approval'
@@ -3393,12 +3259,13 @@ const ActionModal = ({ type, stage = null, onClose, sb, T, isAr, inv, total, pai
   // ── استعلام التأمين (CHI) لخيار «لا يحتاج» في تأمين التجديد — نفس تدفق صفحة العامل (كابتشا) ──
   // «تأكيد عدم الحاجة» لا يُفعَّل إلا بعد استعلام يُثبت أن التأمين ساري، وتُحفظ البيانات المجلوبة مع المرحلة.
   const renewWorker = (() => {
-    const app = Array.isArray(inv.iqama_renewal_applications) ? inv.iqama_renewal_applications[0] : inv.iqama_renewal_applications
+    const raw = inv.service_request?.iqama_renewal_applications
+    const app = Array.isArray(raw) ? raw[0] : raw
     return app?.worker || null
   })()
   // رقم الإقامة للاستعلام: من سجل العامل، وإلا من حسبة التجديد المرتبطة (iqama_number)، وإلا هوية العميل (عميل=عامل).
   const [renewCalcIqama, setRenewCalcIqama] = useState(null)
-  const chiIqama = renewWorker?.iqama_number || renewCalcIqama || inv.client?.id_number || null
+  const chiIqama = renewWorker?.iqama_number || renewCalcIqama || inv.service_request?.client?.id_number || null
   const [chi, setChi] = useState({ phase: 'idle', session: null, captchaImage: null, captchaInput: '', error: null, attempts: 0, result: null })
   async function callChiFn(body, timeoutMs = 25000) {
     const ctrl = new AbortController(); const tid = setTimeout(() => ctrl.abort(), timeoutMs)
@@ -3476,8 +3343,7 @@ const ActionModal = ({ type, stage = null, onClose, sb, T, isAr, inv, total, pai
   const [wpExpiry, setWpExpiry] = useState('')
   const [wpAmount, setWpAmount] = useState('')
   const [wpFile, setWpFile] = useState(null)
-  // بيانات مقيم — التجديد عبر تواصل (نعم/لا) + يعيد استخدام renewOccupation*/renewIqamaExpiry/renewMuqeemFile
-  const [muqViaContact, setMuqViaContact] = useState(null)
+  // بيانات مقيم — يعيد استخدام renewOccupation*/renewIqamaExpiry/renewMuqeemFile
   // مدخلات الإنجاز المحفوظة سابقاً تُعبَّأ عند إعادة الفتح للتعديل
   useEffect(() => {
     if (type !== 'done' || !doneInputs.length) return
@@ -3497,7 +3363,6 @@ const ActionModal = ({ type, stage = null, onClose, sb, T, isAr, inv, total, pai
       setWpDuration(savedStage.duration_months != null ? String(savedStage.duration_months) : '')
       setWpExpiry(savedStage.expiry || ''); setWpAmount(savedStage.amount != null ? String(savedStage.amount) : '')
     } else if (stage === 'muqeem' || stage === 'iqama') {
-      if (savedStage.via_contact != null) setMuqViaContact(savedStage.via_contact)
       setRenewIqamaExpiry(savedStage.iqama_expiry || '')
       if (savedStage.occupation_id) { setRenewOccupationId(savedStage.occupation_id); setRenewOccupation(savedStage.occupation_name_ar || '') }
     }
@@ -3530,7 +3395,6 @@ const ActionModal = ({ type, stage = null, onClose, sb, T, isAr, inv, total, pai
         if (sd.work_permit) { setWpDuration(sd.work_permit.duration_months != null ? String(sd.work_permit.duration_months) : ''); setWpExpiry(sd.work_permit.expiry ? String(sd.work_permit.expiry).slice(0, 10) : ''); setWpAmount(sd.work_permit.amount != null ? String(sd.work_permit.amount) : '') }
         // تجديد الإقامة: مرحلة رخصة العمل الجديدة تُعبّأ تلقائياً بتاريخ انتهاء رخصة العمل من بيانات العامل (حسبة التجديد).
         else if (_renewal && data.work_permit_expiry) setWpExpiry(String(data.work_permit_expiry).slice(0, 10))
-        if (sd.muqeem && sd.muqeem.via_contact != null) setMuqViaContact(!!sd.muqeem.via_contact)
         // مرحلة الإقامة للتجديد (إعادة فتح للعرض): المهنة + تاريخ الانتهاء
         if (sd.iqama) { if (sd.iqama.occupation_id) setRenewOccupationId(sd.iqama.occupation_id); if (sd.iqama.occupation_name_ar) setRenewOccupation(sd.iqama.occupation_name_ar); if (sd.iqama.iqama_expiry) setRenewIqamaExpiry(String(sd.iqama.iqama_expiry).slice(0, 10)) }
       }
@@ -3547,7 +3411,7 @@ const ActionModal = ({ type, stage = null, onClose, sb, T, isAr, inv, total, pai
   // واحدة بلا ربط — فلا يُعرض لها استرجاع «تأشيرة» (كان يُعرض فيُصفّر الفاتورة لحالة fully_paid خاطئة).
   const isPermanentVisa = isWorkVisa && (RESIDENCE_VISA_CODES.has(svcCode) || (insts || []).some(it => it.visa_application_id))
   const [linkVisaId, setLinkVisaId] = useState('')
-  const [passportFile, setPassportFile] = useState(null)
+  const [passportFile] = useState(null)
   const [spawnedVisaIds, setSpawnedVisaIds] = useState(new Set())
   useEffect(() => {
     if (!sb || (type !== 'payment' && type !== 'refund' && type !== 'cancel') || !isWorkVisa) return
@@ -3966,13 +3830,16 @@ const ActionModal = ({ type, stage = null, onClose, sb, T, isAr, inv, total, pai
           if (iqamaSettled) {
             // المنشأة تُقرأ من صف التأشيرة مباشرة — select الفاتورة لا يتضمن main_facility_id.
             const { data: vRow } = await sb.from('visa_applications').select('main_facility_id').eq('id', linkVisaId).maybeSingle()
-            const { error: eSpawn } = await sb.from('iqama_issuance_applications').insert({
+            /* ignoreDuplicates: للتأشيرة صفُّ إقامةٍ واحد — ودفعةٌ ثانيةٌ عليها
+               (أو سدادٌ يُعاد) لا تفتح صفّاً آخر ولا تدهس القائم بحالةٍ
+               ابتدائية. كان إدراجاً بلا سؤال، فوُلدت صفوفٌ ثانيةٌ بعد أسابيع. */
+            const { error: eSpawn } = await sb.from('iqama_issuance_applications').upsert({
               service_request_id: inv.service_request?.id || null,
               visa_application_id: linkVisaId,
               main_facility_id: vRow?.main_facility_id || linkedVisa?.main_facility?.id || null,
               medical_status: 'pending',
               created_by: user?.id || null,
-            })
+            }, { onConflict: 'visa_application_id', ignoreDuplicates: true })
             if (eSpawn) toast?.(T('حُفظت الدفعة لكن تعذر إنشاء معاملة الإقامة', 'Payment saved but spawning the iqama transaction failed'), 'error')
             else spawnedIqama = true
           }
@@ -4428,7 +4295,7 @@ const ActionModal = ({ type, stage = null, onClose, sb, T, isAr, inv, total, pai
               const { data: tcRow } = await sb.from(stageCalcTable).select('id,stage_data').eq('invoice_id', inv.id).is('deleted_at', null).maybeSingle()
               const tcId = tcRow?.id || renewTcId
               const sd = (tcRow?.stage_data && typeof tcRow.stage_data === 'object') ? { ...tcRow.stage_data } : {}
-              sd[finalKey] = { status: 'done', via_contact: muqViaContact, iqama_expiry: renewIqamaExpiry || null, occupation_id: renewOccupationId || null, occupation_name_ar: (renewOccupation || '').trim() || null, at: nowIso, by: user?.id || null, by_name: user?.person?.name_ar || user?.person?.name_en || null }
+              sd[finalKey] = { status: 'done', iqama_expiry: renewIqamaExpiry || null, occupation_id: renewOccupationId || null, occupation_name_ar: (renewOccupation || '').trim() || null, at: nowIso, by: user?.id || null, by_name: user?.person?.name_ar || user?.person?.name_en || null }
               const patch = { stage_data: sd, updated_at: nowIso }
               if (renewOccupationId) { patch.occupation_id = renewOccupationId; patch.occupation_name_ar = (renewOccupation || '').trim() || null }
               if (renewIqamaExpiry) patch.expected_expiry_date = renewIqamaExpiry
@@ -4556,7 +4423,9 @@ const ActionModal = ({ type, stage = null, onClose, sb, T, isAr, inv, total, pai
           const merged = { ...(oa.details || {}), salary_phase: 'returned', salary_returned_at: nowIso, salary_returned_by: user?.id || null, salary_returned_by_name: user?.person?.name_ar || user?.person?.name_en || null }
           const bs = salReturnVals.base_salary
           if (bs != null && String(bs).trim() !== '') merged.base_salary = Number(bs)
-          await sb.from('other_applications').update({ details: merged }).eq('id', oa.id)
+          const { data: oaUpd, error: oaErr } = await sb.from('other_applications').update({ details: merged }).eq('id', oa.id).select('id')
+          if (oaErr) throw oaErr
+          if (!oaUpd || oaUpd.length === 0) throw new Error(T('تعذّر حفظ إرجاع الراتب — تحقق من الصلاحيات', 'Could not save the salary return — check permissions'))
         } catch (e) { setActErr((isAr ? 'خطأ: ' : 'Error: ') + (e?.message || '')); return }
         const file = salReturnFiles.salary_base_file
         if (file) {
@@ -4698,22 +4567,6 @@ const ActionModal = ({ type, stage = null, onClose, sb, T, isAr, inv, total, pai
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-            {/* «التجديد عبر تواصل» — يظهر في نقل الكفالة وتجديد الإقامة. */}
-            <div style={{ gridColumn: '1 / -1' }}>
-              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--tx)', marginBottom: 9 }}>{T('التجديد عبر تواصل', 'Renewal via contact')}<span style={{ color: '#c0392b' }}> *</span></div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-                {[{ key: true, color: C.ok, label: T('نعم', 'Yes') }, { key: false, color: C.red, label: T('لا', 'No') }].map(o => {
-                  const sel = muqViaContact === o.key
-                  return (
-                    <button key={String(o.key)} type="button" onClick={() => setMuqViaContact(o.key)}
-                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9, padding: '14px 12px', borderRadius: 9, cursor: 'pointer', fontFamily: F, fontSize: 14, fontWeight: sel ? 600 : 500, transition: '.18s', background: sel ? o.color + '14' : FKC.inputBg, border: '1px solid ' + (sel ? o.color + '80' : 'rgba(255,255,255,.08)'), color: sel ? o.color : FKC.tx3 }}>
-                      {sel ? <CheckCircle2 size={20} strokeWidth={2} style={{ flexShrink: 0 }} /> : <Circle size={20} strokeWidth={2} style={{ flexShrink: 0, opacity: .5 }} />}
-                      <span>{o.label}</span>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
             <DateField req full={!hasProfChange} label={T('تاريخ انتهاء الإقامة الجديد', 'New Iqama Expiry Date')} value={renewIqamaExpiry} onChange={setRenewIqamaExpiry} lang={isAr ? 'ar' : 'en'} />
             {/* المهنة تُدخَل فقط إذا كانت الفاتورة تحمل تغيير مهنة برسومه — وإلا فلا مهنة جديدة تُسجَّل */}
             {hasProfChange && (
@@ -5089,7 +4942,7 @@ const ActionModal = ({ type, stage = null, onClose, sb, T, isAr, inv, total, pai
               : stage === 'transfer' ? true
               : stage === 'insurance' ? (!!insExpiry && String(insAmount).trim() !== '' && (!!insFile || isStageEdit))
               : stage === 'workpermit' ? (!!wpDuration && !!wpExpiry && String(wpAmount).trim() !== '' && (!!wpFile || isStageEdit))
-              : (muqViaContact !== null && !!renewIqamaExpiry && (!hasProfChange || !!renewOccupationId) && (!!renewMuqeemFile || isStageEdit)))
+              : (!!renewIqamaExpiry && (!hasProfChange || !!renewOccupationId) && (!!renewMuqeemFile || isStageEdit)))
             : acctPending ? (acctChoice === 'no' ? !!doneNote.trim() : true)
             : doneChoice === 'cancel' ? !!doneNote.trim()
             : (isExtTransfer && doneChoice === 'done') ? (/^7\d{9}$/.test(extTarget700) && !!extManager.trim())
@@ -5323,32 +5176,6 @@ const ReceiptVouchersCard = ({ imgs, isAr, T }) => {
             </div>
           </div>
         </div>, document.body)}
-    </div>
-  )
-}
-
-const ActionToolbar = ({ T, onRecordPayment, onRefund, onCancelInv, onPrint }) => {
-  const btn = (color, bgLight, bdLight) => ({
-    height: 38, padding: '0 16px', borderRadius: 11, background: bgLight, border: '1px solid ' + bdLight, color, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, fontFamily: F, fontSize: 13, fontWeight: 600, transition: '.18s', boxShadow: '0 2px 7px rgba(0,0,0,.12), inset 0 1px 0 rgba(176,125,0,.1)'
-  })
-  return (
-    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-      <button onClick={onRecordPayment} style={btn(C.ok, 'rgba(46,204,113,.10)', 'rgba(46,204,113,.32)')}>
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
-        <span>{T('تسجيل دفعة','Record Payment')}</span>
-      </button>
-      <button onClick={onRefund} style={btn(C.red, 'rgba(232,114,101,.10)', 'rgba(232,114,101,.30)')}>
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7v6h6"/><path d="M3 13a9 9 0 1 0 3-7"/></svg>
-        <span>{T('استرجاع','Refund')}</span>
-      </button>
-      <button onClick={onCancelInv} style={btn(C.red, 'rgba(229,134,122,.10)', 'rgba(229,134,122,.30)')}>
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M4.93 4.93l14.14 14.14"/></svg>
-        <span>{T('إلغاء','Cancel')}</span>
-      </button>
-      <button onClick={onPrint} style={btn('rgba(255,255,255,.78)', 'rgba(255,255,255,.04)', 'rgba(255,255,255,.10)')}>
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-        <span>{T('طباعة','Print')}</span>
-      </button>
     </div>
   )
 }
@@ -5695,118 +5522,6 @@ const VisaInfoRows = ({ inv, isAr, T, svc, data, user }) => {
           })()}
         </>
       )}
-    </>
-  )
-}
-
-// Derives which milestones of a work-visa transaction have been reached.
-const deriveVisaMeta = (data) => {
-  const d = data?.det?.[0]
-  const f = d?.main_facility
-  const w = d?.worker
-  const hasFacility = !!(f && (f.name_ar || f.unified_number || f.gosi_number || f.qiwa_prefix || f.qiwa_number))
-  const hasVisa = !!(d && (d.visa_number || d.border_number || d.visa_cost))
-  const hasWakalah = !!(d && (d.wakalah_number || d.wakalah_date || d.wakalah_office || d.wakalah_status))
-  const hasIqama = !!(w && (w.name_ar || w.name_en || w.iqama_number || w.iqama_expiry_date))
-  return { d, f, w, hasFacility, hasVisa, hasWakalah, hasIqama }
-}
-
-// Furthest milestone reached → the status shown on the "بيانات المعاملة" header.
-const visaStatusBadge = (data, T) => {
-  const { hasFacility, hasVisa, hasWakalah, hasIqama } = deriveVisaMeta(data)
-  if (hasIqama) return { label: T('تم إصدار الإقامة','Iqama issued'), color: C.ok }
-  if (hasWakalah) return { label: T('تم إصدار الوكالة','PoA issued'), color: C.purple }
-  if (hasVisa) return { label: T('تم إصدار التأشيرة','Visa issued'), color: C.gold }
-  if (hasFacility) return { label: T('تم تعيين المنشأة','Facility assigned'), color: C.blue }
-  return { label: T('جديد','New'), color: C.gray }
-}
-
-// صف صورة جواز العامل — مصغّر (إن كان صورة) + رابط فتح، مع رقم الحدود للتعرّف على التأشيرة.
-// يظهر ضمن «إصدار الإقامة» ببطاقة المعاملة.
-const PassportRow = ({ T, att, borderNo }) => {
-  const url = att?.file_url
-  if (!url) return null
-  const isImg = /\.(png|jpe?g|gif|webp|bmp)$/i.test(att.file_name || url)
-  return (
-    <div style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 10, marginTop: 6 }}>
-      <span style={{ flex: 1, fontSize: 11.5, color: 'var(--tx3)', fontWeight: 600 }}>
-        {T('صورة جواز العامل', 'Worker Passport')}
-        {borderNo ? <span style={{ color: 'var(--tx4)', fontWeight: 600 }}> · {T('رقم الحدود', 'Border')} <span style={{ direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{borderNo}</span></span> : ''}
-      </span>
-      {isImg && <a href={url} target="_blank" rel="noreferrer" style={{ flexShrink: 0, lineHeight: 0 }}><img src={url} alt="" style={{ width: 42, height: 30, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--bd)' }} /></a>}
-      <a href={url} target="_blank" rel="noreferrer" style={{ flexShrink: 0, fontSize: 11.5, color: C.gold, fontWeight: 600, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
-        {T('فتح', 'Open')}
-      </a>
-    </div>
-  )
-}
-
-// Work-visa "بيانات المعاملة" card: facility, visa issuance, authorization, and iqama issuance info.
-const VisaExecutionRows = ({ inv, isAr, T, data }) => {
-  const date = (v) => v ? fmtGreg(v, isAr) : null
-  const lbl = (o) => o ? (isAr ? o.value_ar || o.name_ar : (o.value_en || o.value_ar || o.name_en || o.name_ar)) : null
-  if (data?.loading) return <div style={{ fontSize: 11, color: 'var(--tx4)', textAlign: 'center', padding: '10px 0' }}>{T('جاري تحميل التفاصيل…','Loading details…')}</div>
-  const { d, f, w, hasFacility, hasVisa, hasWakalah, hasIqama } = deriveVisaMeta(data)
-  if (!d) return null
-  const emptyNote = (ar, en) => <div style={{ fontSize: 11.5, color: 'var(--tx4)', textAlign: 'center', padding: '12px 0', fontWeight: 600 }}>{T(ar, en)}</div>
-  return (
-    <>
-      <SectionLabel label={T('المنشأة','Facility')} color={C.blue} />
-      {hasFacility ? (
-        <>
-          <Row label={T('المنشأة','Facility')} value={f?.name_ar || f?.unified_number} />
-          <Row label={T('الرقم الموحد','Unified Number')} value={f?.unified_number} mono />
-          <Row label={T('رقم التأمينات','GOSI No')} value={f?.gosi_number} mono />
-          <Row label={T('رقم قوى','Qiwa No')} value={[f?.qiwa_prefix, f?.qiwa_number].filter(Boolean).join('-') || null} mono />
-        </>
-      ) : emptyNote('لم يتم تحديد المنشأة بعد','No facility assigned yet')}
-
-      <SectionLabel label={T('إصدار التأشيرة','Visa Issuance')} color={C.gold} />
-      {hasVisa ? (
-        <>
-          <Row label={T('رقم التأشيرة','Visa No')} value={d.visa_number} mono />
-          <BorderRow T={T} borderNo={d.border_number} visaUsed={d.visa_used} visaNo={d.visa_number} />
-          {d.visa_cost && <Row label={T('قيمة التأشيرة','Visa Cost')} value={num(d.visa_cost) + ' ' + T('ر.س','SAR')} mono color={C.gold} />}
-        </>
-      ) : emptyNote('لم يتم إصدار التأشيرة بعد','Visa not issued yet')}
-
-      <SectionLabel label={T('توكيل التأشيرة','Visa Authorization')} color={C.purple} />
-      {hasWakalah ? (
-        <>
-          {d.wakalah_date && <Row label={T('تاريخ الوكالة','Wakalah Date')} value={date(d.wakalah_date)} mono />}
-          {d.wakalah_number && <Row label={T('رقم الوكالة','Wakalah No')} value={d.wakalah_number} mono />}
-          {d.wakalah_office && <Row label={T('مكتب الوكالة','Wakalah Office')} value={d.wakalah_office} />}
-          {d.wakalah_status && <Row label={T('حالة الوكالة','Wakalah Status')} value={lbl(d.wakalah_status)} />}
-        </>
-      ) : emptyNote('لم يتم توكيل التأشيرة بعد','Visa not authorized yet')}
-
-      <SectionLabel label={T('إصدار الإقامة','Iqama Issuance')} color={C.ok} />
-      {(() => {
-        // صور جوازات العمال تُرفع عند سداد دفعات الإقامة (واحدة لكل تأشيرة) — تظهر كلها هنا، كلٌّ برقم حدودها،
-        // حتى قبل إصدار الإقامة الفعلي. (بطاقة المعاملة ملخّصة على التأشيرة الأولى لبقية الحقول.)
-        const passports = (data?.det || [])
-          .map(v => ({ borderNo: v.border_number, att: data?.passports?.[v.id]?.[0] || null }))
-          .filter(x => x.att)
-        // بيانات الإقامة مصدرها صف «إصدار الإقامة» للتأشيرة الأولى (iqamaByVisa)، مع رجوع لاسم التأشيرة ثم سجل العامل.
-        const iq0 = data?.iqamaByVisa?.[d?.id] || null
-        const iqName = iq0?.worker_name_at_entry || d?.worker_name || w?.name_ar || w?.name_en || null
-        const iqNo = iq0?.iqama_number || w?.iqama_number || null
-        const iqExp = iq0?.iqama_expiry || w?.iqama_expiry_date || null
-        const showIqama = hasIqama || !!(iqNo || iqExp || iqName)
-        return (
-          <>
-            {showIqama ? (
-              <>
-                <Row label={T('اسم العامل','Worker Name')} value={iqName} />
-                <Row label={T('رقم الإقامة','Iqama No')} value={iqNo} mono copy />
-                <Row label={T('تاريخ انتهاء الإقامة','Iqama Expiry')} value={date(iqExp)} mono />
-              </>
-            ) : (!passports.length && emptyNote('لم يتم إصدار الإقامة بعد','Iqama not issued yet'))}
-            {passports.map((p, i) => <PassportRow key={i} T={T} att={p.att} borderNo={p.borderNo} />)}
-          </>
-        )
-      })()}
     </>
   )
 }
@@ -6620,7 +6335,7 @@ const PricingCard = ({ breakdown, total = 0, paid = 0, remaining = 0, absher = 0
         const isDiscL = l => l && (l.discount === true || ['خصم', 'الخصم', 'Discount'].includes(String(l.label || '').trim()))
         const feeLines = breakdown.filter(l => !isDiscL(l))
         const lineSum = feeLines.reduce((s, l) => s + (Number(l.amount) || 0), 0)
-        const disc = Math.max(0, lineSum - (Number(total) || 0))
+        const disc = Math.max(0, Math.round((lineSum - (Number(total) || 0)) * 100) / 100)
         // الخصم الكلي يشمل خصم أبشر (المجلوب من الحسبة) + خصم المكتب — نفصلهما عند توفّر مبلغ أبشر.
         const absherDisc = Math.min(Math.max(0, Number(absher) || 0), disc)
         const officeDisc = Math.max(0, disc - absherDisc)
@@ -6788,15 +6503,6 @@ const InstallmentsWithPayments = ({ data, breakdown, total = 0, paid = 0, remain
   )
 }
 
-const HeaderChips = ({ inv, isAr, T, svc, payT }) => (
-  <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-    <span style={{ padding: '4px 12px', borderRadius: 8, background: svc.bg, border: '1px solid ' + svc.bd, color: svc.c, fontSize: 12, fontWeight: 600 }}>{isAr ? svc.label_ar : svc.label_en}</span>
-    <span style={{ padding: '4px 12px', borderRadius: 999, border: '1.5px solid ' + payT.c, color: payT.c, fontSize: 11, fontWeight: 600, letterSpacing: 1 }}>{isAr ? payT.stamp_ar : payT.stamp_en}</span>
-    <span style={{ fontSize: 12, color: 'var(--tx3)' }}>{fmtGreg(inv.created_at, isAr)}</span>
-    {inv.branch?.branch_code && <span style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '1px solid var(--bd)', color: 'var(--tx3)', direction: 'ltr', fontWeight: 600 }}>{inv.branch.branch_code}</span>}
-  </div>
-)
-
 // Single-page A4 invoice print, mirroring the transfer-quote print (4 languages,
 // gold/cream theme, hidden-iframe printing). Includes every section EXCEPT the
 // "بيانات المعاملة" execution card (facility/visa/wakalah/iqama).
@@ -6851,6 +6557,7 @@ function WorkerPickModal({ sb, toast, T, isAr, srId, currentWorker, editorId, ed
     const needle = q.trim()
     if (needle.length < 2) { setResults([]); setSearching(false); return }
     setSearching(true)
+    let alive = true
     const t = setTimeout(async () => {
       const pattern = `%${needle.replace(/[%,]/g, '')}%`
       const SEL = 'id,name_ar,name_en,iqama_number,iqama_expiry_date,phone,nationality:nationality_id(code,name_ar,flag_url),current_occupation:current_occupation_id(name_ar),current_facility:current_facility_id(id,name_ar,name_en,unified_number,hrsd_number,gosi_number)'
@@ -6860,6 +6567,7 @@ function WorkerPickModal({ sb, toast, T, isAr, srId, currentWorker, editorId, ed
         sb.from('workers').select(SEL).or(orFilter).is('deleted_at', null).limit(30),
         sb.from('temproryworkers').select(SEL).or(orFilter).is('deleted_at', null).limit(30),
       ])
+      if (!alive) return
       const rows = [
         ...(wp.data || []).map(w => ({ ...w, worker_type: 'permanent' })),
         ...(wt.data || []).map(w => ({ ...w, worker_type: 'temporary' })),
@@ -6876,7 +6584,7 @@ function WorkerPickModal({ sb, toast, T, isAr, srId, currentWorker, editorId, ed
       setResults(Array.from(seen.values()).slice(0, 15))
       setSearching(false)
     }, 300)
-    return () => clearTimeout(t)
+    return () => { alive = false; clearTimeout(t) }
   }, [q, sb, selected])
   // نفس الشخص = نفس رقم الإقامة (أو نفس السجل عند غياب الإقامة) — يمنع «تغيير» العامل إلى نفسه.
   const sameAsCurrent = !!selected && !!currentWorker && (() => {
@@ -7115,14 +6823,16 @@ function LinkPartyModal({ sb, T, isAr, kind, srId, invId, branchId, editorId, on
     const needle = q.trim()
     if (needle.length < 2) { setResults([]); setSearching(false); return }
     setSearching(true)
+    let alive = true
     const t = setTimeout(async () => {
       const pattern = '%' + needle.replace(/[%,]/g, '') + '%'
       const { data } = await sb.from(TBL).select(SEL)
         .or('name_ar.ilike.' + pattern + ',name_en.ilike.' + pattern + ',id_number.ilike.' + pattern + ',phone.ilike.' + pattern)
         .is('deleted_at', null).limit(15)
+      if (!alive) return
       setResults(data || []); setSearching(false)
     }, 300)
-    return () => clearTimeout(t)
+    return () => { alive = false; clearTimeout(t) }
   }, [q, mode, selected, sb])
   const idDigits = (f.id_number || '').replace(/\D/g, '')
   const phoneDigits = (f.phone || '').replace(/\D/g, '')
@@ -8196,9 +7906,7 @@ function VisaStageDataModal({ stage, sb, toast, T, isAr, inv, user, visas, iqama
   const [active, setActive] = useState(0)
   const natOf = r => (isAr ? r.nationality?.name_ar : (r.nationality?.name_en || r.nationality?.name_ar)) || '—'
   const occOf = r => (isAr ? r.occupation?.name_ar : (r.occupation?.name_en || r.occupation?.name_ar)) || ''
-  const embOf = r => (isAr ? r.embassy?.name_ar : (r.embassy?.name_en || r.embassy?.name_ar)) || ''
-  const genOf = r => r.gender === 'female' ? T('أنثى', 'Female') : r.gender === 'male' ? T('ذكر', 'Male') : ''
-  const arOrd = ['الأولى', 'الثانية', 'الثالثة', 'الرابعة', 'الخامسة', 'السادسة', 'السابعة', 'الثامنة', 'التاسعة', 'العاشرة']
+  const arOrd = ['الأولى','الثانية', 'الثالثة', 'الرابعة', 'الخامسة', 'السادسة', 'السابعة', 'الثامنة', 'التاسعة', 'العاشرة']
   const enOrd = ['First', 'Second', 'Third', 'Fourth', 'Fifth', 'Sixth', 'Seventh', 'Eighth', 'Ninth', 'Tenth']
   const visaLabel = idx => T(`التأشيرة ${arOrd[idx] || idx + 1}`, `${enOrd[idx] || ('Visa ' + (idx + 1))} Visa`)
   const fOf = vid => form[vid] || {}
@@ -8241,13 +7949,17 @@ function VisaStageDataModal({ stage, sb, toast, T, isAr, inv, user, visas, iqama
           if (error) throw error
         } else {
           const facId = r.main_facility?.id || null
-          const { error } = await sb.from('iqama_issuance_applications').insert({
+          /* upsert لا insert: صفُّ الإقامة قد يكون وُلد بين السؤال والإدراج
+             (حفظةٌ أخرى · نافذةٌ ثانية) — والقيد في القاعدة يمنع الصفّ الثاني،
+             فالإدراج كان سيفشل ويُسقط الحفظ. بالتعارض تُكتب كتلةُ المرحلة على
+             الصفّ القائم، وهو عينُ ما يفعله فرعُ «وجدتُه» أعلاه. */
+          const { error } = await sb.from('iqama_issuance_applications').upsert({
             service_request_id: inv.service_request?.id || null,
             visa_application_id: r.id,
             main_facility_id: facId,
             stage_data: newStageData,
             created_by: user?.id || null,
-          })
+          }, { onConflict: 'visa_application_id' })
           if (error) throw error
         }
         // مرفق ملف المرحلة — أفضل-جهد، لا يمنع الحفظ.
@@ -8368,8 +8080,6 @@ const RenewalDataIco = () => <svg width="17" height="17" viewBox="0 0 24 24" fil
 const TransferStageIco = () => <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/></svg>
 // أيقونة «صح» للحالة المنجزة
 const DoneCheckIco = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><polyline points="20 6 9 17 4 12"/></svg>
-// بيانات المعاملة — حافظة بأسطر بيانات (لزر إجراء الطلب في الخدمات غير التأشيرية).
-const TxnDataIco = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M9 12h6"/><path d="M9 16h6"/></svg>
 // حالة المعاملة — دائرة بعلامة صح (مطابقة لأيقونة كرت «حالة المعاملة»).
 const TxnStatusIco = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
 // موافقة المحاسب — حافظة بعلامة صح (لزر مرحلة موافقة المحاسب في النقل الخارجي).
@@ -8405,8 +8115,6 @@ function IqamaIssueModal({ sb, toast, T, isAr, inv, user, visas, iqamaSet, iqama
   const [form, setForm] = useState({})
   const [active, setActive] = useState(0)   // التأشيرة المعروضة حالياً (تبويبات)
   const rows = (Array.isArray(visas) ? visas : []).filter(v => v && v.id)
-  // المؤقتة: نطلب «اسم العامل» ضمن إصدار الإقامة (لا يُدخَل في خطوة دفع كالدائمة).
-  const isTemp = inv?.service_type?.code === 'work_visa_temporary'
   const nameVal = v => { const w = fOf(v.id).workerName; return (w === undefined ? (v.worker_name || '') : w) }
   // اسم العامل إلزامي لكل التأشيرات في إصدار الإقامة (يُحفظ على صف التأشيرة).
   const nameOk = v => String(nameVal(v)).trim().length > 0
@@ -8504,7 +8212,9 @@ function IqamaIssueModal({ sb, toast, T, isAr, inv, user, visas, iqamaSet, iqama
           }).eq('visa_application_id', v.id).is('deleted_at', null)
           if (error) throw error
         } else {
-          const { error } = await sb.from('iqama_issuance_applications').insert({
+          /* upsert كأخواته: صفُّ الإقامة واحدٌ لكل تأشيرة بقيدٍ في القاعدة،
+             فالإدراج على صفٍّ وُلد للتوّ يكتب فيه ولا يفشل. */
+          const { error } = await sb.from('iqama_issuance_applications').upsert({
             service_request_id: inv.service_request?.id || null,
             visa_application_id: v.id,
             main_facility_id: facId,
@@ -8512,7 +8222,7 @@ function IqamaIssueModal({ sb, toast, T, isAr, inv, user, visas, iqamaSet, iqama
             iqama_expiry: (iqamaExpiry || '').trim() || null,
             medical_status: 'pending',
             created_by: user?.id || null,
-          })
+          }, { onConflict: 'visa_application_id' })
           if (error) throw error
         }
         // مرفق «ملف مقيم» — أفضل-جهد، لا يمنع الحفظ. يُربط بالتأشيرة (entity_type متاح) بملاحظة 'muqeem'.
@@ -8674,7 +8384,7 @@ function PaymentEditModal({ sb, toast, T, isAr, inv, payment, onClose, onSaved, 
         .select('total_amount, paid_amount, payment_log, status:status_id(code)').eq('id', inv.id).maybeSingle()
       if (e0) throw e0
       const totalNum = Number(invFresh?.total_amount) || 0
-      const newInvPaid = (Number(invFresh?.paid_amount) || 0) + delta
+      const newInvPaid = Math.round(((Number(invFresh?.paid_amount) || 0) + delta) * 100) / 100
       if (newInvPaid < -0.005) { setErr(T('المبلغ يجعل مدفوع الفاتورة سالباً','Amount would make invoice paid negative')); setSaving(false); return }
       if (newInvPaid > totalNum + 0.005) { setErr(T('المبلغ يجعل مدفوع الفاتورة أكبر من الإجمالي','Amount would make invoice paid exceed total')); setSaving(false); return }
 
@@ -8921,8 +8631,7 @@ const vPackFiles = (groups) => {
 
 function PermanentVisaEditModal({ sb, toast, T, isAr, inv, data, user, editorId, editorName, onClose, onSaved }) {
   const srId = inv.service_request?.id
-  const MAX_VISAS = 4, MAX_FILES = 4
-  const ORD_AR = ['الأول', 'الثاني', 'الثالث', 'الرابع', 'الخامس', 'السادس', 'السابع', 'الثامن']
+  const MAX_VISAS = 4
   const ORD_AR_F = ['الأولى', 'الثانية', 'الثالثة', 'الرابعة']
   const curSvcCode = data?.code || inv.service_type?.code
 
@@ -8966,7 +8675,7 @@ function PermanentVisaEditModal({ sb, toast, T, isAr, inv, data, user, editorId,
     ;(async () => {
       const [brRes, occRes, natRes, emRes, vaRes, instRes] = await Promise.all([
         sb.from('branches').select('id,branch_code,name_ar,is_test').is('deleted_at', null).eq('is_active', true).order('branch_code'),
-        sb.from('occupations').select('id,name_ar,code').is('is_active', true).order('name_ar').limit(2000),
+        sb.from('occupations').select('id,name_ar,code').is('is_active', true).order('name_ar').limit(5000),
         sb.from('nationalities').select('id,name_ar,code,country_name_ar,flag_url').is('is_active', true).order('name_ar'),
         sb.from('embassies').select('id,name_ar,name_en,nationality_id').is('is_active', true).order('name_ar'),
         sb.from('visa_applications').select('id,file_number,gender,nationality_id,occupation_id,embassy_id,visa_number,border_number,wakalah_number,wakalah_date,wakalah_office,visa_used,main_facility_id').eq('service_request_id', srId),
@@ -9123,9 +8832,10 @@ function PermanentVisaEditModal({ sb, toast, T, isAr, inv, data, user, editorId,
       // أعِد عدد الدفعات المخزّن والتسعير والحالة عند تغيّر عدد التأشيرات (لتبقى متّسقة مع الصفوف الحيّة).
       invPatch.installments_count = Math.max(0, (liveInst || []).length - removedResCount + newResRows.length)
       if (Math.abs(totalDelta) > 0.005) {
-        const newTotal = r2v((Number(inv.total_amount) || 0) + totalDelta)
+        // الإجمالي الطازج من القاعدة لا من الخاصية (قد يكون عُدّل التسعير منذ فتح الصفحة).
+        const { data: fp } = await sb.from('invoices').select('total_amount, paid_amount, status:status_id(code)').eq('id', inv.id).maybeSingle()
+        const newTotal = r2v((Number(fp?.total_amount ?? inv.total_amount) || 0) + totalDelta)
         invPatch.total_amount = newTotal
-        const { data: fp } = await sb.from('invoices').select('paid_amount, status:status_id(code)').eq('id', inv.id).maybeSingle()
         Object.assign(invPatch, await invoiceStatusPatch(sb, fp?.status?.code, Number(fp?.paid_amount) || 0, newTotal))
       }
       if (changes.length) {
@@ -9254,16 +8964,6 @@ function PermanentVisaEditModal({ sb, toast, T, isAr, inv, data, user, editorId,
       onSubmit={save} submitting={saving} submitIcon={CheckCircle2} submitLabel={T('حفظ التعديلات', 'Save changes')} />
   )
 }
-
-// كود المكتب الذي صدرت منه الفاتورة — يُعرض ضمن كرت الخدمة (صندوق بنفس نمط الحقول).
-const OfficeCodeBox = ({ code, T }) => !code ? null : (
-  <div style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 12 }}>
-    <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{T('المكتب','Office')}</span>
-    <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, direction: 'ltr' }}>
-      <span style={{ fontSize: 14, color: C.gold, fontWeight: 600, direction: 'ltr', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }}>{code}</span>
-    </span>
-  </div>
-)
 
 // هيكل تحميل صفحة تفاصيل الفاتورة — يطابق تخطيط InvoiceDetailLayout (عمودان: كروت يسارًا + ملخّص مالي
 // ثابت يمينًا) بنفس chrome الكروت، فيظهر فور الفتح بدل ظهور الكروت واحدًا تلو الآخر مع تحميل البيانات.
@@ -9565,7 +9265,7 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
             const allLog = Array.isArray(inv.service_request?.client?.edit_log) ? inv.service_request.client.edit_log : []
             const log = allLog.filter(e => e && e.inv === inv.id)
             if (!log.length) return null
-            const LBL = { name: ['الاسم', 'Name'], id: ['رقم الهوية', 'ID Number'], phone: ['رقم الجوال', 'Phone'], nationality: ['الجنسية', 'Nationality'] }
+            const LBL = { name: ['الاسم', 'Name'], id: ['رقم الهوية', 'ID Number'], phone: ['رقم الجوال', 'Phone'], phone2: ['جوال إضافي ١', 'Extra phone 1'], phone3: ['جوال إضافي ٢', 'Extra phone 2'], nationality: ['الجنسية', 'Nationality'] }
             const showVal = (field, v) => v ? (field === 'phone' ? fmtPhone(v) : v) : '—'
             return (
               <ChangeLog T={T} title={T('سجل تعديل بيانات العميل', 'Client edit log')} entries={log}
@@ -9584,7 +9284,9 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
         const realWorker = apps.map(a => pick(a, 'worker')).find(Boolean) || null
         // العامل المطابق برقم هوية العميل (نقل الكفالة/تجديد الإقامة بلا عامل مرتبط) — من المحمِّل.
         const matchedWorker = realWorker ? null : (data?.matchedWorker || null)
-        const facility = apps.map(a => pick(a, 'facility')).find(Boolean) || matchedWorker?.current_facility || null
+        // منشأة المعاملة أولاً، فإن لم تكن فمنشأةُ العامل في سجلّ العمالة (طلب المستخدم 2026-09-23):
+        // نقلُ كفالةٍ بلا منشأةٍ مرتبطة كان يعرض العامل وحده والعاملُ مرتبطٌ فعلاً بمنشأةٍ موجودة.
+        const facility = apps.map(a => pick(a, 'facility')).find(Boolean) || realWorker?.current_facility || matchedWorker?.current_facility || null
         // «العميل هو نفس العامل»: the general-service row keeps worker_id null (no separate worker
         // record) but still carries a facility. Surface the client as the worker so the card — and
         // especially its facility (المنشأة) — still shows instead of vanishing entirely.
@@ -9850,7 +9552,7 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
                 const allLog = Array.isArray(agent?.edit_log) ? agent.edit_log : []
                 const log = allLog.filter(e => e && e.inv === inv.id)
                 if (!log.length) return null
-                const LBL = { name: ['الاسم', 'Name'], id: ['رقم الهوية', 'ID Number'], phone: ['رقم الجوال', 'Phone'], nationality: ['الجنسية', 'Nationality'] }
+                const LBL = { name: ['الاسم', 'Name'], id: ['رقم الهوية', 'ID Number'], phone: ['رقم الجوال', 'Phone'], phone2: ['جوال إضافي ١', 'Extra phone 1'], phone3: ['جوال إضافي ٢', 'Extra phone 2'], nationality: ['الجنسية', 'Nationality'] }
                 const showVal = (field, v) => v ? (field === 'phone' ? fmtPhone(v) : v) : '—'
                 return (
                   <ChangeLog T={T} title={T('سجل تعديل بيانات الوسيط', 'Agent edit log')} entries={log}
@@ -10019,6 +9721,8 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
                 det.filter(v => v && v.id).forEach((v, idx, arr) => {
                   const natName = v.nationality ? (isAr ? (v.nationality.name_ar || v.nationality.name_en) : (v.nationality.name_en || v.nationality.name_ar)) : null
                   const occName = v.occupation ? (isAr ? (v.occupation.name_ar || v.occupation.name_en) : (v.occupation.name_en || v.occupation.name_ar)) : null
+                  const embName = v.embassy ? (isAr ? (v.embassy.name_ar || v.embassy.name_en) : (v.embassy.name_en || v.embassy.name_ar)) : null
+                  const genName = v.gender === 'female' ? T('أنثى', 'Female') : v.gender === 'male' ? T('ذكر', 'Male') : null
                   const wkStatus = v.wakalah_status ? (isAr ? v.wakalah_status.value_ar : v.wakalah_status.value_en) : null
                   const rows = [
                     [T('رقم التأشيرة', 'Visa No'), mk(v.visa_number), true, null, true],
@@ -10028,6 +9732,8 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
                     [T('حالة الوكالة', 'Wakala Status'), mk(wkStatus), false],
                     [T('الجنسية', 'Nationality'), mk(natName), false],
                     [T('المهنة', 'Occupation'), mk(occName), false],
+                    [T('السفارة', 'Embassy'), mk(embName), false],
+                    [T('الجنس', 'Gender'), mk(genName), false],
                   ].filter(r => r[1])
                   if (rows.length) groups.push({ title: arr.length > 1 ? `${T('التأشيرة', 'Visa')} ${idx + 1}` : null, rows })
                 })
@@ -10123,6 +9829,8 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
                     const muqeemFileV = (data?.muqeemByVisa || {})[v.id] || null
                     const natName = isAr ? (v.nationality?.name_ar || v.nationality?.name_en) : (v.nationality?.name_en || v.nationality?.name_ar)
                     const occName = isAr ? (v.occupation?.name_ar || v.occupation?.name_en) : (v.occupation?.name_en || v.occupation?.name_ar)
+                    const embName = isAr ? (v.embassy?.name_ar || v.embassy?.name_en) : (v.embassy?.name_en || v.embassy?.name_ar)
+                    const genName = v.gender === 'female' ? T('أنثى', 'Female') : v.gender === 'male' ? T('ذكر', 'Male') : null
                     // مرحلة «التأشيرة» — منجزة بمجرد إدخال رقم الحدود.
                     const visaExtra = []
                     if (v.unified_number) visaExtra.push([T('الرقم الموحد', 'Unified No'), v.unified_number, true, null, true])
@@ -10130,10 +9838,12 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
                     if (v.visa_number) visaExtra.push([T('رقم التأشيرة', 'Visa No'), v.visa_number, true, null, true])
                     if (natName) visaExtra.push([T('الجنسية', 'Nationality'), natName, false])
                     if (occName) visaExtra.push([T('المهنة', 'Occupation'), occName, false])
+                    if (embName) visaExtra.push([T('السفارة', 'Embassy'), embName, false])
+                    if (genName) visaExtra.push([T('الجنس', 'Gender'), genName, false])
                     if (visaDone && v.visa_issue_date) visaExtra.push([T('تاريخ إصدار التأشيرة', 'Visa Issue Date'), fmtGreg(v.visa_issue_date, isAr), false])
                     const visaWhen = visaDone ? (visaFile?.created_at || v.updated_at) : null
                     const visaMeta = metaBlock({
-                      accent: visaDone ? C.gold : '#38BDF8',
+                      accent: visaDone ? C.ok : '#38BDF8',
                       counterFrom: inv.created_at,
                       counterTo: visaWhen || undefined,
                       whenAt: visaWhen,
@@ -10143,6 +9853,45 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
                          (جدول إصدار التأشيرات/الاستيراد) — فالإدخال من المكانين سواء. */
                       attachments: (visaDone && (visaFile?.file_url || v.visa_file_path))
                         ? [{ url: visaFile?.file_url || v.visa_file_path, label: T('عرض ملف التأشيرة', 'View visa file') }] : [],
+                    })
+                    /* مرحلة «الوكالة» — بين التأشيرة والإقامة: التأشيرة تُصدَّق
+                       وكالتُها في الخارجية قبل أن يُستقدَم صاحبُها، فمرحلةٌ
+                       قائمة في المعاملة لا تفصيلٌ في مكانٍ آخر. مرجعُها صفُّ
+                       التأشيرة نفسه (`visa_applications`) — وهو المخزن الذي
+                       يكتب فيه شيت «وكالات التأشيرات»، فلا تفترق الفاتورة عن
+                       الشيت. وتمامُها رقمُ التصديق: بلا رقمٍ لم تقع الوكالة. */
+                    const wklNo = String(v.wakalah_number || '').trim()
+                    const wklStatus = v.wakalah_status ? (isAr ? (v.wakalah_status.value_ar || v.wakalah_status.value_en) : (v.wakalah_status.value_en || v.wakalah_status.value_ar)) : null
+                    /* تمامُها رقمُ التصديق **أو** حالةٌ تقول إنها أُنجزت: الشيت
+                       صار يكتب الحالتين (الخارجية والغرفة) وقد تصل الحالة قبل
+                       أن يُدوَّن الرقم — فحصرُ التمام في الرقم كان يُبقي المرحلة
+                       زرقاء والوكالة منجزة في الشيت. */
+                    const wklDone = !!wklNo || v.wakalah_status?.value_en === 'Accomplished'
+                    const wklFile = (data?.wakalahFileByVisa || {})[v.id] || null
+                    /* تصديق الغرفة يُخزَّن رمزاً (done/pending/issue) كما يكتبه
+                       شيت «وكالة التأشيرات» — فيُقرأ بلغة الواجهة لا بلغة تخزينه. */
+                    const chSt = String(v.wakalah_chamber_status || '').trim()
+                    const CH_LBL = { done: T('تم', 'Done'), pending: T('في الانتظار', 'Pending'), issue: T('مشكلة', 'Issue') }
+                    const wklExtra = []
+                    if (wklNo) wklExtra.push([T('رقم تصديق الخارجية', 'MOFA Attestation No'), wklNo, true, null, true])
+                    if (v.wakalah_date) wklExtra.push([T('تاريخ الوكالة', 'Wakalah Date'), fmtGreg(v.wakalah_date, isAr), false, C.gold])
+                    if (v.wakalah_office) wklExtra.push([T('مكتب الوكالة', 'Wakalah Office'), v.wakalah_office, false])
+                    if (wklStatus) wklExtra.push([T('حالة الوكالة', 'Wakalah Status'), wklStatus, false])
+                    if (v.wakalah_chamber_no) wklExtra.push([T('رقم تصديق الغرفة', 'Chamber Attestation No'), String(v.wakalah_chamber_no), true, null, true])
+                    if (chSt) wklExtra.push([T('حالة تصديق الغرفة', 'Chamber Status'), CH_LBL[chSt] || chSt, false])
+                    const wklMeta = metaBlock({
+                      accent: wklDone ? C.ok : '#38BDF8',
+                      counterFrom: visaWhen || inv.created_at,
+                      counterTo: wklDone ? (v.wakalah_date || undefined) : undefined,
+                      /* لا ختمَ «متى» هنا: تاريخ الوكالة يومٌ بلا ساعة، وعرضُه
+                         ختماً زمنياً يقول «00:00» وهي ساعةٌ لم تقع. فيُعرض
+                         تاريخاً في صفّه. */
+                      whenAt: null,
+                      extraRows: wklExtra,
+                      /* الملف قد يكون مرفقاً (جدول وكالة التأشيرات يكتب صفّاً في attachments)
+                         أو مساراً على صفّ التأشيرة — فالمصدران سواء. */
+                      attachments: (wklDone && (wklFile?.file_url || v.wakalah_file_path))
+                        ? [{ url: wklFile?.file_url || v.wakalah_file_path, label: T('عرض ملف الوكالة', 'View wakalah file') }] : [],
                     })
                     // مرحلة «الإقامة» — لا تظهر إلا بعد إصدار التأشيرة.
                     const iqExtra = []
@@ -10160,41 +9909,71 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
                     })
                     // تأشيرة وإقامة دائمة: مرحلتان إضافيتان بين التأشيرة والإقامة — «التأمين» و«رخصة العمل» (من stage_data).
                     const isPermanent = RESIDENCE_VISA_CODES.has(_code)
-                    const sd = (iq?.stage_data && typeof iq.stage_data === 'object') ? iq.stage_data : {}
-                    const ins = sd.insurance || null
-                    const wp = sd.work_permit || null
+                    /* القيم تُقرأ بمنطق «جدول إصدار الإقامات» نفسه (stage_data ثم الأعمدة المرآة). */
+                    const gv = visaGridView(iq)
                     const insFile = (data?.visaInsFileByVisa || {})[v.id] || null
                     const wpFile = (data?.visaWpFileByVisa || {})[v.id] || null
-                    const insExtra = []
-                    if (ins) {
-                      if (ins.company) insExtra.push([T('شركة التأمين', 'Company'), ins.company, false])
-                      if (ins.policy_no) insExtra.push([T('رقم البوليصة', 'Policy No'), ins.policy_no, true, null, true])
-                      if (ins.expiry) insExtra.push([T('تاريخ انتهاء التأمين', 'Insurance Expiry'), fmtGreg(ins.expiry, isAr), false, C.gold])
-                      if (ins.amount != null) insExtra.push([T('المبلغ', 'Amount'), `${num(ins.amount)} ${T('ريال', 'SAR')}`, false])
-                    }
-                    const insMeta = metaBlock({
-                      accent: ins ? C.gold : '#38BDF8',
+                    /* لكل مرحلةٍ مرفقان: **فاتورتُها** (سندُ ما دُفع) و**مستندُها**
+                       (ثمرتُها — البوليصة والكرت). كانا يُرفعان في «جدول إصدار
+                       الإقامات» ولا يصلان هنا؛ فيُعرضان الآن جنباً إلى جنب. */
+                    const insPolicy = (data?.insPolicyByVisa || {})[v.id] || null
+                    const wpCard = (data?.wpCardByVisa || {})[v.id] || null
+                    /* الفحص الطبي — أول خطوات إصدار الإقامة في الجدول (للدائمة والمؤقتة معاً). */
+                    const medExtra = []
+                    if (gv.medicalAmount != null && gv.medicalAmount !== '') medExtra.push([T('مبلغ الفحص', 'Exam Amount'), `${num(gv.medicalAmount)} ${T('ريال', 'SAR')}`, false])
+                    const medMeta = metaBlock({
+                      accent: gv.medicalDone ? C.ok : '#38BDF8',
                       counterFrom: visaWhen || inv.created_at,
-                      counterTo: ins ? ins.at : undefined,
-                      whenAt: ins ? ins.at : null,
-                      person: ins?.by_name ? { name_ar: ins.by_name, name_en: ins.by_name } : null,
+                      counterTo: gv.medicalDone ? (iq?.updated_at || undefined) : undefined,
+                      whenAt: null,
+                      extraRows: medExtra,
+                    })
+                    const insExtra = []
+                    if (gv.insCompany) insExtra.push([T('شركة التأمين', 'Company'), gv.insCompany, false])
+                    if (gv.insPolicy) insExtra.push([T('رقم البوليصة', 'Policy No'), gv.insPolicy, true, null, true])
+                    if (gv.insExpiry) insExtra.push([T('تاريخ انتهاء التأمين', 'Insurance Expiry'), fmtGreg(gv.insExpiry, isAr), false, C.gold])
+                    if (gv.insAmount != null) insExtra.push([T('المبلغ', 'Amount'), `${num(gv.insAmount)} ${T('ريال', 'SAR')}`, false])
+                    const insMeta = metaBlock({
+                      accent: gv.insDone ? C.ok : '#38BDF8',
+                      counterFrom: visaWhen || inv.created_at,
+                      counterTo: gv.insDone ? (gv.insAt || iq?.updated_at || undefined) : undefined,
+                      whenAt: gv.insDone ? gv.insAt : null,
+                      person: gv.insBy ? { name_ar: gv.insBy, name_en: gv.insBy } : null,
                       extraRows: insExtra,
-                      attachments: (ins && insFile?.file_url) ? [{ url: insFile.file_url, label: T('عرض ملف التأمين', 'View insurance file') }] : [],
+                      attachments: [
+                        insFile?.file_url && { url: insFile.file_url, label: T('عرض فاتورة التأمين', 'View insurance invoice') },
+                        insPolicy?.file_url && { url: insPolicy.file_url, label: T('عرض بوليصة التأمين', 'View insurance policy') },
+                      ].filter(Boolean),
                     })
                     const wpExtra = []
-                    if (wp) {
-                      if (wp.duration_months != null) wpExtra.push([T('المدة', 'Duration'), `${wp.duration_months} ${T('أشهر', 'months')}`, false])
-                      if (wp.expiry) wpExtra.push([T('تاريخ انتهاء رخصة العمل', 'Work Permit Expiry'), fmtGreg(wp.expiry, isAr), false, C.gold])
-                      if (wp.amount != null) wpExtra.push([T('المبلغ', 'Amount'), `${num(wp.amount)} ${T('ريال', 'SAR')}`, false])
-                    }
+                    if (gv.wpDuration != null) wpExtra.push([T('المدة', 'Duration'), `${gv.wpDuration} ${T('أشهر', 'months')}`, false])
+                    if (gv.wpExpiry) wpExtra.push([T('تاريخ انتهاء رخصة العمل', 'Work Permit Expiry'), fmtGreg(gv.wpExpiry, isAr), false, C.gold])
+                    if (gv.wpAmount != null) wpExtra.push([T('المبلغ', 'Amount'), `${num(gv.wpAmount)} ${T('ريال', 'SAR')}`, false])
                     const wpMeta = metaBlock({
-                      accent: wp ? C.gold : '#38BDF8',
+                      accent: gv.wpDone ? C.ok : '#38BDF8',
                       counterFrom: visaWhen || inv.created_at,
-                      counterTo: wp ? wp.at : undefined,
-                      whenAt: wp ? wp.at : null,
-                      person: wp?.by_name ? { name_ar: wp.by_name, name_en: wp.by_name } : null,
+                      counterTo: gv.wpDone ? (gv.wpAt || iq?.updated_at || undefined) : undefined,
+                      whenAt: gv.wpDone ? gv.wpAt : null,
+                      person: gv.wpBy ? { name_ar: gv.wpBy, name_en: gv.wpBy } : null,
                       extraRows: wpExtra,
-                      attachments: (wp && wpFile?.file_url) ? [{ url: wpFile.file_url, label: T('عرض ملف رخصة العمل', 'View work permit file') }] : [],
+                      attachments: [
+                        wpFile?.file_url && { url: wpFile.file_url, label: T('عرض فاتورة رخصة العمل', 'View work permit invoice') },
+                        wpCard?.file_url && { url: wpCard.file_url, label: T('عرض كرت العمل', 'View work permit card') },
+                      ].filter(Boolean),
+                    })
+                    /* طباعة الإقامة وتوصيلها — كتلةٌ واحدة تحمل تفاصيل الخطوتين
+                       (رسمُ الطباعة · رقم طلب التوصيل · تاريخه)، والعدّاد يقف
+                       عند **التوصيل** لأنه نهاية المرحلة لا طبعُ البطاقة. */
+                    const pdExtra = []
+                    if (gv.printAmount != null && gv.printAmount !== '') pdExtra.push([T('مبلغ الطباعة', 'Print Amount'), `${num(gv.printAmount)} ${T('ريال', 'SAR')}`, false])
+                    if (gv.deliveryNo) pdExtra.push([T('رقم طلب التوصيل', 'Delivery Request No'), gv.deliveryNo, true, null, true])
+                    if (gv.deliveryDate) pdExtra.push([T('تاريخ التوصيل', 'Delivery Date'), fmtGreg(gv.deliveryDate, isAr), false, C.gold])
+                    const pdMeta = metaBlock({
+                      accent: gv.deliveryDone ? C.ok : gv.printDone ? C.gold : '#38BDF8',
+                      counterFrom: iq?.created_at || visaWhen || inv.created_at,
+                      counterTo: gv.deliveryDone ? (gv.deliveryDate || iq?.updated_at || undefined) : undefined,
+                      whenAt: null,
+                      extraRows: pdExtra,
                     })
                     return (
                       <div key={v.id} style={i > 0 ? { marginTop: 18, paddingTop: 16, borderTop: '1px solid var(--bd)' } : undefined}>
@@ -10208,26 +9987,57 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
                         <TxnStatusBar T={T} stage={visaDone ? 'issued' : 'new'} phase={T('التأشيرة', 'Visa')}
                           label={visaDone ? T('تم الإصدار', 'Issued') : T('بانتظار الإصدار', 'Awaiting issuance')} />
                         {visaMeta}
-                        {/* تأشيرة دائمة: التأمين ورخصة العمل (بلا ترتيب بينهما) بين التأشيرة والإقامة. */}
+                        {visaDone && (
+                          <div style={{ marginTop: 16 }}>
+                            <TxnStatusBar T={T} stage={wklDone ? 'issued' : 'awaiting_done'} phase={T('الوكالة', 'Wakalah')}
+                              label={wklDone ? T('تمت الوكالة', 'Attested') : T('بانتظار الوكالة', 'Awaiting attestation')} />
+                            {wklMeta}
+                          </div>
+                        )}
+                        {/* الفحص الطبي — أول خطوة في «جدول إصدار الإقامات»، للدائمة والمؤقتة معاً. */}
+                        {visaDone && (
+                          <div style={{ marginTop: 16 }}>
+                            <TxnStatusBar T={T} stage={gv.medicalDone ? 'issued' : 'awaiting_done'} phase={T('الفحص الطبي', 'Medical Exam')}
+                              label={gv.medicalDone ? T('تم الفحص', 'Completed') : gv.medicalPending ? T('قيد الإجراء', 'In progress') : T('بانتظار الفحص', 'Awaiting exam')} />
+                            {medMeta}
+                          </div>
+                        )}
+                        {/* تأشيرة دائمة: التأمين ورخصة العمل (بلا ترتيب بينهما) بين الفحص والإقامة. */}
                         {visaDone && isPermanent && (
                           <>
                             <div style={{ marginTop: 16 }}>
-                              <TxnStatusBar T={T} stage={ins ? 'issued' : 'awaiting_done'} phase={T('التأمين', 'Insurance')}
-                                label={ins ? T('تم الإصدار', 'Issued') : T('بانتظار الإصدار', 'Awaiting issuance')} />
+                              <TxnStatusBar T={T} stage={gv.insDone ? 'issued' : 'awaiting_done'} phase={T('التأمين', 'Insurance')}
+                                label={gv.insDone ? T('تم الإصدار', 'Issued') : T('بانتظار الإصدار', 'Awaiting issuance')} />
                               {insMeta}
                             </div>
                             <div style={{ marginTop: 16 }}>
-                              <TxnStatusBar T={T} stage={wp ? 'issued' : 'awaiting_done'} phase={T('رخصة العمل', 'Work Permit')}
-                                label={wp ? T('تم الإصدار', 'Issued') : T('بانتظار الإصدار', 'Awaiting issuance')} />
+                              <TxnStatusBar T={T} stage={gv.wpDone ? 'issued' : 'awaiting_done'} phase={T('رخصة العمل', 'Work Permit')}
+                                label={gv.wpDone ? T('تم الإصدار', 'Issued') : T('بانتظار الإصدار', 'Awaiting issuance')} />
                               {wpMeta}
                             </div>
                           </>
                         )}
                         {visaDone && (
                           <div style={{ marginTop: 16 }}>
-                            <TxnStatusBar T={T} stage={iqamaDone ? 'done' : 'awaiting_done'} phase={T('الإقامة', 'Iqama')}
+                            <TxnStatusBar T={T} stage={iqamaDone ? 'issued' : 'awaiting_done'} phase={T('الإقامة', 'Iqama')}
                               label={iqamaDone ? T('تم الإصدار', 'Issued') : T('بانتظار الإصدار', 'Awaiting issuance')} />
                             {iqMeta}
+                          </div>
+                        )}
+                        {/* ── طباعة الإقامة وتوصيلها: مرحلةٌ واحدة (طلب المستخدم 2026-09-21)
+                            كانتا شريطين متتاليين، والطباعة خطوةٌ داخل التوصيل لا محطّةٌ
+                            يقف عندها العميل: بطاقةٌ تُطبع ثم تُسلَّم، ولا يُسأل عن طبعها
+                            وحده. فصارتا شريطاً واحداً يتدرّج: بانتظار الطباعة ← طُبعت
+                            وبانتظار التوصيل ← تم التوصيل. لا تبدأ قبل صدور الإقامة. */}
+                        {iqamaDone && (
+                          <div style={{ marginTop: 16 }}>
+                            <TxnStatusBar T={T}
+                              stage={gv.deliveryDone ? 'done' : gv.printDone ? 'in_progress' : 'awaiting_done'}
+                              phase={T('طباعة وتوصيل الإقامة', 'Print & Delivery')}
+                              label={gv.deliveryDone ? T('تم التوصيل', 'Delivered')
+                                : gv.printDone ? T('طُبعت — بانتظار التوصيل', 'Printed — awaiting delivery')
+                                : T('بانتظار الطباعة', 'Awaiting print')} />
+                            {pdMeta}
                           </div>
                         )}
                       </div>
@@ -10368,6 +10178,8 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
                       const sd = (tc.stage_data && typeof tc.stage_data === 'object') ? tc.stage_data : {}
                       const transferOnly = !!tc.transfer_only
                       const ins = sd.insurance, wp = sd.work_permit, mu = sd.muqeem
+                      // المهنة لا تُسجَّل ولا تُعرض إلا إذا كانت الفاتورة تحمل تغيير مهنة برسومه
+                      const hasProfChg = !!tc.change_profession || Number(tc.prof_change_fee || 0) > 0
                       // المدة الفعلية للإقامة = من نفس يوم بداية حساب المدة المتوقعة (يوم التسعير) حتى تاريخ انتهاء الإقامة الفعلي — لتُقارن مباشرةً بالمدة المتوقعة في الملخص.
                       const muActualDur = (() => {
                         if (!mu || mu.status === 'cancelled' || !mu.iqama_expiry) return null
@@ -10421,11 +10233,11 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
                           [T('المبلغ', 'Amount'), wp.amount != null ? `${num(wp.amount)} ${T('ريال', 'SAR')}` : '—', false],
                         ] : [])}
                         {stageBar('muqeem', T('الإقامة', 'Iqama'), mu, wp?.at || ins?.at || inv.created_at, data?.muqeemFile, mu ? [
-                          [T('التجديد عبر تواصل', 'Renewal via contact'), mu.via_contact ? T('نعم', 'Yes') : T('لا', 'No'), false],
                           [T('رقم الإقامة', 'Iqama No'), mu.iqama_number || tc.iqama_number || '—', true, null, true],
                           [T('تاريخ انتهاء الإقامة', 'Iqama Expiry'), mu.iqama_expiry ? fmtGreg(mu.iqama_expiry, isAr) : '—', false, C.gold],
                           [T('المدة الفعلية', 'Actual Duration'), muActualDur || '—', false, C.gold],
-                          [T('المهنة', 'Occupation'), mu.occupation_name_ar || '—', false],
+                          /* المهنة تُعرض فقط إن كانت الفاتورة تحمل تغيير مهنة برسومه — كما في نافذة الإدخال */
+                          ...(hasProfChg ? [[T('المهنة', 'Occupation'), mu.occupation_name_ar || '—', false]] : []),
                         ] : [])}
                       </>)
                     })()
@@ -10435,6 +10247,8 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
                       const tc = data?.tc || {}
                       const sd = (tc.stage_data && typeof tc.stage_data === 'object') ? tc.stage_data : {}
                       const ins = sd.insurance, wp = sd.work_permit, iq = sd.iqama
+                      // المهنة لا تُسجَّل ولا تُعرض إلا إذا كانت الفاتورة تحمل تغيير مهنة برسومه
+                      const hasProfChg = !!tc.change_profession || Number(tc.prof_change_fee || 0) > 0
                       // المدة الفعلية للإقامة = من يوم التسعير حتى تاريخ انتهاء الإقامة الفعلي — لتُقارن بالمدة المتوقعة.
                       const iqActualDur = (() => {
                         if (!iq || iq.status === 'cancelled' || !iq.iqama_expiry) return null
@@ -10479,20 +10293,22 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
                           // اسم الشركة والبوليصة لم يعودا يُدخَلان يدوياً — يُعرضان فقط إن جُلبا آلياً (مسار «لا يحتاج» عبر CHI) أو كانا محفوظين في سجل قديم
                           ...(ins.company ? [[T('اسم الشركة', 'Company'), ins.company, false]] : []),
                           ...(ins.policy_no ? [[T('رقم بوليصة التأمين', 'Policy No'), ins.policy_no, true]] : []),
-                          [T('تاريخ انتهاء التأمين', 'Insurance Expiry'), ins.expiry ? fmtGreg(ins.expiry, isAr) : '—', false],
-                          ...(ins.status === 'skipped' ? [] : [[T('المبلغ', 'Amount'), ins.amount != null ? `${num(ins.amount)} ${T('ريال', 'SAR')}` : '—', false]]),
+                          // انتهاء التأمين والمبلغ يُعرضان فقط إن وُجدا (كالشركة والبوليصة) — فلا يبقى صفٌّ فارغٌ «—» حين تُحذف أعمدتهما من شيت التجديد
+                          ...(ins.expiry ? [[T('تاريخ انتهاء التأمين', 'Insurance Expiry'), fmtGreg(ins.expiry, isAr), false]] : []),
+                          ...((ins.status === 'skipped' || ins.amount == null) ? [] : [[T('المبلغ', 'Amount'), `${num(ins.amount)} ${T('ريال', 'SAR')}`, false]]),
                         ] : [])}
                         {stageBar('workpermit', T('رخصة العمل', 'Work Permit'), wp, ins?.at || inv.created_at, data?.wpFileAtt, wp ? [
-                          [T('المدة', 'Duration'), wp.duration_months != null ? `${wp.duration_months} ${T('أشهر', 'months')}` : '—', false],
-                          [T('تاريخ انتهاء رخصة العمل', 'Work Permit Expiry'), wp.expiry ? fmtGreg(wp.expiry, isAr) : '—', false, C.gold],
-                          [T('المبلغ', 'Amount'), wp.amount != null ? `${num(wp.amount)} ${T('ريال', 'SAR')}` : '—', false],
+                          // المدة والانتهاء والمبلغ تُعرض فقط إن وُجدت — فلا يبقى صفٌّ فارغٌ «—» حين تُحذف أعمدتها من شيت التجديد
+                          ...(wp.duration_months != null ? [[T('المدة', 'Duration'), `${wp.duration_months} ${T('أشهر', 'months')}`, false]] : []),
+                          ...(wp.expiry ? [[T('تاريخ انتهاء رخصة العمل', 'Work Permit Expiry'), fmtGreg(wp.expiry, isAr), false, C.gold]] : []),
+                          ...(wp.amount != null ? [[T('المبلغ', 'Amount'), `${num(wp.amount)} ${T('ريال', 'SAR')}`, false]] : []),
                         ] : [])}
                         {stageBar('iqama', T('الإقامة', 'Iqama'), iq, wp?.at || ins?.at || inv.created_at, data?.muqeemFile, iq ? [
-                          [T('التجديد عبر تواصل', 'Renewal via contact'), iq.via_contact ? T('نعم', 'Yes') : T('لا', 'No'), false],
                           [T('رقم الإقامة', 'Iqama No'), iq.iqama_number || tc.iqama_number || '—', true, null, true],
                           [T('تاريخ انتهاء الإقامة', 'Iqama Expiry'), iq.iqama_expiry ? fmtGreg(iq.iqama_expiry, isAr) : '—', false, C.gold],
                           [T('المدة الفعلية', 'Actual Duration'), iqActualDur || '—', false, C.gold],
-                          [T('المهنة', 'Occupation'), iq.occupation_name_ar || '—', false],
+                          /* المهنة تُعرض فقط إن كانت الفاتورة تحمل تغيير مهنة برسومه — كما في نافذة الإدخال */
+                          ...(hasProfChg ? [[T('المهنة', 'Occupation'), iq.occupation_name_ar || '—', false]] : []),
                         ] : [])}
                       </>)
                     })()
@@ -10618,7 +10434,10 @@ const TxnStatusBar = ({ T, stage, phase, label, trailing }) => {
     : stage === 'cancelled' ? { c: C.red, label: T('المعاملة ملغاة', 'Transaction cancelled'), icon: 'x' }
     : stage === 'acct_rejected' ? { c: C.red, label: T('تم الإلغاء من المحاسب', 'Rejected by accountant'), icon: 'x' }
     : stage === 'acct_approved' ? { c: C.gold, label: T('تمت الموافقة من المحاسب', 'Approved by accountant'), icon: 'check' }
-    : stage === 'issued' ? { c: C.gold, label: T('تم الإصدار', 'Issued'), icon: 'check' }
+    /* مرحلةٌ أُنجزت ⇒ **أخضر** (طلب المستخدم 2026-09-21): الذهبيّ كان يصف
+       المُنجَز والجاري معاً («قيد التنفيذ» ذهبيّ أيضاً)، فلا يُفرَّق بينهما
+       بنظرة. الأخضر للتمام، والذهبيّ يبقى للجاري، والأزرق للانتظار. */
+    : stage === 'issued' ? { c: C.ok, label: T('تم الإصدار', 'Issued'), icon: 'check' }
     : stage === 'awaiting_acct' ? { c: '#38BDF8', label: T('في انتظار موافقة المحاسب', 'Awaiting accountant approval'), icon: 'clock' }
     : stage === 'awaiting_done' ? { c: '#38BDF8', label: T('بانتظار الإنجاز', 'Awaiting completion'), icon: 'clock' }
     : stage === 'new' ? { c: '#38BDF8', label: T('جديد', 'New'), icon: 'clock' }
@@ -10694,12 +10513,6 @@ const ActionGridButton = ({ onClick, color, label, children }) => (
   </button>
 )
 
-const Section = ({ title, children }) => (
-  <div style={{ padding: '18px 28px', borderBottom: '1px solid var(--bd2)' }}>
-    <div style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600, marginBottom: 12, letterSpacing: 1, textTransform: 'uppercase' }}>{title}</div>
-    {children}
-  </div>
-)
 // ─── بحث ذكي عن كيان بالرقم (منشأة بالرقم الموحد · عامل برقم الحدود/الإقامة) ──
 // للحقول الثلاثة التي تُدخَل من البوت في كرت المعاملة. يبحث حيّاً في القاعدة:
 // إن وُجد الكيان تصير القيمة خضراء تحتها خط وقابلة للنقر (تفتح صفحة المنشأة/العامل)،
@@ -10787,16 +10600,6 @@ const CopyBtn = ({ text }) => {
   )
 }
 
-const Row = ({ label, value, mono, color, copy }) => (
-  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', alignItems: 'center', minHeight: 28, gap: 10 }}>
-    <span style={{ fontSize: 12, color: 'var(--tx3)', fontWeight: 600 }}>{label}</span>
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, direction: mono ? 'ltr' : undefined }}>
-      <span style={{ fontSize: 13, color: color || 'var(--tx2)', fontVariantNumeric: mono ? 'tabular-nums' : undefined, fontFamily: mono ? 'monospace' : F, fontWeight: 600 }}>{value || '—'}</span>
-      {copy && value ? <CopyBtn text={value} /> : null}
-    </span>
-  </div>
-)
-
 const SectionLabel = ({ label, color = C.gold }) => (
   <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '14px 0 6px', marginTop: 4 }}>
     <span style={{ width: 5, height: 5, borderRadius: '50%', background: color, boxShadow: `0 0 6px ${color}aa` }} />
@@ -10805,21 +10608,4 @@ const SectionLabel = ({ label, color = C.gold }) => (
   </div>
 )
 
-const BorderRow = ({ T, borderNo, visaUsed, visaNo }) => (
-  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', alignItems: 'center', minHeight: 28, gap: 10 }}>
-    <span style={{ fontSize: 12, color: 'var(--tx3)', fontWeight: 600 }}>{T('رقم الحدود','Border No')}</span>
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-      {(visaNo || borderNo) && <span style={{
-        padding: '2px 8px', borderRadius: 999, fontSize: 9.5, fontWeight: 600, letterSpacing: '.4px',
-        background: visaUsed ? 'rgba(46,204,113,.12)' : 'rgba(255,255,255,.04)',
-        border: '1px solid ' + (visaUsed ? 'rgba(46,204,113,.32)' : 'rgba(255,255,255,.08)'),
-        color: visaUsed ? C.ok : 'var(--tx4)',
-      }}>{visaUsed ? T('مستخدمة','Used') : T('لم تستخدم','Not Used')}</span>}
-      <span style={{ fontSize: 13, color: 'var(--tx2)', fontFamily: 'monospace', direction: 'ltr', fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>{borderNo || '—'}</span>
-    </div>
-  </div>
-)
-
-const selS = { padding: '9px 12px', background: 'rgba(255,255,255,.04)', border: '1px solid var(--bd)', borderRadius: 10, color: 'var(--tx1)', fontSize: 13, fontFamily: F, minWidth: 130 }
 const btnFilter = (active) => ({ height: 44, padding: '0 16px', borderRadius: 12, background: active ? 'var(--accent-soft)' : 'var(--search-bg)', border: '1px solid ' + (active ? 'var(--accent-bd)' : 'transparent'), color: active ? 'var(--accent)' : 'var(--tx2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 8, boxSizing: 'border-box' })
-const btnPg = (disabled) => ({ padding: '8px 16px', background: disabled ? 'rgba(255,255,255,.03)' : 'rgba(176,125,0,.12)', border: '1px solid ' + (disabled ? 'rgba(255,255,255,.06)' : 'rgba(176,125,0,.3)'), borderRadius: 10, color: disabled ? 'var(--tx4)' : C.gold, fontSize: 12, fontWeight: 600, cursor: disabled ? 'not-allowed' : 'pointer', fontFamily: F })

@@ -30,8 +30,9 @@ const dayDiff = (a, b) => Math.round((b - a) / 86400000)
 
 // ── تعويض التأخير (overdue) للإقامات المنتهية ──
 // أم القرى عبر Intl — لحساب «M × 3 أشهر هجرية» بدقّة (أطوال الأشهر متغيّرة).
+let UMM_FMT = null   // يُنشأ مرة واحدة — addHijriMonths يستدعي toUmm عشرات المرات لكل تاريخ
 function toUmm(g) {
-  const f = new Intl.DateTimeFormat('en-US-u-ca-islamic-umalqura', { year: 'numeric', month: 'numeric', day: 'numeric' })
+  const f = UMM_FMT || (UMM_FMT = new Intl.DateTimeFormat('en-US-u-ca-islamic-umalqura', { year: 'numeric', month: 'numeric', day: 'numeric' }))
   const o = {}
   for (const p of f.formatToParts(g)) { if (p.type === 'year') o.y = +p.value; if (p.type === 'month') o.m = +p.value; if (p.type === 'day') o.d = +p.value }
   return o

@@ -1,13 +1,13 @@
 ﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import BackButton from '../components/BackButton'
-import { buildBookmarklet, buildPdfBookmarklet } from './sbcSyncBookmarklet.js'
+import { buildBookmarklet } from './sbcSyncBookmarklet.js'
 import { buildGosiBookmarklet } from './gosiSyncBookmarklet.js'
 import { buildQiwaBookmarklet } from './qiwaSyncBookmarklet.js'
 import { buildMuqeemBookmarklet } from './muqeemSyncBookmarklet.js'
 import { buildAjeerBookmarklet } from './ajeerSyncBookmarklet.js'
 import { buildMudadBookmarklet } from './mudadSyncBookmarklet.js'
 import { Sel } from './KafalaCalculator.jsx'
-import { Ban, ShieldOff, RefreshCw, ClipboardCheck, ChevronRight, ChevronLeft, Check } from 'lucide-react'
+import { Ban, ShieldOff, RefreshCw, ClipboardCheck, ChevronRight, ChevronLeft } from 'lucide-react'
 import { Modal as FKModal, ActionButton, SuccessView, TextField, ScrollBox, EmptyState } from '../components/ui/FormKit.jsx'
 
 const F = "'Cairo','Tajawal',sans-serif"
@@ -68,7 +68,6 @@ export const FAC_DETAIL_TYPE_SCALE = [
 ].map(([from, to]) =>
   `.synchub-detail [style*="font-size: ${from}px"]{font-size:${to}px !important}`
 ).join('')
-const btnGold = { height: 40, padding: '0 16px', borderRadius: 11, background: 'linear-gradient(180deg,rgba(176,125,0,.22) 0%,rgba(176,125,0,.10) 100%)', border: '1px solid rgba(176,125,0,.45)', color: '#B07D00', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7, fontFamily: F, fontSize: 12, fontWeight: 600, transition: '.2s', boxShadow: '0 2px 8px rgba(176,125,0,.18), inset 0 1px 0 rgba(176,125,0,.18)' }
 const btnFilter = (active) => ({ height: 44, padding: '0 16px', borderRadius: 12, background: active ? 'var(--accent-soft)' : 'var(--search-bg)', border: '1px solid ' + (active ? 'var(--accent-bd)' : 'transparent'), color: active ? 'var(--accent)' : 'var(--tx2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 8, boxSizing: 'border-box', boxShadow: active ? 'var(--shadow-sm)' : 'none' })
 
 // «طلباتي» provenance pill. Marks a facility whose data came from the user's
@@ -748,6 +747,10 @@ function QiwaWpRequestsCard({ sb, companyId, T }) {
 // row collapses by default (the list can run into hundreds) and expands to
 // reveal every column qiwa_wp_laborers stores: personal, iqama, work permit,
 // contract, occupation, transfer, GOSI/location.
+// أبناء القسم الظاهرون فعلاً: عنصر حقل قيمته (v) فارغة يُرسَم null، فلا يُحسب —
+// وإلا ظهر عنوان القسم وحده بلا حقول.
+const _visibleKids = (children) => React.Children.toArray(children).filter(ch =>
+  ch && !(ch.props && 'v' in ch.props && (ch.props.v == null || ch.props.v === '')))
 function LaborerDetailRow({ r, T }) {
   const [open, setOpen] = useState(false)
   const expired = r.is_wp_expired
@@ -771,7 +774,7 @@ function LaborerDetailRow({ r, T }) {
     </div>
   ))
   const Section = ({ title, children }) => {
-    const visible = React.Children.toArray(children).filter(Boolean)
+    const visible = _visibleKids(children)
     if (visible.length === 0) return null
     return (
       <div style={{ marginTop: 8 }}>
@@ -934,7 +937,7 @@ function EmployeeDetailRow({ r, T }) {
     </div>
   ))
   const Section = ({ title, children }) => {
-    const visible = React.Children.toArray(children).filter(Boolean)
+    const visible = _visibleKids(children)
     if (visible.length === 0) return null
     return (
       <div style={{ marginTop: 8 }}>
@@ -1149,7 +1152,7 @@ function MuqeemResidentRow({ r, T, visas: reportVisas }) {
     </div>
   ))
   const Section = ({ title, children }) => {
-    const visible = React.Children.toArray(children).filter(Boolean)
+    const visible = _visibleKids(children)
     if (visible.length === 0) return null
     return (
       <div style={{ marginTop: 8 }}>
@@ -1330,7 +1333,7 @@ function QiwaTransferRequestsList({ sb, companyId, T }) {
     let cancelled = false
     ;(async () => {
       const { data } = await sb.from('qiwa_transfer_requests')
-        .select('request_id, direction, status, status_ar, status_en, employee_id, employee_name, current_employer_name, new_employer_name, release_date, created_at_qiwa, expires_at')
+        .select('request_id, direction, status, status_id, status_ar, status_en, employee_id, employee_name, current_employer_name, new_employer_name, release_date, created_at_qiwa, expires_at')
         .eq('company_id', companyId)
         .order('created_at_qiwa', { ascending: false, nullsFirst: false })
       if (!cancelled) setRows(data || [])
@@ -1857,7 +1860,7 @@ function GosiEstablishmentCard({ data, T, lang }) {
   ))
 
   const Section = ({ title, children }) => {
-    const kids = React.Children.toArray(children).filter(Boolean)
+    const kids = _visibleKids(children)
     if (!kids.length) return null
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -3121,54 +3124,6 @@ function GosiContributorsCard({ contributors, est, T, lang, title }) {
   )
 }
 
-// Detect whether a partner / manager entry is a company (vs a natural person).
-// SBC flags this via identifierType ("الرقم الموحد" / "commercial registration"),
-// or via ID heuristic: 10-digit Unified National Numbers start with 7.
-function isCompanyParty(p) {
-  const info = p?.personInfo || {}
-  const typeAr = info.identifierType?.identifierTypeDescAr || ''
-  const typeEn = info.identifierType?.identifierTypeDescEn || ''
-  if (/موحد|تجاري|منشأ|commercial|unified|company|establishment/i.test(`${typeAr} ${typeEn}`)) return true
-  const id = String(info.identifierNo || '')
-  if (/^7\d{9}$/.test(id)) return true
-  return false
-}
-
-// Compact list of people (managers / partners) — name on top, ID below.
-// For company partners: shows the full company name + unified national number.
-// For person partners: shows the first name + national ID.
-// Limits to 3 entries; collapses the rest as "+N".
-function PersonList({ people, lang }) {
-  if (!Array.isArray(people) || people.length === 0) {
-    return <span style={{ color: 'var(--tx5)', fontSize: 11 }}>—</span>
-  }
-  const isAr = (lang || 'ar') !== 'en'
-  const shown = people.slice(0, 3)
-  const extra = people.length - shown.length
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
-      {shown.map((p, i) => {
-        const info = p?.personInfo || {}
-        const isCompany = isCompanyParty(p)
-        const name = isCompany
-          ? (isAr
-              ? [info.firstNameAr, info.fatherNameAr, info.grandFatherNameAr, info.familyNameAr].filter(Boolean).join(' ')
-              : (info.firstNameEn || info.firstNameAr))
-          : (isAr ? (info.firstNameAr || info.firstNameEn) : (info.firstNameEn || info.firstNameAr))
-        return (
-          <div key={i} style={{ maxWidth: '100%' }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx)', marginBottom: 4, ...(isCompany
-              ? { whiteSpace: 'normal', lineHeight: 1.35 }
-              : { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }) }}>{name || '—'}</div>
-            <div style={{ fontSize: 9.5, fontFamily: 'ui-monospace, monospace', color: 'var(--tx4)', direction: 'ltr' }}>{info.identifierNo || ''}</div>
-          </div>
-        )
-      })}
-      {extra > 0 && <div style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--tx3)' }}>+{extra}</div>}
-    </div>
-  )
-}
-
 const fmtDate = (s) => fmtDMY(s)
 
 // SBC returns lookups as { xId, xDescAr, xDescEn } objects. PostgREST returns them as JSON strings.
@@ -3193,8 +3148,6 @@ const label = (v, lang) => {
   }
   return null
 }
-
-const fmtTime = (s) => fmtDMYTime(s)
 
 const statusTheme = (s) => {
   const v = String(s || '').toLowerCase()
@@ -3613,7 +3566,7 @@ const _mudadPeriod = (v, lang) => {
   const y = Number(s.slice(0, 4)), m = Number(s.slice(4, 6))
   if (m < 1 || m > 12) return s
   try {
-    return new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString(lang === 'ar' ? 'ar' : 'en-US', { year: 'numeric', month: 'long', timeZone: 'UTC' })
+    return new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString(lang === 'ar' ? 'ar-u-nu-latn' : 'en-US', { year: 'numeric', month: 'long', timeZone: 'UTC' })
   } catch { return s }
 }
 
@@ -3870,9 +3823,10 @@ function _UnifiedWorkerRow({ w, T, lang }) {
   const expVal = iqamaExp && iqamaExp.vals[0] ? iqamaExp.vals[0].v : null
   const expDays = (() => {
     if (!expVal) return null
-    const m = String(expVal).match(/^(\d{2})-(\d{2})-(\d{4})$/)
-    if (!m) return null
-    const t = new Date(`${m[3]}-${m[2]}-${m[1]}`).getTime()
+    // القيمة مرّت على fmtDMY فصارت YYYY-MM-DD
+    const m = String(expVal).match(/^(\d{4})-(\d{2})-(\d{2})$/)
+    if (!m || Number(m[1]) < 1900) return null // هجري لا يُقارن بتاريخ اليوم
+    const t = new Date(`${m[1]}-${m[2]}-${m[3]}`).getTime()
     if (Number.isNaN(t)) return null
     return Math.floor((t - Date.now()) / 86400000)
   })()
@@ -4666,8 +4620,8 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
   const [blocked, setBlocked] = useState([])
   const [showBlocked, setShowBlocked] = useState(false)
   const [showWeekReport, setShowWeekReport] = useState(false)
-  const [lastSync, setLastSync] = useState(null)
-  const [filter, setFilter] = useState('all') // all | main | manager | partner | confirmation
+  const [, setLastSync] = useState(null)
+  const [filter] = useState('all') // all | main | manager | partner | confirmation
   const [page, setPage] = useState(0)
   // Live GOSI/HRSD data fetched per-facility when the detail modal opens.
   const [liveGosi, setLiveGosi] = useState(null)
@@ -5032,273 +4986,15 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
       const { data, error } = await sb.rpc('promote_sync_to_canonical')
       if (error) throw error
       const f = data?.facilities || {}
-      const w = data?.workers || {}
+      // المنشآت وحدها: جدول العمالة سجلٌّ محفوظ لا تكتب فيه المزامنة (٢٠٢٦-٠٩-٢٢)
       // المنشأة التي حُذفت من صفحة المنشآت وما زالت تصل من المزامنة تعود بنفس سجلها
       // وروابطها — نُظهر عددها حتى لا تفاجئ من حذفها، وطريقُ إبقائها خارج النظام
       // نهائياً هو «حذف وحجب» من هذه الصفحة.
       const rst = f.restored ? T(` · ${f.restored} أُعيد إظهارها`, ` · ${f.restored} restored`) : ''
       toast?.(T(
-        `✅ المنشآت: ${f.updated ?? 0} محدثة + ${f.inserted ?? 0} جديدة${rst} · العمال: ${w.updated ?? 0} محدث + ${w.inserted ?? 0} جديد · ${w.with_photo ?? 0} بصورة`,
-        `✅ Facilities: ${f.updated ?? 0} updated + ${f.inserted ?? 0} new${rst} · Workers: ${w.updated ?? 0} updated + ${w.inserted ?? 0} new · ${w.with_photo ?? 0} with photo`,
+        `✅ المنشآت: ${f.updated ?? 0} محدثة + ${f.inserted ?? 0} جديدة${rst} · العمالة لا تُنقل من المزامنة — قارنها في «البيانات الأساسية ← من المزامنة»`,
+        `✅ Facilities: ${f.updated ?? 0} updated + ${f.inserted ?? 0} new${rst} · workers are no longer promoted — compare them in «Core data → From sync»`,
       ))
-    } catch (e) {
-      toast?.(T('خطأ في النقل: ', 'Promote error: ') + (e.message || String(e)), 'error')
-    } finally {
-      setPromoting(false)
-    }
-  }, [sb, rows, toast, promoting])
-
-  const _promoteToCanonicalLegacy = useCallback(async () => {
-    if (!sb || !rows.length || promoting) return
-    setPromoting(true)
-    try {
-      toast?.(T('جاري نقل المنشآت...', 'Promoting facilities...'))
-
-      // Pull GOSI establishments by CR number AND by registration number. The
-      // CR-keyed half misses everything that came in through طلباتي (those rows
-      // carry a GOSI registration number but no cr_number), which is what left
-      // them without a unified_number — and so unlinked — on promote.
-      const crNumbers = rows.map(r => r.cr_number).filter(Boolean)
-      const regNumbers = rows.map(r => r.gosi_registration_number).filter(Boolean)
-      const [{ data: gosiByCrRows }, { data: gosiByRegRows }] = await Promise.all([
-        crNumbers.length
-          ? sb.from('gosi_establishments')
-              .select('registration_no,cr_number,unified_national_number,email_primary,mobile_primary,city_ar')
-              .in('cr_number', crNumbers)
-          : Promise.resolve({ data: [] }),
-        regNumbers.length
-          ? sb.from('gosi_establishments')
-              .select('registration_no,cr_number,unified_national_number,email_primary,mobile_primary,city_ar')
-              .in('registration_no', regNumbers)
-          : Promise.resolve({ data: [] }),
-      ])
-      const gosiEsts = [...(gosiByCrRows || []), ...(gosiByRegRows || [])]
-      const gosiByCr = {}
-      const gosiByReg = {}
-      for (const g of gosiEsts) {
-        if (g.cr_number && !gosiByCr[g.cr_number]) gosiByCr[g.cr_number] = g
-        if (g.registration_no) gosiByReg[String(g.registration_no)] = g
-      }
-
-      const facilityPayloads = rows.map(r => {
-        // Match GOSI by CR number, falling back to the GOSI registration number:
-        // facilities discovered through طلباتي have no cr_number (300 of 301),
-        // so the CR-keyed lookup alone would miss them.
-        const g = gosiByCr[r.cr_number] || gosiByReg[String(r.gosi_registration_number)]
-        const hrsd = (r.hrsd_labor_office_id && r.hrsd_sequence_number)
-          ? `${r.hrsd_labor_office_id}-${r.hrsd_sequence_number}` : null
-        return {
-          sbc_facility_id: r.id,
-          name_ar: r.entity_full_name_ar || null,
-          name_en: r.entity_full_name_en || null,
-          // الرقم الموحد is the canonical link key. cr_national_number IS that
-          // number (identical to gosi_unified_national_number wherever both
-          // exist); it's the last fallback so a facility known only through
-          // طلباتي — no GOSI sync behind it — still links instead of landing
-          // with a null unified_number.
-          unified_number: r.gosi_unified_national_number || g?.unified_national_number || r.cr_national_number || null,
-          cr_number: r.cr_number || null,
-          gosi_number: r.gosi_registration_number || g?.registration_no || null,
-          vat_number: r.zakat_tax_number || null,
-          chamber_number: r.coc_chamber_number || null,
-          spl_number: r.spl_national_address_id || null,
-          hrsd_number: hrsd,
-          cr_status: r.cr_status_ar || r.cr_status || null,
-          city_ar: r.headquarter_city_ar || g?.city_ar || null,
-          mobile: r.mobile_no || g?.mobile_primary || null,
-          email: r.email || g?.email_primary || null,
-          workers_total: r.gosi_number_of_contributors ?? null,
-          workers_saudi: r.gosi_number_of_saudi_contributors ?? null,
-          workers_non_saudi: r.gosi_number_of_non_saudi_contributors ?? null,
-          source_synced_at: new Date().toISOString(),
-        }
-      })
-
-      // Adopt pre-existing stub facilities before the upsert. Other flows (worker
-      // sync linking current_facility_id) create facility rows keyed by unified/
-      // gosi/cr but without an sbc_facility_id. Since the upsert below conflicts
-      // only on sbc_facility_id, such a stub would force an INSERT that violates
-      // the unified/gosi/cr/vat/… partial-unique indexes. We claim each stub by
-      // stamping the incoming sbc_facility_id so the upsert UPDATES it in place —
-      // keeping its worker links intact and filling its real name + data.
-      const idMap = {}   // identifier → sbc_facility_id (prefer unified > gosi > cr)
-      const unifiedVals = [], gosiVals = [], crVals = []
-      for (const p of facilityPayloads) {
-        if (p.unified_number) { unifiedVals.push(p.unified_number); idMap['u:' + p.unified_number] ||= p.sbc_facility_id }
-        if (p.gosi_number)    { gosiVals.push(p.gosi_number);       idMap['g:' + p.gosi_number]    ||= p.sbc_facility_id }
-        if (p.cr_number)      { crVals.push(p.cr_number);           idMap['c:' + p.cr_number]      ||= p.sbc_facility_id }
-      }
-      const orParts = []
-      if (unifiedVals.length) orParts.push(`unified_number.in.(${unifiedVals.join(',')})`)
-      if (gosiVals.length)    orParts.push(`gosi_number.in.(${gosiVals.join(',')})`)
-      if (crVals.length)      orParts.push(`cr_number.in.(${crVals.join(',')})`)
-      if (orParts.length) {
-        const { data: stubs } = await sb.from('facilities')
-          .select('id,unified_number,gosi_number,cr_number')
-          .is('sbc_facility_id', null).is('deleted_at', null)
-          .or(orParts.join(','))
-        // sbc ids that already own a real facility row — never re-point a stub onto
-        // one of these (would violate the sbc_facility_id unique index).
-        const takenSbc = new Set()
-        const sbcIds = [...new Set(facilityPayloads.map(p => p.sbc_facility_id))]
-        for (let i = 0; i < sbcIds.length; i += 100) {
-          const { data: have } = await sb.from('facilities')
-            .select('sbc_facility_id').in('sbc_facility_id', sbcIds.slice(i, i + 100))
-          for (const h of (have || [])) if (h.sbc_facility_id) takenSbc.add(h.sbc_facility_id)
-        }
-        for (const s of (stubs || [])) {
-          const sbcId = idMap['u:' + s.unified_number] || idMap['g:' + s.gosi_number] || idMap['c:' + s.cr_number]
-          if (!sbcId || takenSbc.has(sbcId)) continue
-          const { error } = await sb.from('facilities')
-            .update({ sbc_facility_id: sbcId }).eq('id', s.id).is('sbc_facility_id', null)
-          if (!error) takenSbc.add(sbcId)
-        }
-      }
-
-      for (let i = 0; i < facilityPayloads.length; i += 100) {
-        const chunk = facilityPayloads.slice(i, i + 100)
-        const { error } = await sb.from('facilities')
-          .upsert(chunk, { onConflict: 'sbc_facility_id' })
-        if (error) throw new Error('facilities: ' + error.message)
-        toast?.(T(`المنشآت ${Math.min(i + 100, facilityPayloads.length)}/${facilityPayloads.length}`,
-                  `Facilities ${Math.min(i + 100, facilityPayloads.length)}/${facilityPayloads.length}`))
-      }
-
-      // Build reg_no → facility_id map after upsert (so we know the canonical ids)
-      const { data: facsAfter } = await sb.from('facilities')
-        .select('id,cr_number,gosi_number')
-        .in('sbc_facility_id', rows.map(r => r.id))
-      const facByCr = {}
-      const facByReg = {}
-      for (const f of (facsAfter || [])) {
-        if (f.cr_number) facByCr[f.cr_number] = f.id
-        if (f.gosi_number) facByReg[String(f.gosi_number)] = f.id
-      }
-      // Fill registrations that only show up in gosi_establishments (branches etc.)
-      for (const reg in gosiByReg) {
-        if (facByReg[reg]) continue
-        const cr = gosiByReg[reg].cr_number
-        if (cr && facByCr[cr]) facByReg[reg] = facByCr[cr]
-      }
-
-      const regNos = Object.keys(facByReg)
-      if (!regNos.length) {
-        toast?.(T(`✅ ${facilityPayloads.length} منشأة (لا توجد بيانات GOSI لنقل عمالها)`,
-                  `✅ ${facilityPayloads.length} facilities (no GOSI worker data)`))
-        return
-      }
-
-      const allContribs = []
-      for (let i = 0; i < regNos.length; i += 100) {
-        const chunk = regNos.slice(i, i + 100)
-        const { data: contribs, error } = await sb.from('gosi_establishment_contributors')
-          .select('registration_no,engagement_id,latest_live_engagement_id,iqama_no,iqama_expiry_date,border_no,passport_no,nationality_ar,occupation_ar,first_name_ar,second_name_ar,third_name_ar,family_name_ar,full_name_en,sex_ar,birth_date,status_type,joining_date,wage_total')
-          .in('registration_no', chunk)
-          .in('status_type', ['ACTIVE', 'INACTIVE', 'active', 'suspended'])
-        if (error) throw new Error('contributors: ' + error.message)
-        allContribs.push(...(contribs || []))
-      }
-
-      // Exclude Saudis. GOSI nationality_ar uses several spellings — with/without
-      // the "ال" prefix and gendered forms. Normalize by stripping ال + matching
-      // both سعودي and سعودية.
-      const isSaudi = (n) => {
-        const s = (n || '').trim().replace(/^ال/, '')
-        return s === 'سعودي' || s === 'سعودية' || s === 'سعوديه'
-      }
-      const nonSaudi = allContribs.filter(c => c.nationality_ar && !isSaudi(c.nationality_ar))
-
-      if (!nonSaudi.length) {
-        toast?.(T(`✅ ${facilityPayloads.length} منشأة · لا يوجد عمال غير سعوديين`,
-                  `✅ ${facilityPayloads.length} facilities · no non-Saudi workers`))
-        return
-      }
-
-      const workerPayloads = []
-      const seenEng = new Set()
-      for (const c of nonSaudi) {
-        const engagementId = c.latest_live_engagement_id || c.engagement_id
-        const facId = facByReg[String(c.registration_no)]
-        if (!facId || !engagementId) continue
-        const key = String(engagementId)
-        if (seenEng.has(key)) continue
-        seenEng.add(key)
-        const nameParts = [c.first_name_ar, c.second_name_ar, c.third_name_ar, c.family_name_ar].filter(Boolean)
-        const st = String(c.status_type || '').toLowerCase()
-        const normStatus = (st === 'active') ? 'active'
-                          : (st === 'inactive' || st === 'suspended') ? 'suspended'
-                          : (c.status_type || null)
-        workerPayloads.push({
-          name_ar: nameParts.length ? nameParts.join(' ') : null,
-          name_en: c.full_name_en || null,
-          iqama_number: c.iqama_no || null,
-          iqama_expiry_date: c.iqama_expiry_date || null,
-          border_number: c.border_no || null,
-          passport_number: c.passport_no || null,
-          nationality_ar: c.nationality_ar || null,
-          occupation_ar: c.occupation_ar || null,
-          worker_status: normStatus,
-          gosi_engagement_id: key,
-          gosi_registration_no: String(c.registration_no),
-          joining_date: c.joining_date || null,
-          wage_total: c.wage_total ?? null,
-          birth_date: c.birth_date || null,
-          gender: c.sex_ar === 'أنثى' ? 'female' : (c.sex_ar === 'ذكر' ? 'male' : null),
-          current_facility_id: facId,
-          source_synced_at: new Date().toISOString(),
-        })
-      }
-
-      // Adopt existing worker rows before the upsert — same reasoning as facilities.
-      // Workers already exist (paper-receipt imports, distribute flow, prior sync)
-      // keyed by iqama/border but with a NULL or older gosi_engagement_id. The
-      // upsert conflicts only on gosi_engagement_id, so an incoming contributor
-      // sharing an iqama/border with such a row would force an INSERT that violates
-      // the iqama/border unique index. Iqama is a national id ⇒ same iqama = same
-      // person, so we re-point that row's gosi_engagement_id to the incoming (the
-      // latest live engagement) and let the upsert update it in place — preserving
-      // its business links (invoices, services) instead of duplicating the person.
-      const engByIqama = {}, engByBorder = {}
-      const iqamaVals = [], borderVals = []
-      for (const p of workerPayloads) {
-        if (p.iqama_number)  { iqamaVals.push(p.iqama_number);  engByIqama[p.iqama_number]  ||= p.gosi_engagement_id }
-        if (p.border_number) { borderVals.push(p.border_number); engByBorder[p.border_number] ||= p.gosi_engagement_id }
-      }
-      const wOr = []
-      if (iqamaVals.length)  wOr.push(`iqama_number.in.(${iqamaVals.join(',')})`)
-      if (borderVals.length) wOr.push(`border_number.in.(${borderVals.join(',')})`)
-      if (wOr.length) {
-        const { data: wStubs } = await sb.from('workers')
-          .select('id,iqama_number,border_number,gosi_engagement_id')
-          .is('deleted_at', null).or(wOr.join(','))
-        // engagement ids already assigned to a row — never re-point onto one.
-        const takenEng = new Set()
-        const engIds = [...new Set(workerPayloads.map(p => p.gosi_engagement_id).filter(Boolean))]
-        for (let i = 0; i < engIds.length; i += 100) {
-          const { data: have } = await sb.from('workers')
-            .select('gosi_engagement_id').in('gosi_engagement_id', engIds.slice(i, i + 100))
-          for (const h of (have || [])) if (h.gosi_engagement_id) takenEng.add(h.gosi_engagement_id)
-        }
-        for (const w of (wStubs || [])) {
-          const eng = engByIqama[w.iqama_number] || engByBorder[w.border_number]
-          if (!eng || w.gosi_engagement_id === eng || takenEng.has(eng)) continue
-          const { error } = await sb.from('workers')
-            .update({ gosi_engagement_id: eng }).eq('id', w.id)
-          if (!error) takenEng.add(eng)
-        }
-      }
-
-      for (let i = 0; i < workerPayloads.length; i += 100) {
-        const chunk = workerPayloads.slice(i, i + 100)
-        const { error } = await sb.from('workers')
-          .upsert(chunk, { onConflict: 'gosi_engagement_id' })
-        if (error) throw new Error('workers: ' + error.message)
-        toast?.(T(`العمال ${Math.min(i + 100, workerPayloads.length)}/${workerPayloads.length}`,
-                  `Workers ${Math.min(i + 100, workerPayloads.length)}/${workerPayloads.length}`))
-      }
-
-      toast?.(T(`✅ ${facilityPayloads.length} منشأة · ${workerPayloads.length} عامل`,
-                `✅ ${facilityPayloads.length} facilities · ${workerPayloads.length} workers`))
     } catch (e) {
       toast?.(T('خطأ في النقل: ', 'Promote error: ') + (e.message || String(e)), 'error')
     } finally {
@@ -5539,8 +5235,8 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
           .select('id, table_name, source_id, entity_key, record_key, record_label, op, changed_fields, diff, old_data, captured_at')
           .in('entity_key', list)
           .order('captured_at', { ascending: false })
-          .limit(400),
-        sb.from('sync_file_versions').select('*').in('entity_key', list).order('archived_at', { ascending: false }).limit(200),
+          .limit(5000),
+        sb.from('sync_file_versions').select('*').in('entity_key', list).order('archived_at', { ascending: false }).limit(5000),
       ])
       if (cancelled) return
       setRowHistory(hist.data || [])
@@ -5765,12 +5461,6 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
     })
   }, [normalized])
 
-  // Build a flat, searchable "blob" per partner/manager that covers both AR + EN names and the national id.
-  const personBlob = (p) => {
-    const i = p?.personInfo || {}
-    return [i.firstNameAr, i.fatherNameAr, i.grandFatherNameAr, i.familyNameAr, i.firstNameEn, i.familyNameEn, i.identifierNo]
-      .filter(Boolean).join(' ').toLowerCase()
-  }
   const filtered = useMemo(() => {
     let out = normalized
     // Person tab filter — narrows to facilities where the active person is a partner or manager.
@@ -5950,81 +5640,14 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
     return out
   }, [filtered, adv.sortConfirm, adv.sortIssue])
 
-  const Tag = ({ children, color }) => (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 600, color: color || 'var(--tx2)', lineHeight: 1.2 }}>
-      <span style={{ width: 5, height: 5, borderRadius: '50%', background: color || 'rgba(255,255,255,.4)', flexShrink: 0 }} />
-      {children}
-    </span>
-  )
+  // تضييق النتائج (بحث/تصفية) وهو على صفحة متأخرة كان يترك الجدول فارغاً بلا
+  // أزرار ترقيم — نعيد الصفحة إلى آخر صفحة موجودة.
+  useEffect(() => {
+    const last = Math.max(0, Math.ceil(displayRows.length / PAGE) - 1)
+    setPage(p => (p > last ? last : p))
+  }, [displayRows.length])
 
-  // Renders one chip per (source, operator) that has synced this facility.
-  // Shows "{source} · {operator} · {ago}" so the user can answer "where did
-  // this facility's data come from?" at a glance. Chips collapse if >3.
-  const ProvenanceStrip = ({ entries }) => {
-    if (!entries || entries.length === 0) {
-      return (
-        <span title={T('لم يتم جلب البيانات من أي مصدر بعد', 'Not yet synced from any source')}
-          style={{ fontSize: 9.5, color: 'var(--tx5)', fontWeight: 600 }}>
-          {T('بدون مصدر', 'No source')}
-        </span>
-      )
-    }
-    // Sort by most-recent first.
-    const sorted = [...entries].sort((a, b) => (b.last_synced_at || '').localeCompare(a.last_synced_at || ''))
-    const shown = sorted.slice(0, 3)
-    const extra = sorted.length - shown.length
-    return (
-      <div style={{ display: 'inline-flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
-        {shown.map((p, i) => {
-          const brand = SOURCE_BRAND[p.source_id] || { color: '#888', ar: p.source_id, en: p.source_id }
-          const srcLabel = (lang || 'ar') !== 'en' ? brand.ar : brand.en
-          const operator = (lang || 'ar') !== 'en'
-            ? (p.person_name_ar || p.person_name_en || T('بدون مشغّل', 'unattributed'))
-            : (p.person_name_en || p.person_name_ar || 'unattributed')
-          const ago = fmtAgo(p.last_synced_at, lang)
-          const dotColor = p.person_color || brand.color
-          const title = `${srcLabel} · ${operator} · ${ago}`
-          return (
-            <span key={i} title={title}
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: 4,
-                padding: '2px 7px', borderRadius: 999,
-                background: `${brand.color}14`,
-                border: `1px solid ${brand.color}40`,
-                fontSize: 9.5, fontWeight: 600,
-                color: brand.color, lineHeight: 1.2, whiteSpace: 'nowrap',
-              }}>
-              <span style={{ width: 5, height: 5, borderRadius: '50%', background: dotColor, boxShadow: `0 0 4px ${dotColor}99`, flexShrink: 0 }} />
-              {srcLabel}
-              <span style={{ color: 'var(--tx3)', fontWeight: 600 }}>·</span>
-              <span style={{ color: 'var(--tx2)' }}>{operator}</span>
-              <span style={{ color: 'var(--tx4)', fontFamily: 'ui-monospace, monospace', fontSize: 9 }}>{ago}</span>
-            </span>
-          )
-        })}
-        {extra > 0 && (
-          <span style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--tx3)' }}>+{extra}</span>
-        )}
-      </div>
-    )
-  }
-
-  const Btn = ({ children, onClick, disabled, variant = 'primary', small, active }) => {
-    const styles = {
-      primary: { background: C.gold, color: '#1a1a1a' },
-      ghost: { background: active ? 'rgba(176,125,0,.14)' : 'rgba(255,255,255,.04)', color: active ? C.gold : 'var(--tx)', border: '1px solid ' + (active ? 'rgba(176,125,0,.35)' : 'var(--bd)') },
-      danger: { background: 'rgba(192,57,43,.12)', color: C.red, border: '1px solid rgba(192,57,43,.3)' },
-    }[variant]
-    return (
-      <button onClick={onClick} disabled={disabled} style={{
-        padding: small ? '6px 12px' : '9px 16px', borderRadius: 9, border: 'none', cursor: disabled ? 'not-allowed' : 'pointer',
-        fontFamily: F, fontSize: small ? 11 : 12, fontWeight: 600, opacity: disabled ? 0.5 : 1, transition: '.15s',
-        ...styles,
-      }}>{children}</button>
-    )
-  }
-
-  const Card = ({ children, style }) => (
+  const Card =({ children, style }) => (
     <div style={{ padding: 16, borderRadius: 12, background: 'rgba(255,255,255,.03)', border: '1px solid var(--bd)', ...style }}>{children}</div>
   )
 
@@ -6066,64 +5689,10 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
   }, [gosiEstByReg])
   const heroCounts = tableView === 'gosi' ? gosiCounts : counts
 
-  // 12-month CR registration trend — buckets `cr_issue_date` per calendar month.
-  const periodSeries = useMemo(() => {
-    const today = new Date()
-    const buckets = Array.from({ length: 12 }, (_, i) => {
-      const d = new Date(today.getFullYear(), today.getMonth() - (11 - i), 1)
-      return { date: d, main: 0, branch: 0, total: 0 }
-    })
-    scopedRows.forEach(r => {
-      let raw = r.cr_issue_date
-      if (typeof raw === 'string' && raw.startsWith('{')) { try { raw = JSON.parse(raw) } catch {} }
-      const iso = (raw && typeof raw === 'object') ? (raw.gregorianDate || raw.dateG || raw.gregorian) : raw
-      if (!iso) return
-      const d = new Date(String(iso).slice(0, 10))
-      if (Number.isNaN(d.getTime())) return
-      const months = (today.getFullYear() - d.getFullYear()) * 12 + (today.getMonth() - d.getMonth())
-      if (months < 0 || months >= 12) return
-      const idx = 11 - months
-      if (r.is_main) buckets[idx].main += 1
-      else buckets[idx].branch += 1
-      buckets[idx].total += 1
-    })
-    return buckets
-  }, [scopedRows])
-
   // Quick count of non-empty advanced fields (for the badge on the "بحث متقدم" button).
   const advCount = Object.values(adv).filter(v => String(v || '').trim() !== '').length
   const advInp = { width: '100%', height: 42, padding: '0 14px', borderRadius: 10, border: '1px solid var(--bd)', background: 'var(--inputBg)', color: 'var(--tx)', fontFamily: F, fontSize: 13, fontWeight: 500, outline: 'none', boxSizing: 'border-box' }
   const advLbl = { fontSize: 12, fontWeight: 500, color: 'var(--tx3)', paddingInlineStart: 2, marginBottom: 7, display: 'block' }
-  const resultCount = filtered.length
-
-  // Build smooth area chart paths for the 12-month trend
-  const n = periodSeries.length
-  const W = 560, H = 88, padL = 22, padR = 12, padT = 12, padB = 12
-  const cw = W - padL - padR, ch = H - padT - padB
-  const mx = Math.max(1, ...periodSeries.flatMap(p => [p.main, p.branch]))
-  const niceMx = Math.max(2, Math.ceil(mx / 2) * 2)
-  const xAt = i => (padL + (i / Math.max(1, n - 1)) * cw).toFixed(1)
-  const yAt = v => (padT + ch - (v / niceMx) * ch).toFixed(1)
-  const smooth = (pts) => {
-    if (pts.length < 2) return ''
-    let d = 'M' + pts[0][0] + ',' + pts[0][1]
-    for (let i = 0; i < pts.length - 1; i++) {
-      const [x0, y0] = pts[Math.max(0, i - 1)], [x1, y1] = pts[i]
-      const [x2, y2] = pts[i + 1], [x3, y3] = pts[Math.min(pts.length - 1, i + 2)]
-      const tt = .22
-      const c1x = x1 + (x2 - x0) * tt, c1y = y1 + (y2 - y0) * tt
-      const c2x = x2 - (x3 - x1) * tt, c2y = y2 - (y3 - y1) * tt
-      d += ' C' + c1x.toFixed(1) + ',' + c1y.toFixed(1) + ' ' + c2x.toFixed(1) + ',' + c2y.toFixed(1) + ' ' + x2 + ',' + y2
-    }
-    return d
-  }
-  const ptsOf = (k) => periodSeries.map((p, i) => [Number(xAt(i)), Number(yAt(p[k]))])
-  const lineP = (k) => smooth(ptsOf(k))
-  const areaP = (k) => {
-    const p = ptsOf(k); if (p.length < 2) return ''
-    return smooth(p) + ' L' + p[p.length - 1][0] + ',' + (padT + ch) + ' L' + p[0][0] + ',' + (padT + ch) + ' Z'
-  }
-  const yTicks = [0, niceMx / 2, niceMx]
 
   // Hero empty state — shown when the table truly has 0 records (no sync has
   // run yet for any operator). Single-CTA layout matching Transfer Pricing's
@@ -6187,7 +5756,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
               opacity: (promoting || !rows.length) ? .5 : 1, order: 2,
               transition: 'background .15s ease, border-color .15s ease, box-shadow .15s ease',
             }}>
-            {promoting ? T('جاري النقل...', 'Promoting...') : T('نقل إلى المنشآت والعمالة', 'Promote to sidebar')}
+            {promoting ? T('جاري النقل...', 'Promoting...') : T('نقل إلى المنشآت', 'Promote facilities')}
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
             </svg>
@@ -7291,26 +6860,6 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
               : <span style={{ fontWeight: 600, color: 'var(--tx)', direction: 'ltr', fontSize: 11.5, textAlign: 'end', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v || '—'}</span>}
           </div>
         )
-        const SectionTitle = ({ children }) => (
-          <div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--tx4)', letterSpacing: '.4px', textTransform: 'uppercase', marginBottom: 6, paddingInlineStart: 2 }}>{children}</div>
-        )
-        const Stat = ({ k, v, color, unit, prov = sbcProv }) => (
-          <div style={{
-            position: 'relative',
-            padding: '10px 10px',
-            background: 'rgba(255,255,255,.025)',
-            borderRadius: 8,
-            border: '1px solid var(--bd)',
-            textAlign: 'center',
-          }}>
-            {prov && <ProvMarker prov={prov} />}
-            <div style={{ color: 'var(--tx3)', fontWeight: 600, fontSize: 10, marginBottom: 4 }}>{k}</div>
-            <div style={{ fontWeight: 600, color: color || 'var(--tx)', fontSize: 13, direction: 'ltr', display: 'flex', justifyContent: 'center', alignItems: 'baseline', gap: 3 }}>
-              <span>{v != null ? v : '—'}</span>
-              {unit && v != null && <span style={{ fontSize: 9, color: 'var(--tx4)', fontWeight: 600 }}>{unit}</span>}
-            </div>
-          </div>
-        )
         const fmtNum = (n) => n != null ? Number(n).toLocaleString('en-US') : null
         const PersonRow = ({ p, roleAr, isManager }) => {
           const [expanded, setExpanded] = useState(false)
@@ -7454,8 +7003,6 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
         const activities = detail.activities?.activityList || detail._raw?.crActivities?.activityList || []
         const managers = detail.managers || detail._raw?.mangmentInformation?.managerList || []
         const partners = detail.partners || detail._raw?.parityList || []
-        const mgmtStructureAr = detail.management_structure?.managementStructureDescriptionAr
-          || detail._raw?.mangmentInformation?.managementStructure?.managementStructureDescriptionAr || null
         const companyCharAr = Array.isArray(detail.company_character)
           ? detail.company_character.map(c => c.companyCharacterDescriptionAr).filter(Boolean).join(' · ')
           : null
@@ -8132,12 +7679,8 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                    exists in another panel on this page; the tooltip names it. */}
               {(() => {
                 const ext = extDetail || {}
-                const raw = detail.raw_cr_data || detail._raw || {}
-                const contact = raw.contactInformation || {}
 
-                const gosiFile = ext['gosi/establishments-file-info-by-registration-number']?.response_body || null
                 const gosiComp = ext['gosi/establishment-compliance']?.response_body || null
-                const hrsdRaw = ext['hrsd/get-establishment-statistics']?.response_body || null
                 const momrahData = ext['momrah/commercial-licenses-by-cr-number']?.response_body || null
                 const momrahList = momrahData?.data?.result?.list || []
                 const emtethal = ext['mcV2/GetEmtethalViolationsQuery']?.response_body || null
@@ -8148,9 +7691,6 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                 const qawaemStatus = Array.isArray(qawaemStatusRaw) ? qawaemStatusRaw : []
                 const violations = ext['mcV2/GetViolationsQuery']?.response_body || null
                 const caseViolations = ext['mcV2/GetCaseViolationsQuery']?.response_body || null
-                const printAr = ext['mcV2/get-print-cr-by-national-number']?.response_body || null
-                const printEn = ext['mcV2/get-print-cr-by-national-number(en)']?.response_body || null
-                const printContract = ext['mcV2/get-print-cr-contract-by-national-number']?.response_body || null
 
                 const STORAGE_BASE = `https://gcvshzutdslmdkwqwteh.supabase.co/storage/v1/object/public/documents/sbc-cr-certificates/${detail.cr_national_number}`
 
@@ -8185,7 +7725,6 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                   </div>
                 )
 
-                const yesNo = (b) => b ? T('نعم', 'Yes') : T('لا', 'No')
                 const numS = (n) => n != null ? num(Number(n)) : null
 
                 return (
@@ -9345,306 +8884,6 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
               </CollapsibleCard>
             </div>
           </div>
-
-          {/* The extended details previously rendered here have been moved
-              inline above (inside the left column, same design as existing
-              facility cards). */}
-          {false && (() => {
-            // dead block — left here only for reference; will be deleted later.
-            const ext = extDetail || {}
-            const raw = detail.raw_cr_data || detail._raw || {}
-            const cr = detail.crInformation || raw.crInformation || {}
-            const contact = raw.contactInformation || {}
-            const mg = raw.mangmentInformation || {}
-            const acts = raw.crActivities?.activityList || []
-            const procedures = cr.procedures || []
-            const licenses = cr.licenses || []
-            const partnersList = raw.parityList || []
-            const managersList = mg.managerList || []
-
-            const gosiFile = ext['gosi/establishments-file-info-by-registration-number']?.response_body || null
-            const gosiComp = ext['gosi/establishment-compliance']?.response_body || null
-            const hrsdRaw = ext['hrsd/get-establishment-statistics']?.response_body || null
-            const momrahData = ext['momrah/commercial-licenses-by-cr-number']?.response_body || null
-            const momrahList = momrahData?.data?.result?.list || []
-            const emtethal = ext['mcV2/GetEmtethalViolationsQuery']?.response_body || null
-            const qawaem = ext['Qawaem/GetQawaemStatistics']?.response_body || null
-            const violations = ext['mcV2/GetViolationsQuery']?.response_body || null
-            const caseViolations = ext['mcV2/GetCaseViolationsQuery']?.response_body || null
-            const printAr = ext['mcV2/get-print-cr-by-national-number']?.response_body || null
-            const printEn = ext['mcV2/get-print-cr-by-national-number(en)']?.response_body || null
-            const printContract = ext['mcV2/get-print-cr-contract-by-national-number']?.response_body || null
-
-            const STORAGE_BASE = `https://gcvshzutdslmdkwqwteh.supabase.co/storage/v1/object/public/documents/sbc-cr-certificates/${detail.cr_national_number}`
-
-            const SectionCard = ({ title, color, children, count }) => (
-              <div style={{ ...cardChrome, marginTop: 14 }}>
-                <div style={cardHeader}>
-                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
-                  <span style={cardTitle}>{title}</span>
-                  {count != null && <span style={{ marginInlineStart: 'auto', fontSize: 11, color: 'var(--tx5)', fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(count)}</span>}
-                </div>
-                <div style={{ padding: '14px 18px' }}>{children}</div>
-              </div>
-            )
-
-            const FieldRow = ({ k, v }) => (
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '7px 0', borderBottom: '1px dashed var(--bd)', fontSize: 12 }}>
-                <span style={{ color: 'var(--tx4)' }}>{k}</span>
-                <span style={{ color: v != null && v !== '' ? 'var(--tx2)' : 'var(--tx5)', fontWeight: 600, direction: 'ltr', textAlign: 'end' }}>{v != null && v !== '' ? v : '—'}</span>
-              </div>
-            )
-
-            const fmtMoney = (n, cur) => n != null ? `${num(Number(n))} ${cur || ''}`.trim() : null
-            const yesNo = (b) => b ? T('نعم', 'Yes') : T('لا', 'No')
-
-            return (
-              <>
-                {extDetailLoading && (
-                  <div style={{ marginTop: 14, padding: 12, textAlign: 'center', color: 'var(--tx5)', fontSize: 12 }}>
-                    {T('جارٍ تحميل البيانات التفصيلية...', 'Loading extended details...')}
-                  </div>
-                )}
-
-                {/* ── Full CR information ── */}
-                <SectionCard title={T('بيانات السجل الكاملة', 'Full CR Information')} color={C.gold}>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '0 24px' }}>
-                    <FieldRow k={T('رأس المال', 'Capital')} v={fmtMoney(detail.capital, detail.capital_currency_ar)} />
-                    <FieldRow k={T('الشكل القانوني', 'Legal Form')} v={detail.company_form_ar} />
-                    <FieldRow k={T('نوع المنشأة', 'Entity Type')} v={detail.entity_type_ar} />
-                    <FieldRow k={T('لغة اسم المنشأة', 'Entity Name Lang')} v={detail.entity_name_lang_ar} />
-                    <FieldRow k={T('مدة الشركة', 'Company Duration')} v={detail.company_duration} />
-                    <FieldRow k={T('مدينة المركز', 'HQ City')} v={detail.headquarter_city_ar} />
-                    <FieldRow k={T('جنسية الشركاء', 'Partners Nationality')} v={detail.partners_nationality_ar} />
-                    <FieldRow k={T('تاريخ الإصدار (هجري)', 'Issue Date (Hijri)')} v={fmtDMY(detail.cr_issue_date_hijri)} />
-                    <FieldRow k={T('تاريخ التأكيد (هجري)', 'Confirm Date (Hijri)')} v={fmtDMY(detail.cr_confirm_date_hijri)} />
-                    <FieldRow k={T('تاريخ عقد التأسيس', 'Contract Date')} v={fmtDMY(detail.company_contract_from_date)} />
-                    <FieldRow k={T('تاريخ آخر تعليق', 'Last Suspension')} v={fmtDMY(detail.last_cr_suspension_date)} />
-                    <FieldRow k={T('تاريخ آخر تفعيل', 'Last Reactivation')} v={fmtDMY(detail.last_cr_reactivation_date)} />
-                    <FieldRow k={T('تاريخ الشطب', 'Strike-off Date')} v={fmtDMY(detail.delete_date)} />
-                    <FieldRow k={T('قائم على ترخيص', 'License-based')} v={yesNo(detail.is_license_based)} />
-                    <FieldRow k={T('تجارة إلكترونية', 'E-commerce')} v={yesNo(detail.has_ecommerce)} />
-                    <FieldRow k={T('تحت التصفية', 'In Liquidation')} v={yesNo(detail.in_liquidation_process)} />
-                    <FieldRow k={T('في فترة التأكيد', 'In Confirm Period')} v={yesNo(detail.is_in_confirmation_period)} />
-                    <FieldRow k={T('سجل رئيسي', 'Main')} v={yesNo(detail.is_main)} />
-                  </div>
-                </SectionCard>
-
-                {/* ── GOSI Details (full) ── */}
-                <SectionCard title={T('بيانات التأمينات الاجتماعية (GOSI)', 'GOSI Details')} color="#22c55e">
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0 24px' }}>
-                    <FieldRow k={T('رقم التسجيل', 'Registration No.')} v={gosi.regNo} />
-                    <FieldRow k={T('اسم المنشأة', 'Establishment Name')} v={gosi.name || gosiFile?.establishmentNamArb} />
-                    <FieldRow k={T('عدد المشتركين', 'Contributors')} v={fmtNum(gosi.total)} />
-                    <FieldRow k={T('مشتركون سعوديون', 'Saudi')} v={fmtNum(gosi.saudi)} />
-                    <FieldRow k={T('مشتركون غير سعوديين', 'Non-Saudi')} v={fmtNum(gosi.nonSaudi)} />
-                    <FieldRow k={T('إجمالي الاشتراكات', 'Total Contribution')} v={gosi.contribution != null ? num(gosi.contribution) + ' ر.س' : null} />
-                    <FieldRow k={T('إجمالي المديونية', 'Total Debit')} v={gosi.debit != null ? num(gosi.debit) + ' ر.س' : null} />
-                    <FieldRow k={T('إجمالي الغرامات', 'Total Penalties')} v={gosi.penalties != null ? num(gosi.penalties) + ' ر.س' : null} />
-                    {gosiFile && (
-                      <>
-                        <FieldRow k={T('معرّف ملف العمل', 'MoL Establishment ID')} v={gosiFile.molEstID} />
-                        <FieldRow k={T('معرّف مكتب العمل', 'MoL Office ID')} v={gosiFile.molofficeID} />
-                        <FieldRow k={T('الرقم الموحد (موارد بشرية)', 'MoL Unified ID')} v={gosiFile.moluniID} />
-                      </>
-                    )}
-                  </div>
-                </SectionCard>
-
-                {/* ── HRSD / Nitaqat Details (full) ── */}
-                <SectionCard title={T('بيانات الموارد البشرية (HRSD/Nitaqat)', 'HRSD / Nitaqat Details')} color="#16a085">
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0 24px' }}>
-                    <FieldRow k={T('مكتب العمل', 'Labor Office')} v={hrsd.officeName} />
-                    <FieldRow k={T('رقم ملف المنشأة', 'Est. File No.')} v={hrsd.officeId != null && hrsd.sequenceNumber != null ? `${hrsd.officeId}-${hrsd.sequenceNumber}` : null} />
-                    <FieldRow k={T('النطاق', 'Nitaq Band')} v={hrsd.nitaqName ? `${hrsd.nitaqName}${hrsd.nitaqCode ? ' (' + hrsd.nitaqCode + ')' : ''}` : null} />
-                    <FieldRow k={T('نشاط نطاقات', 'Nitaqat Activity')} v={hrsd.activityName} />
-                    <FieldRow k={T('نسبة السعودة', 'Saudization %')} v={hrsd.saudiPercentage != null ? `${Number(hrsd.saudiPercentage).toFixed(2)}%` : null} />
-                    <FieldRow k={T('إجمالي العمالة', 'Total Workers')} v={fmtNum(hrsd.totalLaborers)} />
-                    <FieldRow k={T('عمالة سعودية', 'Saudi Workers')} v={fmtNum(hrsd.saudiLaborers)} />
-                    <FieldRow k={T('عمالة غير سعودية', 'Foreign Workers')} v={fmtNum(hrsd.foreignLaborers)} />
-                    <FieldRow k={T('رخص عمل صادرة', 'Issued Permits')} v={fmtNum(hrsd.issuedPermits)} />
-                    <FieldRow k={T('رخص منتهية', 'Expired Permits')} v={fmtNum(hrsd.expiredPermits)} />
-                    <FieldRow k={T('قاربة الانتهاء', 'About-to-expire')} v={fmtNum(hrsd.expiringPermits)} />
-                    {hrsdRaw?.unifiedNumber && (
-                      <FieldRow k={T('الرقم الموحد', 'Unified No.')} v={`${hrsdRaw.unifiedNumber.laborOfficeIdField}-${hrsdRaw.unifiedNumber.sequenceNumberField}`} />
-                    )}
-                  </div>
-                </SectionCard>
-
-                {/* ── WPS / Wage protection compliance ── */}
-                {gosiComp && (
-                  <SectionCard title={T('التزام حماية الأجور (WPS)', 'WPS Compliance')} color="#0ea5e9">
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0 24px' }}>
-                      <FieldRow k={T('نسبة الالتزام بحماية الأجور', 'WPS %')} v={gosiComp.wpsCompliancePercentage != null ? `${gosiComp.wpsCompliancePercentage}%` : null} />
-                      <FieldRow k={T('حالة الالتزام', 'WPS Status')} v={gosiComp.wpsComplianceStatus} />
-                      <FieldRow k={T('عمال تم صرف أجورهم', 'Paid Workers')} v={fmtNum(gosiComp.numberOfPaidLaborers)} />
-                      <FieldRow k={T('عمال لم تُصرف أجورهم', 'Unpaid Workers')} v={fmtNum(gosiComp.numberOfUnPaidLaborers)} />
-                      <FieldRow k={T('نسبة العقود الموثقة', 'Contract Auth %')} v={gosiComp.caCompliancePercentage != null ? `${gosiComp.caCompliancePercentage}%` : null} />
-                      <FieldRow k={T('عقود موثقة', 'Authenticated')} v={fmtNum(gosiComp.numberOfAUthenicated)} />
-                      <FieldRow k={T('عقود غير موثقة', 'Unauthenticated')} v={fmtNum(gosiComp.numberOfUNAUthenicated)} />
-                      <FieldRow k={T('فترة الالتزام', 'Period')} v={gosiComp.compliancePeriod} />
-                    </div>
-                  </SectionCard>
-                )}
-
-                {/* ── MoC Violations (financial + committee + emtethal) ── */}
-                <SectionCard title={T('مخالفات وزارة التجارة', 'MoC Violations')} color="#ef4444">
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
-                    <div style={{ padding: 12, background: 'rgba(239,68,68,.06)', borderRadius: 10, border: '1px solid rgba(239,68,68,.2)' }}>
-                      <div style={{ fontSize: 11, color: 'var(--tx4)', marginBottom: 4 }}>{T('عدم إيداع القوائم', 'Financial Filing')}</div>
-                      <div style={{ fontSize: 22, fontWeight: 600, color: violations?.totalViolationCount > 0 ? C.red : 'var(--tx2)', direction: 'ltr' }}>{violations?.totalViolationCount ?? '—'}</div>
-                    </div>
-                    <div style={{ padding: 12, background: 'rgba(239,68,68,.06)', borderRadius: 10, border: '1px solid rgba(239,68,68,.2)' }}>
-                      <div style={{ fontSize: 11, color: 'var(--tx4)', marginBottom: 4 }}>{T('مخالفات اللجان', 'Committee')}</div>
-                      <div style={{ fontSize: 22, fontWeight: 600, color: caseViolations?.totalViolationCount > 0 ? C.red : 'var(--tx2)', direction: 'ltr' }}>{caseViolations?.totalViolationCount ?? '—'}</div>
-                    </div>
-                    <div style={{ padding: 12, background: 'rgba(239,68,68,.06)', borderRadius: 10, border: '1px solid rgba(239,68,68,.2)' }}>
-                      <div style={{ fontSize: 11, color: 'var(--tx4)', marginBottom: 4 }}>{T('الامتثال', 'Emtethal')}</div>
-                      <div style={{ fontSize: 22, fontWeight: 600, color: emtethal?.totalViolationCount > 0 ? C.red : 'var(--tx2)', direction: 'ltr' }}>
-                        {emtethal?.totalViolationCount ?? (emtethal?.error ? T('غير متاح','N/A') : '—')}
-                      </div>
-                    </div>
-                  </div>
-                </SectionCard>
-
-                {/* ── Qawaem yearly filing ── */}
-                {qawaem?.qawaemList && (
-                  <SectionCard title={T('القوائم المالية المُودَعة', 'Filed Financial Statements')} color="#a78bfa" count={qawaem.total}>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10 }}>
-                      {qawaem.qawaemList.map(y => (
-                        <div key={y.year} style={{ padding: '10px 12px', background: 'rgba(255,255,255,.025)', borderRadius: 8, textAlign: 'center' }}>
-                          <div style={{ fontSize: 11, color: 'var(--tx5)', marginBottom: 4 }}>{T('سنة', 'Year')} {y.year}</div>
-                          <div style={{ fontSize: 18, fontWeight: 600, color: y.count > 0 ? '#22c55e' : '#ef4444', direction: 'ltr' }}>{y.count}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </SectionCard>
-                )}
-
-                {/* ── Momrah municipal licenses ── */}
-                {momrahList.length > 0 && (
-                  <SectionCard title={T('رخص البلدية', 'Municipal Licenses')} color="#f97316" count={momrahList.length}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      {momrahList.map((lic, i) => (
-                        <div key={lic.licenseId || i} style={{ padding: 12, background: 'rgba(255,255,255,.025)', borderRadius: 10, border: '1px solid var(--bd)' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8, gap: 8 }}>
-                            <div style={{ minWidth: 0, flex: 1 }}>
-                              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx2)' }}>{lic.shopName}</div>
-                              <div style={{ fontSize: 11, color: 'var(--tx5)', marginTop: 2 }}>{lic.amanaName} · {lic.baladiaName}</div>
-                            </div>
-                            <span style={{ fontSize: 10, fontWeight: 600, padding: '3px 8px', borderRadius: 6, background: lic.licenseStatus === 'سارية' ? 'rgba(34,197,94,.15)' : 'rgba(234,179,8,.15)', color: lic.licenseStatus === 'سارية' ? '#22c55e' : '#eab308', whiteSpace: 'nowrap' }}>{lic.licenseStatus}</span>
-                          </div>
-                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0 16px' }}>
-                            <FieldRow k={T('رقم الرخصة', 'License ID')} v={lic.licenseId} />
-                            <FieldRow k={T('الحي', 'District')} v={lic.districtName} />
-                            <FieldRow k={T('انتهاء (هجري)', 'End (Hijri)')} v={lic.licenseEndDateH} />
-                            <FieldRow k={T('انتهاء (ميلادي)', 'End (Gregorian)')} v={lic.licenseEndDateM} />
-                            <FieldRow k={T('متبقي (يوم)', 'Days Left')} v={lic.expirationLeftPeriod} />
-                            <FieldRow k={T('النشاط', 'Activity')} v={lic.mainDetailActivity} />
-                          </div>
-                          {lic.printLicenseUrl && (
-                            <a href={lic.printLicenseUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', marginTop: 8, fontSize: 11, color: C.gold, textDecoration: 'none', fontWeight: 600 }}>
-                              ⇲ {T('طباعة الرخصة', 'Print License')}
-                            </a>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </SectionCard>
-                )}
-
-                {/* ── Documents (PDF downloads from Storage) ── */}
-                <SectionCard title={T('ملفات السجل (PDF)', 'CR Documents (PDF)')} color="#9b59b6">
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-                    {[
-                      { lang: 'ar', label: T('السجل التجاري — عربي', 'CR — Arabic'), available: !!crFilesExist.ar },
-                      { lang: 'en', label: T('السجل التجاري — إنجليزي', 'CR — English'), available: !!crFilesExist.en },
-                      { lang: 'contract', label: T('عقد التأسيس', 'Founding Contract'), available: !!crFilesExist.contract },
-                      { lang: 'invoice', label: T('فاتورة الطلب', 'Request Invoice'), available: !!crFilesExist.invoice },
-                    ].map(({ lang, label, available }) => available ? (
-                      <a key={lang}
-                        href={`${STORAGE_BASE}-${lang}.pdf`}
-                        target="_blank" rel="noopener noreferrer"
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: 'rgba(155,89,182,.1)', border: '1px solid rgba(155,89,182,.4)', borderRadius: 10, color: '#bb8fce', textDecoration: 'none', fontSize: 12, fontWeight: 600 }}>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
-                        </svg>
-                        {label}
-                      </a>
-                    ) : (
-                      <div key={lang} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: 'rgba(255,255,255,.025)', border: '1px solid var(--bd)', borderRadius: 10, color: 'var(--tx5)', fontSize: 12, fontWeight: 600 }}>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
-                        </svg>
-                        {label} — {T('غير متاح', 'N/A')}
-                      </div>
-                    ))}
-                  </div>
-                </SectionCard>
-
-                {/* ── Detailed managers + partners (full data, beyond the right-rail summary) ── */}
-                {(managersList.length > 0 || partnersList.length > 0) && (
-                  <SectionCard title={T('المدراء والشركاء — تفاصيل كاملة', 'Managers & Partners — Full')} color="#bb8fce">
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-                      <div>
-                        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx5)', marginBottom: 8 }}>{T('المدراء', 'Managers')} ({managersList.length})</div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                          {managersList.map((m, i) => {
-                            const pi = m.personInfo || {}
-                            const name = [pi.firstNameAr, pi.fatherNameAr, pi.grandFatherNameAr, pi.familyNameAr].filter(Boolean).join(' ')
-                            return (
-                              <div key={i} style={{ padding: 10, background: 'rgba(255,255,255,.025)', borderRadius: 8, fontSize: 11.5 }}>
-                                <div style={{ fontWeight: 600, color: 'var(--tx2)' }}>{name || '—'}</div>
-                                <div style={{ color: 'var(--tx5)', marginTop: 3 }}>
-                                  {m.managerType?.managerTypeDescriptionAr} · {pi.nationality?.nationalityDescriptionAr}
-                                </div>
-                                {pi.identifierNo && <div style={{ fontFamily: 'ui-monospace, monospace', color: 'var(--tx4)', direction: 'ltr', marginTop: 3 }}>{pi.identifierType?.identifierTypeDescAr}: {pi.identifierNo}</div>}
-                              </div>
-                            )
-                          })}
-                        </div>
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx5)', marginBottom: 8 }}>{T('الشركاء', 'Partners')} ({partnersList.length})</div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                          {partnersList.map((p, i) => {
-                            const pi = p.personInfo
-                            const name = pi
-                              ? [pi.firstNameAr, pi.fatherNameAr, pi.grandFatherNameAr, pi.familyNameAr].filter(Boolean).join(' ')
-                              : (p.saudiCompany?.nameAr || p.establishment?.nameAr || p.gccCompany?.nameAr || p.foreignCompany?.nameAr || '—')
-                            const share = p.partnerShare
-                            return (
-                              <div key={i} style={{ padding: 10, background: 'rgba(255,255,255,.025)', borderRadius: 8, fontSize: 11.5 }}>
-                                <div style={{ fontWeight: 600, color: 'var(--tx2)' }}>{name}</div>
-                                <div style={{ color: 'var(--tx5)', marginTop: 3 }}>{p.parityType?.parityTypeDescriptionAr}</div>
-                                {share?.totalContributionCount != null && (
-                                  <div style={{ color: 'var(--tx4)', marginTop: 3, direction: 'ltr' }}>
-                                    {T('الحصص', 'Shares')}: {num(share.totalContributionCount)}
-                                  </div>
-                                )}
-                              </div>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                  </SectionCard>
-                )}
-
-                {/* ── Contact info ── */}
-                {(contact.phoneNo || contact.mobileNo || contact.email || contact.websiteURL) && (
-                  <SectionCard title={T('معلومات الاتصال', 'Contact Information')} color="#5dade2">
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0 24px' }}>
-                      <FieldRow k={T('الهاتف', 'Phone')} v={contact.phoneNo} />
-                      <FieldRow k={T('الجوال', 'Mobile')} v={saMobile(contact.mobileNo)} />
-                      <FieldRow k={T('البريد الإلكتروني', 'Email')} v={contact.email} />
-                      <FieldRow k={T('الموقع', 'Website')} v={contact.websiteURL} />
-                    </div>
-                  </SectionCard>
-                )}
-              </>
-            )
-          })()}
         </div>
         )
       })()}

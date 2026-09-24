@@ -233,6 +233,8 @@ export const handler = async (event) => {
   const { session, cr, requestId, invoiceNumber } = body
   if (!session?.accessToken) return json({ error: 'لا توجد جلسة لبوابة الشركات.', code: 'NO_SESSION' }, 401)
   if (!cr) return json({ error: 'missing cr' }, 400)
+  // cr يدخل في مسار التخزين (يُرفع بمفتاح الخدمة) — نمنع أي فاصل مسار أو «..»
+  if (/[\/\\]|\.\./.test(String(cr))) return json({ error: 'invalid cr' }, 400)
 
   const now = Math.floor(Date.now() / 1000)
   if (session.expiresAt && session.expiresAt <= now) {
@@ -244,7 +246,7 @@ export const handler = async (event) => {
     files[lang] = await grab(session, { url: `${CP_API}/smartFlow/crFile/${encodeURIComponent(cr)}`, lang, cr })
   }
   if (requestId) {
-    files.contract = await grab(session, { url: `${CP_API}/request/contract/${requestId}`, lang: 'contract', cr })
+    files.contract = await grab(session, { url: `${CP_API}/request/contract/${encodeURIComponent(requestId)}`, lang: 'contract', cr })
   }
   // Invoice is public — fetched independently so it lands even if the portal
   // session died mid-run and the CR/contract grabs above came back 401.

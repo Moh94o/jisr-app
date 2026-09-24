@@ -7,7 +7,7 @@ import { navSetHere } from '../../lib/navStack.js'
 import { Modal as FKModal, ModalSection, GRID, TextField, IdField, PhoneField, CurrencyField, Select, SuccessView, EmptyState } from '../../components/ui/FormKit.jsx'
 import { SkeletonCards, SkeletonList } from '../../components/ui/Skeleton.jsx'
 import {
-  Users, Phone, FileText, Wallet, Search,
+  Phone, FileText, Wallet, Search,
   Calendar, Building2, User, Copy, Check,
   IdCard, Coins,
 } from 'lucide-react'
@@ -44,15 +44,15 @@ const payState = (total, paid) => {
 }
 
 /* ─── Shared chrome (matches the Clients page) ─── */
-const cardChrome = { background: 'var(--card-grad2)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 16, overflow: 'hidden' }
-const cardHeader = { padding: '14px 22px', borderBottom: '1px solid rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', gap: 10 }
-const cardTitle = { fontSize: 16, fontWeight: 600, color: '#fff', letterSpacing: '.2px' }
+const cardChrome = { background: 'var(--card-grad2)', border: '1px solid var(--bd)', borderRadius: 16, overflow: 'hidden' }
+const cardHeader = { padding: '14px 22px', borderBottom: '1px solid var(--bd)', display: 'flex', alignItems: 'center', gap: 10 }
+const cardTitle = { fontSize: 16, fontWeight: 600, color: 'var(--tx)', letterSpacing: '.2px' }
 
 const Lbl = ({ children }) => (
   <div style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600, marginBottom: 6, letterSpacing: '.2px' }}>{children}</div>
 )
 // حقل تاريخ داخل شريط تصفية سجل الفواتير — بنفس مظهر قوائم Drop
-const fltInput = { width: '100%', height: 42, padding: '0 12px', borderRadius: 9, border: '1px solid transparent', background: 'rgba(0,0,0,.18)', boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)', color: 'var(--tx)', fontFamily: F, fontSize: 13, fontWeight: 600, outline: 'none', boxSizing: 'border-box', colorScheme: 'dark' }
+const fltInput = { width: '100%', height: 42, padding: '0 12px', borderRadius: 9, border: '1px solid transparent', background: 'var(--inputBg)', boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)', color: 'var(--tx)', fontFamily: F, fontSize: 13, fontWeight: 600, outline: 'none', boxSizing: 'border-box' }
 
 /* ─── KPI hero card — matches the Clients page HeroStat ─── */
 function HeroStat({ tone, label, value, footer }) {
@@ -60,7 +60,7 @@ function HeroStat({ tone, label, value, footer }) {
     <div style={{
       position: 'relative', padding: '18px 22px', borderRadius: 16,
       background: 'var(--card-grad2)',
-      border: '1px solid rgba(255,255,255,.05)',
+      border: '1px solid var(--bd)',
       boxShadow: 'var(--shadow-sm)',
       display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
       overflow: 'hidden', minHeight: 150,
@@ -68,12 +68,12 @@ function HeroStat({ tone, label, value, footer }) {
       <div style={{ position: 'absolute', insetInlineStart: -60, top: -60, width: 180, height: 180, borderRadius: '50%', background: `radial-gradient(circle, ${tone}18 0%, transparent 70%)`, pointerEvents: 'none' }} />
       <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: -6 }}>
         <span style={{ width: 8, height: 8, borderRadius: '50%', background: tone, boxShadow: `0 0 10px ${tone}aa` }} />
-        <span style={{ fontSize: 24, color: '#fff', fontWeight: 600, letterSpacing: '.2px' }}>{label}</span>
+        <span style={{ fontSize: 24, color: 'var(--tx)', fontWeight: 600, letterSpacing: '.2px' }}>{label}</span>
       </div>
       <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 7, direction: 'ltr' }}>
         <span style={{ fontSize: 42, fontWeight: 600, color: tone, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{value}</span>
       </div>
-      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingTop: 8, borderTop: '1px solid rgba(255,255,255,.06)' }}>
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingTop: 8, borderTop: '1px solid var(--bd)' }}>
         <span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>{footer}</span>
       </div>
     </div>
@@ -91,7 +91,7 @@ function NatDonutCard({ items, totalLabel, title }) {
     <div style={{
       borderRadius: 16,
       background: 'var(--card-grad2)',
-      border: '1px solid rgba(255,255,255,.05)',
+      border: '1px solid var(--bd)',
       boxShadow: 'var(--shadow-sm)',
       padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10, minHeight: 150,
     }}>
@@ -103,7 +103,7 @@ function NatDonutCard({ items, totalLabel, title }) {
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, flex: 1 }}>
         <svg width="86" height="86" viewBox="-43 -43 86 86" style={{ flexShrink: 0, transform: 'rotate(-90deg)' }}>
-          <circle r={R} fill="none" stroke="rgba(255,255,255,.04)" strokeWidth="11" />
+          <circle r={R} fill="none" stroke="var(--bd2)" strokeWidth="11" />
           {items.map((r, i) => {
             const c = r.color || ROLE_PALETTE[i % ROLE_PALETTE.length]
             const dash = (r.cnt / denom) * CIRC
@@ -118,7 +118,7 @@ function NatDonutCard({ items, totalLabel, title }) {
             return seg
           })}
           <text x="0" y="0" textAnchor="middle" dominantBaseline="central" transform="rotate(90)"
-            style={{ fill: '#fff', fontSize: 16, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+            style={{ fill: 'var(--tx)', fontSize: 16, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
             {num(total)}
           </text>
         </svg>
@@ -150,7 +150,7 @@ function CopyBtn({ value, toast }) {
     <button type="button" onClick={copy} title="نسخ"
       onMouseEnter={e => { if (!done) e.currentTarget.style.color = C.gold }}
       onMouseLeave={e => { if (!done) e.currentTarget.style.color = 'var(--tx4)' }}
-      style={{ width: 24, height: 24, borderRadius: 6, flexShrink: 0, border: '1px solid rgba(255,255,255,.08)', background: done ? 'rgba(39,160,70,.16)' : 'rgba(255,255,255,.04)', color: done ? C.ok : 'var(--tx4)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', transition: 'color .15s' }}>
+      style={{ width: 24, height: 24, borderRadius: 6, flexShrink: 0, border: '1px solid var(--bd)', background: done ? 'rgba(39,160,70,.16)' : 'var(--bd2)', color: done ? C.ok : 'var(--tx4)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', transition: 'color .15s' }}>
       {done ? <Check size={12} /> : <Copy size={12} />}
     </button>
   )
@@ -166,7 +166,7 @@ function InfoSectionCard({ title, items, headerAction }) {
       </div>
       <div style={{ padding: '6px 22px 12px' }}>
         {items.map((f, i) => (
-          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '9px 0', borderBottom: i < items.length - 1 ? '1px dashed rgba(255,255,255,.07)' : 'none' }}>
+          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '9px 0', borderBottom: i < items.length - 1 ? '1px dashed var(--bd)' : 'none' }}>
             <span style={{ fontSize: 12, color: 'var(--tx4)', fontWeight: 600, flexShrink: 0 }}>{f.label}</span>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
               {f.copy && f.value && <CopyBtn value={f.value} toast={f.toast} />}
@@ -178,13 +178,6 @@ function InfoSectionCard({ title, items, headerAction }) {
     </div>
   )
 }
-
-const AmountBox = ({ label, value, color }) => (
-  <div style={{ padding: '14px 12px', background: 'rgba(0,0,0,.18)', textAlign: 'center' }}>
-    {label && <div style={{ fontSize: 10, color: 'var(--tx4)', fontWeight: 600, marginBottom: 6, letterSpacing: '.5px' }}>{label}</div>}
-    <div style={{ fontSize: 17, fontWeight: 600, color, direction: 'ltr', fontVariantNumeric: 'tabular-nums', letterSpacing: '-.5px' }}>{value}</div>
-  </div>
-)
 
 /* ═══════════════════════════════════════════════════════════════
    MAIN PAGE
@@ -311,7 +304,6 @@ export default function AgentsPage({ sb, lang, user, toast, emptyIcon }) {
     )
   }
 
-  const topBranchCode = branches.find(b => b.id === stats?.topBranchId)?.branch_code || '—'
   const initialLoading = loading && agents.length === 0
 
   return (
@@ -320,13 +312,13 @@ export default function AgentsPage({ sb, lang, user, toast, emptyIcon }) {
         .clp-hero { display: grid; grid-template-columns: 1.8fr 1fr; gap: 14px; }
         .cl-row { transition: all .15s; }
         .cl-row:hover { transform: translateY(-1px); box-shadow: 0 8px 22px rgba(0,0,0,.34) !important; border-color: rgba(176,125,0,.22) !important; }
-        .cl-row-vdiv { width: 1px; align-self: stretch; background: linear-gradient(180deg,transparent 0%,rgba(255,255,255,.08) 50%,transparent 100%); min-height: 46px; }
+        .cl-row-vdiv { width: 1px; align-self: stretch; background: linear-gradient(180deg,transparent 0%,var(--bd) 50%,transparent 100%); min-height: 46px; }
         @media (max-width: 720px) { .clp-hero { grid-template-columns: 1fr; } .cl-row-vdiv { display: none; } }
       `}</style>
 
       {/* Header */}
       <div style={{ marginBottom: 22 }}>
-        <div style={{ fontSize: 24, fontWeight: 600, color: 'rgba(255,255,255,.93)', letterSpacing: '-.3px', lineHeight: 1.2 }}>{T('الوسطاء', 'Agents')}</div>
+        <div style={{ fontSize: 24, fontWeight: 600, color: 'var(--tx)', letterSpacing: '-.3px', lineHeight: 1.2 }}>{T('الوسطاء', 'Agents')}</div>
         <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 12, lineHeight: 1.6 }}>{T('قائمة الوسطاء وسجل الطلبات التي جلبوها وعمولاتهم.', 'Agents directory with referred requests and commissions.')}</div>
         <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--tx4)', marginTop: 6, lineHeight: 1.6, opacity: .8 }}>{T('إجمالي الوسطاء وتوزيع الجنسيات رصيد تراكمي دائم، و«جديد هذا الشهر» يُحسب من بداية الشهر الميلادي الحالي', 'Total agents and nationality split are all-time; “new this month” counts from the start of the current calendar month')}</div>
       </div>
@@ -365,7 +357,7 @@ export default function AgentsPage({ sb, lang, user, toast, emptyIcon }) {
       </div>
 
       {advOpen && (
-        <div style={{ marginBottom: 22, padding: '16px 18px', background: 'var(--card-grad2)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 14, boxShadow: '0 4px 16px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.04)' }}>
+        <div style={{ marginBottom: 22, padding: '16px 18px', background: 'var(--card-grad2)', border: '1px solid var(--bd)', borderRadius: 14, boxShadow: 'var(--shadow-sm)' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 14, marginBottom: 12 }}>
             <div>
               <Lbl>{T('المكتب', 'Branch')}</Lbl>
@@ -375,7 +367,7 @@ export default function AgentsPage({ sb, lang, user, toast, emptyIcon }) {
             <div>
               <Lbl>{T('الجنسية', 'Nationality')}</Lbl>
               <Drop value={filters.nationality_id} onChange={v => { setFilters(f => ({ ...f, nationality_id: v })); setPage(0) }} placeholder={T('كل الجنسيات', 'All nationalities')}
-                options={[{ v: '', l: T('كل الجنسيات', 'All nationalities') }, ...nationalities.map(n => ({ v: n.id, l: isAr ? n.name_ar : n.name_en }))]} />
+                options={[{ v: '', l: T('كل الجنسيات', 'All nationalities') }, ...nationalities.map(n => ({ v: n.id, l: isAr ? n.name_ar : (n.name_en || n.name_ar) }))]} />
             </div>
           </div>
         </div>
@@ -436,15 +428,15 @@ function AgentRow({ agent, agentStats, onClick, T, isAr }) {
   const pill = (icon, label, color, bg, bd) => (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '2px 8px', borderRadius: 6, background: bg, border: `1px solid ${bd}`, color, fontSize: 10, fontWeight: 600 }}>{icon}{label}</span>
   )
-  const baseBg = `linear-gradient(135deg, ${accent}0e 0%, #232323 50%, #1f1f1f 100%)`
+  const baseBg = `linear-gradient(135deg, ${accent}0e 0%, var(--card-bg) 50%, var(--card-bg) 100%)`
 
-  const nameText = (size = 15) => <span style={{ fontSize: size, fontWeight: 600, color: 'rgba(255,255,255,.92)', letterSpacing: '-.2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</span>
-  const idText = agent.id_number ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, direction: 'ltr' }}><IdCard size={13} color="rgba(255,255,255,.45)" /><span style={{ fontSize: 11, color: 'var(--tx4)', fontFamily: 'monospace' }}>{agent.id_number}</span></span> : null
-  const phoneBit = agent.phone ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, direction: 'ltr' }}><Phone size={12} color="rgba(255,255,255,.45)" /><span style={{ fontFamily: 'monospace', color: 'var(--tx4)' }}>{fmtPhone(agent.phone)}</span></span> : null
+  const nameText = (size = 15) => <span style={{ fontSize: size, fontWeight: 600, color: 'var(--tx)', letterSpacing: '-.2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</span>
+  const idText = agent.id_number ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, direction: 'ltr' }}><IdCard size={13} color="var(--tx3)" /><span style={{ fontSize: 11, color: 'var(--tx4)', fontFamily: 'monospace' }}>{agent.id_number}</span></span> : null
+  const phoneBit = agent.phone ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, direction: 'ltr' }}><Phone size={12} color="var(--tx3)" /><span style={{ fontFamily: 'monospace', color: 'var(--tx4)' }}>{fmtPhone(agent.phone)}</span></span> : null
   const mline = (children, gap = 12) => <div style={{ display: 'inline-flex', alignItems: 'center', gap, fontSize: 11.5, color: 'var(--tx3)', fontWeight: 600, flexWrap: 'wrap' }}>{children}</div>
 
   return (
-    <div onClick={onClick} className="cl-row" style={{ position: 'relative', cursor: 'pointer', borderRadius: 14, background: baseBg, border: '1px solid rgba(255,255,255,.06)', boxShadow: '0 4px 14px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.03)', overflow: 'hidden' }}>
+    <div onClick={onClick} className="cl-row" style={{ position: 'relative', cursor: 'pointer', borderRadius: 14, background: baseBg, border: '1px solid var(--bd)', boxShadow: '0 4px 14px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.03)', overflow: 'hidden' }}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1px 160px', gap: 16, alignItems: 'center', padding: '14px 18px' }}>
         {/* Content — avatar + name, then id+phone, then request pills */}
         <div style={{ display: 'flex', gap: 10, minWidth: 0 }}>
@@ -459,7 +451,7 @@ function AgentRow({ agent, agentStats, onClick, T, isAr }) {
           </div>
         </div>
         <div className="cl-row-vdiv" />
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '10px 12px', borderRadius: 10, background: `linear-gradient(160deg, ${ps.c}14 0%, rgba(0,0,0,.25) 100%)`, border: `1px solid ${ps.c}26` }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '10px 12px', borderRadius: 10, background: `linear-gradient(160deg, ${ps.c}14 0%, var(--inputBg) 100%)`, border: `1px solid ${ps.c}26` }}>
           <span style={{ fontSize: 11, color: 'var(--tx2)', fontWeight: 600, letterSpacing: '.4px' }}>{T('إجمالي العمولات', 'Commissions')}</span>
           <span style={{ fontSize: 24, fontWeight: 600, color: ps.c, direction: 'ltr', letterSpacing: '-.5px', lineHeight: 1 }}>{totalDisp}</span>
           <span style={{ fontSize: 10.5, fontWeight: 600, direction: 'ltr', color: due > 0 ? C.warn : C.ok }}>{due > 0 ? `− ${num(Math.round(due))}` : (totalCom > 0 ? `✓ ${T('مدفوعة بالكامل', 'fully paid')}` : '—')}</span>
@@ -537,11 +529,6 @@ function AgentDetailPage({ sb, user, agent, agentStats, toast, onBack, T, isAr, 
     return true
   })
   const fltActive = !!(fltFrom || fltTo || fltStatus !== 'all' || fltSvc !== 'all')
-  const invTotal = activeInvoices.reduce((s, r) => s + Number(r.total_amount || 0), 0)
-  const invPaid = activeInvoices.reduce((s, r) => s + Number(r.paid_amount || 0), 0)
-  const invDue = Math.max(0, invTotal - invPaid)
-  const invPct = invTotal > 0 ? Math.min(100, Math.round((invPaid / invTotal) * 100)) : 0
-  const invPs = payState(invTotal, invPaid)
   const lastInvoiceIso = (() => { const ds = activeInvoices.map(r => r.created_at).filter(Boolean); return ds.length ? ds.slice().sort().slice(-1)[0] : null })()
 
   const branchCode = agent.branch?.branch_code || branches.find(b => b.id === agent.branch_id)?.branch_code
@@ -603,7 +590,7 @@ function AgentDetailPage({ sb, user, agent, agentStats, toast, onBack, T, isAr, 
             </div>
             {/* شريط التصفية — تاريخ الإصدار (من/إلى) + حالة الفاتورة + نوع الخدمة */}
             {invoiceRows.length > 0 && (
-              <div style={{ padding: '12px 18px', borderBottom: '1px solid rgba(255,255,255,.06)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10, alignItems: 'end' }}>
+              <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--bd)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10, alignItems: 'end' }}>
                 <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{ fontSize: 12, color: 'var(--tx3)', fontWeight: 600 }}>{T('عدد الفواتير', 'Invoices')}</span>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 600, color: GOLD, direction: 'ltr', fontVariantNumeric: 'tabular-nums', padding: '2px 10px', borderRadius: 999, background: 'rgba(176,125,0,.12)', border: '1px solid rgba(176,125,0,.28)' }}>
@@ -669,8 +656,8 @@ function AgentDetailPage({ sb, user, agent, agentStats, toast, onBack, T, isAr, 
                 { Icon: Coins, label: T('العمولة الافتراضية', 'Default commission'), value: Number(agent.default_commission_amount || 0) > 0 ? num(agent.default_commission_amount) : '—' },
                 { Icon: Calendar, label: T('آخر فاتورة', 'Last invoice'), value: lastInvoiceIso ? daysAgoLabel(lastInvoiceIso, isAr) : '—', color: GOLD },
               ].map((row, i, arr) => (
-                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '9px 0', borderBottom: i < arr.length - 1 ? '1px dashed rgba(255,255,255,.07)' : 'none' }}>
-                  <span style={{ fontSize: 12, color: 'var(--tx4)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 7 }}><row.Icon size={13} color="rgba(255,255,255,.4)" />{row.label}</span>
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '9px 0', borderBottom: i < arr.length - 1 ? '1px dashed var(--bd)' : 'none' }}>
+                  <span style={{ fontSize: 12, color: 'var(--tx4)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 7 }}><row.Icon size={13} color="var(--tx4)" />{row.label}</span>
                   <span style={{ fontSize: 13, color: row.color || 'var(--tx2)', fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{row.value}</span>
                 </div>
               ))}
@@ -753,7 +740,7 @@ function InvoiceRow({ invoice, openInvoice, T, isAr }) {
               <b style={{ fontSize: 18, lineHeight: 1, color: cancelled ? 'var(--tx3)' : GOLD, direction: 'ltr', fontVariantNumeric: 'tabular-nums', textDecoration: cancelled ? 'line-through' : 'none' }}>{num(total)}</b>
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap', paddingBottom: 2, borderBottom: '1px dashed rgba(255,255,255,.06)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap', paddingBottom: 2, borderBottom: '1px dashed var(--bd)' }}>
             {dateChip(T('الإصدار', 'Issued'), invoice.created_at, Calendar, GOLD)}
             {dateChip(T('آخر دفعة', 'Last payment'), invoice.last_payment_at, Wallet, C.ok)}
           </div>
@@ -853,4 +840,4 @@ function AgentEditModal({ sb, agent, branches, nationalities, toast, onClose, on
 }
 
 const btnFilter = (active) => ({ height: 44, padding: '0 16px', borderRadius: 12, background: active ? 'var(--accent-soft)' : 'var(--search-bg)', border: '1px solid ' + (active ? 'var(--accent-bd)' : 'transparent'), color: active ? 'var(--accent)' : 'var(--tx2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', gap: 8, boxSizing: 'border-box', boxShadow: active ? 'var(--shadow-sm)' : 'none' })
-const btnPg = (disabled) => ({ padding: '8px 16px', background: disabled ? 'rgba(255,255,255,.03)' : 'rgba(176,125,0,.12)', border: '1px solid ' + (disabled ? 'rgba(255,255,255,.06)' : 'rgba(176,125,0,.3)'), borderRadius: 10, color: disabled ? 'var(--tx4)' : GOLD, fontSize: 12, fontWeight: 600, cursor: disabled ? 'not-allowed' : 'pointer', fontFamily: F })
+const btnPg = (disabled) => ({ padding: '8px 16px', background: disabled ? 'var(--bd2)' : 'rgba(176,125,0,.12)', border: '1px solid ' + (disabled ? 'var(--bd)' : 'rgba(176,125,0,.3)'), borderRadius: 10, color: disabled ? 'var(--tx4)' : GOLD, fontSize: 12, fontWeight: 600, cursor: disabled ? 'not-allowed' : 'pointer', fontFamily: F })

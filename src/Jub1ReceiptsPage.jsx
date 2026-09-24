@@ -10,9 +10,9 @@ import {
   Dropdown as FKDropdown,
 } from './components/ui/FormKit.jsx'
 import {
-  Plus, Trash2, X, AlertTriangle, Search, Pencil, FileText, Check, Receipt,
-  Image as ImageIcon, Filter, RefreshCw, CheckCircle2, CircleDashed, RotateCw, ExternalLink,
-  ChevronDown, Calendar, User, Tag, Coins, Wallet,
+  Plus, Trash2, X, AlertTriangle, Search, FileText, Check, Receipt,
+  Image as ImageIcon, RefreshCw, CheckCircle2, CircleDashed, RotateCw, ExternalLink,
+  ChevronDown, Calendar,
 } from 'lucide-react'
 import { ALL_SERVICES, SVC_CODE_MAP } from './ServiceRequestPage.jsx'
 import { can, isGM as isGmUser, cardVisible, canCardBtn, fieldVisible, fieldEditable, modalAllowed, stageVisible } from './lib/permissions.js'
@@ -120,7 +120,7 @@ export default function Jub1ReceiptsPage({ sb, user, toast, lang = 'ar', emptyIc
     const [{ data: br }, { data: cats }, { data: ag }] = await Promise.all([
       sb.from('branches').select('id,branch_code,name_ar').eq('branch_code', 'JUB1').maybeSingle(),
       sb.from('lookup_categories').select('id,name_ar').in('name_ar', ['نوع الخدمة', 'طريقة الدفع']),
-      sb.from('agents').select('id,name_ar').is('deleted_at', null).order('name_ar').limit(1000),
+      sb.from('agents').select('id,name_ar').is('deleted_at', null).order('name_ar').limit(5000),
     ])
     const svcCat = (cats || []).find(c => c.name_ar === 'نوع الخدمة')?.id
     const payCat = (cats || []).find(c => c.name_ar === 'طريقة الدفع')?.id
@@ -393,7 +393,8 @@ export default function Jub1ReceiptsPage({ sb, user, toast, lang = 'ar', emptyIc
   const saveInline = useCallback(async (id, patch, payRows) => {
     const { error } = await sb.from('jub1_receipts').update(patch).eq('id', id)
     if (error) { tt(T('فشل الحفظ: ', 'Save failed: ') + error.message); return false }
-    await sb.from('jub1_receipt_payments').delete().eq('receipt_entry_id', id)
+    const { error: eDel } = await sb.from('jub1_receipt_payments').delete().eq('receipt_entry_id', id)
+    if (eDel) { tt(T('حُفظ السند لكن فشل حفظ المدفوعات: ', 'Saved, but payments failed: ') + eDel.message); loadEntries(); return false }
     const rows = (payRows || []).filter(p => p.sanad_no || p.amount || p.pay_date).map((p, i) => ({
       receipt_entry_id: id, sanad_no: p.sanad_no || null, pay_date: p.pay_date || null,
       amount: p.amount ? num(p.amount) : null, method_code: p.method_code || null,
@@ -401,7 +402,7 @@ export default function Jub1ReceiptsPage({ sb, user, toast, lang = 'ar', emptyIc
     }))
     if (rows.length) {
       const { error: e2 } = await sb.from('jub1_receipt_payments').insert(rows)
-      if (e2) tt(T('حُفظ السند لكن فشل حفظ المدفوعات: ', 'Saved, but payments failed: ') + e2.message)
+      if (e2) { tt(T('حُفظ السند لكن فشل حفظ المدفوعات: ', 'Saved, but payments failed: ') + e2.message); loadEntries(); return false }
     }
     // فوري: ندمج التعديل في القائمة محلياً ونُظهر النجاح حالاً؛ الجلب الكامل يجري بالخلفية
     mutateEntries(prev => prev.map(r => r.id === id
@@ -669,7 +670,7 @@ export default function Jub1ReceiptsPage({ sb, user, toast, lang = 'ar', emptyIc
         const datePresets = [
           { l: T('اليوم', 'Today'), f: todayStr, t: todayStr },
           { l: T('أمس', 'Yesterday'), f: dShift(todayStr, -1), t: dShift(todayStr, -1) },
-          { l: T('هذا الأسبوع', 'This week'), f: dShift(todayStr, -new Date(todayStr + 'T12:00:00Z').getUTCDay()), t: todayStr },
+          { l: T('هذا الأسبوع', 'This week'), f: dShift(todayStr, -((new Date(todayStr + 'T12:00:00Z').getUTCDay() + 2) % 7)), t: todayStr }, // من الجمعة (بداية الأسبوع)
           { l: T('هذا الشهر', 'This month'), f: todayStr.slice(0, 8) + '01', t: todayStr },
         ]
         return (
@@ -906,9 +907,9 @@ function ServiceBox({ label, value, options, onChange, placeholder = '—' }) {
     if (!open) return
     const onDoc = ev => { if (wrapRef.current && !wrapRef.current.contains(ev.target)) setOpen(false) }
     const onKey = ev => { if (ev.key === 'Escape') setOpen(false) }
-    setTimeout(() => document.addEventListener('mousedown', onDoc), 0)
+    const tm = setTimeout(() => document.addEventListener('mousedown', onDoc), 0)
     document.addEventListener('keydown', onKey)
-    return () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onKey) }
+    return () => { clearTimeout(tm); document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onKey) }
   }, [open])
   const toggle = () => {
     if (!open && wrapRef.current) {
@@ -1994,7 +1995,8 @@ function NewReceiptModal({ sb, user, lang, tt, branch, services, onClose }) {
     try {
       const safe = (file.name || 'img').replace(/[^\w.\-]+/g, '_')
       const path = `jub1_receipts/${entryId}/${Date.now()}_${rid()}_${safe}`
-      await sb.storage.from('attachments').upload(path, file, { cacheControl: '3600', upsert: false })
+      const { error: upErr } = await sb.storage.from('attachments').upload(path, file, { cacheControl: '3600', upsert: false })
+      if (upErr) throw upErr
       const { data: pub } = sb.storage.from('attachments').getPublicUrl(path)
       await sb.from('attachments').insert({
         entity_type: JUB1_ENTITY, entity_id: entryId, file_name: file.name,
@@ -2221,7 +2223,8 @@ function EntryModal({ sb, user, lang, tt, branch, services, methods, agents, ent
       }
 
       // الدفعات: استبدال كامل (بسيط وآمن للمرحلة الوسيطة)
-      await sb.from('jub1_receipt_payments').delete().eq('receipt_entry_id', entryId)
+      const { error: delErr } = await sb.from('jub1_receipt_payments').delete().eq('receipt_entry_id', entryId)
+      if (delErr) throw delErr
       const payRows = (f.payments || []).filter(p => p.sanad_no || p.amount || p.pay_date).map((p, i) => ({
         receipt_entry_id: entryId, sanad_no: p.sanad_no || null, pay_date: p.pay_date || null,
         amount: p.amount ? num(p.amount) : null, method_code: p.method_code || null,
@@ -2234,7 +2237,8 @@ function EntryModal({ sb, user, lang, tt, branch, services, methods, agents, ent
         try {
           const safe = (file.name || 'img').replace(/[^\w.\-]+/g, '_')
           const path = `jub1_receipts/${entryId}/${Date.now()}_${rid()}_${safe}`
-          await sb.storage.from('attachments').upload(path, file, { cacheControl: '3600', upsert: false })
+          const { error: upErr } = await sb.storage.from('attachments').upload(path, file, { cacheControl: '3600', upsert: false })
+          if (upErr) throw upErr
           const { data: pub } = sb.storage.from('attachments').getPublicUrl(path)
           await sb.from('attachments').insert({
             entity_type: JUB1_ENTITY, entity_id: entryId, file_name: file.name,
@@ -2412,17 +2416,7 @@ function EntryModal({ sb, user, lang, tt, branch, services, methods, agents, ent
 }
 
 // ── مكوّنات مساعدة ────────────────────────────────────────────────────────
-function StatCard({ label, value, c }) {
-  return (
-    <div style={{ padding: '10px 12px', borderRadius: 12, border: '1px solid var(--bd)', background: 'var(--card-grad2)', boxShadow: 'var(--shadow-sm)' }}>
-      <div style={{ fontSize: 20, fontWeight: 600, color: c, fontFamily: 'Cairo', direction: 'ltr' }}>{value}</div>
-      <div style={{ fontSize: 11, color: 'var(--tx3)', marginTop: 2 }}>{label}</div>
-    </div>
-  )
-}
-
-function RowEditor({ rows, render, onAdd, addLabel, lang }) {
-  const T = (ar, en) => (lang === 'ar' ? ar : en)
+function RowEditor({ rows, render, onAdd, addLabel }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
       {(rows || []).map(r => (
@@ -2448,7 +2442,6 @@ function ComboField({ label, value, onChange, options, lang }) {
 
 // ── أنماط ─────────────────────────────────────────────────────────────────
 const btnGold = { display: 'inline-flex', alignItems: 'center', gap: 6, height: 38, padding: '0 16px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,var(--accent-strong,#B07D00),var(--accent))', color: '#fff', fontFamily: 'Cairo', fontSize: 13, fontWeight: 600, cursor: 'pointer', boxShadow: 'var(--shadow-sm)' }
-const btnGhost = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 38, height: 38, borderRadius: 10, border: '1px solid var(--bd)', background: 'var(--inputBg)', color: 'var(--tx2)', cursor: 'pointer' }
 const cellInput = { height: 34, padding: '0 10px', borderRadius: 8, border: '1px solid var(--inputBd)', background: 'var(--card-bg,var(--sf))', color: 'var(--tx)', fontFamily: 'Cairo', fontSize: 12.5 }
 const rowDel = { width: 30, height: 30, flexShrink: 0, borderRadius: 8, border: 'none', background: 'rgba(192,57,43,.12)', color: '#c0392b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }
 const addRowBtn = { alignSelf: 'flex-start', display: 'inline-flex', alignItems: 'center', gap: 6, height: 32, padding: '0 12px', borderRadius: 9, border: '1px dashed var(--accent-bd)', background: 'var(--accent-soft)', color: 'var(--accent)', fontFamily: 'Cairo', fontSize: 12, fontWeight: 600, cursor: 'pointer' }

@@ -1,5 +1,5 @@
-// Browser port of the WhatsApp invoice-card message (wa-invoice-bot/lib/format.mjs)
-// and the print-data fetch (wa-invoice-bot/lib/invoiceData.mjs). Keeps the card's
+// Browser port of the WhatsApp invoice-card message (the former wa-invoice-bot, removed 2026-09-23)
+// and the print-data fetch. Keeps the card's
 // «نسخ رسالة الواتساب» + «طباعة» buttons byte-for-byte identical to what the bot
 // posts to the group / renders as the PDF. Arabic only (group feed = Arabic).
 
@@ -239,11 +239,10 @@ export function buildInvoiceWaMessage(inv, day = null) {
     ].filter(l => l !== '').join('\n')
   }
 
-  let title, money
+  let money
   if (day) {
     const m = []
     if (day.cancelledToday) {
-      title = M.cancel_title
       m.push(`❌ *${M.cancel_title}*`)
       if (day.cancelledAmt > 0) m.push(`💸 ${M.amount_void}: ${num(day.cancelledAmt)} ${cur}`)
     } else {
@@ -265,15 +264,10 @@ export function buildInvoiceWaMessage(inv, day = null) {
         const ms = methods(day.refundMethods)
         m.push(`↩️ *${M.amount_refunded}: ${num(day.refunded)} ${cur}*${ms ? ' (' + ms + ')' : ''}`)
       }
-      title = (day.refunded > 0 && day.received <= 0) ? M.refund_title
-        : day.createdToday ? M.new_invoice
-        : day.received > 0 ? M.payment_title
-        : M.new_invoice
     }
     money = m.length ? [...m, DIV_DOT, ...bal] : bal
   } else {
-    title = M.new_invoice
-    money = paid > 0 ? [`💵 *${M.amount_paid}: ${num(paid)} ${cur}*`, DIV_DOT, ...bal] : bal
+    money =paid > 0 ? [`💵 *${M.amount_paid}: ${num(paid)} ${cur}*`, DIV_DOT, ...bal] : bal
   }
 
   const extra = [...pricingEditLine(inv), ...calcExtra(inv)]

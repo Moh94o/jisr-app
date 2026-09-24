@@ -4,8 +4,8 @@ import BackButton from './components/BackButton'
 import {CalendarRange,CalendarClock,ArrowLeftRight,RefreshCw,Users,FileCheck,HeartPulse,UserCog,Wallet,Plane,PlaneTakeoff,IdCard,Printer,FileStack,BadgeCheck,Coins,Sparkles,Power,PowerOff,Gift,DollarSign,Edit3,ChevronDown,ChevronUp,X,Search,Building2,Calendar as CalendarIcon} from 'lucide-react'
 import {getSupabase} from './lib/supabase.js'
 import {hydrateSvcAdminFromDb,saveSvcAdminSetting} from './lib/serviceAdminSync.js'
-import {EmptyState,Modal,SuccessView,ActionButton,ModalSection,CurrencyField,NumberField,Select,ScrollBox,GRID,DateField} from './components/ui/FormKit.jsx'
-import {can,cardVisible,canCardBtn} from './lib/permissions.js'
+import {EmptyState,Modal,SuccessView,ActionButton,ModalSection,CurrencyField,NumberField,Select,ScrollBox,DateField} from './components/ui/FormKit.jsx'
+import {cardVisible,canCardBtn} from './lib/permissions.js'
 import ExpiryDurationCard from './components/ExpiryDurationCard.jsx'
 
 // Shared Kafala pricing config — drives both the service-request kafala modal AND the Kafala Calculator modal
@@ -62,8 +62,6 @@ export function makeDocTypeValue(label,existing=[]){
 
 const F=`'Cairo','Tajawal',sans-serif`
 const C={gold:'#B07D00',bentoGold:'#B07D00',red:'#c0392b',ok:'#27a046',blue:'#3483b4'}
-const GLASS_CARD={background:'var(--card-grad)',backdropFilter:'blur(20px) saturate(160%)',WebkitBackdropFilter:'blur(20px) saturate(160%)',border:'1px solid var(--bd)',borderRadius:16,boxShadow:'0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)'}
-const INNER_PILL={background:'var(--card-grad2)',border:'1px solid var(--bd)',boxShadow:'inset 0 1px 0 rgba(255,255,255,.05), 0 2px 4px rgba(0,0,0,.22)'}
 const FORM_INPUT={height:42,padding:'0 14px',borderRadius:10,border:'1px solid var(--bd)',background:'var(--inputBg)',color:'var(--tx)',fontFamily:F,fontSize:13,fontWeight:500,outline:'none',boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.18s',width:'100%',boxSizing:'border-box'}
 
 // ─── Date picker (same visual pattern as Kafala Calculator's DateField) ───
@@ -77,7 +75,7 @@ function CalendarPopup({value,onPick,onClose,anchor}){
   const parsed=value&&/^\d{4}-\d{2}-\d{2}$/.test(value)?value.split('-').map(Number):null
   const initial=parsed?{y:parsed[0],m:parsed[1]-1}:{y:today.getFullYear(),m:today.getMonth()}
   const [cur,setCur]=useState(initial)
-  const firstDay=new Date(cur.y,cur.m,1).getDay()
+  const firstDay=(new Date(cur.y,cur.m,1).getDay()+2)%7 // الأسبوع يبدأ الجمعة
   const daysInMonth=new Date(cur.y,cur.m+1,0).getDate()
   const prevMonth=()=>setCur(c=>c.m===0?{y:c.y-1,m:11}:{y:c.y,m:c.m-1})
   const nextMonth=()=>setCur(c=>c.m===11?{y:c.y+1,m:0}:{y:c.y,m:c.m+1})
@@ -103,7 +101,7 @@ function CalendarPopup({value,onPick,onClose,anchor}){
         <button type="button" onClick={nextMonth} style={navBtn}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"/></svg></button>
       </div>
       <div style={{display:'grid',gridTemplateColumns:'repeat(7, 1fr)',gap:2,fontSize:10,fontWeight:600,color:'var(--tx4)',marginBottom:4}}>
-        {DAY_ABBR_AR.map(d=><div key={d} style={{textAlign:'center',padding:'4px 0'}}>{d}</div>)}
+        {[...DAY_ABBR_AR.slice(5),...DAY_ABBR_AR.slice(0,5)].map(d=><div key={d} style={{textAlign:'center',padding:'4px 0'}}>{d}</div>)}
       </div>
       <div style={{display:'grid',gridTemplateColumns:'repeat(7, 1fr)',gap:2}}>
         {cells.map((d,i)=>{
@@ -300,10 +298,6 @@ const IQAMA_EXTRA_FIELDS=[
   {k:'iqamaApprovalDiscountCap12M',l:'سقف الخصم · 12 شهر',d:102,sfx:'ريال'},
 ]
 const IQAMA_FIELDS=[...KAFALA_FIELDS.filter(f=>!['transferFee1','transferFee2','transferFee3'].includes(f.k)),...WP_NO_EXEMPT_FIELDS,...IQAMA_EXTRA_FIELDS]
-// أقسام تجديد الإقامة كصفحات معالج: نفس أقسام الكفالة لكن بحقول الإقامة فقط، مع حذف الأقسام الفارغة (نقل الكفالة).
-// «الحد الأدنى للمتبقي لإتاحة نقل فقط» (transferOnlyMinDays) يخصّ سياق النقل، فلا يُعرض في تسعير تجديد الإقامة.
-const IQAMA_SECTIONS=KAFALA_SECTIONS.map(sec=>({...sec,fields:sec.fields.filter(f=>IQAMA_FIELDS.includes(f)&&f.k!=='transferOnlyMinDays')})).filter(sec=>sec.fields.length)
-const IQAMA_SECTION_ICONS={'تجديد الإقامة':RefreshCw,'كرت العمل':IdCard,'رسوم تغيير المهنة':UserCog,'رسوم المكتب':Building2}
 // خريطة الحقول بالمفتاح — لبناء خطوات المعالج من قوائم مفاتيح.
 const IQAMA_FIELD_BY_K=Object.fromEntries([...KAFALA_FIELDS,...WP_NO_EXEMPT_FIELDS,...IQAMA_EXTRA_FIELDS].map(f=>[f.k,f]))
 // خطوات معالج تسعير تجديد الإقامة — مقسّمة بدقّة، لكل خطوة أيقونة وشرح، ولكل حقل وصف يوضّح دلالته.
@@ -352,13 +346,6 @@ const IQAMA_WIZARD_STEPS=[
   // خطوة التأمين الطبي — تُرسم بمحتوى خاص (فئات عمرية فقط؛ التأمين إلزامي بلا إعفاء) لا بصفوف الحقول الاعتيادية.
   {title:'التأمين الطبي',icon:HeartPulse,medical:true,note:'التأمين الطبي إلزامي في التجديد ويُحتسب دائمًا حسب الفئة العمرية من تاريخ ميلاد العامل.',fields:[]},
 ]
-// شرح مختصر يظهر أعلى كل خطوة في معالج تسعير تجديد الإقامة.
-const IQAMA_STEP_NOTES={
-  'تجديد الإقامة':'رسوم التجديد تُحسب على ثلاث حالات: إقامة سارية بعيدة عن الانتهاء (عدد الأشهر × سعر الشهر، بلا غرامة)؛ خلال المهلة أو منتهية حديثًا (المدة الكاملة × سعر الشهر + غرامة المرة الأولى)؛ ومخالفة مكررة (نفس المعادلة بغرامة المرة الثانية). «أيام المهلة قبل الغرامة» هي ما يفصل الحالة الأولى عن البقية.',
-  'كرت العمل':'سعر رخصة العمل ثابت لكل فترة (3/6/9/12 شهر) إذا انتهت قبل «تاريخ التفعيل اليومي»، وبعده يُحسب بعدد الأيام × سعر اليوم. «أيام معالجة الطلب» تحدّد بداية الفترة، وللإقامة المنتهية من مدة طويلة قاعدة خاصة.',
-  'رسوم تغيير المهنة':'رسم ثابت يُضاف عند تغيير مهنة العامل. أي مهنة (الحالية أو الجديدة) مدرجة في القائمة أدناه تجعل الرسوم مجانية (0 ريال).',
-  'رسوم المكتب':'«السعر العام» يظهر ثابتًا عند رفع الطلب. «سعر اليوم» هو الحد الأدنى المسموح للخصم عند التصديق (لا يظهر للموظف المُصدّق)، ويُحتسب أيضًا للأيام الزائدة عن «الحد الشهري».',
-}
 const PRICING_SCHEMA={
 work_visa_permanent:{store:'visaPricingMin_permanent',fields:VISA_FIELDS,note:'الحدود الدنيا لدفعات تأشيرة بإقامة 12 شهر'},
 work_visa_9m:{store:'visaPricingMin_9m',fields:VISA_FIELDS,note:'الحدود الدنيا لدفعات تأشيرة بإقامة 9 أشهر'},
@@ -514,12 +501,11 @@ const [branchOverrides,setBranchOverridesState]=useState(getBranchOverrides())
 const [branches,setBranches]=useState([])
 // {svcId, branchId|null, draft:{active?,billable?,pricing:{...}}} or null
 const [overrideEditor,setOverrideEditor]=useState(null)
-const [searchQ,setSearchQ]=useState('')
+const [searchQ]=useState('')
 const [isPriceEditable,setIsPriceEditable]=useState(false)
 const [priceSnapshot,setPriceSnapshot]=useState(null)
 // When non-null, the pricing editor edits a per-branch override (applied to these branchIds) instead of the global default.
 const [priceBranchCtx,setPriceBranchCtx]=useState(null)
-const startEditPrice=()=>{setPriceSnapshot({...priceState});setIsPriceEditable(true)}
 const cancelEditPrice=()=>{if(priceSnapshot)setPriceState(priceSnapshot);setPriceSnapshot(null);setIsPriceEditable(false)}
 const savePriceAndLock=(id)=>{savePrice(id);setPriceSnapshot(null);if(!priceBranchCtx)setIsPriceEditable(false)}
 // ── Default-pricing edit modal (non-kafala simple services) — the card stays a read-only view;
@@ -557,7 +543,7 @@ const submitOvModal=(svcId)=>{
 // ─── Document types editor state (نوع المستند for the «مستندات» service) ───
 const [docTypes,setDocTypesState]=useState(getDocTypes())
 const [newDocLabel,setNewDocLabel]=useState('')
-const persistDocTypes=async(list)=>{setDocTypesState(list);setDocTypes(list);try{await saveSvcAdminSetting('docTypesConfig',list)}catch(e){console.warn('[docTypes] save failed',e)}}
+const persistDocTypes=async(list)=>{setDocTypesState(list);setDocTypes(list);try{await saveSvcAdminSetting('docTypesConfig',list)}catch(e){console.warn('[docTypes] save failed',e);toast(T('تعذّر حفظ أنواع المستندات','Failed to save document types'),'error')}}
 const addDocType=()=>{const l=newDocLabel.trim();if(!l)return;if(docTypes.some(d=>d.label===l)){toast(T('هذا النوع موجود مسبقاً','This type already exists'));return}persistDocTypes([...docTypes,{value:makeDocTypeValue(l,docTypes),label:l}]);setNewDocLabel('')}
 const renameDocType=(value,label)=>{persistDocTypes(docTypes.map(d=>d.value===value?{...d,label}:d))}
 const removeDocType=(value)=>{persistDocTypes(docTypes.filter(d=>d.value!==value))}
@@ -582,7 +568,7 @@ const skipNextBranchSync=useRef(true)
 useEffect(()=>{
   localStorage.setItem(BRANCH_STORAGE_KEY,JSON.stringify(branchOverrides))
   if(skipNextBranchSync.current){skipNextBranchSync.current=false;return}
-  saveSvcAdminSetting(BRANCH_STORAGE_KEY,branchOverrides).catch(e=>console.warn('[svcAdminSync] save branch overrides failed',e))
+  saveSvcAdminSetting(BRANCH_STORAGE_KEY,branchOverrides).catch(e=>{console.warn('[svcAdminSync] save branch overrides failed',e);toast(T('تعذّر حفظ التخصيص في الخادم','Failed to save override to server'),'error')})
 },[branchOverrides])
 const getOverridesForSvc=(svcId)=>{
   const out=[]
@@ -605,7 +591,7 @@ const upsertBranchOverride=(branchId,svcId,patch)=>{
 const removeBranchOverride=(branchId,svcId)=>{
   setBranchOverridesState(p=>{
     const next={...p}
-    if(next[branchId]){delete next[branchId][svcId];if(Object.keys(next[branchId]).length===0)delete next[branchId]}
+    if(next[branchId]){next[branchId]={...next[branchId]};delete next[branchId][svcId];if(Object.keys(next[branchId]).length===0)delete next[branchId]}
     return next
   })
   toast(T('تم حذف التخصيص','Override removed'))
@@ -646,9 +632,6 @@ useEffect(()=>{
 // Inline override editor — renders inside the per-branch overrides section card
 // (no modal overlay). Active iff overrideEditor.svcId matches the current svc.
 const renderInlineOverrideEditor=(svc)=>{
-  const sch=PRICING_SCHEMA[svc.id]
-  const fields=sch?.fields?.filter(f=>(!f.t||f.t==='text')&&!f._footer)||[]
-  const def=getPricing(svc.id)||{}
   const draft=overrideEditor.draft
   const baseActive=isServiceActive(svc.id)
   const baseBillable=isServiceBillable(svc.id)
@@ -657,8 +640,6 @@ const renderInlineOverrideEditor=(svc)=>{
     billable:typeof draft.billable==='boolean'?draft.billable:baseBillable,
   }
   const setDraft=patch=>setOverrideEditor(p=>({...p,draft:{...p.draft,...patch}}))
-  const setPricingField=(k,v)=>setOverrideEditor(p=>({...p,draft:{...p.draft,pricing:{...(p.draft.pricing||{}),[k]:v}}}))
-  const clearPricingField=(k)=>setOverrideEditor(p=>{const np={...(p.draft.pricing||{})};delete np[k];return{...p,draft:{...p.draft,pricing:np}}})
   const selectedSet=new Set(overrideEditor.branchIds||[])
   const usedBranchIds=new Set(getOverridesForSvc(svc.id).map(o=>o.branchId).filter(b=>!selectedSet.has(b)))
   const availableBranches=branches.filter(b=>!usedBranchIds.has(b.id))
@@ -678,7 +659,6 @@ const renderInlineOverrideEditor=(svc)=>{
     closeOverrideEditor()
   }
   const labelS={fontSize:11,fontWeight:600,color:'var(--tx3)',marginBottom:6,display:'block',textAlign:'right'}
-  const compactInp={width:'100%',height:36,padding:'0 12px',border:'1px solid var(--bd)',borderRadius:9,fontFamily:F,fontSize:12,fontWeight:600,color:'var(--tx)',outline:'none',background:'var(--inputBg)',boxSizing:'border-box',boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)'}
   const Toggle=({on,onChange,onLabel,offLabel,onColor,offColor,onIcon,offIcon})=>(
     <div style={{display:'inline-flex',alignItems:'center',gap:6}}>
       <button type="button" onClick={()=>onChange(!on)}
@@ -762,8 +742,6 @@ const renderInlineOverrideEditor=(svc)=>{
         const ghostBtnStyle=(color,enabled=true)=>({height:32,padding:'0 14px',borderRadius:9,border:`1px dashed ${enabled?color+'80':'var(--bd)'}`,background:'transparent',color:enabled?color:'var(--tx5)',fontFamily:F,fontSize:12,fontWeight:600,cursor:enabled?'pointer':'not-allowed',display:'inline-flex',alignItems:'center',gap:7,boxShadow:'none',transition:'background .15s ease, border-color .15s ease',letterSpacing:'.2px',direction:'rtl'})
         const onHover=(e,color)=>{e.currentTarget.style.background=`${color}1f`}
         const offHover=(e,color)=>{e.currentTarget.style.background='transparent'}
-        const singleSelected=(overrideEditor.branchIds||[]).length===1?overrideEditor.branchIds[0]:null
-        const hasExisting=singleSelected&&getOverridesForSvc(svc.id).some(o=>o.branchId===singleSelected)
         return(
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:10,paddingTop:14,borderTop:'1px solid var(--bd)',flexWrap:'wrap'}}>
             <div style={{fontSize:10,color:'var(--tx5)',fontWeight:500}}>الأسعار تُحفظ بزر كل قسم · القيم المطابقة للافتراضي تبقى موروثة</div>
@@ -805,7 +783,7 @@ const skipNextOverridesSync=useRef(true)
 useEffect(()=>{
   localStorage.setItem(STORAGE_KEY,JSON.stringify(overrides))
   if(skipNextOverridesSync.current){skipNextOverridesSync.current=false;return}
-  saveSvcAdminSetting(STORAGE_KEY,overrides).catch(e=>console.warn('[svcAdminSync] save service overrides failed',e))
+  saveSvcAdminSetting(STORAGE_KEY,overrides).catch(e=>{console.warn('[svcAdminSync] save service overrides failed',e);toast(T('تعذّر حفظ الإعدادات في الخادم','Failed to save settings to server'),'error')})
 },[overrides])
 
 // One-shot hydration: pull all svc_admin_* rows on mount, refresh React
@@ -855,14 +833,6 @@ return{billable,active}
 const update=(id,key,val)=>{
 setOverrides(p=>({...p,[id]:{...(p[id]||{}),[key]:val}}))
 toast(T('تم حفظ الإعدادات','Settings saved'))
-}
-const openPrice=(id)=>{
-if(expanded===id){setExpanded(null);return}
-setExpanded(id)
-setPriceState(getPricing(id)||{})
-// Start with all sections collapsed — user opens only what they need
-setCollapsed(Object.fromEntries(ALL_KAFALA_SECTIONS.map(t=>[t,true])))
-setEditing({})
 }
 const savePrice=(id)=>{
 // Convert number-like strings back to Number for storage
@@ -954,12 +924,6 @@ const renderSaudCard=(readOnly,bare=false)=>{
       </div>
     </div>
   )
-}
-const resetSection=(fields)=>{
-  const next={...priceState}
-  fields.forEach(f=>{next[f.k]=String(f.d)})
-  setPriceState(next)
-  toast(T('تمت استعادة القيم الافتراضية للقسم','Section defaults restored'))
 }
 // Save only the fields of a specific section (merge into stored config).
 // extraKeys allows saving non-field state like the profession-change free list (arrays/objects).
@@ -1053,28 +1017,6 @@ const EditActionTabs=({onSave,onCancel})=>(
 )
 const fmtNum=v=>Number(v||0).toLocaleString('en-US',{maximumFractionDigits:2})
 
-const renderMedicalBrackets=()=>{
-  const brackets=Array.isArray(priceState.medicalBrackets)?priceState.medicalBrackets:[]
-  const update=(i,key,val)=>{const next=[...brackets];next[i]={...next[i],[key]:val};setPriceState(p=>({...p,medicalBrackets:next}))}
-  const add=()=>setPriceState(p=>({...p,medicalBrackets:[...(p.medicalBrackets||[]),{min:0,max:10,rate:0}]}))
-  const remove=(i)=>{const next=brackets.filter((_,idx)=>idx!==i);setPriceState(p=>({...p,medicalBrackets:next}))}
-  return<div style={{display:'flex',flexDirection:'column',gap:6}}>
-    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr auto',gap:6,fontSize:10,fontWeight:600,color:'var(--tx4)',padding:'0 4px'}}>
-      <div style={{textAlign:'center'}}>من عمر</div>
-      <div style={{textAlign:'center'}}>إلى عمر</div>
-      <div style={{textAlign:'center'}}>السعر (ريال)</div>
-      <div style={{width:28}}/>
-    </div>
-    {brackets.map((b,i)=>(<div key={i} style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr auto',gap:6,alignItems:'center'}}>
-      <input type="text" inputMode="numeric" value={b.min??''} onChange={e=>update(i,'min',e.target.value===''?'':Number(e.target.value.replace(/[^0-9]/g,'')))} placeholder="20" style={{...inpS,height:34}}/>
-      <input type="text" inputMode="numeric" value={b.max??''} onChange={e=>update(i,'max',e.target.value===''?'':Number(e.target.value.replace(/[^0-9]/g,'')))} placeholder="30" style={{...inpS,height:34}}/>
-      <input type="text" inputMode="decimal" value={b.rate??''} onChange={e=>update(i,'rate',e.target.value===''?'':Number(e.target.value.replace(/[^0-9.]/g,'')))} placeholder="400" style={{...inpS,height:34}}/>
-      <button type="button" onClick={()=>remove(i)} style={{width:28,height:28,borderRadius:7,border:'1px solid rgba(192,57,43,.2)',background:'rgba(192,57,43,.06)',color:C.red,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',padding:0,flexShrink:0}} title="حذف الفئة">×</button>
-    </div>))}
-    <button type="button" onClick={add} style={{height:32,marginTop:4,borderRadius:8,border:'1px dashed rgba(176,125,0,.3)',background:'transparent',color:C.gold,fontFamily:F,fontSize:11,fontWeight:600,cursor:'pointer'}}>+ إضافة فئة عمرية</button>
-  </div>
-}
-
 const renderPriceEditor=(s,opts={})=>{
 const sch=PRICING_SCHEMA[s.id]
 if(!sch)return<div style={{padding:'12px 14px',background:'var(--bd2)',borderRadius:8,fontSize:11,color:'var(--tx5)',textAlign:'center'}}>لا يوجد تسعير ثابت لهذه الخدمة — يُحسب ديناميكياً</div>
@@ -1085,7 +1027,6 @@ const editable=opts.readOnly?false:isPriceEditable
 // Per-card edit gate: when the caller passes opts.canEdit===false (the live default_pricing card),
 // the inline per-section pencils are hidden. Other contexts (modal/override) default to allowed.
 const cardEditAllowed=opts.canEdit!==false
-const secHead={fontSize:11,fontWeight:600,color:C.gold,padding:'4px 8px',borderRight:`2px solid ${C.gold}55`,marginBottom:2}
 const secNote={fontSize:10,color:'var(--tx3)',marginBottom:6,paddingRight:12}
 return<div className="svc-admin-pricing" style={{display:'flex',flexDirection:'column',gap:22}}>
 <style>{`.svc-admin-pricing input:focus, .svc-admin-pricing input:not(:placeholder-shown):not([type=checkbox]):not([type=radio]) { border-color: var(--bd)!important } .svc-admin-pricing input.svc-fee-num { font-size:20px!important } .svc-admin-pricing input.svc-fee-num:disabled:not([type=checkbox]):not([type=radio]), .svc-admin-pricing input.svc-fee-num:read-only:not([type=checkbox]):not([type=radio]) { border-color:transparent!important } .svc-occ-search-ico{color:var(--tx4);transition:.2s} .svc-occ-search:focus-within .svc-occ-search-ico{color:#B07D00} .svc-admin-pricing .svc-occ-search:focus-within input:not([type=checkbox]):not([type=radio]){border-color:rgba(176,125,0,.6)!important} .svc-occ-list{scrollbar-width:none;-ms-overflow-style:none} .svc-occ-list::-webkit-scrollbar{display:none;width:0;height:0}`}</style>
@@ -1242,9 +1183,6 @@ return<div className="svc-admin-pricing" style={{display:'flex',flexDirection:'c
                 })()
               : sec.title==='كرت العمل'
               ? (() => {
-                  const w3=Number(priceState.workPermit3M)||25
-                  const w6=Number(priceState.workPermit6M)||50
-                  const w9=Number(priceState.workPermit9M)||75
                   const w12=Number(priceState.workPermit12M)||100
                   const daily=Number(priceState.workPermitDailyAfter)||22
                   const cutoff=String(priceState.workPermitCutoffDate||'2027-02-20')
@@ -1968,76 +1906,6 @@ const renderIqamaDiscountBody=()=>{
     </div>
   )
 }
-// عرض القراءة لتسعيرة تجديد الإقامة — مقسّم بنفس أقسام المعالج، يعكس كل القيم والسياسات بتصميم بطاقات.
-const renderIqamaDetailView=(s)=>{
-  const v=getPricing(s.id)||{}
-  const money=k=>fmtThousands(v[k]??0)
-  const raw=k=>v[k]??'—'
-  const brackets=Array.isArray(v.medicalBrackets)?v.medicalBrackets:[]
-  const freeCount=Array.isArray(v.profChangeFreeOccupations)?v.profChangeFreeOccupations.length:0
-  const resetOn=v.iqamaWpResetEnabled===true
-  const daily=v.iqamaOfficeFeeMode==='daily'
-  const discOn=v.iqamaOfficeDiscountEnabled!==false
-  const wc=v.iqamaWpBasis==='workcard'
-  const Stat=(label,value,unit,muted)=>(
-    <div key={label} style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:3,padding:'14px 8px 11px',borderRadius:12,background:'var(--card-bg)',border:'1px solid var(--bd)',textAlign:'center',minWidth:0,opacity:muted?.5:1}}>
-      <span style={{fontSize:10.5,fontWeight:600,color:'var(--tx3)',lineHeight:1.3}}>{label}</span>
-      <span style={{fontSize:19,fontWeight:600,color:C.gold,fontVariantNumeric:'tabular-nums',letterSpacing:'-.5px',direction:'ltr',lineHeight:1,marginTop:2,whiteSpace:'nowrap'}}>{value}</span>
-      {unit&&<span style={{fontSize:8.5,fontWeight:600,color:'var(--tx5)'}}>{unit}</span>}
-    </div>
-  )
-  const grid=(cols,kids)=>(<div style={{display:'grid',gridTemplateColumns:`repeat(${cols},1fr)`,gap:10}}>{kids}</div>)
-  const subhead=(t)=>(<div style={{fontSize:11,fontWeight:600,color:'var(--tx3)',display:'flex',alignItems:'center',gap:8,marginTop:4}}><span style={{width:14,height:2,background:`${C.gold}99`,borderRadius:2}}/>{t}</div>)
-  const pill=(label,color)=>(<span style={{display:'inline-flex',alignItems:'center',gap:6,padding:'5px 11px',borderRadius:999,fontSize:11.5,fontWeight:600,background:`${color}1a`,border:`1px solid ${color}55`,color}}><span style={{width:6,height:6,borderRadius:'50%',background:color}}/>{label}</span>)
-  const Section=(title,badge,children)=>(
-    <div style={{borderRadius:14,background:'var(--card-grad2)',border:'1px solid var(--bd)',overflow:'hidden'}}>
-      <div style={{padding:'12px 18px',borderBottom:'1px solid var(--bd)',display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,flexWrap:'wrap'}}>
-        <span style={{display:'inline-flex',alignItems:'center',gap:9,fontSize:14.5,fontWeight:600,color:C.gold}}><span style={{width:6,height:6,borderRadius:'50%',background:C.gold}}/>{title}</span>
-        {badge}
-      </div>
-      <div style={{padding:'16px 18px',display:'flex',flexDirection:'column',gap:13}}>{children}</div>
-    </div>
-  )
-  return (
-    <div style={{display:'flex',flexDirection:'column',gap:14}}>
-      {Section('الرسوم الحكومية لتجديد الإقامة',null,
-        grid(2,[Stat('سعر الشهر',money('iqamaPerMonth'),'ريال/شهر'),Stat('حد التغطية الحكومية',money('iqamaGovCover'),'ريال')]))}
-      {Section('المهلة والغرامات',null,
-        grid(3,[Stat('أيام المهلة',raw('iqamaGraceDays'),'يوم'),Stat('غرامة أولى',money('iqamaFine1'),'ريال'),Stat('غرامة ثانية',money('iqamaFine2'),'ريال')]))}
-      {Section('كرت العمل (رخصة العمل)',pill(wc?'الأساس: انتهاء كرت العمل':'الأساس: انتهاء الإقامة',C.gold),
-        <>
-          {subhead('بالإعفاء · السعر الثابت لكل مدة')}
-          {grid(4,[Stat('3 أشهر',money('workPermit3M'),'ريال'),Stat('6 أشهر',money('workPermit6M'),'ريال'),Stat('9 أشهر',money('workPermit9M'),'ريال'),Stat('12 شهر',money('workPermit12M'),'ريال')])}
-          {subhead('بدون إعفاء (المقابل المالي)')}
-          {grid(4,[Stat('3 أشهر',money('workPermitNoExempt3M'),'ريال'),Stat('6 أشهر',money('workPermitNoExempt6M'),'ريال'),Stat('9 أشهر',money('workPermitNoExempt9M'),'ريال'),Stat('12 شهر',money('workPermitNoExempt12M'),'ريال')])}
-          {subhead('التسعير اليومي وبداية الفترة')}
-          {grid(3,[Stat('سعر اليوم بعد التفعيل',money('workPermitDailyAfter'),'ريال/يوم'),Stat('تاريخ التفعيل اليومي',raw('workPermitCutoffDate')),Stat('أيام المعالجة',raw('workPermitProcDays'),'يوم')])}
-          <div style={{display:'flex',flexDirection:'column',gap:7,padding:'11px 13px',borderRadius:10,background:resetOn?'rgba(176,125,0,.05)':'rgba(255,255,255,.02)',border:`1px solid ${resetOn?C.gold+'33':'rgba(255,255,255,.07)'}`}}>
-            {pill(resetOn?'قاعدة المنتهية من مدة طويلة: مفعّلة':'قاعدة المنتهية من مدة طويلة: معطّلة',resetOn?C.ok:C.red)}
-            {resetOn&&<span style={{fontSize:11,color:'var(--tx4)',fontWeight:600,lineHeight:1.7}}>بعد {raw('iqamaWpResetAfterDays')} يوم تأخّر ← تُحسب كإصدار جديد من اليوم + {raw('iqamaWpIssuanceDays')} أيام (بلا شهور تأخّر).</span>}
-          </div>
-        </>)}
-      {Section('رسوم تغيير المهنة',pill(`مهن معفاة: ${freeCount}`,C.ok),
-        grid(2,[Stat('رسوم تغيير المهنة',money('profChange'),'ريال'),Stat('عدد المهن المعفاة',freeCount,'مهنة')]))}
-      {Section('رسوم المكتب',pill(daily?'الوضع: يومي':'الوضع: سعر ثابت',C.gold),
-        <>
-          {grid(2,[Stat('السعر الثابت',money('officeFee'),'ريال',daily),Stat('سعر اليوم',money('officeDailyRate'),'ريال/يوم')])}
-          {pill(discOn?'خصم المكتب عند التصديق: مسموح':'خصم المكتب: غير مسموح',discOn?C.ok:C.red)}
-        </>)}
-      {Section('التأمين الطبي',pill(`${brackets.length} فئة عمرية`,C.gold),
-        <>
-        {grid(3,[Stat('سريان التأمين',raw('medicalGraceMonths'),'شهر'),Stat('أيام إضافية',raw('medicalGraceDays'),'يوم'),Stat('حد تغطية المكتب',money('medGovCover'),'ريال')])}
-        {brackets.length
-          ? <div style={{display:'flex',flexWrap:'wrap',gap:8}}>{brackets.map((b,i)=>(
-              <span key={i} style={{display:'inline-flex',alignItems:'center',gap:6,padding:'7px 12px',borderRadius:10,background:'var(--card-bg)',border:'1px solid var(--bd)',fontSize:11.5,fontWeight:600}}>
-                <span style={{color:'var(--tx3)'}}>{b.min}-{b.max} سنة</span><span style={{color:C.gold,fontWeight:600,direction:'ltr'}}>{fmtThousands(b.rate)} ريال</span>
-              </span>
-            ))}</div>
-          : <div style={{fontSize:11,color:'var(--tx5)',textAlign:'center',padding:'8px 0'}}>لا توجد فئات عمرية</div>}
-        </>)}
-    </div>
-  )
-}
 // محرّر تسعيرة تجديد الإقامة inline — أقسام قابلة للطيّ مع «تعديل» لكل قسم (نفس نمط نقل الكفالة، بلا نافذة منبثقة).
 const renderIqamaInlineEditor=(s,opts={})=>{
   const cardEditAllowed=opts.canEdit!==false
@@ -2154,7 +2022,7 @@ const renderIqamaInlineEditor=(s,opts={})=>{
 // وضع رسوم المكتب + سياسة الخصم انتقلا إلى بطاقة «رسوم المكتب» نفسها (كما في تجديد الإقامة).
 const renderKafalaPolicyCard=(s)=>{
   const v=priceState
-  const save=(k,val)=>{setPriceState(p=>({...p,[k]:val}));setPricing(s.id,{[k]:val})}
+  const save=(k,val)=>{setPriceState(p=>({...p,[k]:val}));if(priceBranchCtx)saveSectionToBranches(s.id,{[k]:val});else setPricing(s.id,{[k]:val})}
   const wc=v.kafalaWpBasis==='workcard'
   const resetOn=v.kafalaWpResetEnabled===true
   const seg=(sel,onSel,label,sub)=>(
@@ -2294,11 +2162,6 @@ const renderRow=(s)=>{
   const ovs=getOverridesForSvc(s.id)
   const sp=samplePrice(s.id)
   const hasPrice=!!PRICING_SCHEMA[s.id]
-  // Activity strip width = active branches ratio (default + non-disabled overrides)
-  const totalBr=branches.length||1
-  const disabledOv=ovs.filter(o=>o.active===false).length
-  const effActive=st.active?(totalBr-disabledOv):0
-  const pct=Math.min(100,Math.round((effActive/totalBr)*100))
   return(
     <div key={s.id} className="brs-row" onClick={()=>setSelectedSvcId(s.id)}
       style={{position:'relative',cursor:'pointer',borderRadius:14,background:`radial-gradient(ellipse at top, ${tone}10 0%, var(--card-bg) 60%)`,border:'1px solid var(--bd)',boxShadow:'0 4px 14px rgba(0,0,0,.22)',overflow:'hidden',opacity:st.active?1:.7,transition:'.15s'}}
@@ -2347,108 +2210,6 @@ const renderRow=(s)=>{
     </div>
   )
 }
-
-const renderCard=(s)=>{
-const st=getState(s.id)
-const I=s.Icon
-const isOpen=expanded===s.id
-const hasPrice=!!PRICING_SCHEMA[s.id]
-const accent=!st.active?C.red:(!st.billable?C.ok:C.gold)
-const baseShadow='0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)'
-return<div key={s.id} style={{...GLASS_CARD,display:'flex',flexDirection:'column',opacity:!st.active?.92:1,overflow:'hidden',transition:'.25s cubic-bezier(.4,0,.2,1)'}}
-onMouseEnter={e=>{if(isOpen)return;e.currentTarget.style.transform='translateY(-3px)';e.currentTarget.style.boxShadow='0 16px 36px rgba(0,0,0,.42), 0 4px 10px rgba(0,0,0,.22), 0 0 0 1px '+accent+'33, inset 0 1px 0 rgba(255,255,255,.08)'}}
-onMouseLeave={e=>{e.currentTarget.style.transform='translateY(0)';e.currentTarget.style.boxShadow=baseShadow}}>
-<div style={{padding:'18px 22px',display:'flex',alignItems:'center',gap:14}}>
-<div style={{width:44,height:44,borderRadius:11,background:'linear-gradient(180deg,rgba(176,125,0,.14),rgba(176,125,0,.06))',border:'1px solid rgba(176,125,0,.25)',display:'flex',alignItems:'center',justifyContent:'center',color:C.gold,flexShrink:0,boxShadow:'inset 0 1px 0 rgba(255,255,255,.05)'}}>
-<I size={20} strokeWidth={1.8}/>
-</div>
-<div style={{flex:1,minWidth:0}}>
-<div style={{display:'flex',alignItems:'center',gap:6,marginBottom:4,flexWrap:'wrap'}}>
-<span style={{fontSize:14,fontWeight:600,color:'var(--tx)',fontFamily:F}}>{s.name_ar}</span>
-{!st.billable&&<span style={{fontSize:10,fontWeight:600,padding:'4px 10px',borderRadius:6,background:C.ok+'15',color:C.ok,display:'inline-flex',alignItems:'center',gap:5}}><span style={{width:5,height:5,borderRadius:'50%',background:C.ok}}/>مجانية</span>}
-{!st.active&&<span style={{fontSize:10,fontWeight:600,padding:'4px 10px',borderRadius:6,background:C.red+'15',color:C.red,display:'inline-flex',alignItems:'center',gap:5}}><span style={{width:5,height:5,borderRadius:'50%',background:C.red}}/>معطّلة</span>}
-</div>
-<div style={{fontSize:11,color:'var(--tx5)',fontFamily:F,direction:'ltr',fontWeight:500}}>{s.id}</div>
-</div>
-{/* Edit price button */}
-{hasPrice&&st.billable&&<button type="button" onClick={()=>openPrice(s.id)} title={isOpen?'طيّ التفاصيل':'عرض التفاصيل'}
-style={{height:40,padding:'0 14px',borderRadius:11,border:isOpen?'1px solid rgba(176,125,0,.45)':'1px solid var(--bd)',background:isOpen?'linear-gradient(180deg,rgba(176,125,0,.16),rgba(176,125,0,.08))':'var(--card-bg)',color:isOpen?C.gold:'var(--tx2)',fontFamily:F,fontSize:12,fontWeight:500,cursor:'pointer',display:'flex',alignItems:'center',gap:8,boxShadow:isOpen?'0 2px 8px rgba(176,125,0,.18), inset 0 1px 0 rgba(176,125,0,.18)':'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s',flexShrink:0}}>
-<span>{isOpen?'إخفاء التسعير':'عرض التسعير'}</span>
-{isOpen?<ChevronUp size={14} strokeWidth={2.2}/>:<ChevronDown size={14} strokeWidth={2.2}/>}
-</button>}
-{/* Billable toggle */}
-<div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:5}}>
-<button type="button" onClick={()=>update(s.id,'billable',!st.billable)} title={st.billable?'اضغط لجعلها مجانية':'اضغط لجعلها مفوترة'}
-style={{width:46,height:24,borderRadius:999,border:'none',background:st.billable?C.gold:'rgba(39,160,70,.7)',cursor:'pointer',position:'relative',transition:'.2s',padding:0,boxShadow:'0 2px 6px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.12)'}}>
-<span style={{position:'absolute',width:18,height:18,borderRadius:'50%',background:'#fff',top:3,right:st.billable?3:25,transition:'.2s',display:'flex',alignItems:'center',justifyContent:'center'}}>
-{st.billable?<DollarSign size={10} color={C.gold} strokeWidth={3}/>:<Gift size={10} color={C.ok} strokeWidth={3}/>}
-</span>
-</button>
-<span style={{fontSize:10,fontWeight:600,color:st.billable?C.gold:C.ok,fontFamily:F}}>{st.billable?'مفوترة':'مجانية'}</span>
-</div>
-{/* Active toggle */}
-<div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:5}}>
-<button type="button" onClick={()=>update(s.id,'active',!st.active)} title={st.active?'اضغط للتعطيل':'اضغط للتفعيل'}
-style={{width:46,height:24,borderRadius:999,border:'none',background:st.active?C.ok:'rgba(192,57,43,.7)',cursor:'pointer',position:'relative',transition:'.2s',padding:0,boxShadow:'0 2px 6px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.12)'}}>
-<span style={{position:'absolute',width:18,height:18,borderRadius:'50%',background:'#fff',top:3,right:st.active?3:25,transition:'.2s',display:'flex',alignItems:'center',justifyContent:'center'}}>
-{st.active?<Power size={10} color={C.ok} strokeWidth={3}/>:<PowerOff size={10} color={C.red} strokeWidth={3}/>}
-</span>
-</button>
-<span style={{fontSize:10,fontWeight:600,color:st.active?C.ok:C.red,fontFamily:F}}>{st.active?'فعّالة':'معطّلة'}</span>
-</div>
-</div>
-{/* Per-branch overrides strip */}
-{(() => {
-  const ovs=getOverridesForSvc(s.id)
-  return(
-    <div style={{padding:'10px 22px 14px',borderTop:'1px solid var(--bd2)',display:'flex',flexDirection:'column',gap:8,background:'var(--bd2)'}}>
-      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,flexWrap:'wrap'}}>
-        <span style={{fontSize:11,fontWeight:600,color:'var(--tx3)',display:'inline-flex',alignItems:'center',gap:6}}>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/></svg>
-          تخصيص لكل مكتب {ovs.length>0&&<span style={{padding:'1px 7px',borderRadius:999,background:'rgba(176,125,0,.14)',color:C.gold,fontWeight:600,fontSize:10}}>{ovs.length}</span>}
-        </span>
-        <button type="button" onClick={()=>openOverrideEditor(s.id,null)}
-          style={{height:28,padding:'0 10px',borderRadius:7,border:'1px dashed rgba(176,125,0,.35)',background:'transparent',color:C.gold,fontFamily:F,fontSize:11,fontWeight:600,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:4}}>
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          إضافة تخصيص
-        </button>
-      </div>
-      {ovs.length>0&&<div style={{display:'flex',flexWrap:'wrap',gap:6}}>
-        {ovs.map(o=>{
-          const br=branches.find(b=>b.id===o.branchId)
-          const code=br?.branch_code||'—'
-          const aOff=o.active===false
-          const bOff=typeof o.billable==='boolean'&&o.billable!==(s.defaultBillable!==false)
-          const pCount=o.pricing?Object.keys(o.pricing).length:0
-          return(
-            <span key={o.branchId} style={{display:'inline-flex',alignItems:'center',gap:6,padding:'4px 4px 4px 10px',borderRadius:999,background:'rgba(176,125,0,.08)',border:'1px solid rgba(176,125,0,.25)',fontSize:11,fontWeight:600,color:'var(--tx)'}}>
-              <button type="button" onClick={()=>openOverrideEditor(s.id,o.branchId)} title="تعديل التخصيص" style={{background:'transparent',border:'none',padding:0,cursor:'pointer',color:'inherit',fontFamily:F,fontWeight:600,display:'inline-flex',alignItems:'center',gap:5}}>
-                <span style={{color:C.gold,direction:'ltr',fontFamily:'monospace'}} title={br?.name_ar||''}>{code}</span>{br?.name_ar&&<span style={{fontSize:10,fontWeight:500,color:'var(--tx4)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',maxWidth:120}}>{br.name_ar}</span>}
-                {aOff&&<span title="معطّلة" style={{color:C.red,fontSize:10}}>✗</span>}
-                {!aOff&&bOff&&<span title="مجانية" style={{color:C.ok,fontSize:10}}>$</span>}
-                {pCount>0&&<span style={{padding:'1px 6px',borderRadius:999,background:'rgba(176,125,0,.18)',color:C.gold,fontSize:9}}>{pCount} سعر</span>}
-              </button>
-              <button type="button" onClick={()=>removeBranchOverride(o.branchId,s.id)} title="حذف" style={{width:18,height:18,borderRadius:'50%',border:'none',background:'rgba(192,57,43,.18)',color:C.red,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',padding:0}}>
-                <X size={9} strokeWidth={3}/>
-              </button>
-            </span>
-          )
-        })}
-      </div>}
-    </div>
-  )
-})()}
-{/* Expandable price editor */}
-{isOpen&&<div style={{padding:'24px 22px 18px',borderTop:'1px solid var(--bd)',background:'var(--sunken)'}}>
-{renderPriceEditor(s)}
-</div>}
-</div>
-}
-
-const sectionCard={...GLASS_CARD,padding:'16px 18px',display:'flex',flexDirection:'column',gap:12}
-const sectionHead={display:'flex',alignItems:'center',gap:8,paddingBottom:10,borderBottom:'1px solid var(--bd)'}
-const sectionTitle={fontSize:13,fontWeight:600,color:'var(--tx)',display:'inline-flex',alignItems:'center',gap:8}
-const sectionIconBox={width:28,height:28,borderRadius:8,background:'linear-gradient(180deg,rgba(176,125,0,.14),rgba(176,125,0,.06))',border:'1px solid rgba(176,125,0,.25)',display:'inline-flex',alignItems:'center',justifyContent:'center',color:C.gold}
 
 // KPI counts
 const totalCount=ALL_SERVICES.length
@@ -2499,14 +2260,8 @@ if(selectedSvc){
   const s=selectedSvc
   const I=s.Icon
   const st=getState(s.id)
-  const tone=!st.active?C.red:(!st.billable?C.ok:C.gold)
   const hasPrice=!!PRICING_SCHEMA[s.id]
-  const sp=samplePrice(s.id)
   const ovs=getOverridesForSvc(s.id)
-  // Bar shows overrides distribution: how many disable / change billable / change pricing
-  const ovDisabled=ovs.filter(o=>o.active===false).length
-  const ovBillable=ovs.filter(o=>typeof o.billable==='boolean').length
-  const ovPriced=ovs.filter(o=>o.pricing&&Object.keys(o.pricing).length>0).length
   return<div style={{paddingTop:0,paddingBottom:80,direction:'rtl',fontFamily:F,color:'var(--tx2)'}}>
     {SVC_LIST_STYLES}
 
@@ -2933,140 +2688,5 @@ return<div style={{paddingTop:0,paddingBottom:80,display:'flex',flexDirection:'c
   )
 })()}
 
-{/* ─── (Inline override editor lives inside the section card; no modal here.) ─── */}
-{false&&overrideEditor&&(()=>{
-  const svc=ALL_SERVICES.find(x=>x.id===overrideEditor.svcId)
-  if(!svc)return null
-  const labelS={fontSize:11,fontWeight:600,color:'var(--tx3)',marginBottom:6,display:'block',textAlign:'right'}
-  const Toggle=({on,onChange,onLabel,offLabel,onColor,offColor,onIcon,offIcon})=>(
-    <div style={{display:'inline-flex',alignItems:'center',gap:6}}>
-      <button type="button" onClick={()=>onChange(!on)}
-        style={{width:44,height:22,borderRadius:999,border:'none',background:on?onColor:offColor,cursor:'pointer',position:'relative',transition:'.2s',padding:0,boxShadow:'0 2px 6px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.12)'}}>
-        <span style={{position:'absolute',width:16,height:16,borderRadius:'50%',background:'#fff',top:3,right:on?3:25,transition:'.2s',display:'inline-flex',alignItems:'center',justifyContent:'center'}}>
-          {on?onIcon:offIcon}
-        </span>
-      </button>
-      <span style={{fontSize:11,fontWeight:600,color:on?onColor:offColor}}>{on?onLabel:offLabel}</span>
-    </div>
-  )
-  return(
-    <div style={{display:'none'}}>
-      <div>
-        <div>
-          <div style={{display:'flex',alignItems:'center',gap:10,minWidth:0}}>
-            <span style={{width:36,height:36,borderRadius:9,background:'linear-gradient(180deg,rgba(176,125,0,.14),rgba(176,125,0,.06))',border:'1px solid rgba(176,125,0,.25)',display:'inline-flex',alignItems:'center',justifyContent:'center',color:C.gold,flexShrink:0}}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/></svg>
-            </span>
-            <div style={{minWidth:0}}>
-              <div style={{fontSize:13,fontWeight:600,color:'var(--tx)'}}>تخصيص لمكتب</div>
-              <div style={{fontSize:11,color:'var(--tx4)',fontWeight:500,marginTop:2,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{svc.name_ar}</div>
-            </div>
-          </div>
-          <button type="button" onClick={()=>setOverrideEditor(null)} style={{width:30,height:30,borderRadius:8,border:'1px solid var(--bd)',background:'var(--bd2)',color:'var(--tx3)',cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',padding:0}}>
-            <X size={14} strokeWidth={2.5}/>
-          </button>
-        </div>
-        <div style={{padding:'18px 22px',display:'flex',flexDirection:'column',gap:14}}>
-          {/* Branch picker */}
-          <div>
-            <label style={labelS}>المكتب</label>
-            {overrideEditor.branchId?(
-              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 14px',borderRadius:10,background:'rgba(176,125,0,.08)',border:`1px solid ${C.gold}55`}}>
-                <span style={{display:'inline-flex',alignItems:'center',gap:8,color:C.gold,fontSize:13,fontWeight:600}}>
-                  <span style={{width:6,height:6,borderRadius:'50%',background:C.gold,boxShadow:`0 0 6px ${C.gold}`}}/>
-                  {(()=>{const ob=branches.find(b=>b.id===overrideEditor.branchId);return<>
-                    <span style={{fontFamily:'monospace',direction:'ltr'}}>{ob?.branch_code||'—'}</span>
-                    {ob?.name_ar&&<span style={{fontSize:11,fontWeight:500,color:'var(--tx4)'}}>{ob.name_ar}</span>}
-                  </>})()}
-                </span>
-                <button type="button" onClick={()=>setOverrideEditor(p=>({...p,branchId:null}))} style={{fontSize:11,color:'var(--tx4)',background:'transparent',border:'none',cursor:'pointer',fontFamily:F}}>تغيير المكتب</button>
-              </div>
-            ):(
-              <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(150px,1fr))',gap:6,maxHeight:200,overflowY:'auto',padding:8,borderRadius:10,background:'var(--sunken)',border:'1px solid var(--bd)'}}>
-                {availableBranches.length===0?(
-                  <div style={{gridColumn:'1/-1',padding:14,textAlign:'center',fontSize:11,color:'var(--tx5)'}}>كل المكاتب لها تخصيص بالفعل أو لا توجد مكاتب نشطة</div>
-                ):availableBranches.map(b=>(
-                  <button key={b.id} type="button" onClick={()=>setOverrideEditor(p=>({...p,branchId:b.id}))}
-                    style={{minHeight:46,padding:'6px 8px',borderRadius:8,border:'1px solid var(--bd)',background:'var(--bd2)',color:C.gold,fontFamily:F,fontSize:12,fontWeight:600,cursor:'pointer',transition:'.15s',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:1,lineHeight:1.3,textAlign:'center'}}
-                    onMouseEnter={e=>{e.currentTarget.style.background='rgba(176,125,0,.12)';e.currentTarget.style.borderColor=`${C.gold}55`}}
-                    onMouseLeave={e=>{e.currentTarget.style.background='var(--bd2)';e.currentTarget.style.borderColor='var(--bd)'}}>
-                    <span style={{fontFamily:'monospace',direction:'ltr',fontSize:12,fontWeight:600}}>{b.branch_code}</span>
-                    {b.name_ar&&<span style={{fontSize:9.5,fontWeight:500,color:'var(--tx4)',maxWidth:'100%',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}} title={b.name_ar}>{b.name_ar}</span>}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Active + Billable toggles */}
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-            <div style={{padding:'10px 12px',borderRadius:10,background:'var(--sunken)',border:'1px solid var(--bd)'}}>
-              <div style={{fontSize:10,color:'var(--tx4)',fontWeight:600,marginBottom:8}}>الحالة <span style={{color:'var(--tx5)'}}>(الافتراضي: {baseActive?'فعّالة':'معطّلة'})</span></div>
-              <Toggle on={eff.active} onChange={v=>setDraft({active:v})}
-                onLabel="فعّالة" offLabel="معطّلة" onColor={C.ok} offColor={C.red}
-                onIcon={<Power size={9} color={C.ok} strokeWidth={3}/>} offIcon={<PowerOff size={9} color={C.red} strokeWidth={3}/>}/>
-              {typeof draft.active==='boolean'&&<button type="button" onClick={()=>setDraft({active:undefined})} style={{marginInlineStart:8,fontSize:10,color:'var(--tx5)',background:'transparent',border:'none',cursor:'pointer',fontFamily:F}}>← الافتراضي</button>}
-            </div>
-            <div style={{padding:'10px 12px',borderRadius:10,background:'var(--sunken)',border:'1px solid var(--bd)'}}>
-              <div style={{fontSize:10,color:'var(--tx4)',fontWeight:600,marginBottom:8}}>الفوترة <span style={{color:'var(--tx5)'}}>(الافتراضي: {baseBillable?'مفوترة':'مجانية'})</span></div>
-              <Toggle on={eff.billable} onChange={v=>setDraft({billable:v})}
-                onLabel="مفوترة" offLabel="مجانية" onColor={C.gold} offColor={C.ok}
-                onIcon={<DollarSign size={9} color={C.gold} strokeWidth={3}/>} offIcon={<Gift size={9} color={C.ok} strokeWidth={3}/>}/>
-              {typeof draft.billable==='boolean'&&<button type="button" onClick={()=>setDraft({billable:undefined})} style={{marginInlineStart:8,fontSize:10,color:'var(--tx5)',background:'transparent',border:'none',cursor:'pointer',fontFamily:F}}>← الافتراضي</button>}
-            </div>
-          </div>
-
-          {/* Pricing fields */}
-          {fields.length>0&&(
-            <div style={{padding:'12px 14px',borderRadius:10,background:'var(--sunken)',border:'1px solid var(--bd)'}}>
-              <div style={{fontSize:11,fontWeight:600,color:'var(--tx2)',marginBottom:10,display:'flex',alignItems:'center',gap:6}}>
-                <DollarSign size={12} color={C.gold}/> أسعار خاصة لهذا المكتب
-                <span style={{marginInlineStart:'auto',fontSize:10,color:'var(--tx5)',fontWeight:500}}>اترك فارغاً لاستعمال السعر الافتراضي</span>
-              </div>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-                {fields.map(f=>{
-                  const ov=draft.pricing?.[f.k]
-                  const has=ov!==undefined&&ov!==''
-                  return(
-                    <div key={f.k}>
-                      <label style={{...labelS,display:'flex',alignItems:'center',justifyContent:'space-between',gap:6}}>
-                        <span>{f.l}</span>
-                        {has&&<button type="button" onClick={()=>clearPricingField(f.k)} title="إزالة التخصيص" style={{fontSize:9,color:'var(--tx5)',background:'transparent',border:'none',cursor:'pointer',fontFamily:F}}>← الافتراضي</button>}
-                      </label>
-                      <div style={{display:'flex',alignItems:'center',gap:5}}>
-                        <input type="text" inputMode="decimal" value={ov??''}
-                          onChange={e=>{let v=e.target.value.replace(/[^0-9.]/g,'');const i=v.indexOf('.');if(i!==-1)v=v.slice(0,i+1)+v.slice(i+1).replace(/\./g,'');setPricingField(f.k,v)}}
-                          placeholder={String(def[f.k]??f.d)} style={{...compactInp,flex:1,textAlign:'center',direction:'ltr',borderColor:has?C.gold+'66':'rgba(255,255,255,.07)'}}/>
-                        {f.sfx&&<span style={{fontSize:9,fontWeight:600,color:'var(--tx5)',minWidth:48,textAlign:'center'}}>{f.sfx}</span>}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-        </div>
-        <div style={{padding:'12px 22px',borderTop:'1px solid var(--bd)',display:'flex',justifyContent:'space-between',alignItems:'center',gap:10,flexWrap:'wrap'}}>
-          <div style={{fontSize:10,color:'var(--tx5)',fontWeight:500}}>
-            القيم الفارغة = استعمال الافتراضي. التخصيصات تُحفظ محلياً.
-          </div>
-          <div style={{display:'flex',gap:8}}>
-            {canCardBtn(user,'admin_services','branch_overrides','delete')&&overrideEditor.branchId&&getOverridesForSvc(svc.id).some(o=>o.branchId===overrideEditor.branchId)&&(
-              <button type="button" onClick={()=>{removeBranchOverride(overrideEditor.branchId,svc.id);setOverrideEditor(null)}}
-                style={{height:36,padding:'0 14px',borderRadius:9,border:'1px solid rgba(192,57,43,.3)',background:'rgba(192,57,43,.08)',color:C.red,fontFamily:F,fontSize:12,fontWeight:600,cursor:'pointer'}}>
-                حذف التخصيص
-              </button>
-            )}
-            <button type="button" onClick={()=>setOverrideEditor(null)} style={{height:36,padding:'0 14px',borderRadius:9,border:'1px solid var(--bd)',background:'linear-gradient(180deg,#363636 0%,#2A2A2A 100%)',color:'var(--tx3)',fontFamily:F,fontSize:12,fontWeight:600,cursor:'pointer'}}>إلغاء</button>
-            <button type="button" onClick={onSave} disabled={!canSave}
-              style={{height:36,padding:'0 16px',borderRadius:9,border:'1px solid '+(canSave?'rgba(176,125,0,.45)':'rgba(255,255,255,.06)'),background:canSave?'linear-gradient(180deg,rgba(176,125,0,.22) 0%,rgba(176,125,0,.10) 100%)':'rgba(255,255,255,.03)',color:canSave?C.gold:'var(--tx5)',fontFamily:F,fontSize:12,fontWeight:600,cursor:canSave?'pointer':'not-allowed'}}>
-              حفظ التخصيص
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-})()}
 </div>
 }

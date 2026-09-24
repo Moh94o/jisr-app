@@ -39,7 +39,7 @@ function body({ iqama, duration, workerId, personId, targetMoi, proxyBaseUrl }) 
     let d = document.getElementById('_jisr_renew_ui');
     if (!d) {
       d = document.createElement('div'); d.id = '_jisr_renew_ui';
-      d.style.cssText = 'position:fixed;top:16px;left:16px;background:#111;color:#f59e0b;padding:12px 18px;border-radius:10px;z-index:2147483647;font:700 13px/1.6 sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.5);max-width:460px;direction:rtl;text-align:right;border:1px solid rgba(245,158,11,.4);white-space:pre-wrap';
+      d.style.cssText = 'position:fixed;top:16px;left:16px;background:#111;color:#f59e0b;padding:12px 18px;border-radius:10px;z-index:2147483647;font:600 13px/1.6 sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.5);max-width:460px;direction:rtl;text-align:right;border:1px solid rgba(245,158,11,.4);white-space:pre-wrap';
       document.body.appendChild(d);
     }
     d.style.color = tone === 'ok' ? '#34d399' : (tone === 'err' ? '#f87171' : '#f59e0b');
@@ -98,7 +98,7 @@ function body({ iqama, duration, workerId, personId, targetMoi, proxyBaseUrl }) 
   // Persist the muqeem reply (or the error) into Jisr through the bridge.
   const saveResult = async (payload, resp, httpStatus, okFlag) => {
     try {
-      await supaFetch('/rest/v1/muqeem_renewal_checks', {
+      const r = await supaFetch('/rest/v1/muqeem_renewal_checks', {
         method: 'POST', headers: { Prefer: 'return=minimal' },
         body: JSON.stringify([{
           iqama_number: IQAMA, worker_id: WORKER, person_id: PERSON,
@@ -107,7 +107,7 @@ function body({ iqama, duration, workerId, personId, targetMoi, proxyBaseUrl }) 
           request: payload, response: resp,
         }]),
       });
-      return true;
+      return !!(r && r.ok);
     } catch (e) { return false; }
   };
 

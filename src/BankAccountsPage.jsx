@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import {
-  Landmark, Plus, Search, CreditCard, Copy, Eye, EyeOff, ChevronLeft, X,
+  Landmark, Plus, Search, CreditCard, Copy, Eye, EyeOff, ChevronLeft,
   ArrowDownToLine, ArrowUpFromLine, Banknote, Receipt, FileText, AlertCircle, User, Wallet, Check, Building2,
 } from 'lucide-react'
 import { BankAccountFormModal, BankCardModal } from './BranchesPage.jsx'
-import { Modal as FKModal, ModalSection as FKSection, ActionButton as FKAction, Select as FKSelect, MultiSelect as FKMulti, ScrollBox, GRID, EmptyState, C as FKC } from './components/ui/FormKit.jsx'
+import { Select as FKSelect, EmptyState, C as FKC } from './components/ui/FormKit.jsx'
 import BackButton from './components/BackButton'
 import { SkeletonCards, SkeletonList } from './components/ui/Skeleton.jsx'
 import { can, cardVisible, canCardBtn } from './lib/permissions.js'
@@ -38,21 +38,6 @@ const switchBtn = (on, onClick, title) => (
     style={{ width: 44, height: 24, borderRadius: 999, border: 'none', cursor: 'pointer', flexShrink: 0, padding: 0, position: 'relative', transition: '.2s', background: on ? `linear-gradient(180deg, ${C.ok} 0%, #1f8a3a 100%)` : 'rgba(255,255,255,.14)', boxShadow: on ? `0 0 8px ${C.ok}44, inset 0 1px 0 rgba(255,255,255,.15)` : 'inset 0 1px 2px rgba(0,0,0,.3)' }}>
     <span style={{ position: 'absolute', width: 18, height: 18, borderRadius: '50%', background: '#fff', top: 3, right: on ? 3 : 23, transition: '.2s', boxShadow: '0 1px 3px rgba(0,0,0,.4)' }} />
   </button>
-)
-
-const CopyRow = ({ label, value, onCopy }) => (
-  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 9, background: 'var(--inputBg)', border: '1px solid var(--bd)' }}>
-    <button onClick={onCopy} title="نسخ" style={{ width: 28, height: 28, borderRadius: 7, background: `${GOLD}14`, border: `1px solid ${GOLD}33`, color: GOLD, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Copy size={13} /></button>
-    <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: 'var(--tx)', direction: 'ltr', fontFamily: MONO_F, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value}</span>
-    <span style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600, flexShrink: 0 }}>{label}</span>
-  </div>
-)
-
-const IRow = ({ label, value, mono, color }) => (
-  <div className="brd-irow">
-    <span className="brd-irow-l">{label}</span>
-    <span className="brd-irow-v" style={{ direction: mono ? 'ltr' : undefined, fontFamily: mono ? MONO_F : undefined, color: color || (value ? 'var(--tx2)' : 'var(--tx5)') }}>{value || '—'}</span>
-  </div>
 )
 
 const Section = ({ title, Icon, dot = GOLD, count, action, children }) => (
@@ -127,18 +112,6 @@ const MiniCopy = ({ onClick }) => {
   )
 }
 
-const StatusSeg = ({ accActive, onToggle }) => (
-  <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--bd)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
-    <span style={{ fontSize: 12, color: 'var(--tx4)', fontWeight: 600 }}>حالة الحساب</span>
-    <div style={{ display: 'inline-flex', borderRadius: 10, border: '1px solid var(--bd)', overflow: 'hidden', background: 'var(--inputBg)' }}>
-      {[{ v: true, l: 'نشط', clr: C.ok }, { v: false, l: 'معطّل', clr: '#95a5a6' }].map(seg => {
-        const sel = accActive === seg.v
-        return (<button key={String(seg.v)} type="button" onClick={() => { if (!sel) onToggle() }} style={{ padding: '8px 18px', border: 'none', cursor: sel ? 'default' : 'pointer', fontFamily: F, fontSize: 13, fontWeight: 600, background: sel ? `${seg.clr}22` : 'transparent', color: sel ? seg.clr : 'var(--tx4)', transition: '.15s', display: 'inline-flex', alignItems: 'center', gap: 6 }}>{sel && <Check size={13} strokeWidth={3} />} {seg.l}</button>)
-      })}
-    </div>
-  </div>
-)
-
 // ── «ترويسة بنكية» — كرت بيانات الحساب (شريط علوي + قائمة نظيفة) ──
 const BodyHero = ({ account, copy }) => (
   <>
@@ -162,99 +135,12 @@ const BodyHero = ({ account, copy }) => (
   </>
 )
 
-// ─── Linked-offices editor (manage which offices use this account + purpose) ──
-const PURPOSES = ['الإيداعات النقدية', 'التحويلات الواردة', 'التحويلات الصادرة', 'سداد المدفوعات']
-const parsePurposes = s => String(s || '').split('·').map(x => x.trim()).filter(Boolean)
-const PURPOSE_SELECT_OPTS = PURPOSES.map(p => ({ k: p, l: p }))
-
-function LinkedOfficesEditor({ sb, account, branches, toast, onClose, onChanged }) {
-  const [links, setLinks] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [newBranch, setNewBranch] = useState(null)
-  const [newPurposes, setNewPurposes] = useState([])
-  const [busy, setBusy] = useState(false)
-
-  const load = useCallback(async () => {
-    setLoading(true)
-    const { data } = await sb.from('bank_account_branches').select('id, branch_id, account_purpose, branches(branch_code)').eq('bank_account_id', account.id).eq('is_active', true).is('deleted_at', null)
-    setLinks(data || []); setLoading(false)
-  }, [sb, account.id])
-  useEffect(() => { load() }, [load])
-
-  const linkedIds = new Set(links.map(l => l.branch_id))
-  const available = (branches || []).filter(b => !linkedIds.has(b.id))
-
-  const addLink = async () => {
-    if (!newBranch) { toast?.('اختر المكتب', 'error'); return }
-    setBusy(true)
-    const { error } = await sb.from('bank_account_branches').insert({ bank_account_id: account.id, branch_id: newBranch, account_purpose: newPurposes.join(' · ') || null, is_active: true })
-    setBusy(false)
-    if (error) { toast?.(error.code === '23505' ? 'هذا المكتب مربوط بالفعل' : 'تعذّر الربط', 'error'); return }
-    toast?.('تم ربط المكتب'); setNewBranch(null); setNewPurposes([]); load(); onChanged?.()
-  }
-  const setLinkPurpose = async (id, purposes) => {
-    setLinks(ls => ls.map(l => l.id === id ? { ...l, account_purpose: purposes.join(' · ') } : l))
-    await sb.from('bank_account_branches').update({ account_purpose: purposes.join(' · ') || null }).eq('id', id)
-    onChanged?.()
-  }
-  const removeLink = async (id) => {
-    await sb.from('bank_account_branches').update({ deleted_at: new Date().toISOString(), is_active: false }).eq('id', id)
-    toast?.('تم إلغاء الربط'); load(); onChanged?.()
-  }
-
-  return (
-    <FKModal open onClose={onClose} variant="edit" width={560}
-      title="المكاتب المرتبطة" subtitle={account.bank_name} Icon={Wallet}
-      footer={<FKAction variant="ghost" Icon={X} onClick={onClose}>إغلاق</FKAction>}>
-      <FKSection Icon={Building2} label="روابط المكاتب" hint={loading ? '…' : `${links.length} مكتب`}>
-        {loading ? (
-          <div style={{ padding: 16, textAlign: 'center', color: FKC.tx4, fontSize: 12 }}>…</div>
-        ) : links.length === 0 ? (
-          <div style={{ padding: 16, textAlign: 'center', color: FKC.tx4, fontSize: 12, border: '1px dashed var(--bd)', borderRadius: 10 }}>لا يوجد مكاتب مرتبطة</div>
-        ) : (
-          <ScrollBox maxHeight={240}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {links.map(l => (
-                <div key={l.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 9, background: FKC.inputBg, boxShadow: 'inset 0 1px 2px rgba(0,0,0,.2)' }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: FKC.blue, fontFamily: MONO_F, direction: 'ltr', flexShrink: 0, minWidth: 56, textAlign: 'center' }}>{l.branches?.branch_code}</span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <FKMulti searchable={false} value={parsePurposes(l.account_purpose)}
-                      onChange={arr => setLinkPurpose(l.id, arr)}
-                      options={PURPOSE_SELECT_OPTS} getKey={o => o.k} getLabel={o => o.l} placeholder="الغرض..." />
-                  </div>
-                  <button onClick={() => removeLink(l.id)} title="إلغاء الربط"
-                    style={{ width: 28, height: 28, borderRadius: 7, background: 'rgba(192,57,43,.12)', border: '1px solid rgba(192,57,43,.3)', color: FKC.red, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <X size={13} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </ScrollBox>
-        )}
-      </FKSection>
-      <FKSection Icon={Plus} label="إضافة ربط" hint="مكتب جديد + غرضه">
-        <div style={GRID}>
-          <FKSelect label="المكتب" req searchable value={newBranch}
-            onChange={v => setNewBranch(v)}
-            options={available} getKey={o => o.id} getLabel={o => branchLabel(o)} placeholder="اختر المكتب..." />
-          <FKMulti label="الغرض" searchable={false} value={newPurposes} onChange={setNewPurposes}
-            options={PURPOSE_SELECT_OPTS} getKey={o => o.k} getLabel={o => o.l} placeholder="اختر الغرض..." />
-        </div>
-        <div style={{ marginTop: 6, display: 'flex', justifyContent: 'flex-end' }}>
-          <FKAction Icon={Plus} disabled={busy || !newBranch} onClick={addLink}>{busy ? 'جاري الربط...' : 'ربط المكتب'}</FKAction>
-        </div>
-      </FKSection>
-    </FKModal>
-  )
-}
-
 // ═══════════════════════════════════════════════════════════════════════════
 // DETAIL PAGE — mirrors BranchDetailPage (header + brd-grid + sections)
 // ═══════════════════════════════════════════════════════════════════════════
 function BankAccountDetailPage({ sb, user, account, branches, toast, onBack, onEdit, onReload }) {
   const copy = (v) => { if (!v) return; navigator.clipboard?.writeText(String(v)) }
   const accActive = account.is_active !== false
-  const tone = accActive ? C.ok : '#777'
   const bal = account._bal || {}
   const lowBal = account.min_balance_alert != null && Number(account.current_balance || 0) <= Number(account.min_balance_alert)
   const balColor = lowBal ? C.warn : C.ok

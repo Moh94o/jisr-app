@@ -1,20 +1,16 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react'
-import * as LucideIcons from 'lucide-react'
-import { ShieldCheck, Plus, Users, Lock, Pencil, Trash2, Check, Layers, Eye } from 'lucide-react'
+import { ShieldCheck, Plus, Users, Lock, Pencil, Trash2, Check } from 'lucide-react'
 import BackButton from '../../components/BackButton'
 import { Modal, ModalSection, ActionButton, SuccessView, TextField, GRID, EmptyState } from '../../components/ui/FormKit.jsx'
 import { Shimmer } from '../../components/ui/Skeleton.jsx'
 import { isGM as isGmUser, can } from '../../lib/permissions.js'
+import { closedRoleVisibility } from '../../lib/permCatalog.js'
 import * as svc from '../../services/rolesAdminService.js'
 import { PermissionsPanel } from './PermissionsPage.jsx'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = { gold: '#B07D00', red: '#c0392b', ok: '#27a046', blue: '#3483b4' }
 const PALETTE = ['#B07D00', '#3483b4', '#16a085', '#bb8fce', '#f39c12', '#27a046', '#e8c77a', '#5dade2', '#e74c3c', '#9b59b6']
-const resolveIcon = (name) => (name && LucideIcons[name]) || ShieldCheck
-
-// «view»/«access» is the gate that opens a whole section — surface it clearly.
-const isViewAction = (a) => a === 'view' || a === 'access'
 
 export default function RolesAdminPage({ sb, user, toast, lang, emptyIcon, nav, hubTabs }) {
   const canManage = isGmUser(user) || can(user, 'admin_permissions.manage_permissions')
@@ -23,6 +19,8 @@ export default function RolesAdminPage({ sb, user, toast, lang, emptyIcon, nav, 
   const [loading, setLoading] = useState(true)
   const [selectedId, setSelectedId] = useState(null)
   const [modal, setModal] = useState(null) // { mode:'create'|'edit', role? }
+  // دورٌ جديد يُولد مغلقاً بالكامل: خريطة إظهارٍ كلُّها `false` تُبذَر عند الإنشاء.
+  const closedVis = useMemo(() => closedRoleVisibility(nav, hubTabs), [nav, hubTabs])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -45,7 +43,7 @@ export default function RolesAdminPage({ sb, user, toast, lang, emptyIcon, nav, 
         onEdit={() => setModal({ mode: 'edit', role: selected })}
         onDeleted={() => { setSelectedId(null); load() }} />
       {modal && (
-        <RoleFormModal mode={modal.mode} role={modal.role} toast={toast}
+        <RoleFormModal mode={modal.mode} role={modal.role} toast={toast} seedVisibility={closedVis}
           onClose={() => setModal(null)}
           onSaved={async () => { setModal(null); await load() }} />
       )}
@@ -86,7 +84,7 @@ export default function RolesAdminPage({ sb, user, toast, lang, emptyIcon, nav, 
       )}
 
       {modal && (
-        <RoleFormModal mode={modal.mode} role={modal.role} toast={toast}
+        <RoleFormModal mode={modal.mode} role={modal.role} toast={toast} seedVisibility={closedVis}
           onClose={() => setModal(null)}
           onSaved={async () => { setModal(null); await load() }} />
       )}
@@ -169,6 +167,8 @@ function RoleEditor({ sb, role, catalog, canManage, toast, onBack, onChanged, on
         )}
       </div>
 
+      <RoleUsersCard roleId={role.id} color={c} />
+
       {isGmRole ? (
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 18px', borderRadius: 12, background: c + '12', border: `1px solid ${c}33` }}>
           <ShieldCheck size={18} color={c} />
@@ -182,54 +182,60 @@ function RoleEditor({ sb, role, catalog, canManage, toast, onBack, onChanged, on
             فعّل لكل قسم ما يراه ويفعله هذا الدور: الأزرار والصلاحيات، بطاقات صفحة التفاصيل، الحقول (إظهار + تعديل)، النوافذ المنبثقة، ومراحل الحاسبات.
           </div>
           <PermissionsPanel mode="role" sb={sb} role={role} modules={catalog}
-            nav={nav} hubTabs={hubTabs} toast={toast} onRoleChanged={onChanged} embedded />
+            nav={nav} hubTabs={hubTabs} toast={toast} onRoleChanged={onChanged} embedded readOnly={!canManage} />
         </>
       )}
     </div>
   )
 }
 
-function ModuleBlock({ mod, granted, busy, canManage, onToggle, onToggleModule }) {
-  const Icon = resolveIcon(mod.icon)
-  const onCount = mod.perms.filter(p => granted.has(p.id)).length
-  const allOn = onCount === mod.perms.length
-  const c = C.gold
+// ── المستخدمون الذين يحملون هذا الدور — قائمةٌ ظاهرةٌ في صفحة الدور نفسها،
+// فيُعرف من يتأثّر بأي تغييرٍ في الصلاحيات دون فتح صفحة كل مستخدم.
+function RoleUsersCard({ roleId, color }) {
+  const [users, setUsers] = useState(null) // null=يحمّل · []=فارغ
+  useEffect(() => {
+    let alive = true
+    setUsers(null)
+    svc.listRoleUsers(roleId).then(u => { if (alive) setUsers(u) }).catch(() => { if (alive) setUsers([]) })
+    return () => { alive = false }
+  }, [roleId])
+  const c = color || C.gold
   return (
-    <div style={{ borderRadius: 12, background: 'var(--inputBg)', border: '1px solid var(--bd)', overflow: 'hidden' }}>
+    <div style={{ borderRadius: 12, background: 'var(--inputBg)', border: '1px solid var(--bd)', overflow: 'hidden', marginBottom: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '11px 13px', borderBottom: '1px solid var(--bd)' }}>
         <span style={{ width: 28, height: 28, borderRadius: 8, background: c + '14', border: `1px solid ${c}30`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <Icon size={14} color={c} />
+          <Users size={14} color={c} />
         </span>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx)' }}>{mod.label_ar || mod.module}</div>
-          <div style={{ fontSize: 10, fontWeight: 600, color: onCount ? C.ok : 'var(--tx5)' }}>{onCount}/{mod.perms.length} مفعّلة</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx)' }}>المستخدمون بهذا الدور</div>
+          <div style={{ fontSize: 10, fontWeight: 600, color: users && users.length ? C.ok : 'var(--tx5)' }}>
+            {users === null ? '…' : `${users.length} مستخدم`}
+          </div>
         </div>
-        {canManage && (
-          <button onClick={() => onToggleModule(mod, !allOn)}
-            style={{ fontSize: 10.5, fontWeight: 600, padding: '4px 9px', borderRadius: 7, cursor: 'pointer',
-              border: `1px solid ${allOn ? C.red + '55' : c + '55'}`, background: 'transparent', color: allOn ? C.red : c, fontFamily: F }}>
-            {allOn ? 'إلغاء الكل' : 'تفعيل الكل'}
-          </button>
-        )}
       </div>
-      <div style={{ padding: '10px 13px', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-        {mod.perms.map(p => {
-          const on = granted.has(p.id)
-          const view = isViewAction(p.action)
-          const saving = busy.has(p.id)
-          return (
-            <button key={p.id} disabled={!canManage || saving} onClick={() => onToggle(p)}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 11px', borderRadius: 8,
-                border: `1px solid ${on ? C.ok + '55' : 'var(--bd)'}`,
-                background: on ? 'rgba(39,160,70,.12)' : 'var(--card-bg)',
-                color: on ? '#3ec46a' : 'var(--tx4)', fontFamily: F, fontSize: 11.5, fontWeight: 600,
-                cursor: canManage ? (saving ? 'wait' : 'pointer') : 'default', opacity: saving ? .5 : 1, transition: '.15s' }}>
-              {view && <Eye size={11} />}
-              {on && !view && <Check size={11} />}
-              {p.label_ar}
-            </button>
-          )
-        })}
+      <div style={{ padding: '11px 13px' }}>
+        {users === null ? (
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {Array.from({ length: 3 }).map((_, i) => <Shimmer key={i} w={140} h={30} r={8} />)}
+          </div>
+        ) : users.length === 0 ? (
+          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx5)' }}>لا مستخدمين لهذا الدور بعد.</div>
+        ) : (
+          <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+            {users.map(u => (
+              <div key={u.id} title={u.email}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '6px 11px', borderRadius: 9, background: 'var(--card-bg)', border: '1px solid var(--bd)' }}>
+                <span style={{ width: 22, height: 22, borderRadius: '50%', background: c + '1e', border: `1px solid ${c}44`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 10.5, fontWeight: 600, color: c }}>
+                  {String(u.name || '؟').trim().charAt(0)}
+                </span>
+                <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 200 }}>{u.name}</span>
+                  <span style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--tx5)', direction: 'ltr', textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 200 }}>{u.email}</span>
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )
@@ -242,7 +248,7 @@ const iconBtn = (color) => ({
 })
 
 // ── Create / edit a role (name + english + color) ──────────────────────────
-function RoleFormModal({ mode, role, toast, onClose, onSaved }) {
+function RoleFormModal({ mode, role, toast, onClose, onSaved, seedVisibility }) {
   const isEdit = mode === 'edit'
   const [f, setF] = useState({ name_ar: role?.name_ar || '', name_en: role?.name_en || '', color: role?.color || PALETTE[0] })
   const [saving, setSaving] = useState(false)
@@ -255,7 +261,8 @@ function RoleFormModal({ mode, role, toast, onClose, onSaved }) {
     setSaving(true)
     try {
       if (isEdit) await svc.updateRole(role.id, { name_ar: f.name_ar.trim(), name_en: f.name_en.trim() || null, color: f.color })
-      else await svc.createRole({ name_ar: f.name_ar.trim(), name_en: f.name_en.trim() || null, color: f.color })
+      // دورٌ جديد يُولد مغلقاً بالكامل — تُبذَر خريطة الإظهار المطفأة (طلب المستخدم).
+      else await svc.createRole({ name_ar: f.name_ar.trim(), name_en: f.name_en.trim() || null, color: f.color, ui_visibility: seedVisibility })
       setDone(true); setTimeout(() => onSaved?.(), 1200)
     } catch (e) { setErr(e.message || 'تعذّر الحفظ'); setSaving(false) }
   }

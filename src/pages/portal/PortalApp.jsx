@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import * as P from '../../services/portalService.js'
 import { getSupabase } from '../../lib/supabase.js'
 import { noDash } from '../../lib/utils.js'
+import { fmtDMY } from '../SbcFacilities.jsx'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = { gold: '#B07D00', goldSoft: '#e8c77a', red: '#c0392b', ok: '#27a046', warn: '#eab308', dk: '#0a0c10' }
@@ -196,7 +197,7 @@ function TransactionsTab({ toast }) {
             <div key={r.id} style={{ padding: 12, borderRadius: 10, background: '#0a0c10', border: '1px solid rgba(255,255,255,.04)', display: 'flex', justifyContent: 'space-between' }}>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 600 }}>{r.transaction_number || r.id.slice(0, 8)}</div>
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,.55)', marginTop: 2 }}>{r.type || '—'} · {new Date(r.created_at).toLocaleDateString('ar')}</div>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,.55)', marginTop: 2 }}>{r.type || '—'} · {fmtDMY(r.created_at)}</div>
               </div>
               <div style={{ alignSelf: 'center' }}><StatusPill s={r.status} /></div>
             </div>
@@ -269,7 +270,7 @@ function DocumentsTab({ toast }) {
             {uploads.map(u => (
               <tr key={u.id}>
                 <Td>{u.file_name}</Td>
-                <Td>{new Date(u.created_at).toLocaleDateString('ar')}</Td>
+                <Td>{fmtDMY(u.created_at)}</Td>
                 <Td>{u.document_type || '—'}</Td>
                 <Td><StatusPill s={u.status} /></Td>
               </tr>

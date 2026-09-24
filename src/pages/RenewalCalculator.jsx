@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react'
-import { RefreshCw, User, Search, Calendar, Briefcase, Building2, Calculator, Plus, X, Check, Send, ChevronLeft, ChevronRight, AlertCircle, ArrowLeftRight, ShieldAlert, BadgeCheck, IdCard, Copy, Hash, CheckCircle2, Circle, Phone, Globe, HeartPulse, Wallet, Lock } from 'lucide-react'
+import { RefreshCw, User, Search, Calendar, Briefcase, Building2, Calculator, X, Check, Send, ChevronLeft, ChevronRight, AlertCircle, ArrowLeftRight, ShieldAlert, BadgeCheck, IdCard, Copy, Hash, CheckCircle2, Circle, Phone, Globe, HeartPulse, Wallet, Lock } from 'lucide-react'
 import { Modal as FKModal, C, F, ActionButton, Select } from '../components/ui/FormKit.jsx'
 import { getIqamaRenewalPricingConfig } from '../lib/kafalaPricing.js'
 import { computeRenewalExpiryYMD } from '../lib/expiryDuration.js'
@@ -67,30 +67,8 @@ const ChiCountdown = ({ captchaKey, onExpire, color = '#3bb27a' }) => {
   return <div style={{ width: 38, height: 38, flexShrink: 0, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: urgent ? C.red : color, border: `2px solid ${urgent ? 'rgba(192,57,43,.4)' : 'rgba(59,178,122,.35)'}` }}>{rem}</div>
 }
 const nm = v => Number(v || 0).toLocaleString('en-US')
-const fmt = n => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })
 // يُرجع 9 أرقام للجوال السعودي بعد إزالة +966 و الصفر البادئ
 const normalizePhone = p => { let d = String(p || '').replace(/\D/g, ''); if (d.startsWith('966')) d = d.slice(3); return d.replace(/^0+/, '').slice(0, 9) }
-
-// ═══ تحويل هجري مبسّط (للعرض فقط في تبويب التفاصيل) ═══
-function gregorianToHijri(dateStr) {
-  if (!dateStr) return ''
-  const d = new Date(dateStr); if (isNaN(d)) return ''
-  const JD = Math.floor(d.getTime() / 86400000) + 2440588
-  const l = JD - 1948440 + 10632
-  const n = Math.floor((l - 1) / 10631)
-  const l2 = l - 10631 * n + 354
-  const j = Math.floor((10985 - l2) / 5316) * Math.floor((50 * l2) / 17719) + Math.floor(l2 / 5670) * Math.floor((43 * l2) / 15238)
-  const l3 = l2 - Math.floor((30 - j) / 15) * Math.floor((17719 * j) / 50) - Math.floor(j / 16) * Math.floor((15238 * j) / 43) + 29
-  const month = Math.floor((24 * l3) / 709)
-  const day = l3 - Math.floor((709 * month) / 24)
-  const year = 30 * n + j - 30
-  if (month < 1 || month > 12) return ''
-  return `${year}-${month}-${day}`
-}
-
-// ═══ ذرّات التصميم — مطابقة لنافذة تسعيرة التنازل ═══
-const sF = { width: '100%', height: 42, padding: '0 14px', border: '1px solid transparent', borderRadius: 9, fontFamily: F, fontSize: 14, fontWeight: 600, color: 'var(--tx)', outline: 'none', background: 'var(--inputBg)', boxSizing: 'border-box', textAlign: 'center', transition: '.2s', boxShadow: 'none' }
-const Lbl = ({ children, req }) => <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--tx)', marginBottom: 9, textAlign: 'start' }}>{children}{req && <span style={{ color: C.red }}> *</span>}</div>
 
 // خلية معلومة صغيرة (أيقونة + تسمية + قيمة) — نفس نمط كروت البحث في الفاتورة
 const infoBox = (Icon, label, value, valColor) => (
@@ -147,7 +125,6 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
   const isAr = (lang || 'ar') !== 'en'
   const dir = isAr ? 'rtl' : 'ltr'
   const [tab, setTab] = useState(0)
-  const [tried, setTried] = useState(false)
   const [worker, setWorker] = useState(null)
   const [phone, setPhone] = useState('')
   const [q, setQ] = useState('')
@@ -420,10 +397,6 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
         workPermit = Math.round(noExBracket > 0 ? noExBracket : wpBilledMonths * noExPerMonth)
       }
     }
-    // التأمين الطبي: تأمين ساري متبقٍّ ≥ «المهلة» (قابلة للتعديل من الإعدادات: أشهر + أيام، الافتراضي شهرين و10 أيام) ← لا رسم
-    const medGraceMonths = parseInt(cfg.medicalGraceMonths) || 2
-    const medGraceDays = parseInt(cfg.medicalGraceDays) || 10
-    const medThreshold = (() => { const t = new Date(today); t.setMonth(t.getMonth() + medGraceMonths); t.setDate(t.getDate() + medGraceDays); return t })()
     const medEnd = f.medInsuranceEnd ? new Date(f.medInsuranceEnd) : null
     if (medEnd && !isNaN(medEnd)) medEnd.setHours(0, 0, 0, 0)
     const medDaysLeft = medEnd && !isNaN(medEnd) ? Math.round((medEnd - today) / 86400000) : null
@@ -485,7 +458,7 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
     const expectedExpiry = newExpiryYMD || (() => {
       const expBase = (exp && !isNaN(exp) && exp > today) ? new Date(exp) : new Date(today)
       const d = new Date(expBase); d.setMonth(d.getMonth() + renewalMonths)
-      return d.toISOString().slice(0, 10)
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
     })()
     return { expired, inGrace, renewalBase, fine, workPermit, medical, officeFee, profChange, iqamaExcess, wpExcess, medExcess, govExcess, extrasTotal, subtotal, flatModel, officeShare, billedMonths, expectedExpiry, coverIqama, coverWorkPermit, medGovCover, medInsuredValid, medDaysLeft, wpBilledMonths, wpExpired, wpBasisFellBack, wpLongExpired, disabledPeriods, profChangeIsFree, officeMode, officeDays, officeDailyRate, officeFloor }
   }, [worker, f, cfg])
@@ -541,7 +514,7 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
         // نموذج التسعير يُختم على الحسبة: الصادرة بالنموذج القديم تبقى تُحسب وتُعرض به مهما عُدِّلت لاحقاً.
         pricing_model: calc.flatModel ? 'flat' : 'cover',
         gov_excess: calc.govExcess, extras: f.extras || [], absher_discount: absher,
-        subtotal: calc.subtotal, total_amount: grandTotal,
+        subtotal: Math.round(calc.subtotal * 100) / 100, total_amount: Math.round(grandTotal * 100) / 100,
         // تُصدَر مصدَّقة مباشرة (بلا خطوة تصديق منفصلة) — نفس الحقول التي تضبطها شاشة التصديق في RenewalCalcPage.
         status: 'approved', priced_at: new Date().toISOString(), created_by: user?.id || null,
         approved_at: new Date().toISOString(), approved_by: user?.id || null,
@@ -609,20 +582,6 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
     !worker.current_occupation_id && !worker.occupation_ar && T('الوظيفة', 'Occupation'),
   ].filter(Boolean) : []
   const workerDataIncomplete = missingWorkerFields.length > 0
-
-  // كرت الإجمالي المتوقع — يظهر فقط في خطوة المراجعة
-  const heroTotal = (
-    <div style={{ marginTop: 'auto', padding: '14px 18px', borderRadius: 16, background: 'linear-gradient(135deg, rgba(176,125,0,.12), var(--bd2))', border: '1px solid rgba(176,125,0,.4)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: 'var(--shadow-md)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
-        <div style={{ width: 38, height: 38, borderRadius: 11, background: 'rgba(176,125,0,.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.gold, flexShrink: 0 }}><Calculator size={19} strokeWidth={2.2} /></div>
-        <span style={{ fontSize: 13, fontWeight: 600, color: C.gold }}>{T('الإجمالي المتوقع', 'Expected Total')}</span>
-      </div>
-      <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 6, color: C.gold, direction: dir }}>
-        <span style={{ fontSize: 27, fontWeight: 600, lineHeight: 1, letterSpacing: '.5px' }}>{nm(grandTotal.toFixed(2))}</span>
-        <span style={{ fontSize: 13, fontWeight: 600, opacity: .7 }}>{T('ريال', 'SAR')}</span>
-      </span>
-    </div>
-  )
 
   // ── جدول تفصيل الرسوم الحكومية لوحده — يُعرض في خطوة التسعيرة (ضمن الكروت) وخطوة المراجعة (لحاله) ──
   const govFeesDetail = calc && (
@@ -722,29 +681,6 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
           })()}
         </div>
       </KCard>
-  )
-
-  // ── كرتا الملخص: رسوم المكتب + الزائد على العميل — يُعرضان في خطوة التكلفة ──
-  const summaryCards = calc && (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-      {/* رسوم المكتب — الرسم الأساسي للخدمة */}
-      <div style={{ borderRadius: 13, padding: '13px 14px', background: 'linear-gradient(135deg, rgba(176,125,0,.14), rgba(176,125,0,.035))', border: '1px solid rgba(176,125,0,.32)', display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 14, fontWeight: 600, color: C.gold }}><Briefcase size={15} strokeWidth={2.3} />{T('رسوم المكتب', 'Office Fee')}</span>
-        <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 5, fontVariantNumeric: 'tabular-nums' }}><span style={{ direction: 'ltr', fontSize: 22, fontWeight: 600, color: C.gold, lineHeight: 1 }}>{nm(calc.officeFee)}</span><span style={{ fontSize: 10.5, fontWeight: 600, color: C.gold, opacity: .65 }}>{T('ريال', 'SAR')}</span></span>
-      </div>
-      {/* النموذج الجديد: لا «زائد» — الكرت الثاني يعرض الرسوم الحكومية كاملةً (وهي ما يُطبع للعميل). */}
-      {calc.flatModel ? (() => { const gov = calc.renewalBase + calc.workPermit + calc.medical; return (
-        <div style={{ borderRadius: 13, padding: '13px 14px', background: 'linear-gradient(135deg, rgba(53,122,189,.13), rgba(53,122,189,.03))', border: '1px solid rgba(53,122,189,.32)', display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 14, fontWeight: 600, color: '#357abd' }}><Briefcase size={15} strokeWidth={2.3} />{T('الرسوم الحكومية', 'Government Fees')}</span>
-          <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 5, fontVariantNumeric: 'tabular-nums' }}><span style={{ direction: 'ltr', fontSize: 22, fontWeight: 600, color: '#357abd', lineHeight: 1 }}>{nm(gov)}</span><span style={{ fontSize: 10.5, fontWeight: 600, color: '#357abd', opacity: .65 }}>{T('ريال', 'SAR')}</span></span>
-        </div>
-      ) })() : (() => { const clientExcess = calc.govExcess + calc.profChange; return (
-      <div style={{ borderRadius: 13, padding: '13px 14px', background: clientExcess > 0 ? 'linear-gradient(135deg, rgba(192,57,43,.13), rgba(192,57,43,.03))' : 'linear-gradient(135deg, rgba(46,160,67,.13), rgba(46,160,67,.03))', border: `1px solid ${clientExcess > 0 ? 'rgba(192,57,43,.32)' : 'rgba(46,160,67,.32)'}`, display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 14, fontWeight: 600, color: clientExcess > 0 ? C.red : '#2ea043' }}>{clientExcess > 0 ? <AlertCircle size={15} strokeWidth={2.3} /> : <Check size={15} strokeWidth={2.6} />}{T('الزائد على العميل', 'Excess on Customer')}</span>
-        <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 5, fontVariantNumeric: 'tabular-nums' }}><span style={{ direction: 'ltr', fontSize: 22, fontWeight: 600, color: clientExcess > 0 ? C.red : '#2ea043', lineHeight: 1 }}>{clientExcess > 0 ? '+' : ''}{nm(clientExcess)}</span><span style={{ fontSize: 10.5, fontWeight: 600, opacity: .65, color: clientExcess > 0 ? C.red : '#2ea043' }}>{T('ريال', 'SAR')}</span></span>
-      </div>
-      )})()}
-    </div>
   )
 
   // ══════════ محتوى التبويبات ══════════
@@ -946,8 +882,12 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
                 </div>
               )
             })() : (
+              /* نفي كاذب: العامل قد يكون مرتبطاً بمنشأة لكن صفّها محجوب عن المستخدم (RLS)،
+                 فيعود التضمين null. لا نقول «غير مرتبط» إلا إذا كان current_facility_id فارغاً فعلاً. */
               <Group title={T('منشأة العامل', "Worker's Establishment")} Icon={Building2}>
-                <Field label={T('المنشأة', 'Establishment')} value={T('غير مرتبط بمنشأة', 'Not linked to an establishment')} span={2} />
+                <Field label={T('المنشأة', 'Establishment')} value={worker.current_facility_id
+                  ? T('بيانات المنشأة غير متاحة لك', 'Establishment data not available to you')
+                  : T('غير مرتبط بمنشأة', 'Not linked to an establishment')} span={2} />
               </Group>
             )}
             {/* التأمين الطبي إجباري: يُحتسب الرسم دائماً بدون استعلام ولا بطاقة في الواجهة */}
@@ -1023,13 +963,6 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
       {/* ── تبويب 3: التسعيرة (الرسوم) ── */}
       {tab === 3 && calc && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 13, flex: 1, minHeight: 0 }}>
-          {stShow('rw_pricing') && fShow('rw_fees') && govFeesDetail}
-        </div>
-      )}
-
-      {/* ── تبويب 4: مراجعة بيانات العامل ── */}
-      {tab === 4 && calc && stShow('rw_review') && fShow('rw_review') && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, flex: 1, minHeight: 0 }}>
           {/* خط زمني: الإقامة الحالية ← +المدة ← بعد التجديد */}
           <div style={{ background: 'var(--bd2)', border: '1px solid var(--bd)', borderRadius: 13, padding: '20px 18px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
@@ -1056,14 +989,12 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
               </div>
             </div>
           </div>
-          {/* كرتا رسوم المكتب + الزائد على العميل */}
-          {summaryCards}
-          {heroTotal}
+          {stShow('rw_pricing') && fShow('rw_fees') && govFeesDetail}
         </div>
       )}
 
-      {/* ── تبويب 5: ملخص التكاليف (الإصدار) ── */}
-      {tab === 5 && calc && (
+      {/* ── تبويب 4: ملخص التكاليف (الإصدار) ── */}
+      {tab === 4 && calc && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {/* ملخص التكاليف (أخضر) */}
           <div style={{ padding: '10px 14px 8px', borderRadius: 12, background: 'rgba(39,160,70,.04)', border: '1px solid rgba(39,160,70,.25)', position: 'relative' }}>
@@ -1074,8 +1005,7 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
               const fineBump = Math.max(0, fine2 - fine1)   // قيمة إضافة المرة الثانية (مثل تسعيرة التنازل)
               // نموذج «كل الرسوم كاملة»: نعرض كل رسم بقيمته الحكومية الكاملة، ثم رسوم المكتب كاملة، ثم
               // «خصم المكتب» = مجموع ما يشمله المكتب من الرسوم الحكومية ضمن الحدود = (الإقامة+الرخصة+التأمين) − الزائد.
-              const withinNote = T('ضمن حد المكتب', 'within office cap')
-              const cover = Math.max(0, calc.renewalBase + calc.workPermit + calc.medical - calc.govExcess)
+              const withinNote = null
               const grossSubtotal = calc.renewalBase + calc.workPermit + calc.medical + calc.profChange + calc.fine + calc.extrasTotal + calc.officeFee
               const items = [
                 {
@@ -1123,13 +1053,6 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
                     <span style={{ fontWeight: 600, color: 'var(--tx)' }}><span style={{ direction: 'ltr', unicodeBidi: 'isolate' }}>{nm(grossSubtotal)}</span> {T('ريال', 'SAR')}</span>
                   </div>
                   )}
-                  {/* خصم المكتب — مجموع ما يشمله المكتب من الرسوم الحكومية */}
-                  {cover > 0 && stShow('rw_cost') && fShow('rw_manual') && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '2px 0' }}>
-                      <span style={{ color: '#2ea043', fontWeight: 500, fontSize: 12 }}>{T('خصم المكتب', 'Office Discount')}</span>
-                      <span style={{ fontWeight: 600, color: '#2ea043' }}><span style={{ direction: 'ltr', unicodeBidi: 'isolate' }}>{nm(cover)}</span> {T('ريال', 'SAR')}</span>
-                    </div>
-                  )}
                   {/* خصم أبشر — صندوق مؤطّر: عنوان عائم + مفتاح تبديل مغروز في الإطار (نفس تصميم نقل الكفالة) */}
                   {stShow('rw_cost') && fShow('rw_absher') && (
                   <div style={{ position: 'relative', background: 'rgba(39,160,70,.04)', border: `1.5px solid ${f.absher_on ? '#27a04673' : 'rgba(39,160,70,.25)'}`, borderRadius: 12, padding: '13px 12px 9px', margin: '8px 0 2px', transition: '.2s' }}>
@@ -1165,7 +1088,7 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
   )
 
   // ── بناء صفحات الويزارد ──
-  const titles = [T('العامل', 'Worker'), T('التفاصيل', 'Details'), T('التجديد', 'Renewal'), T('التسعيرة', 'Pricing'), T('المراجعة', 'Review'), T('التكلفة', 'Cost')]
+  const titles = [T('العامل', 'Worker'), T('التفاصيل', 'Details'), T('التجديد', 'Renewal'), T('التسعيرة', 'Pricing'), T('التكلفة', 'Cost')]
   // حسبة سابقة سارية لنفس العامل لم تعد تمنع «التالي» لأحد — تظهر كإشعار إعلامي فقط في التذييل (للجميع).
   const dupBlocks = false
   const tab0Valid = !!worker && phoneValid && !workerDataIncomplete && !dupBlocks
@@ -1180,7 +1103,7 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
   const onNext = () => {
     if (tab === 0 && !tab0Valid) return
     // التأمين الطبي إجباري: لا يُستعلم عن تأمين العامل — يُحتسب الرسم دائماً
-    setTab(t => Math.min(5, t + 1))
+    setTab(t => Math.min(4, t + 1))
   }
 
   return (

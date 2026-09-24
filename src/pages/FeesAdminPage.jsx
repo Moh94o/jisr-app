@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Edit3, Power, PowerOff, Plus, Wallet, ShieldAlert, ShieldCheck, X, Landmark, Briefcase, IdCard, Fingerprint, Scale, FolderOpen } from 'lucide-react'
 import { getSupabase } from '../lib/supabase.js'
-import { can, cardVisible } from '../lib/permissions.js'
+import { can } from '../lib/permissions.js'
 import { Shimmer } from '../components/ui/Skeleton.jsx'
 
 // الإدارة ← الرسوم — admin catalog for payment-request fees, grouped into one card per

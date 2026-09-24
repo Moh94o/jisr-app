@@ -90,7 +90,6 @@ serve(async (req) => {
         }).eq('id', convId)
 
         // increment unread atomically
-        await sb.rpc('exec_raw_sql', {}).catch(() => {})  // no-op fallback
         await sb.from('whatsapp_conversations').update({ unread_count: (existingConv ? 1 : 1) }).eq('id', convId)
       }
 

@@ -1,13 +1,11 @@
 import React,{useState,useEffect,useCallback,useMemo,useRef} from 'react'
-import {CalendarRange,CalendarClock,ArrowLeftRight,RefreshCw,Users,FileCheck,Ellipsis,ArrowRight,Plus,HeartPulse,UserCog,IdCard,Languages,Wallet,Printer,Plane,PlaneTakeoff,FileStack,Receipt,User,Phone,CreditCard,Briefcase,Building2,Calendar,ShieldCheck,Hash,AlertCircle,Globe,BadgeCheck,Circle,Upload,FileText,Paperclip,Copy,Check,MapPin,Sparkles,TrendingUp,Coins} from 'lucide-react'
-import {isServiceActive,isServiceBillable,isServiceActiveFor,isServiceBillableFor,getPricingFor,getBranchOverrides,getDocTypes,docTypeLabel} from './ServiceAdminPage.jsx'
+import {CalendarClock,ArrowLeftRight,RefreshCw,Users,FileCheck,Ellipsis,ArrowRight,Plus,HeartPulse,UserCog,IdCard,Wallet,Printer,Plane,PlaneTakeoff,FileStack,Receipt,User,Phone,CreditCard,Briefcase,Building2,Calendar,ShieldCheck,Hash,AlertCircle,Globe,BadgeCheck,Circle,Upload,FileText,Copy,Check,Sparkles,TrendingUp,Coins} from 'lucide-react'
+import {isServiceActive,isServiceBillable,getPricingFor,getBranchOverrides,getDocTypes,docTypeLabel} from './ServiceAdminPage.jsx'
 import {TXN_SERVICES} from './pages/txnServices.js'
 import {noDash} from './lib/utils.js'
 import {isGM,userOffices} from './lib/permissions.js'
-import {KAFALA_DEFAULTS,getKafalaPricingConfig} from './lib/kafalaPricing.js'
-// حدود الرسوم الحكومية المشمولة ضمن «رسوم المكتب» لتجديد الإقامة — ما يتجاوزها يُضاف للإجمالي. (الغرامة تُضاف دائمًا فوق ذلك)
-const IQAMA_COVER={iqama:650,workPermit:100,medical:1000}
-import {Modal as FKModal, SuccessView, ActionButton as FKAction, ModalSection, Field as FKField, IdField as FKId, PhoneField as FKPhone, Select as FKSelect, Segmented as FKSegmented, Stepper as FKStepper, Checkbox as FKCheckbox, CurrencyField as FKCurrency, TextArea as FKTextArea, TextField as FKText, NumberField as FKNumber, DateField as FKDate, FileField as FKFile, Dropdown as FKDropdown, Lbl as FKLbl, GRID as FKGRID, sF as fkSF, validateSaudiId, validatePhone, useFKLang} from './components/ui/FormKit.jsx'
+import {getKafalaPricingConfig} from './lib/kafalaPricing.js'
+import {Modal as FKModal, SuccessView, ModalSection, Field as FKField, IdField as FKId, PhoneField as FKPhone, Select as FKSelect, Segmented as FKSegmented, Stepper as FKStepper, CurrencyField as FKCurrency, TextArea as FKTextArea, TextField as FKText, NumberField as FKNumber, DateField as FKDate, Dropdown as FKDropdown, Lbl as FKLbl, GRID as FKGRID, sF as fkSF, validateSaudiId, validatePhone, useFKLang} from './components/ui/FormKit.jsx'
 const F="'Cairo','Tajawal',sans-serif"
 const C={gold:'#B07D00',red:'#c0392b',ok:'#27a046',blue:'#3483b4',bentoGold:'#B07D00'}
 // Unified loading spinner — shown during any search/wait inside the invoice modal.
@@ -44,12 +42,9 @@ const InfoCard=({Icon,lead,label,labelExtra,value,valueColor,ltr=false,muted=fal
 const fmtDate=(d)=>{if(!d)return'—';const dt=new Date(d);if(isNaN(dt))return'—';return`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`}
 // Flag emoji from country code (2 letters) or Arabic nationality name fallback
 const NAT_MAP={'سعودي':'SA','سعودية':'SA','مصري':'EG','مصرية':'EG','هندي':'IN','هندية':'IN','باكستاني':'PK','باكستانية':'PK','بنجلاديشي':'BD','بنغلاديشي':'BD','فلبيني':'PH','فلبينية':'PH','يمني':'YE','يمنية':'YE','سوداني':'SD','سودانية':'SD','اندونيسي':'ID','إندونيسي':'ID','اثيوبي':'ET','إثيوبي':'ET','نيبالي':'NP','سريلانكي':'LK','كيني':'KE','أوغندي':'UG','اوغندي':'UG','سوري':'SY','أردني':'JO','اردني':'JO','لبناني':'LB','فلسطيني':'PS','مغربي':'MA','تونسي':'TN','جزائري':'DZ'}
-const flagEmoji=(nat)=>{if(!nat)return'';let cc=nat.length===2?nat.toUpperCase():(NAT_MAP[nat.trim()]||'');if(cc.length!==2)return'';return String.fromCodePoint(...[...cc].map(c=>c.charCodeAt(0)+127397))}
 // Flag image URL for a nationality. The `code` column is alpha-3/numeric (e.g. "SAU","340"), so prefer the
 // stored flag_url; fall back to a 2-letter ISO code or the Arabic-name map, and null when nothing resolves.
 const natFlagUrl=(nat)=>{if(!nat)return null;if(nat.flag_url)return nat.flag_url;const raw=(nat.code||nat.flag_emoji||'').toString().trim().toUpperCase();const iso=/^[A-Z]{2}$/.test(raw)?raw:NAT_MAP[(nat.nationality_ar||nat.name_ar||'').trim()];return iso?`https://flagcdn.com/w80/${iso.toLowerCase()}.png`:null}
-// Extract latest nitaqat from facility.weekly_stats array
-const latestStat=(stats)=>{if(!stats||!stats.length)return null;return[...stats].sort((a,b)=>new Date(b.week_date)-new Date(a.week_date))[0]}
 // Check if date is expired/expiring
 const dateStatus=(d)=>{if(!d)return'none';const dt=new Date(d),now=new Date(),days=Math.round((dt-now)/86400000);if(days<0)return'expired';if(days<30)return'soon';return'ok'}
 // Visa-file grouping key: visas may share a file ONLY when nationality, embassy, gender AND profession all match.
@@ -279,8 +274,6 @@ Object.entries(TXN_SERVICES).forEach(([code,cfg])=>{if(cfg.inputs)SERVICE_INPUTS
 // Field + label styles — mirror FormKit's canonical sF/Lbl so raw inputs in this page match معرض الفورمات
 const fS={...fkSF}
 const lblS={fontSize:14,fontWeight:600,color:'var(--tx)',marginBottom:9,display:'block',textAlign:'start'}
-const goldBtn={height:48,padding:'0 24px',borderRadius:11,border:'1px solid rgba(176,125,0,.45)',background:'linear-gradient(180deg,rgba(176,125,0,.22) 0%,rgba(176,125,0,.10) 100%)',color:C.gold,fontFamily:F,fontSize:14,fontWeight:600,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:8,boxShadow:'0 4px 14px rgba(176,125,0,.25), inset 0 1px 0 rgba(176,125,0,.2)',transition:'.2s'}
-const ghostBtn={height:48,padding:'0 24px',borderRadius:11,background:'linear-gradient(180deg,#323232 0%,#262626 100%)',border:'1px solid var(--bd)',color:'var(--tx3)',fontFamily:F,fontSize:14,fontWeight:600,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:8,boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s'}
 
 const STEPS=[{ar:'الخدمة',icon:'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2'},{ar:'العميل',icon:'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z'},{ar:'التفاصيل',icon:'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z'},{ar:'الفاتورة',icon:'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'},{ar:'الدفع',icon:'M3 10h18M7 15h2m4 0h2m-7 4h12a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z'},{ar:'الملخص',icon:'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'}]
 
@@ -302,11 +295,6 @@ function NiceSelect({value,onChange,options,placeholder='اختر...',disabled=f
   return <FKDropdown value={value} onChange={onChange} options={options} placeholder={placeholder}
     getKey={o=>o.value} getLabel={o=>String(o.label??'')} searchable={searchable} disabled={disabled}/>
 }
-// KafalaSel replacement — old import from KafalaCalculator used {v,l} option shape.
-function KafalaSel({value,onChange,options,placeholder='اختر...',disabled=false}){
-  return <FKDropdown value={value} onChange={onChange} options={options} placeholder={placeholder}
-    getKey={o=>o.v} getLabel={o=>String(o.l??'')} searchable={false} disabled={disabled}/>
-}
 
 export default function ServiceRequestPage({sb,toast,user,lang,branchId,onClose,preselectedService}){
 const isAr=lang!=='en';const T=(a,e)=>isAr?a:e;const dir=isAr?'rtl':'ltr'
@@ -314,14 +302,14 @@ const[step,setStep]=useState(preselectedService?2:1)
 const[services,setServices]=useState([])
 const[regions,setRegions]=useState([])
 const[cities,setCities]=useState([])
-const[selCat,setSelCat]=useState('')
+const[,setSelCat]=useState('')
 const[selSvc,setSelSvc]=useState(preselectedService||null)
 const[showOthers,setShowOthers]=useState(false)
 // خطوة اختيار المكتب (قبل الخدمة) — للمدير العام ولمن له أكثر من مكتب. المكتب المختار يغذّي كل الكتابات والتسعير.
 const[svcBranch,setSvcBranch]=useState(null)
 const[branchConfirmed,setBranchConfirmed]=useState(false)
 const[branchList,setBranchList]=useState([])
-const[customName,setCustomName]=useState('')
+const[customName]=useState('')
 const[clientMode,setClientMode]=useState('existing')
 const[clientQ,setClientQ]=useState('')
 const[selClient,setSelClient]=useState(null)
@@ -329,11 +317,8 @@ const[selClient,setSelClient]=useState(null)
 const[clientSearchResults,setClientSearchResults]=useState(null)
 const[clientSearching,setClientSearching]=useState(false)
 const[newClient,setNewClient]=useState({name_ar:'',name_en:'',phone:'',id_number:'',nationality_id:''})
-const[natOpenClient,setNatOpenClient]=useState(false)
-const[natSearchClient,setNatSearchClient]=useState('')
-const natTriggerRef=useRef(null)
-const[natPos,setNatPos]=useState({top:0,left:0,width:0})
-const openNatDropdown=()=>{if(natTriggerRef.current){const r=natTriggerRef.current.getBoundingClientRect();setNatPos({top:r.bottom+4,left:r.left,width:r.width})}setNatOpenClient(v=>!v)}
+const[,setNatOpenClient]=useState(false)
+const[,setNatSearchClient]=useState('')
 const[clients,setClients]=useState([])
 const[workerIsClient,setWorkerIsClient]=useState(false)// default: unchecked
 const[step2Mode,setStep2Mode]=useState(preselectedService&&!CLIENT_SERVICES.has(preselectedService)?'worker':'client')// 'client' | 'worker'
@@ -347,24 +332,19 @@ const natLookupRef=useRef({})// nationality-by-name map for flag backfill, reuse
 const[workerMode,setWorkerMode]=useState('existing')// 'existing' | 'new'
 const[newWorker,setNewWorker]=useState({name:'',phone:'',iqama_number:''})
 const[workerFacilityStat,setWorkerFacilityStat]=useState(null)// latest nitaqat/wps data for selected worker's facility
-const[copiedQiwa,setCopiedQiwa]=useState(false)
-const[copiedUnified,setCopiedUnified]=useState(false)
 
 // Step 4: Invoice
-const[paymentType,setPaymentType]=useState('full')// 'full' | 'installments'
-const[installmentsCount,setInstallmentsCount]=useState(2)
-const[firstInstallmentDate,setFirstInstallmentDate]=useState('')
-const[hasBroker,setHasBroker]=useState(false)
+const[,setPaymentType]=useState('full')// 'full' | 'installments'
+const[,setInstallmentsCount]=useState(2)
+const[,setFirstInstallmentDate]=useState('')
+const[,setHasBroker]=useState(false)
 const[brokerMode,setBrokerMode]=useState('existing')// 'existing' | 'new'
 const[brokerQ,setBrokerQ]=useState('')
 const[selBroker,setSelBroker]=useState(null)
 const[newBroker,setNewBroker]=useState({name_ar:'',name_en:'',phone:'',id_number:'',nationality_id:''})
 const[brokers,setBrokers]=useState([])
-const[natOpenBroker,setNatOpenBroker]=useState(false)
-const[natSearchBroker,setNatSearchBroker]=useState('')
-const natTriggerBrokerRef=useRef(null)
-const[natPosBroker,setNatPosBroker]=useState({top:0,left:0,width:0})
-const openNatBrokerDropdown=()=>{if(natTriggerBrokerRef.current){const r=natTriggerBrokerRef.current.getBoundingClientRect();setNatPosBroker({top:r.bottom+4,left:r.left,width:r.width})}setNatOpenBroker(v=>!v)}
+const[,setNatOpenBroker]=useState(false)
+const[,setNatSearchBroker]=useState('')
 
 // Step 5: Payment + Notes
 const[paidAmount,setPaidAmount]=useState('')
@@ -373,12 +353,8 @@ const[paymentMethod,setPaymentMethod]=useState('cash')
 const[transferReceipt,setTransferReceipt]=useState(null)
 const[receiptDrag,setReceiptDrag]=useState(false)
 const[transferReference,setTransferReference]=useState('')
-const[bankAccounts,setBankAccounts]=useState([])
+const[,setBankAccounts]=useState([])
 const[selBankAcc,setSelBankAcc]=useState('')
-const[bankAccOpen,setBankAccOpen]=useState(false)
-const bankAccTriggerRef=useRef(null)
-const[bankAccPos,setBankAccPos]=useState({top:0,left:0,width:0})
-const openBankAccDropdown=()=>{if(bankAccTriggerRef.current){const r=bankAccTriggerRef.current.getBoundingClientRect();setBankAccPos({top:r.bottom+4,left:r.left,width:r.width})}setBankAccOpen(v=>!v)}
 // المكاتب المتاحة لاختيار مكتب الفاتورة — المدير العام يرى كل المكاتب، وغيره يرى مكاتبه فقط.
 useEffect(()=>{let alive=true;sb.from('branches').select('id,branch_code,name_ar').is('deleted_at',null).eq('is_active',true).order('name_ar').then(({data})=>{if(alive)setBranchList(data||[])});return()=>{alive=false}},[sb])
 // المكتب المختار يعيد تحميل حسابات التحويلات الواردة الخاصة به (ويصفّر الحساب المحدد).
@@ -403,8 +379,8 @@ return{
   defaultTotal:Number(p.defaultTotal)||0,
 }
 }
-const[addAdminNote,setAddAdminNote]=useState(false)
-const[addClientNote,setAddClientNote]=useState(false)
+const[,setAddAdminNote]=useState(false)
+const[,setAddClientNote]=useState(false)
 const[showSummaryScreen,setShowSummaryScreen]=useState(false)
 const[showBrokerNoteScreen,setShowBrokerNoteScreen]=useState(false)
 const[brokerOpen,setBrokerOpen]=useState(false)// broker fieldset collapsed by default — user opens via icon
@@ -439,11 +415,9 @@ const[kafalaClientLoading,setKafalaClientLoading]=useState(false)// resolving th
 const[passportPage,setPassportPage]=useState(1)// 1=facility+current+type, 2=new passport fields
 const prefilledRef=useRef(new Set())// tracks which fields have already been auto-prefilled
 const[visaFiles,setVisaFiles]=useState([])// [{id,count}, ...] — global file distribution across total visas
-const[dragInfo,setDragInfo]=useState(null)// {fileId, groupId} — drag state for moving visas between files
 const[lkCountries,setLkCountries]=useState([])
 const[lkEmbassies,setLkEmbassies]=useState([])
 const[lkOccupations,setLkOccupations]=useState([])
-const[lkGenders,setLkGenders]=useState([])
 const[clientNote,setClientNote]=useState('')
 const[internalNote,setInternalNote]=useState('')
 const[saving,setSaving]=useState(false)
@@ -457,7 +431,6 @@ const[err,realSetErr]=useState('')
 // the capture box instead of touching state, making canNext() a pure predicate in that window.
 const errCaptureRef=useRef(null)
 const setErr=(v)=>{if(errCaptureRef.current)errCaptureRef.current.v=v;else realSetErr(v)}
-const[loading,setLoading]=useState(true)
 
 // عند تغيير الخدمة المختارة لخدمة مختلفة → ابدأ من جديد بالكامل: صفّر كل اختيارات وحقول الخطوات السابقة
 // (نتجاهل أول تشغيل حتى لا نمسح خدمة مُمرّرة مسبقاً preselectedService).
@@ -491,7 +464,7 @@ useEffect(()=>{
 useEffect(()=>{if(!sb)return;(async()=>{
 const[r,c,w,b,ci,ba]=await Promise.all([
 sb.from('regions').select('id,name_ar').order('name_ar'),
-sb.from('clients').select('id,name_ar,name_en,phone,id_number,nationality_id').is('deleted_at',null).order('name_ar').limit(500),
+sb.from('clients').select('id,name_ar,name_en,phone,id_number,nationality_id').is('deleted_at',null).order('name_ar').limit(5000),
 // Worker query with current_facility / current_occupation / nationality joins (new schema)
 sb.from('workers').select(WORKER_SELECT).is('deleted_at',null).order('name_ar').limit(50),
 sb.from('agents').select('id,name_ar,name_en,phone,id_number,nationality_id').is('deleted_at',null).order('name_ar').limit(50),
@@ -532,12 +505,11 @@ setBankAccounts((ba?.data||[]).map(j=>({...(j.bank_accounts||{}),_junction_id:j.
 setSelCat('main')
 // Visa lookups: occupations from `occupations` table, gender hardcoded (no lookup category for it).
 const[occRes,natRes,emRes]=await Promise.all([
-sb.from('occupations').select('id,name_ar,code').is('is_active',true).order('name_ar').limit(2000),
+sb.from('occupations').select('id,name_ar,code').is('is_active',true).order('name_ar').limit(5000),
 sb.from('nationalities').select('id,name_ar,code,country_name_ar,flag_url').is('is_active',true).order('name_ar'),
 sb.from('embassies').select('id,name_ar,name_en,nationality_id').is('is_active',true).order('name_ar'),
 ])
 setLkOccupations((occRes.data||[]).map(o=>({id:o.id,value_ar:o.name_ar,code:o.code,sort_order:0})))
-setLkGenders([{id:'male',value_ar:'ذكر',code:'male',sort_order:1},{id:'female',value_ar:'أنثى',code:'female',sort_order:2}])
 // Reshape nationalities to match legacy countries shape (nationality_ar)
 if(natRes.data){
 const GCC=new Set(['SA','AE','KW','QA','BH','OM'])
@@ -564,11 +536,8 @@ return{...w,country:{nationality_ar:hit.nat||raw,flag_emoji:null,code:hit.code,f
 }
 // Reshape embassies (country_id mirrors nationality_id for filtering)
 setLkEmbassies((emRes.data||[]).map((e,i)=>({id:e.id,country_id:e.nationality_id||null,nationality_id:e.nationality_id||null,city_ar:e.name_ar,name_en:e.name_en||null,type:'embassy',sort_order:i})))
-setLoading(false)
 })()},[sb])
 
-const categories=useMemo(()=>[...new Set(services.map(s=>s.category))],[services])
-const filteredSvcs=useMemo(()=>services.filter(s=>s.category===selCat),[services,selCat])
 const selectedService=useMemo(()=>{
 if(!selSvc)return null
 const sv=ALL_SERVICES.find(s=>s.id===selSvc)
@@ -578,7 +547,7 @@ const displayName=sv.id==='custom'?(customName.trim()||T('خدمة عامة','Ge
 return{id:db?.id||sv.id,service_type:sv.id,name_ar:displayName,
 category:db?.category||'general',default_price:db?.default_price||0,
 gov_fee:db?.gov_fee||0,pricing_rules:db?.pricing_rules||{},inputs:db?.inputs||[]}
-},[selSvc,services,customName])
+},[selSvc,services,customName,isAr])
 
 // Resolved inputs for current service (DB first, then SERVICE_INPUTS fallback)
 const svcInputs=useMemo(()=>(selectedService?.inputs?.length?selectedService.inputs:SERVICE_INPUTS[selSvc])||[],[selectedService,selSvc])
@@ -775,8 +744,6 @@ const list=brokerHits!==null?brokerHits:local
 return list.slice(0,5)
 },[brokers,brokerHits,brokerQ])
 
-// Broker search
-const filteredBrokers=useMemo(()=>(brokerQ.trim()?brokerResults:brokers.slice(0,2)),[brokers,brokerQ,brokerResults])
 
 // Reshape a raw workers/temproryworkers row into the legacy shape the UI expects (mirror of the
 // initial-load map above), including nationality-flag backfill from the cached nat lookup.
@@ -1055,7 +1022,7 @@ setLoadingKafalaQuotes(true)
 const cutoff=new Date(Date.now()-5*86400000).toISOString()
 // ── تجديد الإقامة: حسبة تجديد مصدّقة من iqama_renewal_calculation — تُرفَق كما هي بلا إعادة حساب ──
 if(selSvc==='iqama_renewal'){
-sb.from('iqama_renewal_calculation').select('id,worker_id,worker_name,iqama_number,phone,quote_no,total_amount,subtotal,office_fee,gov_excess,late_fine_amount,prof_change_fee,iqama_renewal_fee,work_permit_fee,medical_fee,absher_discount,manual_discount,extras,renewal_months,change_profession,new_occupation_name_ar,iqama_expiry_gregorian,nationality_id,dob,priced_at,government_fees,office_cover,office_fee_net,billed_renewal_months').eq('status','approved').gte('priced_at',cutoff).is('deleted_at',null).order('priced_at',{ascending:false}).limit(200).then(({data})=>{
+sb.from('iqama_renewal_calculation').select('id,worker_id,worker_name,iqama_number,phone,quote_no,total_amount,subtotal,office_fee,gov_excess,late_fine_amount,prof_change_fee,iqama_renewal_fee,work_permit_fee,medical_fee,absher_discount,manual_discount,extras,renewal_months,change_profession,new_occupation_name_ar,iqama_expiry_gregorian,nationality_id,dob,priced_at,government_fees,office_cover,office_fee_net,billed_renewal_months').eq('status','approved').gte('priced_at',cutoff).is('deleted_at',null).order('priced_at',{ascending:false}).limit(5000).then(({data})=>{
 const parsed=(data||[]).map(q=>({
 id:q.id,
 worker_id:q.worker_id||null,
@@ -1093,7 +1060,7 @@ setLoadingKafalaQuotes(false)
 })
 return
 }
-sb.from('transfer_calculation').select('id,worker_name,iqama_number,phone,quote_no,total_amount,subtotal,transfer_fee,iqama_renewal_fee,work_permit_fee,medical_fee,office_fee,prof_change_fee,late_fine_amount,absher_discount,manual_discount,extras,priced_at,approved_at,transfer_only,nationality_id,dob,renew_iqama,renewal_months,duration_months,duration_days,expected_duration_months,expected_duration_days,billed_renewal_months,government_fees,office_fee_net').eq('status','approved').gte('priced_at',cutoff).is('deleted_at',null).order('priced_at',{ascending:false}).limit(200).then(({data})=>{
+sb.from('transfer_calculation').select('id,worker_name,iqama_number,phone,quote_no,total_amount,subtotal,transfer_fee,iqama_renewal_fee,work_permit_fee,medical_fee,office_fee,prof_change_fee,late_fine_amount,absher_discount,manual_discount,extras,priced_at,approved_at,transfer_only,nationality_id,dob,renew_iqama,renewal_months,duration_months,duration_days,expected_duration_months,expected_duration_days,billed_renewal_months,government_fees,office_fee_net').eq('status','approved').gte('priced_at',cutoff).is('deleted_at',null).order('priced_at',{ascending:false}).limit(5000).then(({data})=>{
 const parsed=(data||[]).map(q=>({
 id:q.id,
 new_employer_name:q.worker_name||'',
@@ -1287,19 +1254,6 @@ if(t>0)setPaidAmount(String(t))
 // eslint-disable-next-line react-hooks/exhaustive-deps
 },[step,selSvc,kafalaPayMode])
 
-// Installments breakdown
-const installmentsList=useMemo(()=>{
-if(paymentType!=='installments'||!installmentsCount||installmentsCount<2)return[]
-const total=pricing.total||0
-const per=Math.round((total/installmentsCount)*100)/100
-const startDate=firstInstallmentDate?new Date(firstInstallmentDate):new Date()
-return Array.from({length:installmentsCount},(_,i)=>{
-const d=new Date(startDate)
-d.setMonth(d.getMonth()+i)
-return{idx:i+1,amount:i===installmentsCount-1?total-(per*(installmentsCount-1)):per,date:d.toISOString().split('T')[0]}
-})
-},[paymentType,installmentsCount,firstInstallmentDate,pricing])
-
 // Validation
 const canNext=()=>{
 setErr('')
@@ -1320,9 +1274,9 @@ if(!nm){setErr(T('يرجى إدخال اسم العميل','Please enter the cli
 if(!newClient.nationality_id){setErr(T('يرجى اختيار الجنسية','Please select a nationality'));return false}
 }
 if(!newClient.id_number||newClient.id_number.length!==10){setErr(T('رقم الهوية يجب أن يكون 10 أرقام','ID number must be 10 digits'));return false}
-{const e=validateSaudiId(newClient.id_number);if(e){setErr(e);return false}}
+{const e=validateSaudiId(newClient.id_number,isAr);if(e){setErr(e);return false}}
 if(!newClient.phone||newClient.phone.length!==9){setErr(T('رقم الجوال يجب أن يكون 9 أرقام','Mobile must be 9 digits'));return false}
-{const e=validatePhone(newClient.phone);if(e){setErr(e);return false}}
+{const e=validatePhone(newClient.phone,isAr);if(e){setErr(e);return false}}
 // «العامل هو نفسه العميل» لعميل جديد: يتطلب وجود عامل مسجّل بنفس رقم الهوية (لا يُنشأ هنا).
 if(workerIsClient&&!selWorker){setErr(T('لا يوجد عامل بنفس بيانات الهوية — اختر «شخص مختلف» وحدّد عاملاً مسجّلاً','No worker with the same ID — choose "Different person" and pick a registered worker'));return false}
 }
@@ -1358,9 +1312,9 @@ if(!nm){setErr(T('يرجى إدخال اسم العميل','Please enter the cli
 {const isArN=/^[؀-ۿ\s]+$/.test(nm),isEnN=/^[A-Za-z\s]+$/.test(nm);if(!isArN&&!isEnN){setErr(T('اسم العميل يجب أن يكون بالعربية فقط أو بالإنجليزية فقط','Client name must be all Arabic or all English'));return false}const w=nm.split(/\s+/).filter(Boolean);if(w.length!==2){setErr(T('اسم العميل يجب أن يكون من كلمتين بالضبط','Client name must be exactly two words'));return false}}
 if(!newClient.nationality_id){setErr(T('يرجى اختيار الجنسية','Please select a nationality'));return false}
 if(!newClient.id_number||newClient.id_number.length!==10){setErr(T('رقم الهوية يجب أن يكون 10 أرقام','ID number must be 10 digits'));return false}
-{const e=validateSaudiId(newClient.id_number);if(e){setErr(e);return false}}
+{const e=validateSaudiId(newClient.id_number,isAr);if(e){setErr(e);return false}}
 if(!newClient.phone||newClient.phone.length!==9){setErr(T('رقم الجوال يجب أن يكون 9 أرقام','Mobile must be 9 digits'));return false}
-{const e=validatePhone(newClient.phone);if(e){setErr(e);return false}}
+{const e=validatePhone(newClient.phone,isAr);if(e){setErr(e);return false}}
 }
 }
 return true
@@ -1370,7 +1324,7 @@ return true
 if(skipClientStep&&selSvc!=='supplier_payroll'&&selSvc!=='documents'){
 const ph=fields.worker_phone||''
 if(ph.length!==9){setErr(T('يرجى إدخال رقم جوال العامل (9 أرقام)','Please enter the worker mobile (9 digits)'));return false}
-{const e=validatePhone(ph);if(e){setErr(e);return false}}
+{const e=validatePhone(ph,isAr);if(e){setErr(e);return false}}
 }
 if(VISA_SERVICES.has(selSvc)){
 // كل مجموعة يجب أن تكون مكتملة قبل «التالي» — التوزيع اليدوي أُلغي، والملفات تُحزم آلياً.
@@ -1439,6 +1393,8 @@ if(hasResidence){
 const authVal=visaInstallments.authorization===''?defaultEach:(Number(visaInstallments.authorization)||0)
 // دفعة «عند توكيل التأشيرة» (الدائمة): تُفرض بالحد الأدنى لدفعة الوكالة من إعدادات الخدمة.
 if((Number(cfg.authorization)||0)>0&&authVal<numVisas*cfg.authorization&&!gm){setErr(T('دفعة «عند توكيل التأشيرة» أقل من الحد المسموح','The "on visa authorization" installment is below the allowed minimum'));return false}
+// شرط بنيوي (يسري على الجميع): الإصدار + التوكيل لا يتجاوزان الإجمالي، وإلا زاد مجموع الدفعات المحفوظة عن إجمالي الفاتورة.
+if(issuanceVal+authVal>total+0.01){setErr(T('مجموع دفعتي «عند إصدار التأشيرة» و«عند توكيل التأشيرة» يتجاوز الإجمالي','The "on visa issuance" and "on visa authorization" installments exceed the total'));return false}
 const residenceSubtotal=Math.max(0,total-issuanceVal-authVal)
 const residencePerVisa=visaInstallments.residencePerVisa===''?(residenceSubtotal/numVisas):(Number(visaInstallments.residencePerVisa)||0)
 if((Number(cfg.residence)||0)>0&&residencePerVisa<Number(cfg.residence)&&!gm){setErr(T('دفعة «عند إصدار الإقامة» أقل من الحد المسموح','The "on Iqama issuance" installment is below the allowed minimum'));return false}
@@ -1455,7 +1411,6 @@ if(step===4&&selSvc==='custom'&&(Number(pricing?.total)||0)<=0){setErr(T('يرج
 // Kafala/Iqama/خدمة عامة payment plan: the first installment must cover everything except the office fee.
 if(step===4&&(selSvc==='kafala_transfer'||selSvc==='iqama_renewal'||selSvc==='custom')&&kafalaPayStep&&kafalaPayMode==='split'){
 const total=Number(pricing.total)||0
-const officeFee=selSvc==='custom'?0:((selSvc==='iqama_renewal'||selSvc==='kafala_transfer')?Number(selKafalaQuote?.office_fee||0):Number((kafalaLines&&kafalaLines.officeFee)||0))
 // الدفعة الأولى يجب ألا تقل عن رسوم النقل الحكومية. تجديد الإقامة = نفس قيمة صفحة التفاصيل (government_fees)؛
 // نقل الكفالة = رسوم النقل فقط (net من خصم أبشر) — رخصة العمل والتأمين الطبي وتغيير المهنة ورسوم المكتب كلها قابلة للتأجيل. خدمة عامة بلا حد أدنى.
 const minFirst=selSvc==='custom'?0:(selSvc==='iqama_renewal'?iqamaQuoteGovFees(selKafalaQuote):((Number(selKafalaQuote?.subtotal||0)>0)?Math.max(0,Number(selKafalaQuote?.transfer_fee||0)-Number(selKafalaQuote?.absher_discount||0)):Math.max(0,Number(kafalaLines?.transferFee||0)-Number(kafalaLines?.absherBalance||0))))
@@ -1463,10 +1418,7 @@ const rows=kafalaInstallments
 const first=parseFloat(rows[0]?.amount)||0
 // «دفعات متعددة» تتطلب دفعتين على الأقل — وإلا فهي دفعة واحدة
 if(rows.length<2){setErr(T('الدفعات المتعددة تتطلب دفعتين على الأقل','Multiple installments require at least two'));return false}
-// ⚠️ استثناء لمرة واحدة (حالة خاصة يوم 2026-07-03): السماح بدفعة أولى أقل من الرسوم
-// الحكومية — يبطل تلقائياً بعد نهاية هذا اليوم ويعود الشرط للعمل. يُحذف لاحقاً.
-const oneTimeBypass=new Date().toISOString().slice(0,10)==='2026-07-03'
-if(first<minFirst&&!oneTimeBypass&&!gm){const _lbl=selSvc==='iqama_renewal'?T('مجموع الرسوم الحكومية','total government fees'):T('رسوم النقل','the transfer fee');setErr(T(`الدفعة الأولى يجب ألا تقل عن ${fmtAmt(minFirst.toFixed(2))} ريال (${_lbl})`,`The first installment must be at least ${fmtAmt(minFirst.toFixed(2))} SAR (${_lbl})`));return false}
+if(first<minFirst&&!gm){const _lbl=selSvc==='iqama_renewal'?T('مجموع الرسوم الحكومية','total government fees'):T('رسوم النقل','the transfer fee');setErr(T(`الدفعة الأولى يجب ألا تقل عن ${fmtAmt(minFirst.toFixed(2))} ريال (${_lbl})`,`The first installment must be at least ${fmtAmt(minFirst.toFixed(2))} SAR (${_lbl})`));return false}
 // كل دفعة يجب أن تحمل مبلغاً موجباً
 if(rows.some(r=>(parseFloat(r.amount)||0)<=0)){setErr(T('يرجى إدخال مبلغ لكل دفعة','Please enter an amount for each installment'));return false}
 // خدمة عامة: الدفعة الأولى تاريخ عادي مثل البقية فتُطلب تواريخ الكل؛ باقي الخدمات الأولى «عند الإصدار» فتُستثنى.
@@ -1477,7 +1429,6 @@ if(Math.abs(sum-total)>0.01){setErr(T(`مجموع الدفعات (${fmtAmt(sum.t
 }
 // Step 5 (payment entry) — تأشيرة دائمة: المبلغ المدفوع يجب أن يغطي دفعة «عند إصدار التأشيرة» (الدفعة الأولى) قبل المتابعة.
 if(step===5&&!showSummaryScreen&&!showBrokerNoteScreen&&VISA_SERVICES.has(selSvc)){
-const numVisas=visaGroups.reduce((s,g)=>s+(parseInt(g.count)||0),0)||1
 const total=totalOverride!==null?Number(totalOverride):Number(pricing?.total||0)
 const defaultEach=total/(RESIDENCE_VISA_SERVICES.has(selSvc)?3:2)
 const issuanceVal=visaInstallments.issuance===''?defaultEach:(Number(visaInstallments.issuance)||0)
@@ -1514,9 +1465,9 @@ if(!bn){setErr(T('يرجى إدخال اسم الوسيط','Please enter the age
 {const isArN=/^[؀-ۿ\s]+$/.test(bn),isEnN=/^[A-Za-z\s]+$/.test(bn);if(!isArN&&!isEnN){setErr(T('اسم الوسيط يجب أن يكون بالعربية فقط أو بالإنجليزية فقط','Agent name must be all Arabic or all English'));return false}const w=bn.split(/\s+/).filter(Boolean);if(w.length!==2){setErr(T('اسم الوسيط يجب أن يكون من كلمتين بالضبط','Agent name must be exactly two words'));return false}}
 if(!newBroker.nationality_id){setErr(T('يرجى اختيار جنسية الوسيط','Please select the agent nationality'));return false}
 if(!newBroker.id_number||newBroker.id_number.length!==10){setErr(T('رقم هوية الوسيط يجب أن يكون 10 أرقام','Agent ID number must be 10 digits'));return false}
-{const e=validateSaudiId(newBroker.id_number);if(e){setErr(e);return false}}
+{const e=validateSaudiId(newBroker.id_number,isAr);if(e){setErr(e);return false}}
 if(!newBroker.phone||newBroker.phone.length!==9){setErr(T('رقم جوال الوسيط يجب أن يكون 9 أرقام','Agent mobile must be 9 digits'));return false}
-{const e=validatePhone(newBroker.phone);if(e){setErr(e);return false}}
+{const e=validatePhone(newBroker.phone,isAr);if(e){setErr(e);return false}}
 }
 }
 return true
@@ -1639,7 +1590,7 @@ if(!userBranchId){setErr(needBranch?T('يرجى اختيار المكتب في �
 // ─── Hard pricing validation — enforce Service Admin minimums BEFORE any DB writes ───
 // The visa flow lets the user override the total and per-installment amounts. Block save
 // if any of them falls under the configured minimum for this service + branch.
-if(VISA_SERVICES.has(selSvc)&&isServiceBillable(selSvc)){
+if(VISA_SERVICES.has(selSvc)&&isServiceBillable(selSvc)&&!gm){
   const minCfg=getPricingFor(selSvc,userBranchId)||{}
   const numVisas=visaGroups.reduce((s,g)=>s+(parseInt(g.count)||0),0)||1
   const total=totalOverride!==null?Number(totalOverride):Number(pricing?.total||0)
@@ -1800,7 +1751,7 @@ const iqamaPrintDetails=selSvc==='iqama_print'&&(fields.print_reason||'').trim()
 const passportDetails=selSvc==='passport_update'?{
   ...(fields.update_mode?{update_mode:fields.update_mode}:{}),
   ...(fields.update_mode==='renew'&&fields.new_passport_no?{new_passport_no:fields.new_passport_no.trim()}:{}),
-  ...(fields.update_mode==='renew'&&fields.new_passport_issue_city?{new_passport_issue_city_name:(cities.find(c=>c.id===fields.new_passport_issue_city)?.name_ar||'')}:{}),
+  ...(fields.update_mode==='renew'&&fields.new_passport_issue_city?{new_passport_issue_city_name:(cities.find(c=>c.id===fields.new_passport_issue_city)?.name_ar||String(fields.new_passport_issue_city).trim())}:{}),
   ...(fields.update_mode==='renew'&&fields.new_passport_issue_date?{new_passport_issue_date:fields.new_passport_issue_date}:{}),
   ...(fields.new_passport_expiry?{new_passport_expiry:fields.new_passport_expiry}:{}),
 }:null
@@ -1885,7 +1836,6 @@ const isVisa=VISA_SERVICES.has(selSvc)
 const hasResidence=RESIDENCE_VISA_SERVICES.has(selSvc)
 const visaHasInstallments=isVisa
 const visaStageCount=visaHasInstallments?(hasResidence?3:2):0
-const numVisas=isVisa?(visaGroups.reduce((s,g)=>s+(parseInt(g.count)||0),0)||1):1
 // Round each stage to 2 decimals (matches the DB numeric(.,2) columns). The first two
 // stages are rounded and the residence stage absorbs the remainder, so the three stages
 // always sum to exactly `total` — otherwise total/3 = 4666.6667 stores as 4666.67 ×3 = 14000.01,
@@ -1969,7 +1919,7 @@ const perVisaSplit=splitAmt(residenceVal,N)
 vids.forEach((vid,v)=>rows.push({vid,amt:perVisaSplit[v],order:baseOrder+v,label:perVisaLabel,paid:0}))
 // Down-payment is consumed in order: issuance, then توكيل, then each visa's iqama.
 let leftover=paidNum
-rows.forEach(r=>{const p=Math.min(leftover,r.amt);leftover-=p;r.paid=p})
+rows.forEach(r=>{const p=r2(Math.min(leftover,r.amt));leftover=r2(leftover-p);r.paid=p})
 insts=rows.map(r=>({invoice_id:createdInvId,service_request_id:sr.id,branch_id:userBranchId,visa_application_id:r.vid,installment_order:r.order,total_amount:r.amt,paid_amount:r.paid,expected_date:null,paid_date:r.amt>0&&r.paid>=r.amt?nowIso:null,payment_method_id:r.paid>0?pmId:null,notes:r.label}))
 }else{
 const amounts=splitRows.length>1
@@ -1981,8 +1931,8 @@ const dates=splitRows.length>1?splitRows.map(rw=>rw.date||null):[null]
 const noteLabels=splitRows.length>1?splitRows.map(rw=>rw.label||null):[null]
 let leftover=paidNum
 insts=amounts.map((amt,i)=>{
-const instPaid=Math.min(leftover,amt)
-leftover-=instPaid
+const instPaid=r2(Math.min(leftover,amt))
+leftover=r2(leftover-instPaid)
 return{
 invoice_id:createdInvId,
 service_request_id:sr.id,
@@ -2161,17 +2111,20 @@ input[type=number]{-moz-appearance:textfield}
 {/* ═══ Step 0: Choose Office (before service) — GM / multi-office users ═══ */}
 {onBranchScreen&&<div style={{flex:1,display:'flex',flexDirection:'column',minHeight:0}}>
 <ModalSection flex Icon={Building2} label={T('اختر المكتب','Select office')} hint={T('المكتب الذي ستُصدر منه الفاتورة','The office this invoice is issued from')} style={{marginTop:0}}>
-<div className="sr-scroll" style={{position:'relative',flex:1,minHeight:260,overflowY:'auto',overflowX:'hidden',paddingLeft:4}}>
+{/* كل المكاتب في الإطار بلا شريط تمرير (طلب المستخدم): الصفوف تتقاسم الارتفاع المتاح
+    (minmax(0,1fr)) بدل ارتفاعٍ أدنى ثابت للبطاقة، والأعمدة تزيد مع عدد المكاتب */}
+<div style={{position:'relative',flex:1,minHeight:0,display:'flex',flexDirection:'column'}}>
 {branchOptions.length===0&&<Spinner label={T('جارٍ تحميل المكاتب...','Loading offices...')}/>}
-<div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,gridAutoRows:'1fr'}}>
+{(()=>{const n=branchOptions.length,cols=n<=9?3:n<=16?4:5,rows=Math.max(1,Math.ceil(n/cols));return(
+<div style={{flex:1,minHeight:0,display:'grid',gridTemplateColumns:`repeat(${cols},1fr)`,gridTemplateRows:`repeat(${rows},minmax(0,1fr))`,gap:8}}>
 {branchOptions.map(b=>{const sel=svcBranch===b.id;return(
-<div key={b.id} className={`bento-card${sel?' selected':''}`} onClick={()=>setSvcBranch(b.id)}>
+<div key={b.id} className={`bento-card${sel?' selected':''}`} onClick={()=>setSvcBranch(b.id)} style={{minHeight:0,padding:'8px 10px',gap:6}}>
 {sel&&<div className="bento-check"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>}
 <div className="bento-icon"><Building2 size={22} color={C.bentoGold} strokeWidth={1.5}/></div>
 <div className="bento-label">{b.name_ar||b.branch_code}</div>
 {b.name_ar&&b.branch_code&&<div className="bento-sub">{b.branch_code}</div>}
 </div>)})}
-</div>
+</div>)})()}
 </div>
 </ModalSection>
 </div>}
@@ -2203,7 +2156,7 @@ input[type=number]{-moz-appearance:textfield}
 .sub-card .bill-dot{padding:0 5px;font-size:7px;top:6px;left:6px}
 /* كل كروت الخدمة تملأ إطار «اختر الخدمة» بلا سكرول: الصفوف تتقلّص لتلائم الارتفاع المتاح */
 /* نُثبّت 3 كروت بكل صف — نتجاوز قاعدة الطي العامة (repeat(3)→عمودين) في App.jsx عبر تخصيص أعلى + !important */
-.svc-grid.svc-grid{grid-template-columns:repeat(3,1fr)!important}
+.svc-grid.svc-grid{grid-template-columns:repeat(var(--svc-cols,3),1fr)!important}
 .svc-grid>.bento-card{min-height:0;padding:8px;gap:6px}
 .svc-grid>.bento-card>.bento-icon{flex-shrink:0}
 .sub-card{position:relative;padding:10px 6px;border-radius:12px;cursor:pointer;transition:all .2s;background:var(--card-grad2);border:1px solid var(--bd);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:74px;box-shadow:var(--shadow-sm)}
@@ -2230,7 +2183,7 @@ input[type=number]{-moz-appearance:textfield}
 {/* ─── Main Bento Grid View ─── */}
 <div style={{position:'absolute',inset:0,opacity:showOthers?0:1,transform:showOthers?'translateX(20px)':'translateX(0)',transition:'opacity .3s, transform .3s',pointerEvents:showOthers?'none':'auto'}}>
 <div className="svc-grid" style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,height:'100%',gridAutoRows:'minmax(0,1fr)'}}>
-{MAIN_SERVICES.map(s=>{const I=s.Icon;const sel=selSvc===s.id;const active=gm?true:isServiceActive(s.id);const billable=isServiceBillable(s.id)
+{MAIN_SERVICES.map(s=>{const I=s.Icon;const sel=selSvc===s.id;const active=gm?true:isServiceActive(s.id)
 return<div key={s.id} className={`bento-card${sel?' selected':''}${!active?' disabled-card':''}`} onClick={()=>{if(active)setSelSvc(s.id)}} style={!active?{opacity:.45,cursor:'not-allowed',filter:'grayscale(.6)'}:{}}>
 {!active&&<div className="bill-dot" style={{borderColor:'rgba(192,57,43,.6)',color:'#e66659'}} data-tip={T('معطّلة','Disabled')}>{T('معطّلة','Disabled')}</div>}
 <div className="bento-icon"><I size={22} color={C.bentoGold} strokeWidth={1.5}/></div>
@@ -2244,21 +2197,23 @@ return<div key={s.id} className={`bento-card${sel?' selected':''}${!active?' dis
 </div>
 </div>
 
-{/* ─── Others View (3-column grid) ─── */}
+{/* ─── Others View — الأعمدة بعدد الكروت: ١٢ كرتاً في ٣ أعمدة = ٤ صفوفٍ مضغوطة
+     لا تتّسع للأيقونة والاسم (بلاغ المستخدم 2026-09-24)، فتصير ٤ أعمدة × ٣ صفوف ─── */}
 <div style={{position:'absolute',inset:0,opacity:showOthers?1:0,transform:showOthers?'translateX(0)':'translateX(-20px)',transition:'opacity .3s, transform .3s',pointerEvents:showOthers?'auto':'none',display:'flex',flexDirection:'column',gap:6}}>
-<div className="svc-grid" style={{flex:1,minHeight:0,display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,gridAutoRows:'minmax(0,1fr)'}}>
+{(()=>{const n=OTHER_SERVICES.length+1,cols=n<=9?3:n<=16?4:5;return(
+<div className="svc-grid" style={{flex:1,minHeight:0,display:'grid','--svc-cols':cols,gridTemplateColumns:`repeat(${cols},1fr)`,gap:8,gridAutoRows:'minmax(0,1fr)'}}>
 {/* رجوع للخدمات الرئيسية — نفس حجم/مكان كرت الخدمة، بألوان خطوط وأيقونة خافتة مثل كرت "خدمات أخرى" */}
 <div onClick={()=>setShowOthers(false)} className="bento-card bento-nav">
 <div className="bento-icon"><ArrowRight size={22} color="var(--accent)" strokeWidth={1.5}/></div>
 <div className="bento-label">{T('الرئيسية','Main')}</div>
 </div>
-{OTHER_SERVICES.map(s=>{const I=s.Icon;const sel=selSvc===s.id;const active=gm?true:isServiceActive(s.id);const billable=isServiceBillable(s.id)
+{OTHER_SERVICES.map(s=>{const I=s.Icon;const sel=selSvc===s.id;const active=gm?true:isServiceActive(s.id)
 return<div key={s.id} className={`bento-card${sel?' selected':''}${!active?' disabled-card':''}`} onClick={()=>{if(active)setSelSvc(s.id)}} style={!active?{opacity:.45,cursor:'not-allowed',filter:'grayscale(.6)'}:{}}>
 {!active&&<div className="bill-dot" style={{borderColor:'rgba(192,57,43,.6)',color:'#e66659'}} data-tip={T('معطّلة','Disabled')}>{T('معطّلة','Disabled')}</div>}
 <div className="bento-icon"><I size={22} color={C.bentoGold} strokeWidth={1.5}/></div>
 <div className="bento-label">{svcName(s,isAr)}</div>
 </div>})}
-</div>
+</div>)})()}
 
 </div>
 
@@ -2351,7 +2306,6 @@ const nameBlock=<div style={{flex:1,minWidth:0,display:'flex',flexDirection:'col
 const boxes=<div style={{display:'flex',gap:8,flexShrink:0}}>{c.id_number&&infoBox(CreditCard,T('رقم الهوية','ID number'),c.id_number)}{c.phone&&infoBox(Phone,T('الجوال','Phone'),fmtPhone(c.phone))}</div>
 // flexShrink:0 — البطاقات داخل منطقة تمرير ذات ارتفاع ثابت: بلا هذا تنضغط بدل أن تُمرَّر.
 const wrapSel={position:'relative',border:`1px solid ${G.selB}`,background:G.sel,boxShadow:'var(--shadow-md)',transition:'all .22s ease',padding:'11px',borderRadius:14,display:'flex',flexDirection:'column',gap:9,flexShrink:0}
-const xIcon=<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
 
 // مُختار — أيقونة زاوية: زر إلغاء أحمر بالزاوية + شارة «محدد» بجانب الاسم
 if(sel)return<div key={c.id} style={{...wrapSel,flexDirection:'row',alignItems:'center',gap:10}}>
@@ -2473,10 +2427,6 @@ return<div style={{marginTop:12,display:'flex',flexDirection:'column',gap:8}}>
 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--tx4)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{position:'absolute',top:'50%',left:14,transform:'translateY(-50%)',pointerEvents:'none',transition:'stroke .2s'}}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
 <input value={workerQ} onChange={e=>{setWorkerQ(e.target.value);setWorkerMode('existing');setSelWorker(null)}} placeholder={T('ابحث بالاسم أو رقم الإقامة...','Search by name or Iqama...')} onFocus={e=>{e.currentTarget.previousElementSibling.style.stroke=C.bentoGold}} onBlur={e=>{e.currentTarget.previousElementSibling.style.stroke='var(--tx4)'}} style={{...fkSF,padding:'0 14px 0 40px',textAlign:isAr?'right':'left',border:'1px solid transparent',boxShadow:'none'}}/>
 </div>
-{false&&selSvc==='custom'&&<button onClick={()=>{setWorkerMode('new');setNewWorker(p=>({...p,name:/[\u0600-\u06FF\sA-Za-z]/.test(workerQ)?workerQ:p.name,phone:/^[0-9+]+$/.test(workerQ)?workerQ:p.phone,iqama_number:/^\d{10}$/.test(workerQ)?workerQ:p.iqama_number}))}} style={{height:42,padding:'0 14px',background:'transparent',border:'1.3px dashed rgba(176,125,0,.55)',borderRadius:9,color:C.bentoGold,fontFamily:F,fontSize:12,fontWeight:600,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:6,flexShrink:0,transition:'.15s',whiteSpace:'nowrap'}} onMouseEnter={e=>{e.currentTarget.style.background='rgba(176,125,0,.07)';e.currentTarget.style.borderColor='rgba(176,125,0,.85)'}} onMouseLeave={e=>{e.currentTarget.style.background='transparent';e.currentTarget.style.borderColor='rgba(176,125,0,.55)'}}>
-<span>{T('عامل جديد','New worker')}</span>
-<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-</button>}
 </div>}
 
 {/* Mode: existing worker */}
@@ -2496,7 +2446,6 @@ const deselect=e=>{if(e)e.stopPropagation();setSelWorker(null)}
 const stColors={expired:'#c0392b',soon:'#e5b534',ok:'#27a046',none:'var(--tx5)'}
 const infoBox=(Icon,label,val,valColor)=><div style={{display:'flex',alignItems:'center',gap:8,padding:'7px 10px',borderRadius:9,background:'var(--fk-input-bg)',border:'1px solid rgba(176,125,0,.18)',minWidth:0}}><Icon size={13} color={valColor||C.bentoGold} strokeWidth={1.8}/><div style={{display:'flex',flexDirection:'column',gap:2,minWidth:0}}><span style={{fontSize:10.5,color:'var(--tx3)',fontWeight:600}}>{label}</span><span style={{fontSize:12,color:valColor||'var(--tx)',fontWeight:600,direction:'ltr',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{val}</span></div></div>
 const flagEl=size=><div title={natLabel} style={{width:size,height:size,borderRadius:12,background:'rgba(0,0,0,.25)',border:sel?'1.5px solid rgba(176,125,0,.4)':'1px solid rgba(255,255,255,.08)',flexShrink:0,transition:'.25s',boxShadow:sel?'0 2px 8px rgba(176,125,0,.15)':'none',position:'relative',overflow:'hidden'}}>{flagUrl?<img src={flagUrl} alt={natLabel} loading="lazy" style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>:<div style={{width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center'}}><Globe size={Math.round(size*.42)} strokeWidth={1.6} color="rgba(255,255,255,.35)"/></div>}</div>
-const xIcon=<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
 // مُختار — أيقونة زاوية (التفاصيل الغنية تظهر أسفله)
 if(sel)return<div key={w.id} style={{position:'relative',border:`1px solid ${G.selB}`,background:G.sel,boxShadow:'var(--shadow-md)',transition:'all .22s ease',padding:'14px',borderRadius:16,display:'flex',alignItems:'center',gap:14}}>
 {!workerIsClient&&<button onClick={deselect} title={T('تغيير العامل','Change worker')} style={{position:'absolute',top:11,left:13,height:21,padding:'0 9px',borderRadius:7,background:'rgba(192,57,43,.10)',border:'1px solid rgba(192,57,43,.3)',color:C.red,fontFamily:F,fontSize:10,fontWeight:600,display:'inline-flex',alignItems:'center',gap:5,justifyContent:'center',cursor:'pointer',zIndex:2,transition:'.15s'}} onMouseEnter={e=>{e.currentTarget.style.background='rgba(192,57,43,.18)';e.currentTarget.style.borderColor='rgba(192,57,43,.55)'}} onMouseLeave={e=>{e.currentTarget.style.background='rgba(192,57,43,.10)';e.currentTarget.style.borderColor='rgba(192,57,43,.3)'}}>{T('تغيير','Change')}</button>}
@@ -2510,7 +2459,7 @@ style={{cursor:'pointer',position:'relative',border:`1px solid ${G.baseB}`,backg
 </div>})}
 
 {/* ─── Selected Worker Expanded Details ─── */}
-{selWorker&&(()=>{const w=selWorker;const stat=workerFacilityStat;const latestIns=[...(w.worker_insurance||[])].sort((a,b)=>new Date(b.end_date||0)-new Date(a.end_date||0))[0];const iqStat=dateStatus(w.iqama_expiry_date);const wpStat=dateStatus(w.work_permit_expiry);const insStat=dateStatus(latestIns?.end_date);const natName=w.country?.nationality_ar||w.nationality||'—';const natFlag=w.country?.flag_emoji||flagEmoji(w.country?.code)||flagEmoji(w.nationality);const ncMap={'platinum':'#E5E4E2','green':'#27a046','green_low':'#6bb77a','green_mid':'#3fa356','green_high':'#1e8c3a','green_top':'#0d6b25','yellow':'#e5b534','yellow_low':'#e5b534','yellow_high':'#c99a2a','red':'#c0392b'};const ncCode=stat?.nitaqat?.code;const ncLabel=stat?.nitaqat?.value_ar||'—';const ncColor=ncCode?(ncMap[ncCode]||'#888'):'#444';const pillBase={display:'flex',alignItems:'center',gap:8,padding:'8px 11px',borderRadius:9,background:'rgba(255,255,255,.03)',border:'1px solid var(--bd)',fontSize:11,fontFamily:F,color:'var(--tx3)',minHeight:40};const lbl={fontSize:10,color:'var(--tx4)',fontWeight:600,letterSpacing:'.2px',lineHeight:1.2};const val={fontSize:13,color:'var(--tx)',fontWeight:600,direction:'ltr',lineHeight:1.2,textAlign:'right'};const stColors={expired:'#c0392b',soon:'#e5b534',ok:'#27a046',none:'var(--tx4)'};const workerLabel=w.name_ar||w.name_en||w.name||T('بيانات العامل','Worker data');const facilityLabel=w.facility?.name_ar||T('بيانات المنشأة','Facility data');
+{selWorker&&(()=>{const w=selWorker;const stat=workerFacilityStat;const iqStat=dateStatus(w.iqama_expiry_date);const wpStat=dateStatus(w.work_permit_expiry);const ncMap={'platinum':'#E5E4E2','green':'#27a046','green_low':'#6bb77a','green_mid':'#3fa356','green_high':'#1e8c3a','green_top':'#0d6b25','yellow':'#e5b534','yellow_low':'#e5b534','yellow_high':'#c99a2a','red':'#c0392b'};const ncCode=stat?.nitaqat?.code;const ncLabel=stat?.nitaqat?.value_ar||'—';const ncColor=ncCode?(ncMap[ncCode]||'#888'):'#444';const pillBase={display:'flex',alignItems:'center',gap:8,padding:'8px 11px',borderRadius:9,background:'rgba(255,255,255,.03)',border:'1px solid var(--bd)',fontSize:11,fontFamily:F,color:'var(--tx3)',minHeight:40};const lbl={fontSize:10,color:'var(--tx4)',fontWeight:600,letterSpacing:'.2px',lineHeight:1.2};const val={fontSize:13,color:'var(--tx)',fontWeight:600,direction:'ltr',lineHeight:1.2,textAlign:'right'};const stColors={expired:'#c0392b',soon:'#e5b534',ok:'#27a046',none:'var(--tx4)'};const workerLabel=w.name_ar||w.name_en||w.name||T('بيانات العامل','Worker data');const facilityLabel=w.facility?.name_ar||T('بيانات المنشأة','Facility data');
 return<>
 {/* ─── Worker data fieldset ─── */}
 <div style={{marginTop:19,padding:'16px 14px 12px',borderRadius:12,border:'1.5px solid rgba(176,125,0,.35)',position:'relative'}}>
@@ -2684,12 +2633,8 @@ return next.length?new Set([next[0].id]):new Set()
 })
 return next
 })}
-// Accordion toggle: opening a group collapses all others
-const toggleExpand=(id)=>setExpandedGroups(prev=>prev.has(id)?new Set():new Set([id]))
 // Helper: is a group fully filled?
 const isGroupComplete=(g)=>!!(g.nationality&&g.embassy&&g.profession&&g.gender&&(parseInt(g.count)||0)>=1)
-// Helper: lookup labels for collapsed summary
-const labelFor=(arr,idKey,labelKey,id)=>arr.find(x=>x[idKey]===id)?.[labelKey]||'—'
 return<div style={{display:'flex',flexDirection:'column',gap:8,flex:1,minHeight:0,minWidth:0,width:'100%'}}>
 {/* Compact summary bar with inline add button */}
 <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10}}>
@@ -2732,18 +2677,7 @@ onMouseLeave={e=>{if(!isAct)e.currentTarget.style.color='var(--tx4)'}}>
 const g=activeGroup
 const idx=activeIdx
 const filteredEm=g.nationality?lkEmbassies.filter(e=>e.country_id===g.nationality):[]
-// Responsive sizing: solo mode = spacious with labels, multi mode = compact but breathing
-const solo=visaGroups.length===1
-const H=40                         // input height
-const FS=13                        // font size
 const GAP=10                       // inter-row gap
-const PADY=solo?10:10              // card vertical padding
-const PADX=solo?16:12              // card horizontal padding
-const LGAP=5                       // label→input gap
-const LFS=11                       // label font size (match regLblS)
-const TITLE_FS=solo?12.5:12.5      // title font size
-const BTN_W=32                     // counter button width
-const CNT_FS=15                    // count value font size
 return<div key={g.id} style={{border:'1.5px solid rgba(176,125,0,.35)',borderRadius:12,padding:`18px 14px 12px`,marginTop:visaGroups.length>1?14:12,position:'relative',display:'flex',flexDirection:'column',gap:GAP,width:'100%',maxWidth:'100%',boxSizing:'border-box',transition:'all .25s ease'}}>
 <div style={{position:'absolute',top:-9,right:14,background:'var(--modal-bg)',padding:'0 8px',fontSize:12,fontWeight:600,color:C.bentoGold,fontFamily:F}}>{isAr?'المجموعة ':'Group '}{isAr?(['الأولى','الثانية','الثالثة','الرابعة'][idx]||(idx+1)):(idx+1)}</div>
 {visaGroups.length>1&&<button type="button" onClick={()=>removeGroup(g.id)} title={T('حذف','Delete')}
@@ -2898,28 +2832,11 @@ onChange={v=>setFields(p=>({...p,city:v}))}/>
 
 // ─── medical_insurance: gold card with worker facility (unified#) + current insurance status + worker age ───
 if(selSvc==='medical_insurance'){
-const origFacility=selWorker?.facility?.name_ar||''
-const origUnified=selWorker?.facility?.unified_national_number||''
-const stat=workerFacilityStat
-const ncMap={'platinum':'#E5E4E2','green':'#27a046','green_low':'#6bb77a','green_mid':'#3fa356','green_high':'#1e8c3a','green_top':'#0d6b25','yellow':'#e5b534','yellow_low':'#e5b534','yellow_high':'#c99a2a','red':'#c0392b'}
-const ncCode=stat?.nitaqat?.code
-const ncLabel=stat?.nitaqat?.value_ar||''
-const ncColor=ncCode?(ncMap[ncCode]||'#888'):null
-const wpsHasNotes=stat?.wps_has_notes
-const weekDate=stat?.week_date||''
 const fmtDay=(iso)=>{if(!iso)return'—';const d=new Date(iso);if(isNaN(d))return'—';return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
-// Current worker insurance (latest end_date)
-const latestIns=[...(selWorker?.worker_insurance||[])].sort((a,b)=>new Date(b.end_date||0)-new Date(a.end_date||0))[0]
-const insEnd=latestIns?.end_date||''
-const insStat=dateStatus(insEnd)
-const insStatLabel=latestIns?(insStat==='expired'?T('منتهي','Expired'):insStat==='soon'?T('قارب الانتهاء','Expiring soon'):T('ساري','Active')):T('لا يوجد','None')
-const insStatColor=insStat==='expired'?'#c0392b':insStat==='soon'?'#e5b534':insStat==='ok'?'#27a046':'var(--tx5)'
 // Worker age from birth_date
 const dob=selWorker?.birth_date||''
 let age=null
 if(dob){const bd=new Date(dob);if(!isNaN(bd))age=Math.floor((new Date()-bd)/31557600000)}
-const inH=38
-const roBox={height:inH,padding:'0 12px',borderRadius:9,border:'1px solid var(--bd)',background:'var(--modal-input-bg)',boxShadow:'none',display:'flex',alignItems:'center',gap:8}
 const legend={position:'absolute',top:-9,right:14,background:'var(--modal-bg)',padding:'0 8px',fontSize:12,fontWeight:600,color:C.bentoGold,fontFamily:F,display:'inline-flex',alignItems:'center',gap:5}
 const fieldset={borderRadius:12,border:'1.5px solid rgba(176,125,0,.35)',padding:'14px 12px 12px',position:'relative',flexShrink:0,display:'flex',flexDirection:'column',gap:8}
 return<div style={{flex:1,minHeight:0,display:'flex',flexDirection:'column',gap:10,marginTop:10}}>
@@ -2941,12 +2858,7 @@ return<div style={{flex:1,minHeight:0,display:'flex',flexDirection:'column',gap:
 
 // ─── profession_change: gold card with worker facility (unified# + qiwa with copy) + current profession + new profession ───
 if(selSvc==='profession_change'){
-const origFacility=selWorker?.facility?.name_ar||''
-const origUnified=selWorker?.facility?.unified_national_number||''
-const origQiwa=selWorker?.facility?.qiwa_file_number||selWorker?.facility?.qiwa_unified_number||''
-const currentProf=selWorker?.occupation?.value_ar||''
 const inH=38
-const roBox={height:inH,padding:'0 12px',borderRadius:9,border:'1px solid var(--bd)',background:'var(--modal-input-bg)',boxShadow:'none',display:'flex',alignItems:'center',gap:8}
 const legend={position:'absolute',top:-9,right:14,background:'var(--modal-bg)',padding:'0 8px',fontSize:12,fontWeight:600,color:C.bentoGold,fontFamily:F,display:'inline-flex',alignItems:'center',gap:5}
 const fieldset={borderRadius:12,border:'1.5px solid rgba(176,125,0,.35)',padding:'14px 12px 12px',position:'relative',flexShrink:0,display:'flex',flexDirection:'column',gap:8}
 return<div style={{flex:1,minHeight:0,display:'flex',flexDirection:'column',gap:10,marginTop:10}}>
@@ -3178,15 +3090,9 @@ style={{...fS,flex:1,minHeight:0,height:'auto',padding:'12px 14px',resize:'none'
 
 // ─── name_translation (تعديل الراتب): current salary/iqama + new salary + weeks ───
 if(selSvc==='name_translation'){
-const workerName=selWorker?.name_ar||''
-const iqamaNo=selWorker?.iqama_number||''
-const curSalary=selWorker?.gosi_salary||0
 const inH=42
-const inS={...fS,height:inH}
-const roBox={height:inH,padding:'0 14px',borderRadius:9,border:'1px solid var(--bd)',background:'var(--modal-input-bg)',boxShadow:'none',display:'flex',alignItems:'center',gap:8}
 const legend={position:'absolute',top:-9,right:14,background:'var(--modal-bg)',padding:'0 8px',fontSize:12,fontWeight:600,color:C.bentoGold,fontFamily:F,display:'inline-flex',alignItems:'center',gap:5}
 const fieldset={borderRadius:12,border:'1.5px solid rgba(176,125,0,.35)',padding:'16px 12px 12px',position:'relative',flexShrink:0,display:'flex',flexDirection:'column',gap:10}
-const fmtMoney=(n)=>Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})
 return<div style={{flex:1,minHeight:0,display:'flex',flexDirection:'column',gap:12,marginTop:10}}>
 
 {/* ═══ Fieldset: بيانات الراتب الجديد ═══ */}
@@ -3223,10 +3129,8 @@ const updateMode=fields.update_mode||'extend'
 const isRenew=updateMode==='renew'
 const inH=42
 const inS={...fS,height:inH}
-const roBox={height:inH,padding:'0 14px',borderRadius:9,border:'1px solid var(--bd)',background:'var(--modal-input-bg)',boxShadow:'none',display:'flex',alignItems:'center',gap:8}
 const legend={position:'absolute',top:-9,right:14,background:'var(--modal-bg)',padding:'0 8px',fontSize:12,fontWeight:600,color:C.bentoGold,fontFamily:F,display:'inline-flex',alignItems:'center',gap:5}
 const fieldset={borderRadius:12,border:'1.5px solid rgba(176,125,0,.35)',padding:'16px 12px 12px',position:'relative',flexShrink:0,display:'flex',flexDirection:'column',gap:10}
-const cityOpts=cities.map(c=>({value:c.id,label:c.name_ar}))
 return<div style={{flex:1,minHeight:0,display:'flex',flexDirection:'column',gap:10,marginTop:10}}>
 
 {passportPage===1?<>
@@ -3595,7 +3499,6 @@ return<div style={{marginTop:10,borderRadius:12,border:'1.5px solid rgba(176,125
 {/* ═══ Kafala / Iqama-renewal Payment Plan: separate sub-step after pricing ═══ */}
 {(selSvc==='kafala_transfer'||selSvc==='iqama_renewal'||selSvc==='custom')&&kafalaPayStep&&(()=>{
 const total=Number(pricing.total)||0
-const officeFee=selSvc==='custom'?0:((selSvc==='iqama_renewal'||selSvc==='kafala_transfer')?Number(selKafalaQuote?.office_fee||0):Number((kafalaLines&&kafalaLines.officeFee)||0))
 // First payment must cover: iqama_renewal → government fees; kafala_transfer → transfer fee only (net Absher) — work permit, medical,
 // occupation change and office fee may all be deferred to later installments. خدمة عامة بلا حد أدنى.
 const minFirst=selSvc==='custom'?0:(selSvc==='iqama_renewal'?iqamaQuoteGovFees(selKafalaQuote):((Number(selKafalaQuote?.subtotal||0)>0)?Math.max(0,Number(selKafalaQuote?.transfer_fee||0)-Number(selKafalaQuote?.absher_discount||0)):Math.max(0,Number(kafalaLines?.transferFee||0)-Number(kafalaLines?.absherBalance||0))))
@@ -3754,11 +3657,6 @@ return!otherExtraOpen
 
 {selSvc!=='kafala_transfer'&&selSvc!=='iqama_renewal'&&!SVC_WITH_PRICING.has(selSvc)&&(()=>{
 const isVisa=VISA_SERVICES.has(selSvc)
-const numVisasT=isVisa?(visaGroups.reduce((s,g)=>s+(parseInt(g.count)||0),0)||1):1
-const cfgT=isVisa?getVisaMinConfig(selSvc):null
-const minTotalAbs=cfgT?(Number(cfgT.defaultTotal)||0)*numVisasT:0
-const currTotal=totalOverride!=null?Number(totalOverride):Number(pricing.total||0)
-const totalBad=isVisa&&minTotalAbs>0&&totalOverride!=null&&Number(totalOverride)<minTotalAbs
 return isVisa?
 // الإجمالي — إطار ذهبي مع عنوان عائم (نفس نمط «المبلغ المدفوع»)
 <div style={{position:'relative',borderRadius:12,border:'1.5px solid rgba(176,125,0,.35)',padding:'15px 14px 12px',marginTop:10,display:'flex',flexDirection:'column',gap:8,flexShrink:0}}>
@@ -3784,7 +3682,6 @@ onChange={v=>{if(v===''){setTotalOverride(null);return}const n=Number(v);if(!isN
 const numVisas=visaGroups.reduce((s,g)=>s+(parseInt(g.count)||0),0)||1
 const total=totalOverride!==null?totalOverride:(pricing.total||0)
 const cfg=getVisaMinConfig(selSvc)
-const minIssuance=numVisas*cfg.issuance
 // الدائمة: إصدار مشتركة + توكيل مشتركة + إقامة لكل تأشيرة. المؤقتة: إصدار مشتركة + توكيل لكل تأشيرة.
 const hasResidence=RESIDENCE_VISA_SERVICES.has(selSvc)
 const defaultEach=total/(hasResidence?3:2)
@@ -3797,8 +3694,6 @@ const residencePerVisa=visaInstallments.residencePerVisa===''?(numVisas>0?reside
 const residenceTotalCalc=residencePerVisa*numVisas
 const sumCheck=issuanceVal+authVal+residenceTotalCalc
 const matchesTotal=Math.abs(sumCheck-total)<0.01
-// Silent per-installment validation — only flags when user has typed something
-const issuanceBad=visaInstallments.issuance!==''&&issuanceVal<minIssuance
 // دفعة «توكيل التأشيرة» (الدائمة): تُحمَّر عند النزول تحت «الحد الأدنى لدفعة الوكالة» من إعدادات الخدمة.
 const authBad=hasResidence&&visaInstallments.authorization!==''&&authVal<numVisas*cfg.authorization
 // صندوق عملة بنمط معرض الفورمات (الوحدة + الرقم متوسّط داخل إطار)
@@ -3868,9 +3763,7 @@ if(selSvc==='chamber_certification'){
 if(fields.chamber_subtype==='printed')svcDesc+=T(' — تصديق على مطبوعات المنشأة',' — Certification of facility printouts')
 else if(fields.chamber_subtype==='open_request')svcDesc+=T(' — التصديق على طلب مفتوح',' — Certification of an open request')
 }
-const anyNote=addClientNote||addAdminNote
 const paid=Number(paidAmount)||0
-const remaining=pricing.total-paid
 const isVisa=VISA_SERVICES.has(selSvc)
 const effectiveTotal=(isVisa&&totalOverride!==null)?totalOverride:pricing.total
 const effectiveRemaining=effectiveTotal-paid
@@ -3937,13 +3830,14 @@ if(selSvc==='kafala_transfer'&&workerIsClient&&!selWorker&&(selClient||(clientMo
 </div>}
 // مختلفين → قسم مستقل للعميل وقسم مستقل للعامل
 return<>
-{selClient&&<div>
+{/* تجديد الإقامة: العميل هو نفس العامل — لا يُعرض قسم العميل (يظهر العامل ضمن «بيانات تجديد الإقامة»). */}
+{selClient&&selSvc!=='iqama_renewal'&&<div>
 <SectionTitle>{T('العميل','Client')}</SectionTitle>
 <Row label={T('الاسم','Name')} value={selClient.name_ar}/>
 {selClient.id_number&&<Row label={T('رقم الهوية','ID number')} value={ltr(selClient.id_number)}/>}
 {selClient.phone&&<Row label={T('الجوال','Phone')} value={ltr(fmtPhone(selClient.phone))}/>}
 </div>}
-{!selClient&&clientMode==='new'&&newClient.name_ar&&<div>
+{!selClient&&clientMode==='new'&&newClient.name_ar&&selSvc!=='iqama_renewal'&&<div>
 <SectionTitle>{T('العميل','Client')}</SectionTitle>
 <Row label={T('الاسم','Name')} value={newClient.name_ar}/>
 {newClient.id_number&&<Row label={T('رقم الهوية','ID number')} value={ltr(newClient.id_number)}/>}
@@ -3964,6 +3858,17 @@ return<>
 <SectionTitle>{T('العامل','Worker')}</SectionTitle>
 <Row label={T('رقم الجوال','Mobile')} value={<span style={{direction:'ltr',display:'inline-block'}}>{fmtPhone('966'+fields.worker_phone)}</span>}/>
 </div>}
+{/* Iqama renewal details — مصدرها حسبة التجديد المصدّقة المختارة (فوق الوسيط) */}
+{selSvc==='iqama_renewal'&&selKafalaQuote&&<div>
+<SectionTitle>{T('بيانات تجديد الإقامة','Iqama renewal data')}</SectionTitle>
+<Row label={T('العامل','Worker')} value={selKafalaQuote.worker_name||'—'}/>
+{selKafalaQuote.iqama_number&&<Row label={T('رقم الإقامة','Iqama No')} value={<span style={{direction:'ltr',display:'inline-block'}}>{selKafalaQuote.iqama_number}</span>}/>}
+{(selKafalaQuote.phone||selClient?.phone)&&<Row label={T('الجوال','Phone')} value={<span style={{direction:'ltr',display:'inline-block'}}>{fmtPhone(selKafalaQuote.phone||selClient.phone)}</span>}/>}
+{selKafalaQuote.iqama_expiry_gregorian&&<Row label={T('تاريخ انتهاء الإقامة الحالي','Current Iqama Expiry')} value={<span style={{direction:'ltr',display:'inline-block'}}>{selKafalaQuote.iqama_expiry_gregorian}</span>}/>}
+{selKafalaQuote.renewal_months&&<Row label={T('عدد أشهر التجديد','Renewal Months')} value={isAr?`${selKafalaQuote.renewal_months} أشهر`:`${selKafalaQuote.renewal_months} mo`}/>}
+{selKafalaQuote.change_profession===true&&<Row label={T('تغيير المهنة','Occupation Change')} value={selKafalaQuote.new_occupation_name_ar||T('نعم','Yes')}/>}
+</div>}
+
 {/* الوسيط — قسم مستقل عند وجوده (نفس صفوف العميل: الاسم + الهوية + الجوال) */}
 {(selBroker||(brokerMode==='new'&&(newBroker.name_ar||newBroker.name_en)))&&(()=>{
 const ltr=v=><span style={{direction:'ltr',display:'inline-block'}}>{v}</span>
@@ -4013,16 +3918,6 @@ return<div key={g.id} style={{padding:'6px 10px',marginBottom:4,borderRadius:7,b
     خطوتها، وإعادةُ سردها هنا سطرٌ يشغل الملخّص بلا قرارٍ يُتّخذ عليه. */}
 </div>}
 
-{/* Iqama renewal details — مصدرها حسبة التجديد المصدّقة المختارة */}
-{selSvc==='iqama_renewal'&&selKafalaQuote&&<div>
-<SectionTitle>{T('بيانات تجديد الإقامة','Iqama renewal data')}</SectionTitle>
-<Row label={T('العامل','Worker')} value={selKafalaQuote.worker_name||'—'}/>
-{selKafalaQuote.iqama_number&&<Row label={T('رقم الإقامة','Iqama No')} value={<span style={{direction:'ltr',display:'inline-block'}}>{selKafalaQuote.iqama_number}</span>}/>}
-{selKafalaQuote.iqama_expiry_gregorian&&<Row label={T('تاريخ انتهاء الإقامة الحالي','Current Iqama Expiry')} value={<span style={{direction:'ltr',display:'inline-block'}}>{selKafalaQuote.iqama_expiry_gregorian}</span>}/>}
-{selKafalaQuote.renewal_months&&<Row label={T('عدد أشهر التجديد','Renewal Months')} value={isAr?`${selKafalaQuote.renewal_months} أشهر`:`${selKafalaQuote.renewal_months} mo`}/>}
-{selKafalaQuote.change_profession===true&&<Row label={T('تغيير المهنة','Occupation Change')} value={selKafalaQuote.new_occupation_name_ar||T('نعم','Yes')}/>}
-</div>}
-
 {/* Ajeer contract details */}
 {selSvc==='ajeer_contract'&&<div>
 <SectionTitle>{T('بيانات عقد أجير','Ajeer contract data')}</SectionTitle>
@@ -4064,8 +3959,6 @@ return<div key={g.id} style={{padding:'6px 10px',marginBottom:4,borderRadius:7,b
 {selSvc==='medical_insurance'&&(()=>{
 const latestIns=[...(selWorker?.worker_insurance||[])].sort((a,b)=>new Date(b.end_date||0)-new Date(a.end_date||0))[0]
 const insEnd=latestIns?.end_date||''
-const insSt=dateStatus(insEnd)
-const insLabel=latestIns?(insSt==='expired'?T('منتهي','Expired'):insSt==='soon'?T('قارب الانتهاء','Expiring soon'):T('ساري','Active')):T('لا يوجد','None')
 const dob=selWorker?.birth_date||''
 let age=null
 if(dob){const bd=new Date(dob);if(!isNaN(bd))age=Math.floor((new Date()-bd)/31557600000)}
@@ -4256,7 +4149,7 @@ onMouseLeave={e=>{if(!receiptDrag)e.currentTarget.style.background='rgba(176,125
     لا شيء، الإطار لا يتحرّك أثناء الكتابة والنتائج تُمرَّر داخلياً. الارتفاع يُظهر ثلاث بطاقات
     وطرفَ الرابعة فيبين أنّ تحتها المزيد. بعد الاختيار يختفي البحث وتبقى بطاقة واحدة، فيعود
     الإطار لحجمها الطبيعي بدل فراغٍ كبير تحتها. */}
-{brokerMode!=='new'&&<div className="sr-scroll" style={{display:'flex',flexDirection:'column',gap:8,...(selBroker?null:{height:268}),overflowY:'auto',overflowX:'hidden',paddingLeft:4}}>
+{brokerMode!=='new'&&<div className="sr-scroll" style={{display:'flex',flexDirection:'column',gap:8,...(selBroker?null:{height:150}),overflowY:'auto',overflowX:'hidden',paddingLeft:4}}>
 {/* نتائج البحث من `brokerResults` — تُرشَّح في الخادم لا في الخمسين المحمَّلة */}
 {(()=>{const filtered=selBroker?[selBroker]:brokerResults;
 // بلا اختيار/بحث: نعرض بطاقة «ابحث عن الوسيط» (نفس سلوك العميل) بدل سرد وسطاء مسبقاً.
@@ -4292,7 +4185,7 @@ if(sel)return<div key={b.id} style={{...wrapSel,flexDirection:'row',alignItems:'
 {boxes}
 </div>
 return<div key={b.id} onClick={()=>setSelBroker(b)} onMouseEnter={onEnter} onMouseLeave={onLeave}
-style={{cursor:'pointer',position:'relative',border:`1px solid ${G.baseB}`,background:G.base,boxShadow:'var(--shadow-md)',transition:'all .22s ease',padding:'11px',borderRadius:14,display:'flex',alignItems:'center',gap:10,flexShrink:0}}>
+style={{cursor:'pointer',position:'relative',border:`1px solid ${G.baseB}`,background:G.base,boxShadow:'var(--shadow-md)',transition:'all .22s ease',padding:'6px 11px',borderRadius:14,display:'flex',alignItems:'center',gap:10,flexShrink:0}}>
 {flagEl(40)}{nameBlock}{boxes}
 </div>})})()}
 </div>}
@@ -4343,33 +4236,6 @@ return <div style={{marginTop:6,background:'linear-gradient(135deg,rgba(176,125,
 
 {/* Summary screen — full summary, last step before submission. يملأ الإطار ويُمرّر عمودياً عند الحاجة. */}
 {showSummaryScreen&&<div className="sr-scroll" style={{flex:1,minHeight:0,overflowY:'auto',border:'1.5px solid rgba(176,125,0,.35)',borderRadius:12,padding:'14px 14px 8px'}}><SummaryCard compact={false}/></div>}
-{/* Old standalone receipt block — kept for structure, but now shows nothing since merged above */}
-{false&&<div style={{display:'none'}}>
-<div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-<span style={{fontSize:12,fontWeight:600,color:'var(--tx)',fontFamily:F}}>{T('إيصال الحوالة البنكية','Bank transfer receipt')}</span>
-<span style={{fontSize:10,color:C.red,fontWeight:600}}>*</span>
-</div>
-{!transferReceipt?<label htmlFor="transferReceiptInput" style={{display:'flex',alignItems:'center',justifyContent:'center',gap:8,padding:'14px',borderRadius:8,border:'1px dashed rgba(176,125,0,.25)',background:'rgba(176,125,0,.02)',color:C.gold,cursor:'pointer',transition:'.2s',fontFamily:F,fontSize:11.5,fontWeight:600}}
-onMouseEnter={e=>{e.currentTarget.style.background='rgba(176,125,0,.06)'}}
-onMouseLeave={e=>{e.currentTarget.style.background='rgba(176,125,0,.02)'}}>
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-<span>{T('اضغط لرفع صورة/ملف الإيصال','Click to upload the receipt image/file')}</span>
-<input id="transferReceiptInput" type="file" accept="image/*,application/pdf" onChange={e=>setTransferReceipt(e.target.files?.[0]||null)} style={{display:'none'}}/>
-</label>
-:<div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',borderRadius:8,background:'rgba(46,160,67,.06)',border:'1px solid rgba(46,160,67,.2)'}}>
-<div style={{width:32,height:32,borderRadius:7,background:'rgba(46,160,67,.15)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2ea043" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-</div>
-<div style={{flex:1,minWidth:0}}>
-<div style={{fontSize:12,fontWeight:600,color:'var(--tx)',fontFamily:F,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{transferReceipt.name}</div>
-<div style={{fontSize:10,color:'var(--tx5)',fontFamily:F}}>{(transferReceipt.size/1024).toFixed(1)} KB</div>
-</div>
-<button type="button" onClick={()=>setTransferReceipt(null)} title={T('حذف','Delete')} style={{width:28,height:28,borderRadius:7,border:'1px solid rgba(192,57,43,.2)',background:'rgba(192,57,43,.08)',color:C.red,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 01-2 2H9a2 2 0 01-2-2L5 6"/></svg>
-</button>
-</div>}
-</div>}
 </div>
 })()}
 

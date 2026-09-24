@@ -39,6 +39,8 @@ export const handler = async (event) => {
   const text = String(body.text || '').trim()
   const source = body.source === 'en' ? 'en' : 'ar'
   if (!text) return json({ translated: null, reason: 'empty_text' })
+  // الدالة بلا مصادقة — نمنع نصوصاً طويلة تستهلك رصيد الـAPI (الأسماء أقصر من هذا بكثير)
+  if (text.length > 200) return json({ translated: null, reason: 'too_long' })
 
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) return json({ translated: null, reason: 'no_key' })

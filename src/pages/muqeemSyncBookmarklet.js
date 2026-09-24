@@ -52,7 +52,7 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
     let d = document.getElementById('_jisr_muqeem_ui');
     if (!d) {
       d = document.createElement('div'); d.id = '_jisr_muqeem_ui';
-      d.style.cssText = 'position:fixed;top:16px;left:16px;background:#111;color:#f59e0b;padding:12px 18px;border-radius:10px;z-index:2147483647;font:700 13px/1.5 sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.5);max-width:420px;direction:rtl;text-align:right;border:1px solid rgba(245,158,11,.4)';
+      d.style.cssText = 'position:fixed;top:16px;left:16px;background:#111;color:#f59e0b;padding:12px 18px;border-radius:10px;z-index:2147483647;font:600 13px/1.5 sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.5);max-width:420px;direction:rtl;text-align:right;border:1px solid rgba(245,158,11,.4)';
       document.body.appendChild(d);
     }
     d.textContent = 'جسر مقيم: ' + m;
@@ -682,7 +682,7 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
 
       const total = users.length;
       const pending = users.filter(u => !doneSet.has(String(u.username || u.organizationId)));
-      let done = doneSet.size, ok = 0, failed = 0, stoppedForExpiry = false;
+      let done = total - pending.length, ok = 0, failed = 0, stoppedForExpiry = false;
 
       // ── PHASE 1 — MINT FIRST. The Absher tmpJwt window is very short (~60-90s),
       //    but minting an org's session token (get-application-jwt) is cheap and is

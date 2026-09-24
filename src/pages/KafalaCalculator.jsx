@@ -1,9 +1,9 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react'
 import ReactDOM from 'react-dom'
-import { User, FileText, Calculator, Tag, ChevronRight, ChevronLeft, Plus, Trash2, Check, X, AlertCircle, Briefcase, Phone, Calendar, ArrowLeftRight, Search, Shield, CreditCard, Clock, Building2, CheckCircle2, Circle, Info, Printer, Database, FileCheck, Send, Lock, RefreshCw, Wallet, Copy, BadgeCheck } from 'lucide-react'
+import { User, Calculator, Tag, ChevronRight, ChevronLeft, Check, X, AlertCircle, Briefcase, Calendar, ArrowLeftRight, CreditCard, Building2, CheckCircle2, Circle, Info, Send, Lock, RefreshCw, Wallet, Copy, BadgeCheck } from 'lucide-react'
 import { getSupabase } from '../lib/supabase.js'
 import { getKafalaPricingConfig } from '../lib/kafalaPricing.js'
-import { computeRenewalExpiryYMD, overdueQuarters } from '../lib/expiryDuration.js'
+import { computeRenewalExpiryYMD } from '../lib/expiryDuration.js'
 import { noDash } from '../lib/utils.js'
 import { Modal as FKModal, Select as FKSelect, Flag, ActionButton } from '../components/ui/FormKit.jsx'
 import { stageVisible, fieldVisible, isGM } from '../lib/permissions.js'
@@ -29,47 +29,6 @@ function gregorianToHijri(dateStr) {
   return `${year}-${month}-${day}`
 }
 
-function gregorianToHijriParts(dateStr) {
-  if (!dateStr) return null
-  const d = new Date(dateStr)
-  if (isNaN(d)) return null
-  const JD = Math.floor(d.getTime() / 86400000) + 2440588
-  const l = JD - 1948440 + 10632
-  const n = Math.floor((l - 1) / 10631)
-  const l2 = l - 10631 * n + 354
-  const j = Math.floor((10985 - l2) / 5316) * Math.floor((50 * l2) / 17719) + Math.floor(l2 / 5670) * Math.floor((43 * l2) / 15238)
-  const l3 = l2 - Math.floor((30 - j) / 15) * Math.floor((17719 * j) / 50) - Math.floor(j / 16) * Math.floor((15238 * j) / 43) + 29
-  const month = Math.floor((24 * l3) / 709)
-  const day = l3 - Math.floor((709 * month) / 24)
-  const year = 30 * n + j - 30
-  if (month < 1 || month > 12) return null
-  return { day, month, year }
-}
-
-function hijriToGregorian(hYear, hMonth, hDay) {
-  const jd = Math.floor((11 * hYear + 3) / 30) + 354 * hYear + 30 * hMonth - Math.floor((hMonth - 1) / 2) + hDay + 1948440 - 385
-  const la = jd + 68569
-  const n = Math.floor(4 * la / 146097)
-  const la2 = la - Math.floor((146097 * n + 3) / 4)
-  const i = Math.floor(4000 * (la2 + 1) / 1461001)
-  const la3 = la2 - Math.floor(1461 * i / 4) + 31
-  const j = Math.floor(80 * la3 / 2447)
-  const gDay = la3 - Math.floor(2447 * j / 80)
-  const la4 = Math.floor(j / 11)
-  const gMonth = j + 2 - 12 * la4
-  const gYear = 100 * (n - 49) + i + la4
-  return `${gYear}-${String(gMonth).padStart(2,'0')}-${String(gDay).padStart(2,'0')}`
-}
-
-// Generate Hijri year options (current range)
-function getHijriYears() {
-  const parts = gregorianToHijriParts(new Date().toISOString().slice(0,10))
-  if (!parts) return []
-  const years = []
-  for (let y = parts.year - 2; y <= parts.year + 5; y++) years.push(y)
-  return years
-}
-
 function daysSinceExpiry(dateStr) {
   if (!dateStr) return 0
   const d = new Date(dateStr)
@@ -88,12 +47,10 @@ const NATIONALITIES = [
   { code: 'PS', name_ar: 'فلسطيني' }, { code: 'ID', name_ar: 'إندونيسي' }, { code: 'LK', name_ar: 'سريلانكي' },
   { code: 'NP', name_ar: 'نيبالي' }, { code: 'ER', name_ar: 'إريتري' }, { code: '', name_ar: 'أخرى' },
 ]
-const OCCUPATIONS = ['عامل بناء', 'نجار', 'حداد', 'كهربائي', 'سباك', 'دهان', 'مشغل معدات', 'سائق', 'مقاول', 'فني تكييف', 'حارس أمن', 'عامل نظافة', 'بائع', 'موظف إداري', 'أخرى']
 
 // ═══ Shared UI Components — matches register modal style ═══
 // ستايل الحقل — مطابق لـ FormKit: خلفية مسطّحة غائرة، بلا حدّ، ظل داخلي، وزن 600.
 const sF = { width: '100%', height: 42, padding: '0 14px', border: '1px solid transparent', borderRadius: 9, fontFamily: F, fontSize: 14, fontWeight: 600, color: 'var(--tx)', outline: 'none', background: 'var(--inputBg)', boxSizing: 'border-box', textAlign: 'center', transition: '.2s', boxShadow: 'none' }
-const sFRO = { ...sF, cursor: 'not-allowed', opacity: .6 }
 
 // عنوان الحقل — مطابق لـ FormKit: وزن 600، نص أساسي، نجمة حمراء بمسافة.
 const Lbl = ({ children, req }) => <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--tx)', marginBottom: 9, textAlign: 'start' }}>{children}{req && <span style={{ color: C.red }}> *</span>}</div>
@@ -140,23 +97,6 @@ const Inp = ({ value, onChange, placeholder, type, dir, maxLength }) => (
     style={{ ...sF, textAlign: 'center', direction: dir || 'rtl' }} />
 )
 
-const DateInp = ({ value, onChange }) => {
-  const [open, setOpen] = useState(false)
-  return (
-    <div style={{ position: 'relative', width: '100%' }}>
-      <button type="button" onClick={() => setOpen(o=>!o)} style={{ ...sF, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, direction: 'ltr', color: value ? 'var(--tx)' : 'var(--tx5)', border: `1px solid ${value || open ? C.gold+'b3' : C.gold+'40'}` }}>
-        <span>{value || 'yyyy-mm-dd'}</span>
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-      </button>
-      {open && (
-        <input type="date" value={value || ''} onChange={e => { onChange(e.target.value); setOpen(false) }} autoFocus
-          style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', width: '100%', height: 40 }}
-          onBlur={() => setOpen(false)} />
-      )}
-    </div>
-  )
-}
-
 // Custom dark-themed calendar popup to match modal design
 const MONTH_NAMES_AR = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر']
 const MONTH_NAMES_EN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
@@ -170,7 +110,8 @@ export const CalendarPopup = ({ value, onPick, onClose, anchor, lang, min }) => 
   const parsed = value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value.split('-').map(Number) : null
   const initial = parsed ? { y: parsed[0], m: parsed[1]-1 } : { y: today.getFullYear(), m: today.getMonth() }
   const [cur, setCur] = useState(initial)
-  const firstDay = new Date(cur.y, cur.m, 1).getDay()
+  // الأسبوع يبدأ الجمعة: عدد الخانات الفارغة قبل يوم 1 = أيامه منذ الجمعة
+  const firstDay = (new Date(cur.y, cur.m, 1).getDay() + 2) % 7
   const daysInMonth = new Date(cur.y, cur.m + 1, 0).getDate()
   const prevMonth = () => setCur(c => c.m === 0 ? { y: c.y-1, m: 11 } : { y: c.y, m: c.m-1 })
   const nextMonth = () => setCur(c => c.m === 11 ? { y: c.y+1, m: 0 } : { y: c.y, m: c.m+1 })
@@ -192,7 +133,7 @@ export const CalendarPopup = ({ value, onPick, onClose, anchor, lang, min }) => 
         <button type="button" onClick={nextMonth} style={navBtn}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"/></svg></button>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, fontSize: 10, fontWeight: 600, color: 'var(--tx4)', marginBottom: 6 }}>
-        {(lang === 'en' ? DAY_ABBR_EN : DAY_ABBR_AR).map(d => <div key={d} style={{ textAlign: 'center', padding: '4px 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d}</div>)}
+        {(d => [...d.slice(5), ...d.slice(0, 5)])(lang === 'en' ? DAY_ABBR_EN : DAY_ABBR_AR).map(d => <div key={d} style={{ textAlign: 'center', padding: '4px 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d}</div>)}
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
         {cells.map((d, i) => {
@@ -224,7 +165,7 @@ export const DateField = ({ value, onChange, label, req, lang, min }) => {
   const wrapRef = useRef(null)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [anchor, setAnchor] = useState(null)
-  const [focused, setFocused] = useState(false)
+  const [, setFocused] = useState(false)
   const [text, setText] = useState(value || '')
   useEffect(() => { setText(value || '') }, [value])
   const handleType = t => {
@@ -564,25 +505,6 @@ const RenewalPill = ({ selected, onClick, children, flex, disabled }) => (
 
 const nm = v => Number(v || 0).toLocaleString('en-US')
 
-// ═══ Quote translations ═══
-// Best-effort translations for the printed quote sheet. Worker names stay untranslated (they come
-// from HRSD / Labor Office records). Arabic and English are primary; bn/hi/ur should be reviewed
-// by a native speaker before production use.
-const QUOTE_LANGS = [
-  { code: 'ar', label: 'العربية',    flag: '🇸🇦', dir: 'rtl' },
-  { code: 'en', label: 'English',   flag: '🇬🇧', dir: 'ltr' },
-  { code: 'bn', label: 'বাংলা',      flag: '🇧🇩', dir: 'ltr' },
-  { code: 'hi', label: 'हिन्दी',      flag: '🇮🇳', dir: 'ltr' },
-  { code: 'ur', label: 'اردو',       flag: '🇵🇰', dir: 'rtl' },
-]
-const QUOTE_TEXTS = {
-  ar: { title:'عرض سعر — حسبة التنازل', quoteNo:'رقم التسعيرة', date:'التاريخ', workerData:'بيانات العامل', workerName:'اسم العامل', iqamaNo:'رقم الإقامة', mobile:'رقم الجوال', currentIqamaExpiry:'انتهاء الإقامة الحالي', expectedIqamaExpiry:'انتهاء الإقامة المتوقع', expectedDuration:'المدة المتوقعة', months:'شهر', days:'يوم', and:'و', costSummary:'ملخص التكاليف', item:'البند', amount:'المبلغ', sar:'ريال', transferFee:'رسوم نقل الكفالة', iqamaRenewal:'تجديد الإقامة', workPermit:'رخصة العمل', changeProf:'تغيير المهنة', medical:'التأمين الطبي', office:'رسوم المكتب', extras:'رسوم إضافية', subtotal:'إجمالي الرسوم', absher:'رصيد أبشر (خصم)', grandTotal:'الإجمالي النهائي', warnings:'تنبيهات وملاحظات', warnExpired:'الإقامة منتهية منذ {d} يوم — تم إضافة غرامة التأخير. تجديد الإقامة قبل الانتهاء يُسقط الغرامة.', warnExpiringSoon:'الإقامة ستنتهي خلال {d} يوم — يُنصح بالتجديد قبل الانتهاء لتجنّب غرامة التأخير.', warnValid:'الإقامة سارية — لا توجد غرامة.', signature:'التوقيع', stamp:'الختم', footer:'هذه تسعيرة تقديرية صالحة لمدة 7 أيام من تاريخ الإصدار.', print:'طباعة' },
-  en: { title:'Quote — Sponsorship Transfer', quoteNo:'Quote No.', date:'Date', workerData:'Worker Data', workerName:'Worker Name', iqamaNo:'Iqama Number', mobile:'Mobile', currentIqamaExpiry:'Current Iqama Expiry', expectedIqamaExpiry:'Expected Iqama Expiry', expectedDuration:'Expected Duration', months:'month(s)', days:'day(s)', and:'and', costSummary:'Cost Summary', item:'Item', amount:'Amount', sar:'SAR', transferFee:'Sponsorship Transfer Fee', iqamaRenewal:'Iqama Renewal', workPermit:'Work Permit', changeProf:'Occupation Change', medical:'Medical Insurance', office:'Office Fees', extras:'Additional Fees', subtotal:'Subtotal', absher:'Absher Balance (discount)', grandTotal:'Grand Total', warnings:'Notes & Warnings', warnExpired:'Iqama expired {d} day(s) ago — late fine applied. Renewing before expiry removes the fine.', warnExpiringSoon:'Iqama expires in {d} day(s) — renew before expiry to avoid the late fine.', warnValid:'Iqama is valid — no fine applies.', signature:'Signature', stamp:'Stamp', footer:'This is an estimated quote valid for 7 days from issue date.', print:'Print' },
-  bn: { title:'উদ্ধৃতি — স্পনসরশিপ স্থানান্তর', quoteNo:'উদ্ধৃতি নং', date:'তারিখ', workerData:'কর্মীর তথ্য', workerName:'কর্মীর নাম', iqamaNo:'ইকামা নম্বর', mobile:'মোবাইল', currentIqamaExpiry:'বর্তমান ইকামা মেয়াদ', expectedIqamaExpiry:'প্রত্যাশিত ইকামা মেয়াদ', expectedDuration:'প্রত্যাশিত সময়কাল', months:'মাস', days:'দিন', and:'এবং', costSummary:'খরচের সারাংশ', item:'বিবরণ', amount:'পরিমাণ', sar:'SAR', transferFee:'স্পনসরশিপ স্থানান্তর ফি', iqamaRenewal:'ইকামা নবায়ন', workPermit:'কাজের অনুমতিপত্র', changeProf:'পেশা পরিবর্তন', medical:'চিকিৎসা বীমা', office:'অফিস ফি', extras:'অতিরিক্ত ফি', subtotal:'উপমোট', absher:'আবশের ব্যালেন্স (ছাড়)', grandTotal:'সর্বমোট', warnings:'বিজ্ঞপ্তি ও সতর্কতা', warnExpired:'ইকামার মেয়াদ {d} দিন আগে শেষ হয়েছে — বিলম্ব জরিমানা প্রযোজ্য। মেয়াদ শেষ হওয়ার আগে নবায়ন জরিমানা বাদ দেয়।', warnExpiringSoon:'ইকামা {d} দিনের মধ্যে শেষ হবে — বিলম্ব জরিমানা এড়াতে মেয়াদ শেষ হওয়ার আগে নবায়ন করুন।', warnValid:'ইকামা বৈধ — কোন জরিমানা নেই।', signature:'স্বাক্ষর', stamp:'সিল', footer:'এটি একটি আনুমানিক উদ্ধৃতি, ইস্যুর তারিখ থেকে ৭ দিনের জন্য বৈধ।', print:'মুদ্রণ' },
-  hi: { title:'उद्धरण — प्रायोजन स्थानांतरण', quoteNo:'उद्धरण संख्या', date:'दिनांक', workerData:'कर्मचारी डेटा', workerName:'कर्मचारी का नाम', iqamaNo:'इकामा संख्या', mobile:'मोबाइल', currentIqamaExpiry:'वर्तमान इकामा समाप्ति', expectedIqamaExpiry:'अपेक्षित इकामा समाप्ति', expectedDuration:'अपेक्षित अवधि', months:'माह', days:'दिन', and:'और', costSummary:'लागत सारांश', item:'मद', amount:'राशि', sar:'SAR', transferFee:'प्रायोजन स्थानांतरण शुल्क', iqamaRenewal:'इकामा नवीनीकरण', workPermit:'कार्य परमिट', changeProf:'पेशा परिवर्तन', medical:'चिकित्सा बीमा', office:'कार्यालय शुल्क', extras:'अतिरिक्त शुल्क', subtotal:'उप-योग', absher:'अबशेर बैलेंस (छूट)', grandTotal:'कुल योग', warnings:'सूचनाएं और चेतावनियां', warnExpired:'इकामा {d} दिन पहले समाप्त हो गया — विलंब जुर्माना लागू। समाप्ति से पहले नवीनीकरण जुर्माना हटाता है।', warnExpiringSoon:'इकामा {d} दिन में समाप्त होगा — विलंब जुर्माना से बचने हेतु समाप्ति से पहले नवीनीकरण करें।', warnValid:'इकामा वैध है — कोई जुर्माना नहीं।', signature:'हस्ताक्षर', stamp:'मुहर', footer:'यह एक अनुमानित उद्धरण है, जारी होने की तिथि से 7 दिनों तक वैध।', print:'प्रिंट' },
-  ur: { title:'اقتباس — کفالت کی منتقلی', quoteNo:'اقتباس نمبر', date:'تاریخ', workerData:'ملازم کا ڈیٹا', workerName:'ملازم کا نام', iqamaNo:'اقامہ نمبر', mobile:'موبائل', currentIqamaExpiry:'موجودہ اقامہ میعاد', expectedIqamaExpiry:'متوقع اقامہ میعاد', expectedDuration:'متوقع مدت', months:'ماہ', days:'دن', and:'اور', costSummary:'اخراجات کا خلاصہ', item:'مد', amount:'رقم', sar:'ریال', transferFee:'کفالت کی منتقلی کی فیس', iqamaRenewal:'اقامہ تجدید', workPermit:'ورک پرمٹ', changeProf:'پیشہ کی تبدیلی', medical:'طبی انشورنس', office:'دفتری فیس', extras:'اضافی فیس', subtotal:'ذیلی کل', absher:'ابشر بیلنس (رعایت)', grandTotal:'کل رقم', warnings:'تنبیہات اور نوٹس', warnExpired:'اقامہ {d} دن پہلے ختم ہو چکا — تاخیر کا جرمانہ شامل ہے۔ ختم ہونے سے پہلے تجدید جرمانہ ختم کر دیتی ہے۔', warnExpiringSoon:'اقامہ {d} دن میں ختم ہو جائے گا — جرمانے سے بچنے کے لیے ختم ہونے سے پہلے تجدید کریں۔', warnValid:'اقامہ درست ہے — کوئی جرمانہ نہیں۔', signature:'دستخط', stamp:'مہر', footer:'یہ ایک تخمینی اقتباس ہے، اجراء کی تاریخ سے 7 دن کے لیے درست۔', print:'پرنٹ' },
-}
-
 // ═══ Main Component ═══
 export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoToTransferCalc }) {
   const T = (a, e) => (lang || 'ar') !== 'en' ? a : e
@@ -590,13 +512,9 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
   const dir = isAr ? 'rtl' : 'ltr'
 
   // Screen: 'form' (home screen removed — go directly to new worker form)
-  const [screen, setScreen] = useState('form')
   const [tab, setTab] = useState(0)
-  const [workerMode, setWorkerMode] = useState('new')
-  const [searchIqama, setSearchIqama] = useState('')
-  const [errors, setErrors] = useState({})
-  const [tried, setTried] = useState([false, false, false, false])
-  const [calendarType, setCalendarType] = useState('gregorian') // 'gregorian' | 'hijri'
+  const [, setErrors] = useState({})
+  const [, setTried] = useState([false, false, false, false])
   const [nationalities, setNationalities] = useState(NATIONALITIES)
   const [occupations, setOccupations] = useState([])
   const [residentStatuses, setResidentStatuses] = useState([])
@@ -640,8 +558,6 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
 
   // Success modal shown after "إصدار" — carries the saved quote info + copy/navigate actions.
   const [issuedQuote, setIssuedQuote] = useState(null) // { quoteNo, workerName, iqNo, total }
-
-  const WORKER_STATUSES = ['صالح','هروب','خروج نهائي','منقطع عن العمل']
 
   useEffect(() => {
     const sb = getSupabase()
@@ -741,15 +657,6 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
     return (cfg.medicalBrackets || []).find(b => age >= b.min && age < b.max) || null
   }, [age, cfg])
 
-  // Months past iqama expiry (0 if future)
-  const monthsPastExpiry = useMemo(() => {
-    if (!f.iqamaExpiry) return 0
-    const exp = new Date(f.iqamaExpiry)
-    const now = new Date()
-    if (isNaN(exp) || exp >= now) return 0
-    return Math.max(0, Math.ceil((now - exp) / (30 * 86400000)))
-  }, [f.iqamaExpiry])
-
   // ── تاريخ الانتهاء الجديد المتوقع — قاعدة قوى (أيام ثابتة لكل مدة + تعويض تأخير المنتهية) ──
   // مصدر موحّد للعرض والرسوم بدل الحساب الميلادي البسيط. راجع lib/expiryDuration.js.
   const newExpiryYMD = useMemo(() => {
@@ -759,25 +666,6 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
     if (!months) return null
     return computeRenewalExpiryYMD(f.iqamaExpiry, months, cfg, { asOf: new Date() })
   }, [f.iqamaExpiry, f.renewIqama, f.renewalMonths, cfg])
-
-  // Expected iqama duration in CALENDAR DAYS — mirrors the tab-3 display ("المدة المتوقعة في الإقامة")
-  // and drives the hidden office discount floor. النهاية = تاريخ الانتهاء الجديد (قاعدة قوى).
-  const expectedIqamaDays = useMemo(() => {
-    if (!f.iqamaExpiry) return 0
-    const exp = new Date(f.iqamaExpiry); if (isNaN(exp)) return 0
-    const today = new Date(); today.setHours(0, 0, 0, 0)
-    exp.setHours(0, 0, 0, 0)
-    const threshold = parseInt(cfg.thresholdCase2) || 30
-    const daysSinceExpiry = Math.floor((today - exp) / 86400000)
-    // procDays = which "expected duration" case applies
-    const procDays = !f.renewIqama
-      ? (parseInt(cfg.procDaysCase1) || 7)
-      : daysSinceExpiry >= threshold ? (parseInt(cfg.procDaysCase2) || 7) : (parseInt(cfg.procDaysCase3) || 7)
-    const expectedExpiry = newExpiryYMD ? new Date(newExpiryYMD) : exp
-    if (isNaN(expectedExpiry)) return 0
-    const base = new Date(today); base.setDate(base.getDate() + procDays)
-    return Math.max(0, Math.round((expectedExpiry - base) / 86400000))
-  }, [f.iqamaExpiry, f.renewIqama, f.renewalMonths, cfg, newExpiryYMD])
 
   // ═══ Auto-sync effects ═══
   // Medical fee ← age bracket from DOB (always charged on an age basis)
@@ -997,15 +885,10 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
     }
     return { months: Math.max(0, months), days: Math.max(0, days) }
   })()
-  // Office fee: flat general price (no monthly cap / daily excess). The daily rate
-  // is kept only for the hidden discount floor used at approval time.
-  const officeDailyRate = parseFloat(cfg.officeDailyRate) || 0
   // السعر العام لرسوم المكتب يختلف بحالة الإعفاء (بدون إعفاء له سعره الخاص؛ إن لم يُضبط يُستخدم سعر الإعفاء).
   const baseOfficeFee = (f.exemption === false ? (parseFloat(cfg.officeFeeNoExempt) || parseFloat(cfg.officeFee)) : parseFloat(cfg.officeFee)) || 0
   const officeAutoFee = baseOfficeFee
   const officeFee = parseFloat(f.officeFee) || officeAutoFee
-  // Hidden discount floor — daily rate × expected iqama duration (calendar days). Stored for the approval-side logic.
-  const officeDiscountFloor = officeDailyRate * expectedIqamaDays
 
   // Absher discount applies ONLY to transfer + renewal fees (not other items).
   const absherAmount = f.absherBalance_on ? (parseFloat(f.absherBalance) || 0) : 0
@@ -1013,20 +896,6 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
 
   const extrasTotal = f.extras.reduce((s, e) => s + (parseFloat(e.amount) || 0), 0)
   const grandTotal = transferRenewalAfterAbsher + workPermitFee + profChangeFee + medicalFee + officeFee + extrasTotal
-
-  // Extras management
-  const [extraName, setExtraName] = useState('')
-  const [extraAmount, setExtraAmount] = useState('')
-  const addExtra = () => {
-    if (!extraName || !extraAmount) return
-    set('extras', [...f.extras, { name: extraName, amount: extraAmount }])
-    setExtraName(''); setExtraAmount('')
-  }
-  const removeExtra = i => set('extras', f.extras.filter((_, idx) => idx !== i))
-
-  // Validation — allow progression freely; users can compute partial estimates
-  const validateTab0 = () => ({})
-  const validateTab1 = () => ({})
 
   // ═══ HRSD (Ministry of Labor) helpers ═══
   const HRSD_FN_URL = '/.netlify/functions/check-hrsd-worker'
@@ -1238,6 +1107,8 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
     setIssuing(true)
     try {
       await issueQuoteImpl()
+    } catch (e) {
+      setIssueErr(T('تعذّر حفظ التسعيرة: ', 'Failed to save quote: ') + String(e?.message || e).slice(0, 100))
     } finally {
       setIssuing(false)
     }
@@ -1246,23 +1117,11 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
     const sb = getSupabase()
     const workerName = hrsdCheck.result?.name || f.name || '—'
     const iqNo = f.iqama || '—'
-    const mobile = f.phone ? '+966' + f.phone : '—'
     const renewalMos = parseInt(f.renewalMonths) || 0
     const officeMos = iqamaRemainderParts.months + renewalMos
     const officeDays = iqamaRemainderParts.days
     const expectedExpiry = newExpiryYMD
-    const rows = [
-      [T('رسوم نقل الكفالة','Sponsorship Transfer Fee'), transferFee],
-      !f.transferOnly && renewalMos > 0 ? [T('تجديد الإقامة','Iqama Renewal'), iqamaRenewalFee] : null,
-      !f.transferOnly ? [T('رخصة العمل','Work Permit'), workPermitFee] : null,
-      profChangeFee > 0 ? [T('تغيير المهنة','Change Occupation'), profChangeFee] : null,
-      !f.transferOnly ? [T('التأمين الطبي','Medical Insurance'), medicalFee] : null,
-      [T('رسوم المكتب','Office Fees'), officeFee],
-      ...f.extras.map(ex => [ex.name, Number(ex.amount)]),
-    ].filter(Boolean)
-    const subtotal = rows.reduce((s, [, v]) => s + (Number(v) || 0), 0)
     const absher = f.absherBalance_on ? (parseFloat(f.absherBalance) || 0) : 0
-    const total = Math.max(0, subtotal - absher)
     const warnings = []
     if (iqamaExpired) warnings.push({ level: 'danger', text: T(`الإقامة منتهية منذ ${expiredDays} يوم — تم إضافة غرامة التأخير.`, `Iqama expired ${expiredDays} day(s) ago — late fine applied.`) })
     else if (f.iqamaExpiry) {
@@ -1332,7 +1191,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
       setIssueErr(T('تعذّر حفظ التسعيرة: ', 'Failed to save quote: ') + String(msg).slice(0, 100))
       return
     }
-    setIssuedQuote({ quoteNo: res.row.quote_no, workerName, iqNo, total: Number(res.row.total_amount), warnings })
+    setIssuedQuote({ quoteNo: res.row?.quote_no, workerName, iqNo, total: Number(res.row?.total_amount) || 0, warnings })
   }
 
   const tryNextTab = () => {
@@ -1344,20 +1203,6 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
     }
     setErrors({}); setTab(tab + 1)
   }
-  const tryGoTab = (i) => {
-    if (i <= tab) { setTab(i); return }
-    if (i > tab + 1) return
-    tryNextTab()
-  }
-  const Err = ({ k }) => tried[tab] && errors[k] ? <div style={{ fontSize: 14, color: C.red, marginTop: 4 }}>{errors[k]}</div> : null
-
-  const tabComplete = [
-    !!f.iqama,
-    !!f.iqamaExpiry,
-    true,
-    true
-  ]
-
   // ═══════════════════════════════════════
   // SCREEN 1: HOME
   // ═══════════════════════════════════════
@@ -1367,12 +1212,6 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
     { id: 'pricing', title: T('التسعيرة','Pricing'), Icon: Calculator },
     { id: 'review', title: T('مراجعة','Review'), Icon: CheckCircle2 }
   ]
-
-  const headerSubtitle = screen === 'home' ? T('حساب تكاليف نقل خدمات العمال والرسوم الحكومية','Calculate worker transfer costs and government fees') : (workerMode === 'existing' ? T('عامل مسجّل','Registered Worker') : T('عامل جديد','New Worker')) + (f.name ? ` — ${f.name}` : '')
-
-  const modalOverlay = { position: 'fixed', inset: 0, background: 'var(--overlayBg)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 16 }
-  const modalBox = { background: 'var(--modal-bg)', borderRadius: 16, width: 640, maxWidth: '95vw', height: 'auto', maxHeight: '95vh', display: 'flex', flexDirection: 'column', overflow: 'visible', boxShadow: 'var(--shadow-lg)', border: '1px solid var(--bd)', position: 'relative', zIndex: 60 }
-  const headerBar = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px 16px', flexShrink: 0, fontFamily: F, direction: 'rtl' }
 
   // ═══════════════════════════════════════
   // SCREEN 2: FORM WITH TABS — FormKit chrome (identical to the invoice wizard)
@@ -1420,23 +1259,6 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
       {/* TAB 0: بيانات العامل — matches ServiceRequest kafala step 3 page 1 */}
       {/* ═══════════════════════════════════════ */}
       {tab === 0 && (()=>{
-        const WORKER_STATUS=[{v:'valid',l:T('صالح','Valid')},{v:'huroob',l:T('هروب','Absconded')},{v:'final_exit',l:T('خروج نهائي','Final Exit')},{v:'absent',l:T('منقطع عن العمل','Absent from Work')}]
-        const years=Array.from({length:60},(_,i)=>String(new Date().getFullYear()-40+i))
-        const months=Array.from({length:12},(_,i)=>String(i+1).padStart(2,'0'))
-        const daysFor=(y,m)=>{const n=y&&m?new Date(parseInt(y),parseInt(m),0).getDate():31;return Array.from({length:n},(_,i)=>String(i+1).padStart(2,'0'))}
-        const HijriDate=({value,onChange,label,req})=>{
-          const parts=value?value.split('-'):[]
-          const [y,m,d]=[parts[0]||'',parts[1]||'',parts[2]||'']
-          const setPart=(which,val)=>{const p=[y,m,d];if(which==='y')p[0]=val;if(which==='m')p[1]=val;if(which==='d')p[2]=val;onChange(p[0]&&p[1]&&p[2]?`${p[0]}-${p[1]}-${p[2]}`:`${p[0]}-${p[1]}-${p[2]}`)}
-          return <div>
-            <Lbl req={req}>{label}</Lbl>
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,direction:'ltr'}}>
-              <Sel value={y} onChange={v=>setPart('y',v)} options={years} placeholder={T('السنة','Year')}/>
-              <Sel value={m} onChange={v=>setPart('m',v)} options={months} placeholder={T('الشهر','Month')}/>
-              <Sel value={d} onChange={v=>setPart('d',v)} options={daysFor(y,m)} placeholder={T('اليوم','Day')}/>
-            </div>
-          </div>
-        }
         return <div style={{ borderRadius: 12, border: `1.5px solid ${C.gold}59`, padding: '18px 14px 14px', position: 'relative' }}>
           <div style={{ position: 'absolute', top: -9, [lang === 'en' ? 'left' : 'right']: 14, background: 'var(--modal-bg)', padding: '0 8px', fontSize: 12, fontWeight: 600, color: C.gold, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             <User size={12} strokeWidth={2.2} />
@@ -1597,11 +1419,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
 
         // ── Computed values ─────────────────────────────────
         const iqamaExpiredFlag = f.iqamaExpiry ? new Date(f.iqamaExpiry) < new Date() : null
-        const PURPLE = '#9b59b6'
-        const purpleBg = 'rgba(155,89,182,.06)'
-        const purpleBorder = 'rgba(155,89,182,.32)'
-        const greenBg = 'rgba(39,160,70,.06)'; const greenBorder = 'rgba(39,160,70,.3)'; const GREEN = '#27a046'
-        const redBg = 'rgba(192,57,43,.06)'; const redBorder = 'rgba(192,57,43,.3)'
+        const GREEN = '#27a046'
 
         const hijriFormatted = hijriExpiry || null
         const dateColor = iqamaExpiredFlag === true ? C.red : iqamaExpiredFlag === false ? GREEN : null
@@ -1638,26 +1456,10 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
       {/* TAB 2: التسعيرة — matches ServiceRequest kafala pricing fieldset */}
       {/* ═══════════════════════════════════════ */}
       {tab === 2 && (()=>{
-        const togChip = (label, stateKey, clr) => {
-          const on = !!f[stateKey + '_on']
-          const c = clr || C.gold
-          return <div style={{ display: 'flex', flexDirection: 'column', gap: 5, flex: 1, minWidth: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-              <label style={{ fontSize: 14, fontWeight: 600, color: on ? c : 'var(--tx4)', fontFamily: F, transition: '.2s' }}>{label}</label>
-              <button type="button" onClick={() => set(stateKey + '_on', !on)} style={{ width: 28, height: 16, borderRadius: 999, border: 'none', background: on ? c : 'var(--bd)', cursor: 'pointer', position: 'relative', transition: '.2s', padding: 0, flexShrink: 0 }}>
-                <span style={{ position: 'absolute', width: 12, height: 12, borderRadius: '50%', background: '#fff', top: 2, right: on ? 2 : 14, transition: '.2s' }} />
-              </button>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', background: on ? 'var(--inputBg)' : 'var(--bd2)', border: `1px solid ${on ? c + '4d' : 'var(--bd)'}`, borderRadius: 8, boxShadow: on ? 'none' : 'none', height: 36, opacity: on ? 1 : .5, transition: '.2s' }}>
-              <input type="text" inputMode="decimal" disabled={!on} value={f[stateKey] || ''} onChange={e => set(stateKey, e.target.value.replace(/[^0-9.]/g, ''))} placeholder="0" style={{ flex: 1, minWidth: 0, height: '100%', padding: '0 10px', border: 'none', background: 'transparent', fontFamily: F, fontSize: 14, fontWeight: 600, color: on ? 'var(--tx)' : 'var(--tx5)', outline: 'none', direction: 'ltr', textAlign: 'center' }} />
-              <span style={{ fontSize: 14, color: on ? c : 'var(--tx5)', fontWeight: 600, padding: '0 8px 0 4px', fontFamily: F, flexShrink: 0 }}>{T('ريال','SAR')}</span>
-            </div>
-          </div>
-        }
         const subtotal = grandTotal
         const discount = f.discount_on ? (parseFloat(f.discount) || 0) : 0
-        const absher = f.absherBalance_on ? (parseFloat(f.absherBalance) || 0) : 0
-        const total = Math.max(0, subtotal - discount - absher)
+        // grandTotal يطرح خصم أبشر أصلاً (transferRenewalAfterAbsher) — لا يُطرح مرّة ثانية هنا.
+        const total = Math.max(0, subtotal - discount)
         // Card-based: each option is a tile with icon + label + control. Cleaner visual hierarchy.
         const Card = KCard
         return <div style={{display:'flex',flexDirection:'column',gap:8, flex:1, minHeight:0}}>
@@ -1768,7 +1570,6 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
           {/* Worker summary */}
           <div style={{ padding: '12px 14px 8px', borderRadius: 10, background: 'rgba(52,131,180,.04)', border: '1px solid rgba(52,131,180,.25)', position: 'relative' }}>
             {(() => {
-              const renewalMonthsNum = f.renewIqama ? (parseInt(f.renewalMonths) || 0) : 0
               const threshold = parseInt(cfg.thresholdCase2) || 30
               // Determine which of the 3 cases applies → picks the right processing-days setting
               const procDays = (() => {
@@ -1828,13 +1629,9 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
               // Human-readable month/day suffix so each row hints the duration driving the amount.
               const renewalMos = parseInt(f.renewalMonths) || 0
               const monthLbl = (n) => lang === 'en' ? (n === 1 ? 'month' : 'months') : 'شهر'
-              const dayLbl = (n) => lang === 'en' ? (n === 1 ? 'day' : 'days') : 'يوم'
               const renewalLabelSuffix = (!f.transferOnly && renewalMos > 0) ? ` (${renewalMos} ${monthLbl(renewalMos)})` : ''
               // تجديد الإقامة يُسعّر بالأشهر المفوترة فعليًا (تشمل التأخير)، لا الأشهر المطلوبة — فيظهر العدد المحسوب في الرسوم.
               const iqamaRenewalLabelSuffix = (!f.transferOnly && billedRenewalMonths > 0) ? ` (${billedRenewalMonths} ${monthLbl(billedRenewalMonths)})` : ''
-              const officeMos = iqamaRemainderParts.months + renewalMos
-              const officeDays = iqamaRemainderParts.days
-              const officeLabelSuffix = officeMos > 0 || officeDays > 0 ? ` (${officeMos} ${monthLbl(officeMos)}${officeDays > 0 ? ' ' + (lang === 'en' ? 'and' : 'و') + ' ' + officeDays + ' ' + dayLbl(officeDays) : ''})` : ''
               const extrasRows = (() => {
                 if (!f.extras.length) return []
                 if (f.extras.length === 1) return f.extras.map(ex => [ex.name, Number(ex.amount)])

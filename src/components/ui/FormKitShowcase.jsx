@@ -5,14 +5,14 @@
    ════════════════════════════════════════════════════════════════════════ */
 
 import React, { useState } from 'react'
-import { LayoutGrid, User, Calendar, ToggleLeft, CheckSquare, Hash, Save, Trash2, Ruler, Paperclip, Table, Palette, Clock, Eye, Bell, Building2, Phone, IdCard } from 'lucide-react'
+import { LayoutGrid, User, Calendar, ToggleLeft, CheckSquare, Hash, Trash2, Ruler, Paperclip, Table, Palette, Eye, Bell, Building2, Phone, IdCard } from 'lucide-react'
 import {
-  F, C, Modal, ModalSection, ScrollBox, ActionButton, GRID, FULL,
-  TextField, NumberField, CurrencyField, PhoneField, IdField, TextArea, FileField,
+  F, C, Modal, ModalSection, ScrollBox, ActionButton, GRID,
+  TextField, NumberField, CurrencyField, PhoneField, IdField, FileField,
   Select, MultiSelect, DateField, Switch, Segmented, YesNo, Checkbox,
   RadioGroup, Stepper, ColorField, TimeField, InfoRow, InfoGrid, Toast,
-  SuccessScreen, SuccessView, ConfirmDialog, Flag, fmtDateLong, fmtTime12, countWords,
-  TS, FW, IS, IST, H, R, SP, W,
+  SuccessView, ConfirmDialog, Flag, fmtDateLong, fmtTime12, countWords,
+  TS, FW, IS, IST, H, R,
 } from './FormKit.jsx'
 
 /* ── لوحة مرجع نظام التصميم: خطوط / أوزان / أيقونات / ألوان / أحجام ── */

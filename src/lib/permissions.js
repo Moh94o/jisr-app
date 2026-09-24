@@ -344,8 +344,18 @@ export const isPricer = (user) => {
   return user?.role?.name_ar === PRICER_ROLE_AR
 }
 
+// The invoice-creator role(s) («صانع الفواتير») land straight on the invoices
+// page too — an invoice-focused role should open into invoices, not the home
+// dashboard. Match with/without the «ال» to survive small naming differences.
+const INVOICE_CREATOR_ROLES_AR = ['صانع الفواتير', 'صانع فواتير']
+export const isInvoiceCreator = (user) => {
+  if (isGM(user)) return false
+  const names = (Array.isArray(user?.roleNames) && user.roleNames.length) ? user.roleNames : [user?.role?.name_ar]
+  return names.some(n => INVOICE_CREATOR_ROLES_AR.includes(n))
+}
+
 // Roles that land on (and refresh into) the invoices page instead of the home dashboard.
-export const landsOnInvoices = (user) => isInvoiceIssuer(user) || isAccountant(user)
+export const landsOnInvoices = (user) => isInvoiceIssuer(user) || isAccountant(user) || isInvoiceCreator(user)
 
 // The concrete list of office ids a user may operate in for a tab. GM ⇒ null
 // (meaning "no restriction — all offices"). For non-GM: 'all' ⇒ null,

@@ -9,11 +9,8 @@ const roleClrs={'المدير العام':'#e8c547','مدير فرع':'#85B7EB',
 const daysSince=iso=>{if(!iso)return 0;return Math.floor((Date.now()-new Date(iso).getTime())/86400000)}
 
 const GLASS={background:'var(--card-grad)',backdropFilter:'blur(20px) saturate(160%)',WebkitBackdropFilter:'blur(20px) saturate(160%)',border:'1px solid var(--bd)',borderRadius:16,boxShadow:'0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)'}
-const fS={width:'100%',height:42,padding:'0 14px',border:'1px solid var(--bd)',borderRadius:10,fontFamily:F,fontSize:13,fontWeight:500,color:'var(--tx)',outline:'none',background:'var(--inputBg)',boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.18s',textAlign:'center',boxSizing:'border-box'}
 const bS={height:40,padding:'0 18px',borderRadius:11,border:'1px solid rgba(176,125,0,.45)',background:'linear-gradient(180deg,rgba(176,125,0,.22) 0%,rgba(176,125,0,.10) 100%)',color:C.gold,fontFamily:F,fontSize:12,fontWeight:600,cursor:'pointer',display:'inline-flex',alignItems:'center',justifyContent:'center',gap:8,boxShadow:'0 2px 8px rgba(176,125,0,.18), inset 0 1px 0 rgba(176,125,0,.18)',transition:'.2s'}
 const sBS={height:40,padding:'0 14px',borderRadius:11,border:'1px solid var(--bd)',background:'var(--card-bg)',color:'var(--tx2)',fontFamily:F,fontSize:12,fontWeight:500,cursor:'pointer',display:'flex',alignItems:'center',gap:10,boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.2s'}
-const lblS={fontSize:12,fontWeight:500,color:'var(--tx3)',paddingInlineStart:2,marginBottom:7}
-const IB=({l,v,copy,toast,isAr})=>{const[copied,setCopied]=useState(false);return <div style={{background:'var(--bd2)',borderRadius:10,padding:'14px 16px',border:'1px solid var(--bd2)'}}><div style={{fontSize:9,color:'var(--tx5)',marginBottom:6}}>{l}</div><div style={{display:'flex',alignItems:'center',gap:6}}><div style={{fontSize:14,fontWeight:600,color:'var(--tx)',direction:copy?'ltr':'inherit'}}>{v||'—'}</div>{copy&&v&&<button onClick={e=>{e.stopPropagation();try{navigator.clipboard.writeText(String(v));setCopied(true);setTimeout(()=>setCopied(false),1200)}catch{}}} onMouseEnter={e=>{if(!copied)e.currentTarget.style.color=C.gold}} onMouseLeave={e=>{if(!copied)e.currentTarget.style.color='var(--tx5)'}} style={{width:20,height:20,borderRadius:5,border:'none',background:'var(--bd)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',padding:0,fontSize:9,color:copied?C.ok:'var(--tx5)',transition:'color .15s'}}>{copied?<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>:<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>}</button>}</div></div>}
 
 const BadgeStatus=({v})=><span style={{fontSize:10,fontWeight:600,padding:'3px 8px',borderRadius:6,background:v?'rgba(39,160,70,.1)':'rgba(192,57,43,.1)',color:v?C.ok:C.red}}>{v?'نشط':'معطّل'}</span>
 
@@ -54,8 +51,8 @@ const[roleLevel,setRoleLevel]=useState(2)
 const[roleAssignable,setRoleAssignable]=useState(true)
 const[roleEscalation,setRoleEscalation]=useState(false)
 const[rolePermSearch,setRolePermSearch]=useState('')
-const[roleOpenMods,setRoleOpenMods]=useState({})
-const[roleWizStep,setRoleWizStep]=useState(1)
+const[,setRoleOpenMods]=useState({})
+const[,setRoleWizStep]=useState(1)
 const[roleActiveMod,setRoleActiveMod]=useState('')
 const[saving,setSaving]=useState(false)
 const[saved,setSaved]=useState(false)
@@ -64,7 +61,7 @@ const[permErr,setPermErr]=useState(null)
 const[delTarget,setDelTarget]=useState(null)
 const[viewPop,setViewPop]=useState(null)
 const[viewTab,setViewTab]=useState('info')
-const[step,setStep]=useState(1)
+const[,setStep]=useState(1)
 const[permPop,setPermPop]=useState(null)
 const[permSaving,setPermSaving]=useState(false)
 const[selPerms,setSelPerms]=useState([])
@@ -89,7 +86,7 @@ const loadAll=useCallback(async()=>{
 setLoading(true)
 const[br,us,rl,pm,rp,rg,ct,ll,li,ba]=await Promise.all([
 sb.from('branches').select('*').is('deleted_at',null).order('name_ar'),
-sb.from('users').select('*,user_roles!user_roles_user_id_fkey(roles(name_ar,name_en,color))').is('deleted_at',null).order('name_ar'),
+sb.from('users').select('*,user_roles!user_roles_user_id_fkey(role_id,roles(name_ar,name_en,color))').is('deleted_at',null).order('name_ar'),
 sb.from('roles').select('*').is('deleted_at',null).order('name_ar'),
 sb.from('permission_templates').select('*').order('module').order('action'),
 sb.from('role_permissions').select('*'),
@@ -102,7 +99,7 @@ sb.from('bank_accounts').select('*').order('is_primary',{ascending:false}).order
 setBranches(br.data||[]);setUsers((us.data||[]).map(u=>({...u,roles:u.user_roles?.[0]?.roles||null})));setRoles(rl.data||[]);setPerms(pm.data||[]);setRolePerms(rp.data||[]);setRegions(rg.data||[]);setCities(ct.data||[]);setLLists(ll.data||[]);setLItems(li.data||[]);setBankAccs(ba.data||[])
 if(defaultTab==='users'){
 sb.from('v_employee_performance_detailed').select('*').then(({data:pd})=>setPerfData(pd||[]))
-sb.from('attendance').select('*').order('date',{ascending:false}).limit(200).then(({data:ad})=>setAllAttendance(ad||[]))
+sb.from('attendance').select('*').order('date',{ascending:false}).limit(5000).then(({data:ad})=>setAllAttendance(ad||[]))
 }
 setLoading(false)
 },[sb])
@@ -127,28 +124,17 @@ else{d.created_by=user?.id;const{error}=await sb.from(t).insert(d);if(error)thro
 setSaved(true);setTimeout(()=>{setSaved(false);setPop(null);loadAll()},1400)}catch(e){setSaveErr((isAr?'خطأ: ':'Error: ')+e.message?.slice(0,80))}setSaving(false)}
 
 const confirmDel=async()=>{if(!delTarget)return;const{table,id}=delTarget
-await sb.from(table).update({deleted_at:new Date().toISOString(),deleted_by:user?.id}).eq('id',id)
+const{error}=await sb.from(table).update({deleted_at:new Date().toISOString(),deleted_by:user?.id}).eq('id',id)
+if(error){toast((isAr?'خطأ: ':'Error: ')+error.message);return}
 toast(isAr?'تم الحذف':'Deleted');setDelTarget(null);loadAll()}
 
 const savePerms=async()=>{if(!permPop)return;setPermSaving(true);setPermErr(null);try{
-await sb.from('role_permissions').delete().eq('role_id',permPop)
+{const{error:delErr}=await sb.from('role_permissions').delete().eq('role_id',permPop);if(delErr)throw delErr}
 if(selPerms.length>0){const ins=selPerms.map(pid=>({role_id:permPop,permission_id:pid}));const{error}=await sb.from('role_permissions').insert(ins);if(error)throw error}
 toast(isAr?'تم حفظ الصلاحيات':'Permissions saved');setSaved(true);setTimeout(()=>{setSaved(false);setPermPop(null);loadAll()},1400)
 }catch(e){setPermErr((isAr?'خطأ: ':'Error: ')+e.message?.slice(0,80))}setPermSaving(false)}
 
 const getRef=(id,list,ak='name_ar')=>{const r=list.find(x=>x.id===id);return r?r[ak]:'—'}
-
-// ═══ STATS ═══
-const brActive=branches.filter(b=>b.is_active).length
-const brInactive=branches.filter(b=>!b.is_active).length
-const totalUsers=users.length
-const usActive=users.filter(u=>u.is_active).length
-const usInactive=users.filter(u=>!u.is_active).length
-const baActive=bankAccs.filter(a=>a.is_active).length
-const baInactive=bankAccs.filter(a=>!a.is_active).length
-const baDeposit=bankAccs.filter(a=>a.account_type==='deposit').length
-const baSadad=bankAccs.filter(a=>a.account_type==='sadad').length
-const baIntl=bankAccs.filter(a=>a.account_type==='international').length
 
 // ═══ FILTERS ═══
 const filteredBranches=branches.filter(b=>{
@@ -277,7 +263,7 @@ return<div key={b.id} onClick={()=>{setViewTab('info');setViewPop(b)}} onMouseEn
 </div>
 <div style={{display:'flex',gap:4}} onClick={e=>e.stopPropagation()}>
 <button title="تعديل" onClick={()=>openEdit(b)} style={{width:28,height:28,borderRadius:7,border:'1px solid rgba(201,168,76,.15)',background:'rgba(201,168,76,.08)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="1.8"><path d="M17 3a2.83 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></button>
-<button title={isAr?(b.is_active?'تعطيل المكتب':'تفعيل المكتب'):(b.is_active?'Disable branch':'Enable branch')} onClick={async()=>{await sb.from('branches').update({is_active:!b.is_active}).eq('id',b.id);toast(isAr?(b.is_active?'تم تعطيل المكتب':'تم تفعيل المكتب'):(b.is_active?'Branch disabled':'Branch enabled'));loadAll()}} style={{width:28,height:28,borderRadius:7,border:'1px solid '+(b.is_active?'rgba(192,57,43,.15)':'rgba(39,160,70,.15)'),background:b.is_active?'rgba(192,57,43,.06)':'rgba(39,160,70,.06)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>{b.is_active?<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.red} strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M4.93 4.93l14.14 14.14"/></svg>:<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.ok} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>}</button>
+<button title={isAr?(b.is_active?'تعطيل المكتب':'تفعيل المكتب'):(b.is_active?'Disable branch':'Enable branch')} onClick={async()=>{const{error}=await sb.from('branches').update({is_active:!b.is_active}).eq('id',b.id);if(error){toast((isAr?'خطأ: ':'Error: ')+error.message);return};toast(isAr?(b.is_active?'تم تعطيل المكتب':'تم تفعيل المكتب'):(b.is_active?'Branch disabled':'Branch enabled'));loadAll()}} style={{width:28,height:28,borderRadius:7,border:'1px solid '+(b.is_active?'rgba(192,57,43,.15)':'rgba(39,160,70,.15)'),background:b.is_active?'rgba(192,57,43,.06)':'rgba(39,160,70,.06)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>{b.is_active?<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.red} strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M4.93 4.93l14.14 14.14"/></svg>:<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.ok} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>}</button>
 </div>
 </div>
 </div>})}
@@ -340,7 +326,7 @@ return<div key={a.id} onMouseEnter={e=>{e.currentTarget.style.transform='transla
 <BadgeStatus v={a.is_active}/>
 <div style={{display:'flex',gap:3}}>
 <button onClick={()=>{setForm({_table:'bank_accounts',_id:a.id,bank_name:a.bank_name||'',account_name:a.account_name||'',account_number:a.account_number||'',iban:a.iban||'',swift_code:a.swift_code||'',account_type:a.account_type||'deposit',branch_id:a.branch_id||'',is_primary:String(a.is_primary===true),is_active:String(a.is_active!==false),notes:a.notes||''});setPop('edit_bank')}} style={{width:26,height:26,borderRadius:6,border:'1px solid rgba(201,168,76,.15)',background:'rgba(201,168,76,.08)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="1.8"><path d="M17 3a2.83 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></button>
-<button onClick={async()=>{await sb.from('bank_accounts').update({is_active:!a.is_active}).eq('id',a.id);toast(isAr?(a.is_active?'تم تعطيل الحساب':'تم تفعيل الحساب'):(a.is_active?'Account disabled':'Account enabled'));loadAll()}} style={{width:26,height:26,borderRadius:6,border:'1px solid '+(a.is_active?'rgba(192,57,43,.15)':'rgba(39,160,70,.15)'),background:a.is_active?'rgba(192,57,43,.04)':'rgba(39,160,70,.04)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>{a.is_active?<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={C.red} strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M4.93 4.93l14.14 14.14"/></svg>:<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={C.ok} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>}</button>
+<button onClick={async()=>{const{error}=await sb.from('bank_accounts').update({is_active:!a.is_active}).eq('id',a.id);if(error){toast((isAr?'خطأ: ':'Error: ')+error.message);return};toast(isAr?(a.is_active?'تم تعطيل الحساب':'تم تفعيل الحساب'):(a.is_active?'Account disabled':'Account enabled'));loadAll()}} style={{width:26,height:26,borderRadius:6,border:'1px solid '+(a.is_active?'rgba(192,57,43,.15)':'rgba(39,160,70,.15)'),background:a.is_active?'rgba(192,57,43,.04)':'rgba(39,160,70,.04)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>{a.is_active?<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={C.red} strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M4.93 4.93l14.14 14.14"/></svg>:<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={C.ok} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>}</button>
 </div>
 </div>
 </div></div>})}
@@ -418,7 +404,7 @@ return <div>
 <div style={{width:40,height:40,borderRadius:11,background:'linear-gradient(180deg,rgba(176,125,0,.22) 0%,rgba(176,125,0,.06) 100%)',border:'1px solid rgba(176,125,0,.3)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="2.2" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg></div>
 <div style={{flex:1}}>
 <div style={{fontSize:13,fontWeight:600,color:'var(--tx2)',marginBottom:4}}>طلب تسجيل جديد بحاجة للمراجعة</div>
-<div style={{fontSize:11,color:'var(--tx4)',lineHeight:1.6}}>{pending[0].name_ar} سجّل حساب جديد بتاريخ {new Date(pending[0].created_at).toLocaleDateString('ar-SA',{day:'numeric',month:'long',year:'numeric'})}. قم بتعيين دور وتفعيل الحساب للسماح بالدخول.</div>
+<div style={{fontSize:11,color:'var(--tx4)',lineHeight:1.6}}>{pending[0].name_ar} سجّل حساب جديد بتاريخ {new Date(pending[0].created_at).toLocaleDateString('ar-SA-u-nu-latn',{day:'numeric',month:'long',year:'numeric'})}. قم بتعيين دور وتفعيل الحساب للسماح بالدخول.</div>
 </div>
 <button onClick={()=>{setReviewUser(pending[0]);setSelRoles([]);setActivateNow(true);setRoleSearch('');setForm({branch_id:pending[0].branch_id||'',notes:''});setPop('review_pending')}} style={{...bS,flexShrink:0}}>مراجعة الطلب</button>
 </div>:null}
@@ -647,7 +633,7 @@ return<div key={a.id} style={{borderRadius:12,background:'var(--bg)',border:'1px
 {/* Absent employees */}
 {absent.length>0&&!isHoliday&&<>
 <div style={{fontSize:11,fontWeight:600,color:C.red,marginTop:12,marginBottom:6,paddingBottom:6,borderBottom:'1px solid rgba(192,57,43,.12)'}}>غائبين ({absent.length})</div>
-{absent.slice(0,10).map(u=>{const rc=u.roles?.color||'#999';return<div key={u.id} style={{padding:'10px 16px',borderRadius:10,background:'rgba(192,57,43,.02)',border:'1px solid rgba(192,57,43,.06)',display:'flex',alignItems:'center',gap:10}}>
+{absent.slice(0,10).map(u=>{return<div key={u.id} style={{padding:'10px 16px',borderRadius:10,background:'rgba(192,57,43,.02)',border:'1px solid rgba(192,57,43,.06)',display:'flex',alignItems:'center',gap:10}}>
 <div style={{width:32,height:32,borderRadius:8,background:'rgba(192,57,43,.08)',border:'1px solid rgba(192,57,43,.1)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:600,color:C.red,flexShrink:0}}>{(u.name_ar||'?')[0]}</div>
 <div style={{flex:1}}><div style={{fontSize:12,fontWeight:600,color:'var(--tx3)'}}>{u.name_ar}</div><div style={{fontSize:9,color:'var(--tx5)'}}>{u.roles?.name_ar||'—'}</div></div>
 <span style={{fontSize:9,padding:'2px 8px',borderRadius:4,background:'rgba(192,57,43,.08)',color:C.red,fontWeight:600}}>✕ غائب</span>
@@ -658,7 +644,7 @@ return<div key={a.id} style={{borderRadius:12,background:'var(--bg)',border:'1px
 </>})()}
 
 {/* ═══ EMPLOYEE DETAIL SIDE PANEL ═══ */}
-{viewUser&&(()=>{const u=viewUser;const br=branches.find(b=>b.id===u.branch_id);const rc=u.roles?.color||C.gold;const activeTasks=userTasks.filter(t=>t.tasks&&t.tasks.status!=='completed'&&t.tasks.status!=='cancelled');const completedTasks=userTasks.filter(t=>t.tasks&&t.tasks.status==='completed');const attDays=attendance.length;const onTime=attendance.filter(a=>!a.is_late).length;const lateDays=attendance.filter(a=>a.is_late).length;const avgHrs=attDays>0?(attendance.reduce((s,a)=>s+Number(a.work_hours||0),0)/attDays).toFixed(1):0;const SH3=({t,c})=><div style={{fontSize:12,fontWeight:600,color:c||C.gold,marginBottom:10,paddingBottom:6,borderBottom:'1px solid '+(c||C.gold)+'20'}}>{t}</div>;const priClr={urgent:C.red,high:'#e67e22',medium:C.gold,low:C.ok};const priLbl={urgent:'عاجل',high:'عالي',medium:'متوسط',low:'منخفض'};const stLbl={in_progress:'جاري',pending:'معلّق',completed:'مكتمل',cancelled:'ملغى'}
+{viewUser&&(()=>{const u=viewUser;const br=branches.find(b=>b.id===u.branch_id);const rc=u.roles?.color||C.gold;const activeTasks=userTasks.filter(t=>t.tasks&&t.tasks.status!=='completed'&&t.tasks.status!=='cancelled');const completedTasks=userTasks.filter(t=>t.tasks&&t.tasks.status==='completed');const attDays=attendance.length;const onTime=attendance.filter(a=>!a.is_late).length;const lateDays=attendance.filter(a=>a.is_late).length;const avgHrs=attDays>0?(attendance.reduce((s,a)=>s+Number(a.work_hours||0),0)/attDays).toFixed(1):0;const priClr={urgent:C.red,high:'#e67e22',medium:C.gold,low:C.ok};const priLbl={urgent:'عاجل',high:'عالي',medium:'متوسط',low:'منخفض'};const stLbl={in_progress:'جاري',pending:'معلّق',completed:'مكتمل',cancelled:'ملغى'}
 const utabs=[{id:'data',l:'البيانات'},{id:'tasks',l:'المهام',n:activeTasks.length},{id:'attend',l:'الحضور',n:attDays},{id:'logins',l:'سجل الدخول',n:loginLogs.length}]
 const tabIcons={data:User,tasks:ClipboardList,attend:CalendarDays,logins:LogIn}
 const profLbl=p=>p==='native'?'لغة أم':p==='advanced'?'متقدم':p==='intermediate'?'متوسط':'مبتدئ'
@@ -779,11 +765,9 @@ tabs={[
 const weekdayList=lLists.find(l=>l.category_key==='weekdays')
 const allDays=weekdayList?lItems.filter(i=>i.category_id===weekdayList.id).map(i=>i.value_ar):['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت']
 const selDays=(form.work_days||'').split(',').filter(Boolean)
-const toggleDay=d=>{const has=selDays.includes(d);setForm(p=>({...p,work_days:has?selDays.filter(x=>x!==d).join(','):[...selDays,d].join(',')}))}
 const times=[];for(let h=6;h<=23;h++)for(let m=0;m<60;m+=30)times.push(String(h).padStart(2,'0')+':'+String(m).padStart(2,'0'))
 const fmtMobile=v=>{if(!v)return'';return v.replace(/(\d{2})(\d{3})(\d{0,4})/,'$1 $2 $3').trim()}
 const getCityCode=()=>{const c=cities.find(x=>x.id===form.city_id);return c?(c.code||c.name_ar?.slice(0,3)):'---'}
-const net=(Number(String(form.opening_balance||0).replace(/,/g,''))||0)
 const reviewRows=[['الاسم بالعربي',form.name_ar],['الاسم بالإنجليزي',form.name_en],['المنطقة',getRef(form.region_id,regions)],['المدينة',getRef(form.city_id,cities)],['الكود',getCityCode()+'-'+form.code],['اللون',form.color],['العنوان',form.address],['الجوال',form.mobile?'+966 '+fmtMobile(form.mobile):null],['البريد',form.email],['الحالة',form.is_active==='true'?'نشط':'معطّل'],['مدير المكتب',getRef(form.manager_id,users)],['أيام الدوام',form.work_days],['بداية الدوام',form.work_from],['نهاية الدوام',form.work_to],['الرصيد الافتتاحي',form.opening_balance],['الحد النقدي اليومي',form.daily_cash_limit],['رابط الموقع',form.google_maps_url?'محدد':null],['ملاحظات',form.notes]]
 return<FKModal open onClose={()=>{setSaveErr(null);setPop(null)}} title={pop==='add'?'إضافة مكتب':'تعديل مكتب'} Icon={Building2} variant={pop==='add'?'create':'edit'}
 success={saved?<SuccessView title={pop==='add'?'تمت إضافة المكتب':'تم حفظ التعديلات'}/>:null}
@@ -965,9 +949,9 @@ setSaving(true);setSaveErr(null);
 try{
 const updates={branch_id:form.branch_id||null,notes:form.notes||null};
 if(activateNow){updates.is_active=true;updates.activated_at=new Date().toISOString();updates.activated_by=user?.id||null}
-await sb.from('users').update(updates).eq('id',ru.id);
-await sb.from('user_roles').delete().eq('user_id',ru.id);
-if(selRoles.length>0){await sb.from('user_roles').insert(selRoles.map(rid=>({user_id:ru.id,role_id:rid,assigned_by:user?.id||null})))}
+{const{error}=await sb.from('users').update(updates).eq('id',ru.id);if(error)throw error}
+{const{error}=await sb.from('user_roles').delete().eq('user_id',ru.id);if(error)throw error}
+if(selRoles.length>0){const{error}=await sb.from('user_roles').insert(selRoles.map(rid=>({user_id:ru.id,role_id:rid,assigned_by:user?.id||null})));if(error)throw error}
 toast(isAr?(activateNow?'تمت الموافقة والتفعيل':'تم حفظ التعديلات'):(activateNow?'Approved and activated':'Changes saved'));
 setSaved(true);setTimeout(()=>{setSaved(false);setPop(null);setReviewUser(null);setSelRoles([]);loadAll()},1400);
 }catch(e){setSaveErr((isAr?'خطأ: ':'Error: ')+(e.message||''))}
@@ -1010,16 +994,14 @@ pages={[
 {/* EDIT ACTIVE USER POPUP */}
 {pop==='edit_active'&&reviewUser&&(()=>{
 const ru=reviewUser;
-const ac=ru.roles?.color||roleClrs[ru.roles?.name_ar]||'#9b59b6';
 const br=branches.find(b=>b.id===editBranch);
-const relD=iso=>{if(!iso)return'—';const d=daysSince(iso);if(d<1)return'اليوم';if(d===1)return'أمس';if(d<7)return'قبل '+d+' أيام';return d+' يوم'};
 const updDays=daysSince(ru.updated_at);
 const submit=async()=>{
 if(saving)return;setSaving(true);setSaveErr(null);
 try{
-await sb.from('users').update({branch_id:editBranch||null}).eq('id',ru.id);
-await sb.from('user_roles').delete().eq('user_id',ru.id);
-if(selRoles.length>0){await sb.from('user_roles').insert(selRoles.map(rid=>({user_id:ru.id,role_id:rid,assigned_by:user?.id||null})))}
+{const{error}=await sb.from('users').update({branch_id:editBranch||null}).eq('id',ru.id);if(error)throw error}
+{const{error}=await sb.from('user_roles').delete().eq('user_id',ru.id);if(error)throw error}
+if(selRoles.length>0){const{error}=await sb.from('user_roles').insert(selRoles.map(rid=>({user_id:ru.id,role_id:rid,assigned_by:user?.id||null})));if(error)throw error}
 toast(isAr?'تم حفظ التعديلات':'Changes saved');
 setSaved(true);setTimeout(()=>{setSaved(false);setPop(null);setReviewUser(null);loadAll()},1400);
 }catch(e){setSaveErr((isAr?'خطأ: ':'Error: ')+(e.message||''))}
@@ -1078,13 +1060,12 @@ tabs={[
 {/* DEACTIVATE USER POPUP */}
 {pop==='deactivate_user'&&reviewUser&&(()=>{
 const ru=reviewUser;
-const ac=ru.roles?.color||roleClrs[ru.roles?.name_ar]||'#888';
 const reasons=[['end_service','انتهاء الخدمة','الموظف لم يعد يعمل في الشركة'],['leave','إجازة طويلة','تعطيل مؤقت أثناء الإجازة'],['transfer','نقل لفرع آخر','الموظف انتقل لمكان آخر غير متابع'],['other','سبب آخر','اكتب السبب يدوياً في الخانة التالية']];
 const canSubmit=deactReason&&deactConfirm.trim()===ru.name_ar?.trim();
 const submit=async()=>{
 if(saving||!canSubmit)return;setSaving(true);setSaveErr(null);
 try{
-await sb.from('users').update({is_active:false,deactivated_at:new Date().toISOString(),deactivated_by:user?.id||null,deactivation_reason:reasons.find(r=>r[0]===deactReason)?.[1]||null,notes:deactNotes||null}).eq('id',ru.id);
+{const{error}=await sb.from('users').update({is_active:false,deactivated_at:new Date().toISOString(),deactivated_by:user?.id||null,deactivation_reason:reasons.find(r=>r[0]===deactReason)?.[1]||null,notes:deactNotes||null}).eq('id',ru.id);if(error)throw error}
 toast(isAr?'تم تعطيل الحساب':'Account disabled');setSaved(true);setTimeout(()=>{setSaved(false);setPop(null);setReviewUser(null);loadAll()},1400);
 }catch(e){setSaveErr((isAr?'خطأ: ':'Error: ')+(e.message||''))}
 setSaving(false);
@@ -1116,13 +1097,12 @@ pages={[
 {/* REACTIVATE USER POPUP */}
 {pop==='reactivate_user'&&reviewUser&&(()=>{
 const ru=reviewUser;
-const ac=ru.roles?.color||roleClrs[ru.roles?.name_ar]||'#888';
 const disDays=ru.deactivated_at?daysSince(ru.deactivated_at):null;
 const savedRoles=ru.user_roles||[];
 const submit=async()=>{
 if(saving)return;setSaving(true);setSaveErr(null);
 try{
-await sb.from('users').update({is_active:true,activated_at:new Date().toISOString(),activated_by:user?.id||null,deactivated_at:null,deactivation_reason:null}).eq('id',ru.id);
+{const{error}=await sb.from('users').update({is_active:true,activated_at:new Date().toISOString(),activated_by:user?.id||null,deactivated_at:null,deactivation_reason:null}).eq('id',ru.id);if(error)throw error}
 toast(isAr?'تم تفعيل الحساب':'Account enabled');setSaved(true);setTimeout(()=>{setSaved(false);setPop(null);setReviewUser(null);loadAll()},1400);
 }catch(e){setSaveErr((isAr?'خطأ: ':'Error: ')+(e.message||''))}
 setSaving(false);
@@ -1170,7 +1150,7 @@ setSaving(true);setSaveErr(null);
 try{
 const{data:newR,error}=await sb.from('roles').insert({name_ar:form.name_ar,name_en:form.name_en||null,description:form.description||null,color:form.color||C.gold,is_active:true,is_system:false}).select('id').single();
 if(error)throw error;
-if(selPerms.length>0){await sb.from('role_permissions').insert(selPerms.map(pid=>({role_id:newR.id,permission_id:pid})))}
+if(selPerms.length>0){const{error:pErr}=await sb.from('role_permissions').insert(selPerms.map(pid=>({role_id:newR.id,permission_id:pid})));if(pErr)throw pErr}
 toast(isAr?'تم إنشاء الدور':'Role created');setSaved(true);setTimeout(()=>{setSaved(false);setPop(null);loadAll()},1400);
 }catch(e){setSaveErr((isAr?'خطأ: ':'Error: ')+(e.message||''))}
 setSaving(false);

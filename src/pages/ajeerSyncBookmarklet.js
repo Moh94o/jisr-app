@@ -32,7 +32,7 @@ function body({ sourceId, personId, force = false, resetAt = '' }) {
     let d = document.getElementById('_jisr_ajeer_ui');
     if (!d) {
       d = document.createElement('div'); d.id = '_jisr_ajeer_ui';
-      d.style.cssText = 'position:fixed;top:16px;left:16px;background:#111;color:#27a046;padding:12px 18px;border-radius:10px;z-index:2147483647;font:700 13px/1.5 sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.5);max-width:380px;direction:rtl;text-align:right;border:1px solid rgba(39,160,70,.4)';
+      d.style.cssText = 'position:fixed;top:16px;left:16px;background:#111;color:#27a046;padding:12px 18px;border-radius:10px;z-index:2147483647;font:600 13px/1.5 sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.5);max-width:380px;direction:rtl;text-align:right;border:1px solid rgba(39,160,70,.4)';
       document.body.appendChild(d);
     }
     d.textContent = 'جسر أجير: ' + m;
@@ -155,7 +155,7 @@ function body({ sourceId, personId, force = false, resetAt = '' }) {
   const stashRaw = (est, path, r) => ({
     establishment_no: est, path,
     http_status: r.status, final_path: r.finalPath,
-    parsed: r.gated ? { gated: true } : (r.json ? { json: r.json } : { tables: r.tables || parseTables(r.doc) }),
+    parsed: r.gated ? { gated: true } : (r.json ? { json: r.json } : { tables: r.tables || (r.doc ? parseTables(r.doc) : []) }),
   });
 
   // /notices and /contracts render an empty shell and fill it over AJAX — their rows are

@@ -92,7 +92,7 @@ function findValueByLabel(html, labelTexts) {
 // Pull the Nitaqat band out of the result. Try a labelled lookup first, then
 // fall back to scanning the result region for a known band token — the page
 // renders the band as a coloured badge whose exact markup we can't rely on.
-const BAND_RE = /(بلاتيني(?:\s*مميز)?|(?:أخضر|اخضر)\s*(?:مرتفع|متوسط|منخفض|صغير)|أخضر|اخضر|أصفر|اصفر|أحمر|احمر\s*صغير|أحمر\s*صغير|احمر)/
+const BAND_RE = /(بلاتيني(?:\s*مميز)?|(?:أخضر|اخضر)\s*(?:مرتفع|متوسط|منخفض|صغير)|أخضر|اخضر|أصفر|اصفر|(?:أحمر|احمر)\s*صغير|أحمر|احمر)/
 
 function parseResult(html) {
   const text = stripTags(cleanBody(html))

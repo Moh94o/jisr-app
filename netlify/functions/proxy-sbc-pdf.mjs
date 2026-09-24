@@ -56,6 +56,11 @@ export const handler = async (event) => {
   if (!downloadUrl || !bucket || !path) {
     return json({ error: 'missing downloadUrl/bucket/path' }, 400)
   }
+  // الرفع بمفتاح الخدمة — نقصره على مجلدَي SBC المعروفين كي لا يُكتب فوق أي ملف آخر في التخزين.
+  if (bucket !== 'documents' || typeof path !== 'string'
+      || !/^(sbc-cr-certificates|sbc-municipal-licenses)\//.test(path) || path.split('/').includes('..')) {
+    return json({ error: 'invalid bucket/path' }, 400)
+  }
 
   // Server-side PDF fetch. We mimic the browser headers the SBC portal uses
   // so the upstream service treats us like a normal click-to-download.

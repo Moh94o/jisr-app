@@ -20,7 +20,6 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 const months = (n) => Array.from({ length: n }, (_, i) => ({ value: String(i + 1), label: `${i + 1} ${i + 1 >= 3 && i + 1 <= 10 ? 'أشهر' : 'شهر'}` }))
-const years = (back = 6) => { const base = 1446; return Array.from({ length: back }, (_, i) => ({ value: String(base - i), label: `${base - i}هـ` })) }
 
 export const TXN_SERVICES = {
   /* ─────── existing services routed via other_applications — now given specificity ─────── */

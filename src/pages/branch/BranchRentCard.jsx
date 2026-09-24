@@ -9,7 +9,9 @@ const C = { gold: GOLD, ok: '#2ecc71', warn: '#eab308', red: '#e87265', blue: '#
 const MONO = "'JetBrains Mono','Cairo',sans-serif"
 
 const fmtAmt = (v) => Number(v || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-const todayIso = () => new Date().toISOString().slice(0, 10)
+const p2 = x => String(x).padStart(2, '0')
+// التاريخ المحلي لا UTC — بين 00:00 و03:00 بتوقيت الرياض كان «اليوم» يُحسب أمس
+const todayIso = () => { const d = new Date(); return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}` }
 const FREQ = [
   { k: 'monthly', l: 'شهري', step: 1 },
   { k: 'quarterly', l: 'ربع سنوي', step: 3 },
@@ -18,7 +20,8 @@ const FREQ = [
   { k: 'once', l: 'دفعة واحدة', step: 0 },
 ]
 const freqLabel = (k) => FREQ.find(f => f.k === k)?.l || k
-const addMonths = (iso, n) => { const d = new Date(iso + 'T00:00:00'); d.setMonth(d.getMonth() + n); return d.toISOString().slice(0, 10) }
+// يُثبَّت اليوم على آخر الشهر حين لا يوجد فيه (31 يناير + شهر = 28/29 فبراير لا 3 مارس)
+const addMonths = (iso, n) => { const [y, m, d] = iso.split('-').map(Number); const t = new Date(y, m - 1 + n, 1); const last = new Date(t.getFullYear(), t.getMonth() + 1, 0).getDate(); return `${t.getFullYear()}-${p2(t.getMonth() + 1)}-${p2(Math.min(d, last))}` }
 
 // Build a payment schedule from a contract period + frequency + per-period amount.
 function genSchedule(start, end, freq, amount) {
@@ -29,7 +32,8 @@ function genSchedule(start, end, freq, amount) {
   let cur = start
   const limit = end || addMonths(start, 12) // default 1 year if no end
   let guard = 0
-  while (cur <= limit && guard < 120) { out.push({ due_date: cur, amount }); cur = addMonths(cur, step); guard++ }
+  // كل استحقاق يُحسب من تاريخ البداية لا من السابق — فلا ينجرف يوم الاستحقاق بعد شهر قصير
+  while (cur <= limit && guard < 120) { out.push({ due_date: cur, amount }); guard++; cur = addMonths(start, step * guard) }
   return out
 }
 
@@ -44,7 +48,6 @@ function payState(p) {
 }
 
 export default function BranchRentCard({ sb, branch, user, cardKey = 'rent_contract', toast, lang }) {
-  const isAr = lang !== 'en'
   const canEdit = canPerm(user, 'admin_offices.edit') || canPerm(user, 'admin_offices.create')
   const canDelete = canPerm(user, 'admin_offices.delete')
   // Per-card action gates (catalog: rent_contract → edit/create/delete).
@@ -95,7 +98,6 @@ export default function BranchRentCard({ sb, branch, user, cardKey = 'rent_contr
   }
 
   const pendingTotal = payments.filter(p => p.status !== 'paid').reduce((s, p) => s + Number(p.amount || 0), 0)
-  const nextDue = payments.filter(p => p.status !== 'paid').sort((a, b) => a.due_date.localeCompare(b.due_date))[0]
 
   return (
     <div className="brd-section">

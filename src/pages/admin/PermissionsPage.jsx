@@ -7,7 +7,7 @@ import {
   TextField, IdField, PhoneField, Select, MultiSelect, EmptyState,
 } from '../../components/ui/FormKit.jsx'
 import { Shimmer } from '../../components/ui/Skeleton.jsx'
-import { TAB_CARDS, CARD_GROUP_LABELS, MODULE_ACTIONS, TAB_FIELDS, TAB_MODALS, TAB_STAGES, TAB_SERVICE_SCOPE, TAB_STATS_MODE, groupFields, tabModule as catTabModule, registerOpsLayouts, cardOptIn } from '../../lib/permCatalog.js'
+import { TAB_CARDS, CARD_GROUP_LABELS, TAB_FIELDS, TAB_MODALS, TAB_STAGES, TAB_SERVICE_SCOPE, TAB_STATS_MODE, tabModule as catTabModule, registerOpsLayouts, cardOptIn } from '../../lib/permCatalog.js'
 import { isGM as isGmUser } from '../../lib/permissions.js'
 import { branchLabel } from '../../lib/utils.js'
 import { ALL_SERVICES, SVC_CODE_MAP } from '../../ServiceRequestPage.jsx'
@@ -93,7 +93,7 @@ export default function PermissionsPage({ sb, user, toast, lang, nav, hubTabs, v
   const refresh = async () => {
     const [uRes, bRes, rRes, nRes, pRes, gRes] = await Promise.all([
       sb.from('users')
-        .select('id,role_id,primary_branch_id,branch_ids,is_active,personal_phone,email,plain_password,ui_visibility,created_at,last_login_at,person:persons(id,name_ar,name_en,id_number,id_type_id,nationality_id,phone_primary,birth_date,email),branch:branches!users_primary_branch_id_fkey(id,branch_code),role:roles!users_role_id_fkey(id,name_ar,name_en,color)')
+        .select('id,role_id,primary_branch_id,branch_ids,is_active,personal_phone,email,plain_password,ui_visibility,landing_page,created_at,last_login_at,person:persons(id,name_ar,name_en,id_number,id_type_id,nationality_id,phone_primary,birth_date,email),branch:branches!users_primary_branch_id_fkey(id,branch_code),role:roles!users_role_id_fkey(id,name_ar,name_en,color)')
         .is('deleted_at', null).order('created_at'),
       sb.from('branches').select('id,branch_code,name_ar').is('deleted_at', null).eq('is_active', true).order('branch_code'),
       sb.from('roles').select('id,name_ar,name_en,color').order('name_ar'),
@@ -444,7 +444,6 @@ function UsersTab({ sb, user, toast, lang, loading, users, branches, nationaliti
 // ═══════════════════════════════════════════════════════════════════
 function UserCard({ u, isMe, saving, nat, onClick, onToggle }) {
   const name = u.person?.name_ar || u.person?.name_en || '—'
-  const branchLabel = u.branch ? u.branch.branch_code : '—'
   const isActive = u.is_active === true
   const tone = isActive ? C.ok : '#777'
   const accent = u.role?.color || C.gold
@@ -517,10 +516,6 @@ function UserCard({ u, isMe, saving, nat, onClick, onToggle }) {
 const cardChrome = { background: 'var(--card-grad2)', border: '1px solid var(--bd)', borderRadius: 16, overflow: 'hidden' }
 const cardHeader = { padding: '14px 22px', borderBottom: '1px solid var(--bd)', display: 'flex', alignItems: 'center', gap: 10 }
 const cardTitle = { fontSize: 16, fontWeight: 600, color: 'var(--tx)', letterSpacing: '.2px' }
-// Every sidebar tab is controllable — nothing is permanently locked. The General
-// Manager bypasses personal visibility entirely (App.jsx isVisible), so an empty
-// list can never lock the GM out of any tab.
-const VIS_LOCKED = []
 
 // Small inline copy-to-clipboard button used on copyable info rows.
 function CopyBtn({ value, toast }) {
@@ -540,18 +535,6 @@ function CopyBtn({ value, toast }) {
       style={{ width: 24, height: 24, borderRadius: 6, flexShrink: 0, border: '1px solid var(--bd)', background: done ? 'rgba(39,160,70,.16)' : 'var(--inputBg)', color: done ? C.ok : 'var(--tx4)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', transition: 'color .15s' }}>
       {done ? <Check size={12} /> : <Copy size={12} />}
     </button>
-  )
-}
-
-function InfoRow({ label, value, mono, copy, toast }) {
-  return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 0', borderBottom: '1px dashed var(--bd)', gap: 12 }}>
-      <span style={{ fontSize: 12, color: 'var(--tx4)', fontWeight: 600, flexShrink: 0 }}>{label}</span>
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-        <span style={{ fontSize: 13, color: value ? 'var(--tx2)' : 'var(--tx5)', fontWeight: 600, direction: mono ? 'ltr' : 'rtl', fontFamily: mono ? 'monospace' : 'inherit', textAlign: 'end', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={value || ''}>{value || '—'}</span>
-        {copy && value && <CopyBtn value={value} toast={toast} />}
-      </span>
-    </div>
   )
 }
 
@@ -611,7 +594,7 @@ function ActionRow({ p, on, source, locked, onToggle }) {
   )
 }
 
-export function PermissionsPanel({ sb, currentUser, u, role, mode = 'user', branches, nav, hubTabs, modules, toast, embedded, onRoleChanged }) {
+export function PermissionsPanel({ sb, currentUser, u, role, mode = 'user', branches, nav, hubTabs, modules, toast, embedded, onRoleChanged, readOnly = false }) {
   const isRole = mode === 'role'
   const targetId = isRole ? role.id : u.id
   const userIsGM = !isRole && isGmUser(u)
@@ -619,7 +602,9 @@ export function PermissionsPanel({ sb, currentUser, u, role, mode = 'user', bran
   const visRef = useRef(vis)
   const [eff, setEff] = useState(null)         // permId -> { is_granted, source }
   const [granted, setGranted] = useState(null)  // role mode: Set<permission_id>
-  const [busy, setBusy] = useState(false)
+  const [busyState, setBusy] = useState(false)
+  // readOnly (مَن لا يملك إدارة الصلاحيات) يقفل كل المبدّلات كما يقفلها الانشغال
+  const busy = busyState || readOnly
   const [open, setOpen] = useState(() => new Set())   // expanded tab ids
   const [serviceTypes, setServiceTypes] = useState([]) // for the service-scope picker
   /* تخطيطات «جداول العمل»: بها تطابق قائمةُ حقول كل جدول هنا الجدولَ كما هو
@@ -668,6 +653,7 @@ export function PermissionsPanel({ sb, currentUser, u, role, mode = 'user', bran
 
   // ── writers (target = the role's ui_visibility in role mode, else the user's) ──
   const patchVis = async (patch) => {
+    if (readOnly) return
     const next = { ...visRef.current, ...patch }
     visRef.current = next; setVis(next)
     const { error } = await sb.from(isRole ? 'roles' : 'users').update({ ui_visibility: next, updated_at: new Date().toISOString() }).eq('id', targetId)
@@ -740,18 +726,128 @@ export function PermissionsPanel({ sb, currentUser, u, role, mode = 'user', bran
   // role-first: a card is hidden only when an explicit per-user exception (=== false).
   const hiddenCards = (tabId) => (TAB_CARDS[tabId] || []).filter(c => !cardOn(tabId, c)).length
 
+  /* تبويب جدولٍ يُعدّ ظاهراً ببطاقة جدوله لا بمفتاح صفحته — وعنوان المجموعة ليس تبويباً */
+  const tabShown = (t) => t.hdr ? false : (t.sheet ? cardOn('ops_excels', { key: t.sheet, optIn: cardOptIn('ops_excels', t.sheet) }) : vis[t.id] !== false)
   const totalShown = (nav || []).reduce((acc, n) => {
     const leaves = hubTabs?.[n.id]
-    if (leaves) return acc + leaves.filter(t => vis[t.id] !== false).length
+    if (leaves) return acc + leaves.filter(tabShown).length
     return acc + (vis[n.id] !== false ? 1 : 0)
   }, 0)
 
+  /* ── تبويب جدولٍ من قسم «الخدمات» ───────────────────────────────────────
+     كل جدولٍ صار تبويباً مستقلاً في القائمة، وصلاحيتُه هنا هي **بطاقة الجدول
+     نفسها** في وحدة «جداول العمل» (`card:ops_excels:<key>`) لا مفتاحاً ثانياً:
+     زرٌّ واحد يُظهر التبويب ويفتح الجدول معاً، فلا يقف المدير بين مفتاحين
+     متناقضين لشيءٍ واحد. وتحته تفصيل الجدول: أفعاله (تعديل · إضافة · حذف ·
+     أعمدة · فرز وتصفية · قفل · تصدير · تحديث · لقطات · تسمية) ثم **أعمدته
+     عموداً عموداً**: إظهارٌ وقفلُ تعديل. */
+  const SheetTabBlock = (tab) => {
+    const key = tab.sheet
+    const card = (TAB_CARDS.ops_excels || []).find(c => c.key === key)
+    if (!card) return null
+    const id = tab.id
+    const shown = cardOn('ops_excels', card)
+    const isOpen = open.has(id)
+    const acts = card.actions || []
+    const actOn = acts.filter(a => vis[`cardact:ops_excels:${key}:${a.action}`] !== false).length
+    const fields = (TAB_FIELDS.ops_excels || []).filter(f => f.group === key)
+    const fldOn = fields.filter(f => vis[`field:ops_excels:${f.key}`] !== false).length
+    const toggleOpen = () => setOpen(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
+    return (
+      <div key={id} style={{ borderRadius: 11, background: 'var(--inputBg)', border: '1px solid ' + (shown ? 'var(--bd)' : 'rgba(192,57,43,.16)'), overflow: 'hidden' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px' }}>
+          <button type="button" onClick={toggleOpen}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center', color: 'var(--tx4)', transition: '.2s', transform: isOpen ? 'rotate(-90deg)' : 'none' }}>
+            <ChevronLeft size={16} />
+          </button>
+          <span style={{ display: 'flex', flexDirection: 'column', gap: 3, flex: 1, minWidth: 0, cursor: 'pointer' }} onClick={toggleOpen}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: shown ? 'var(--tx)' : 'var(--tx3)' }}>{tab.l || card.label_ar}</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 10, fontWeight: 600, color: 'var(--tx5)', flexWrap: 'wrap' }}>
+              <span><span style={{ color: actOn ? C.ok : 'var(--tx5)' }}>{actOn}</span>/{acts.length} خاصيّة</span>
+              {fields.length > 0 && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><SlidersHorizontal size={9} />{fldOn}/{fields.length} عمود</span>}
+              {card.optIn && !shown && <span style={{ color: C.gold }}>مقفول — يحتاج منحاً صريحاً</span>}
+            </span>
+          </span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, flexShrink: 0 }}>
+            {shown ? <Eye size={13} color={C.ok} /> : <EyeOff size={13} color="var(--tx5)" />}
+            <VisToggle on={shown} locked={busy || userIsGM} onClick={() => toggleCard('ops_excels', key)} />
+          </span>
+        </div>
+        {isOpen && (
+          <div style={{ padding: '12px 14px 14px', display: 'flex', flexDirection: 'column', gap: 16, borderTop: '1px solid var(--bd)', opacity: shown ? 1 : .55 }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
+                <MousePointerClick size={13} color={C.gold} />
+                <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--tx2)' }}>خصائص هذا الجدول</span>
+                <span style={{ fontSize: 9.5, color: 'var(--tx5)', fontWeight: 600 }}>تُستثنى على هذا الجدول وحده ولو مُنحت عموماً</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(210px,1fr))', gap: 7 }}>
+                {acts.map(a => {
+                  const aOn = vis[`cardact:ops_excels:${key}:${a.action}`] !== false
+                  const dot = ACTION_DOT[a.kind] || C.gold
+                  return (
+                    <div key={a.action} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '7px 10px', borderRadius: 9, background: 'var(--card)', border: '1px solid var(--bd)' }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                        <span style={{ width: 5, height: 5, borderRadius: '50%', background: dot, flexShrink: 0 }} />
+                        <span title={a.label_ar} style={{ fontSize: 11, fontWeight: 600, color: aOn ? 'var(--tx2)' : 'var(--tx5)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.label_ar}</span>
+                      </span>
+                      <MiniToggle on={aOn} locked={busy || userIsGM} onClick={() => toggleCardAct('ops_excels', key, a.action)} />
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+            {fields.length > 0 && (
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
+                  <SlidersHorizontal size={13} color={C.gold} />
+                  <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--tx2)' }}>أعمدة الجدول</span>
+                  <span style={{ fontSize: 9.5, color: 'var(--tx5)', fontWeight: 600 }}>إظهار العمود · والسماح بتعديله</span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(250px,1fr))', gap: 7 }}>
+                  {fields.map(f => {
+                    const fVis = vis[`field:ops_excels:${f.key}`] !== false
+                    const fEdit = vis[`fieldedit:ops_excels:${f.key}`] !== false
+                    return (
+                      <div key={f.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '7px 10px', borderRadius: 9, background: 'var(--card)', border: '1px solid var(--bd)' }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                          <span style={{ width: 5, height: 5, borderRadius: '50%', background: fVis ? C.blue : 'var(--tx5)', flexShrink: 0 }} />
+                          <span title={f.label_ar} style={{ fontSize: 11, fontWeight: 600, color: fVis ? 'var(--tx2)' : 'var(--tx5)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.label_ar}</span>
+                        </span>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 9, flexShrink: 0 }}>
+                          {f.edit && (
+                            <span title="السماح بتعديل العمود" style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                              <Pencil size={9} color={fEdit && fVis ? C.gold : 'var(--tx5)'} />
+                              <MiniToggle on={fEdit && fVis} locked={busy || userIsGM || !fVis} onClick={() => toggleFieldEdit('ops_excels', f.key)} />
+                            </span>
+                          )}
+                          <span title="إظهار العمود" style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                            <Eye size={9} color={fVis ? C.ok : 'var(--tx5)'} />
+                            <MiniToggle on={fVis} locked={busy || userIsGM} onClick={() => toggleField('ops_excels', f.key)} />
+                          </span>
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    )
+  }
+
   // ── one tab's expandable control block ──
   const TabBlock = (tab) => {
+    if (tab.sheet) return SheetTabBlock(tab)
     const id = tab.id
     const label = tab.l || tab.label
     const mod = moduleForTab(id)
-    const cards = TAB_CARDS[id] || []
+    /* بطاقات «جداول العمل» = جداولها، وقد صار لكلٍّ تبويبُه وكتلتُه المفصَّلة
+       تحت قسم «الخدمات». فلا تُكرَّر هنا: يبقى في هذا التبويب التحكّم **العامّ**
+       بالوحدة (الخاصيّة ممنوحةً عموماً) والاستثناء على جدولٍ بعينه هناك. */
+    const cards = id === 'ops_excels' ? [] : (TAB_CARDS[id] || [])
     const shown = vis[id] !== false
     const isOpen = open.has(id)
     const [gOn, gTot] = grantedCount(id)
@@ -899,7 +995,10 @@ export function PermissionsPanel({ sb, currentUser, u, role, mode = 'user', bran
                   </span>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingInlineStart: leaves ? 6 : 0 }}>
-                  {(leaves || [{ id: n.id, l: n.l }]).map(t => TabBlock(t))}
+                  {(leaves || [{ id: n.id, l: n.l }]).map(t => t.hdr
+                    /* عنوان مجموعةٍ داخل القسم (جداول «الخدمات») — فاصلٌ لا تبويب */
+                    ? <div key={t.id} style={{ fontSize: 10.5, fontWeight: 600, color: C.gold, opacity: .85, margin: '6px 2px 0' }}>{t.l}</div>
+                    : TabBlock(t))}
                 </div>
               </div>
             )
@@ -967,7 +1066,7 @@ function RoleAssignmentCard({ sb, currentUser, u, roles, branches, toast, onChan
     if (!canManage || busy) return
     setBusy(true)
     try {
-      await sb.from('user_roles').delete().eq('user_id', u.id).eq('role_id', roleId)
+      { const { error } = await sb.from('user_roles').delete().eq('user_id', u.id).eq('role_id', roleId); if (error) throw error }
       const ins = scope === 'all'
         ? [{ user_id: u.id, role_id: roleId, branch_id: null }]
         : (branchIds || []).map(b => ({ user_id: u.id, role_id: roleId, branch_id: b }))
@@ -982,7 +1081,7 @@ function RoleAssignmentCard({ sb, currentUser, u, roles, branches, toast, onChan
     if (!canManage || busy) return
     setBusy(true)
     try {
-      await sb.from('user_roles').delete().eq('user_id', u.id).eq('role_id', roleId)
+      { const { error } = await sb.from('user_roles').delete().eq('user_id', u.id).eq('role_id', roleId); if (error) throw error }
       // If it was also the primary, clear/reassign it so it doesn't reappear.
       if (u.role_id === roleId) await sb.from('users').update({ role_id: null }).eq('id', u.id)
       await syncPrimary()
@@ -1160,8 +1259,10 @@ function InvoiceServiceScopeCard({ sb, currentUser, u, toast, onChanged }) {
   const persist = async (nextPol) => {
     if (!canManage) return
     setBusy(true)
-    const { data: cur } = await sb.from('users').select('ui_visibility').eq('id', u.id).maybeSingle()
-    const vis = { ...(cur?.ui_visibility || {}) }
+    const { data: cur, error: readErr } = await sb.from('users').select('ui_visibility').eq('id', u.id).maybeSingle()
+    // تعذّرت قراءة الخريطة الحالية ⇒ لا نكتب، وإلا مُسحت بقيّة مفاتيح ui_visibility
+    if (readErr || !cur) { setBusy(false); toast?.('خطأ: ' + ((readErr?.message) || 'تعذّرت قراءة بيانات المستخدم').slice(0, 80)); return }
+    const vis = { ...(cur.ui_visibility || {}) }
     if (nextPol.mode === 'specific') vis['svc:invoices'] = { mode: 'specific', ids: nextPol.ids }
     else delete vis['svc:invoices']
     const { error } = await sb.from('users').update({ ui_visibility: vis, updated_at: new Date().toISOString() }).eq('id', u.id)
@@ -1197,20 +1298,60 @@ function InvoiceServiceScopeCard({ sb, currentUser, u, toast, onChanged }) {
   )
 }
 
-// Collapsible wrapper for the granular per-user exception panel — kept out of
-// the way; opens only when the GM needs to override a single item.
-function AdvancedExceptions({ children }) {
-  const [open, setOpen] = useState(false)
+// ═══════════════════════════════════════════════════════════════════
+// LandingPageCard — per-user "which page opens right after login". Persists the
+// dedicated column users.landing_page = '<pageId>' (NOT ui_visibility, which is
+// overwritten by the merged role visibility at login). Empty ⇒ the role-based
+// default (invoice/accountant roles → invoices, else home). App.jsx reads it at
+// DashPage mount. The page list is built from the sidebar (nav + hubTabs) so a
+// new tab shows up here automatically.
+// ═══════════════════════════════════════════════════════════════════
+function LandingPageCard({ sb, currentUser, u, nav, hubTabs, toast, onChanged }) {
+  const canManage = isGmUser(currentUser)
+  const [val, setVal] = useState(() => (typeof u.landing_page === 'string' ? u.landing_page : ''))
+  const [busy, setBusy] = useState(false)
+
+  // Options = the default sentinel + every real leaf page in the sidebar.
+  const pageOpts = useMemo(() => {
+    const out = [{ v: '', l: 'افتراضي (حسب الدور)' }]
+    for (const n of (nav || [])) {
+      if (n.id === 'ops_excels') continue          // «جداول العمل» صلاحيات عامّة لا صفحة
+      const leaves = hubTabs?.[n.id]
+      if (leaves && leaves.length) {
+        for (const t of leaves) { if (t.hdr) continue; out.push({ v: t.id, l: t.l }) }
+      } else {
+        out.push({ v: n.id, l: n.l })
+      }
+    }
+    return out
+  }, [nav, hubTabs])
+
+  // Write the dedicated column directly. Empty ⇒ NULL (role-based default).
+  const persist = async (next) => {
+    if (!canManage) return
+    setBusy(true)
+    const { error } = await sb.from('users').update({ landing_page: next || null, updated_at: new Date().toISOString() }).eq('id', u.id)
+    setBusy(false)
+    if (error) { toast?.('خطأ: ' + (error.message || '').slice(0, 80)); return }
+    onChanged?.()
+  }
+
+  const onPick = (v) => { setVal(v); persist(v) }
+
   return (
     <div style={cardChrome}>
-      <button onClick={() => setOpen(o => !o)}
-        style={{ width: '100%', padding: '14px 22px', background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, fontFamily: F }}>
-        <SlidersHorizontal size={15} color={C.gold} />
-        <span style={{ ...cardTitle, fontSize: 14 }}>استثناءات خاصة لهذا المستخدم</span>
-        <span style={{ marginInlineStart: 'auto', fontSize: 10.5, color: 'var(--tx5)', fontWeight: 600 }}>إظهار/إخفاء أو قفل عنصر بعينه فوق الأدوار</span>
-        <ChevronDown size={16} color="var(--tx4)" style={{ transform: open ? 'rotate(180deg)' : 'none', transition: '.2s', flexShrink: 0 }} />
-      </button>
-      {open && <div style={{ borderTop: '1px solid var(--bd)' }}>{children}</div>}
+      <div style={cardHeader}>
+        <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
+        <span style={cardTitle}>الصفحة الافتراضية بعد الدخول</span>
+      </div>
+      <div style={{ padding: '16px 22px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <span style={{ fontSize: 11.5, color: 'var(--tx4)', fontWeight: 600, lineHeight: 1.6 }}>
+          الصفحة التي تُفتح لهذا المستخدم مباشرةً بعد تسجيل الدخول. «افتراضي» = حسب دوره (أدوار الفواتير والمحاسب تفتح على الفواتير، وغيرها على الرئيسية).
+        </span>
+        <Drop value={val} onChange={onPick} options={pageOpts} placeholder="اختر الصفحة…" />
+        {!canManage && <span style={{ fontSize: 10, color: 'var(--tx5)', fontWeight: 600 }}>يضبطها المدير العام فقط.</span>}
+        {busy && <span style={{ fontSize: 10, color: 'var(--tx5)', fontWeight: 600 }}>جارٍ الحفظ…</span>}
+      </div>
     </div>
   )
 }
@@ -1467,8 +1608,7 @@ function UserDetailPage({ sb, currentUser, toast, lang, u, branches, roles, nati
   const isMe = u.id === currentUser?.id
   const isActive = u.is_active === true
   const accent = u.role?.color || C.gold
-  const initial = (name || '—').trim().charAt(0)
-  const natName = nationalities.find(n => n.id === u.person?.nationality_id)?.name_ar || '—'
+  const natName =nationalities.find(n => n.id === u.person?.nationality_id)?.name_ar || '—'
 
   // The full permissions control panel lives in <PermissionsPanel> below — it
   // manages per-tab visibility, per-tab office scope, action grants and per-card
@@ -1562,6 +1702,7 @@ function UserDetailPage({ sb, currentUser, toast, lang, u, branches, roles, nati
           {/* Permissions — assign role(s) with a branch scope. The full granular
               control of what each role sees/does lives in the Roles admin page. */}
           <RoleAssignmentCard sb={sb} currentUser={currentUser} u={u} roles={roles} branches={branches} toast={toast} onChanged={onChanged} />
+          <LandingPageCard sb={sb} currentUser={currentUser} u={u} nav={nav} hubTabs={hubTabs} toast={toast} onChanged={onChanged} />
           <InvoiceServiceScopeCard sb={sb} currentUser={currentUser} u={u} toast={toast} onChanged={onChanged} />
         </div>
 
@@ -1673,9 +1814,9 @@ function WorkInfoModal({ sb, user, branches, roles, toast, onClose, onSaved }) {
       if (roleChanged || !sameBranches) {
         try {
           // When the role itself changed, drop the previous role's assignment rows.
-          if (roleChanged && user.role_id) await sb.from('user_roles').delete().eq('user_id', user.id).eq('role_id', user.role_id)
+          if (roleChanged && user.role_id) { const { error: dErr } = await sb.from('user_roles').delete().eq('user_id', user.id).eq('role_id', user.role_id); if (dErr) throw dErr }
           // Rewrite the (new) role's branch rows to exactly the selected offices.
-          await sb.from('user_roles').delete().eq('user_id', user.id).eq('role_id', f.role_id)
+          { const { error: dErr } = await sb.from('user_roles').delete().eq('user_id', user.id).eq('role_id', f.role_id); if (dErr) throw dErr }
           const ins = branchIds.map(b => ({ user_id: user.id, role_id: f.role_id, branch_id: b }))
           if (ins.length) { const { error: urErr } = await sb.from('user_roles').insert(ins); if (urErr) throw urErr }
         } catch (e) { setErrMsg('تم حفظ البيانات لكن تعذّرت مزامنة صلاحية المكاتب: ' + (e.message || '').slice(0, 80)); setSaving(false); return }

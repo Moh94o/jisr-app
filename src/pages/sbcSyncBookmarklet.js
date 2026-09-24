@@ -38,7 +38,7 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
     if (!d) {
       d = document.createElement('div');
       d.id = '_jisr_sync_ui';
-      d.style.cssText = 'position:fixed;top:16px;left:16px;background:#111;color:#B07D00;padding:12px 18px;border-radius:10px;z-index:2147483647;font:700 13px/1.5 sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.5);max-width:380px;direction:rtl;text-align:right;border:1px solid rgba(176,125,0,.35)';
+      d.style.cssText = 'position:fixed;top:16px;left:16px;background:#111;color:#B07D00;padding:12px 18px;border-radius:10px;z-index:2147483647;font:600 13px/1.5 sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.5);max-width:380px;direction:rtl;text-align:right;border:1px solid rgba(176,125,0,.35)';
       document.body.appendChild(d);
     }
     d.textContent = 'جسر: ' + m;
@@ -814,16 +814,22 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
     }
 
     msg('تحديث الجلسة قبل النسخة الإنجليزية...');
-    captured['ipapi-nl'] = null;
-    try { await visit('/commercial-records'); } catch (_) {}
-    await new Promise(r => setTimeout(r, 1500));
-    if (!captured['ipapi-nl']) {
-      try { await visit('/requests'); } catch (_) {}
+    /* بوابة الشركات لا تملك مسارات visit() فرؤوسها ثابتة؛ وإن فشل الالتقاط
+       الجديد في تيسير نُبقي الرؤوس السابقة (التوكن يُقرأ حيّاً على كل حال). */
+    const prevIpapi = captured['ipapi-nl'];
+    if (!onCompanies) {
+      captured['ipapi-nl'] = null;
+      try { await visit('/commercial-records'); } catch (_) {}
       await new Promise(r => setTimeout(r, 1500));
+      if (!captured['ipapi-nl']) {
+        try { await visit('/requests'); } catch (_) {}
+        await new Promise(r => setTimeout(r, 1500));
+      }
+      if (!captured['ipapi-nl']) {
+        for (let i = 0; i < 30 && !captured['ipapi-nl']; i++) await new Promise(r => setTimeout(r, 200));
+      }
     }
-    if (!captured['ipapi-nl']) {
-      for (let i = 0; i < 30 && !captured['ipapi-nl']; i++) await new Promise(r => setTimeout(r, 200));
-    }
+    if (!captured['ipapi-nl']) captured['ipapi-nl'] = prevIpapi;
 
     const PRINT_EN_EP = {
       key: 'pe', label: 'سجل إنجليزي',
@@ -876,6 +882,8 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
   } catch (e) {
     try { clearInterval(tokenKeeper); } catch (_) {}
     msg('❌ ' + (e && e.message ? e.message : String(e)));
+  } finally {
+    try { clearInterval(tokenKeeper); } catch (_) {}
   }
 })();
 `
@@ -902,7 +910,7 @@ function bodyPdf({ personId, proxyBaseUrl }) {
     if (!d) {
       d = document.createElement('div');
       d.id = '_jisr_sync_ui';
-      d.style.cssText = 'position:fixed;top:16px;left:16px;background:#111;color:#B07D00;padding:12px 18px;border-radius:10px;z-index:2147483647;font:700 13px/1.5 sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.5);max-width:380px;direction:rtl;text-align:right;border:1px solid rgba(176,125,0,.35)';
+      d.style.cssText = 'position:fixed;top:16px;left:16px;background:#111;color:#B07D00;padding:12px 18px;border-radius:10px;z-index:2147483647;font:600 13px/1.5 sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.5);max-width:380px;direction:rtl;text-align:right;border:1px solid rgba(176,125,0,.35)';
       document.body.appendChild(d);
     }
     d.textContent = 'جسر PDFs: ' + m;
@@ -1082,7 +1090,7 @@ function bodyRequests({ personId }) {
     if (!d) {
       d = document.createElement('div');
       d.id = '_jisr_sync_ui';
-      d.style.cssText = 'position:fixed;top:16px;left:16px;background:#111;color:#B07D00;padding:12px 18px;border-radius:10px;z-index:2147483647;font:700 13px/1.5 sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.5);max-width:380px;direction:rtl;text-align:right;border:1px solid rgba(176,125,0,.35)';
+      d.style.cssText = 'position:fixed;top:16px;left:16px;background:#111;color:#B07D00;padding:12px 18px;border-radius:10px;z-index:2147483647;font:600 13px/1.5 sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.5);max-width:380px;direction:rtl;text-align:right;border:1px solid rgba(176,125,0,.35)';
       document.body.appendChild(d);
     }
     d.textContent = 'جسر طلباتي: ' + m;
@@ -1342,6 +1350,8 @@ function bodyRequests({ personId }) {
   } catch (e) {
     try { clearInterval(tokenKeeper); } catch (_) {}
     msg('❌ ' + (e && e.message ? e.message : String(e)));
+  } finally {
+    try { clearInterval(tokenKeeper); } catch (_) {}
   }
 })();
 `

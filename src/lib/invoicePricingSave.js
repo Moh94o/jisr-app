@@ -10,8 +10,6 @@ import { computeRenewalDerived } from './renewalDerived.js'
 import { getIqamaRenewalPricingConfig } from './kafalaPricing.js'
 import { r2, computePricingTotals, pricingDiff, linesToBreakdown, effectivePricingLines } from './invoicePricingModel.js'
 
-const numOf = v => Number(v) || 0
-
 // ─────────────────────────── الحفظ ───────────────────────────
 // استرداد الفائض: حين يهبط الإجمالي دون المدفوع، يُسجَّل الفرق كدفعة سالبة ويُفكّ
 // من الدفعات المسدّدة (الأحدث أولاً) — تماماً كمسار «استرجاع» في صفحة الفاتورة.

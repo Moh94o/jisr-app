@@ -303,9 +303,9 @@ export default function VisaGridPage({ sb, user, toast, lang, onTabChange }) {
   }, [rows])
   const serviceOpts = useMemo(() => {
     const m = new Map()
-    for (const r of rows) { const s = r.sr?.service_type; if (s?.code && !m.has(s.code)) m.set(s.code, s.value_ar || s.code) }
+    for (const r of rows) { const s = r.sr?.service_type; if (s?.code && !m.has(s.code)) m.set(s.code, (isAr ? s.value_ar : (s.value_en || s.value_ar)) || s.code) }
     return [...m.entries()]
-  }, [rows])
+  }, [rows, isAr])
 
   /* المصفّى قبل المرحلة — منه تُحسب أعداد التبويبات */
   const preStage = useMemo(() => rows.filter((r) => {
@@ -374,7 +374,6 @@ export default function VisaGridPage({ sb, user, toast, lang, onTabChange }) {
   const [widthMap, setWidthMap] = useState({})
   const resizeRef = useRef(null)
   const widths = useMemo(() => COLS.map((c) => widthMap[c.key] ?? c.w), [COLS, widthMap])
-  const offsets = useMemo(() => { const o = []; let x = 0; for (const w of widths) { o.push(x); x += w } return o }, [widths])
   const totalW = useMemo(() => widths.reduce((a, b) => a + b, 0), [widths])
   /* آخر عمود يتمدّد ليملأ العرض — الجدول ضيق أصلاً فلا يبقى فراغ مبتور */
   const tmpl = useMemo(() => widths.map((w, i) => (i === widths.length - 1 ? `minmax(${w}px,1fr)` : `${w}px`)).join(' '), [widths])

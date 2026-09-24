@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { RefreshCw, Printer, BadgeCheck, MessageSquare, Plus, Paperclip, User, FileText, Banknote, Building2, AlertCircle } from 'lucide-react'
 import { C, F, EmptyState, Modal as FKModal, ModalSection, TextArea, TextField, FileField, CurrencyField, YesNo, Select as FKSelect, DateField as FKDateField, GRID, SuccessView } from '../components/ui/FormKit.jsx'
-import { can as canPerm, cardVisible, canCardBtn, tabOffices, fieldVisible, fieldEditable, modalAllowed, isGM } from '../lib/permissions.js'
+import { can as canPerm, cardVisible, canCardBtn, tabOffices, fieldVisible, fieldEditable, modalAllowed } from '../lib/permissions.js'
 import { noDash } from '../lib/utils.js'
 import { navSetHere } from '../lib/navStack.js'
 import { swrGet, swrSet, useLiveRefresh, getTestBranchIds, excludeTestBranchesOr } from '../lib/liveData.js'
@@ -203,7 +203,7 @@ export default function RenewalCalcPage({ sb, toast, user, lang, emptyIcon, onNe
     // كاش الجلسة: لا سبينر إن كانت لدينا نتيجة سابقة — تُعرض فوراً ويحدّثها الجلب الصامت أدناه.
     if (!swrGet(rcCacheKey)) setLoading(true)
     // قيد المكتب: المستخدم غير المدير العام يرى حسبات مكاتبه فقط (القائمة والإحصاءات معاً، فهي محسوبة من الصفوف).
-    let calcQ = sb.from('iqama_renewal_calculation').select('*').is('deleted_at', null).order('created_at', { ascending: false }).limit(500)
+    let calcQ = sb.from('iqama_renewal_calculation').select('*').is('deleted_at', null).order('created_at', { ascending: false }).limit(5000)
     // المستخدم المقيّد بمكتب يرى حسبات مكاتبه فقط — الحسبات بلا فرع (اليتيمة) تُستبعد (يراها المدير العام فقط)، مطابقةً للـRLS.
     if (officeScope) calcQ = calcQ.or(`branch_id.in.(${officeScope.join(',')})`)
     else { const testIds = await getTestBranchIds(sb); if (testIds.length) calcQ = calcQ.or(excludeTestBranchesOr(testIds)) }  // «كل المكاتب»: استبعد المكاتب التجريبية
@@ -306,16 +306,6 @@ export default function RenewalCalcPage({ sb, toast, user, lang, emptyIcon, onNe
     return stamps
   }
 
-  // أوسمة الخدمة لكل تسعيرة
-  const tagsOf = (r) => {
-    const tags = []
-    if (Number(r.renewal_months) > 0) tags.push(T(r.renewal_months + ' شهر', r.renewal_months + 'mo'))
-    if (Number(r.work_permit_fee || 0) > 0) tags.push(T('رخصة عمل', 'Work Permit'))
-    if (Number(r.medical_fee || 0) > 0) tags.push(T('تأمين طبي', 'Medical'))
-    if (r.change_profession) tags.push(T('تغيير مهنة', 'Prof Chg'))
-    return tags
-  }
-
   // ── تصديق الحسبة — تحديث مباشر (RLS مفتوحة للمستخدمين المصادَقين على iqama_renewal_calculation) ──
   const submitApproval = async () => {
     if (!approveForm || approveSaving) return
@@ -403,8 +393,8 @@ export default function RenewalCalcPage({ sb, toast, user, lang, emptyIcon, onNe
         const sumKeys = r.pricing_model === 'flat'
           ? ['office_fee', 'iqama_renewal_fee', 'work_permit_fee', 'medical_fee', 'late_fine_amount', 'prof_change_fee']
           : ['office_fee', 'gov_excess', 'late_fine_amount', 'prof_change_fee']
-        const sum = sumKeys.reduce((s, k) => s + (Number(cardEdit[k]) || 0), 0) + extrasTotal
-        const newTotal = Math.max(0, sum - (Number(cardEdit.absher_discount) || 0) - (Number(cardEdit.manual_discount) || 0))
+        const sum = Math.round((sumKeys.reduce((s, k) => s + (Number(cardEdit[k]) || 0), 0) + extrasTotal) * 100) / 100
+        const newTotal = Math.max(0, Math.round((sum - (Number(cardEdit.absher_discount) || 0) - (Number(cardEdit.manual_discount) || 0)) * 100) / 100)
         patch.subtotal = sum
         patch.total_amount = newTotal
       }
@@ -509,7 +499,6 @@ export default function RenewalCalcPage({ sb, toast, user, lang, emptyIcon, onNe
     const cur = `<span class="riyal">${curTxt}</span>`
     const num2 = v => `<span class="num">${esc(v)}</span>`
     const secTitle = k => `<div class="sec-title"><span class="bar"></span><h3>${lab(k)}</h3><span class="ln"></span></div>`
-    const kvRow = (k, v, strong) => v ? `<div class="kv"><span class="k">${k}</span><span class="v${strong ? ' strong' : ''}">${v}</span></div>` : ''
 
     // ── استخراج البيانات (يطابق شاشة تفاصيل التسعيرة) ──
     const today = new Date()
@@ -570,8 +559,6 @@ ${durLabel ? `<div class="hero-fact full"><div class="k">${lab('expectedDuration
 
     const statusBlk = `<div class="office-code">${lab('status')}: <span style="color:var(--gold);font-weight:600;margin-inline-start:6px">${lab(stKey)}</span></div>`
 
-    const idLine = (iqamaNo && iqamaNo !== '—') ? kvRow(lab('iqamaNo'), num2(iqamaNo)) : ''
-    const phoneLine = (phone && phone !== '—') ? kvRow(lab('phoneLbl'), num2(phone)) : ''
     // كرت العامل (تصميم الاسم البارز): الاسم في الترويسة، والحقول خلايا مكدّسة (التسمية فوق والقيمة تحتها).
     const yrWord = printLang === 'ar' ? 'سنة' : printLang === 'en' ? 'yrs' : printLang === 'hi' ? 'वर्ष' : printLang === 'bn' ? 'বছর' : 'سال'
     const dobVal = dob ? `${ageY != null ? `<span style="font-size:8px;color:var(--ink-soft)">(${num2(ageY)} ${yrWord})</span> ` : ''}${num2(fmtD2(dob))}` : ''
@@ -838,7 +825,6 @@ ${noticeBlk}
   // ═══════════════ شاشة التفاصيل ═══════════════
   if (detailsRow) {
     const r = detailsRow
-    const fmt = v => (v === null || v === undefined || v === '') ? '—' : v
     const fmtD = d => { if (!d) return '—'; const dt = new Date(d); if (isNaN(dt)) return '—'; return dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0') }
     const ageYears = (() => { if (!r.dob) return null; const b = new Date(r.dob); if (isNaN(b)) return null; const t = new Date(); let y = t.getFullYear() - b.getFullYear(); const m = t.getMonth() - b.getMonth(); if (m < 0 || (m === 0 && t.getDate() < b.getDate())) y -= 1; return (y >= 0 && y < 130) ? y : null })()
     const yesNo = v => v === true ? T('نعم', 'Yes') : v === false ? T('لا', 'No') : '—'
@@ -940,11 +926,6 @@ ${noticeBlk}
       </div>
     )
 
-    // بطاقة التسعير — سطر لكل رسم، ثم الإجمالي
-    const feeLine = (label, amount, opts = {}) => { if (!amount && !opts.always) return null; return <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: '1px dashed var(--bd)', gap: 10 }}>
-      <span style={{ fontSize: 12.5, fontWeight: 600, color: opts.color || 'var(--tx2)' }}>{label}</span>
-      <span style={{ fontSize: 13.5, fontWeight: 600, color: opts.color || 'var(--tx)', direction: 'rtl', flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}><span style={{ direction: 'ltr', unicodeBidi: 'isolate' }}>{opts.neg ? '− ' : ''}{nm(Math.abs(amount))}</span> <span style={{ fontSize: 10, color: C.gold, fontWeight: 600 }}>{T('ريال', 'SAR')}</span></span>
-    </div> }
     const extras = Array.isArray(r.extras) ? r.extras.filter(e => Number(e?.amount) > 0) : []
 
     const doneStamps = (() => {
@@ -1082,7 +1063,7 @@ ${noticeBlk}
               const renIqamaSuffix = billedIqamaMos > 0 ? T(` (${billedIqamaMos} شهر)`, ` (${billedIqamaMos} mo)`) : ''
               const renSuffix = renMonths > 0 ? T(` (${renMonths} شهر)`, ` (${renMonths} mo)`) : ''
               const cover = r.pricing_model === 'flat' ? 0 : (r.office_cover != null ? Number(r.office_cover) : Math.max(0, Number(r.iqama_renewal_fee || 0) + Number(r.work_permit_fee || 0) + Number(r.medical_fee || 0) - Number(r.gov_excess || 0)))
-              const officeFeeV = Number(r.office_fee || 0); const subtotalV = Number(r.subtotal || 0); const totalV = Number(r.total_amount || 0)
+              const officeFeeV = Number(r.office_fee || 0); const totalV = Number(r.total_amount || 0)
               const lineItems = [
                 Number(r.iqama_renewal_fee || 0) > 0 ? [T('تجديد الإقامة', 'Iqama Renewal') + renIqamaSuffix, r.iqama_renewal_fee, null] : null,
                 Number(r.late_fine_amount || 0) > 0 ? [T('غرامة تأخير التجديد', 'Renewal Late Fine'), r.late_fine_amount, '#e5867a'] : null,
@@ -1201,7 +1182,7 @@ ${noticeBlk}
                 // القيم المشتقّة مجمّدة في أعمدة؛ الحساب احتياطي للسجلات القديمة فقط.
                 const iqExp = r.iqama_expiry_gregorian ? new Date(r.iqama_expiry_gregorian) : null
                 const base = (iqExp && !isNaN(iqExp) && iqExp > new Date()) ? new Date(iqExp) : new Date()
-                const expExpiry = r.expected_expiry_date || (renMo > 0 ? (() => { const d = new Date(base); d.setMonth(d.getMonth() + renMo); return d.toISOString().slice(0, 10) })() : null)
+                const expExpiry = r.expected_expiry_date || (renMo > 0 ? (() => { const d = new Date(base); d.setMonth(d.getMonth() + renMo); return d })() : null)
                 const durMo = r.expected_duration_months != null ? Number(r.expected_duration_months) : renMo
                 const invoiced = ['invoiced', 'completed'].includes(r.status)
                 const cover = r.pricing_model === 'flat' ? 0 : (r.office_cover != null ? Number(r.office_cover) : Math.max(0, Number(r.iqama_renewal_fee || 0) + Number(r.work_permit_fee || 0) + Number(r.medical_fee || 0) - Number(r.gov_excess || 0)))
@@ -1350,7 +1331,7 @@ ${noticeBlk}
         </div></ModalSection>
         else content = <ModalSection Icon={Banknote} label={T('الرسوم', 'Fees')}><div style={GRID}>
           {[['office_fee', T('رسوم المكتب', 'Office Fee')], ['iqama_renewal_fee', T('تجديد الإقامة', 'Iqama Renewal')], ['late_fine_amount', T('غرامة تأخير التجديد', 'Renewal Late Fine')], ['work_permit_fee', T('رسوم رخصة العمل', 'Work Permit')], ['medical_fee', T('التأمين الطبي', 'Medical')], ['prof_change_fee', T('تغيير المهنة', 'Occupation Change')], ['gov_excess', T('الزائد عن الحدود الحكومية', 'Gov Excess')], ['absher_discount', T('خصم أبشر', 'Absher Discount')], ['manual_discount', T('خصم المكتب', 'Office Discount')]].filter(([k]) => fVis(k)).map(([k, l]) => <CurrencyField key={k} label={l} value={f[k] ?? ''} onChange={v => setF(k, v)} disabled={!fEd(k)} />)}
-          <div style={{ gridColumn: '1/-1', display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderRadius: 9, background: 'rgba(176,125,0,.08)', border: '1px solid rgba(176,125,0,.3)', minHeight: 44 }}><span style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx2)' }}>{T('الإجمالي بعد التعديل', 'New total')}</span><span style={{ flex: 1 }} /><span style={{ fontSize: 16, fontWeight: 600, color: C.gold, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{(() => { const sum = (r.pricing_model === 'flat' ? ['office_fee', 'iqama_renewal_fee', 'late_fine_amount', 'work_permit_fee', 'medical_fee', 'prof_change_fee'] : ['office_fee', 'gov_excess', 'late_fine_amount', 'prof_change_fee']).reduce((s, k) => s + (Number(f[k]) || 0), 0); const tot = Math.max(0, sum - (Number(f.absher_discount) || 0) - (Number(f.manual_discount) || 0)); return nm(tot) + ' ' + T('ريال', 'SAR') })()}</span></div>
+          <div style={{ gridColumn: '1/-1', display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderRadius: 9, background: 'rgba(176,125,0,.08)', border: '1px solid rgba(176,125,0,.3)', minHeight: 44 }}><span style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx2)' }}>{T('الإجمالي بعد التعديل', 'New total')}</span><span style={{ flex: 1 }} /><span style={{ fontSize: 16, fontWeight: 600, color: C.gold, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{(() => { const sum = (r.pricing_model === 'flat' ? ['office_fee', 'iqama_renewal_fee', 'late_fine_amount', 'work_permit_fee', 'medical_fee', 'prof_change_fee'] : ['office_fee', 'gov_excess', 'late_fine_amount', 'prof_change_fee']).reduce((s, k) => s + (Number(f[k]) || 0), 0) + (Array.isArray(r.extras) ? r.extras : []).reduce((s, e) => s + (Number(e?.amount) || 0), 0); const tot = Math.max(0, sum - (Number(f.absher_discount) || 0) - (Number(f.manual_discount) || 0)); return nm(tot) + ' ' + T('ريال', 'SAR') })()}</span></div>
         </div></ModalSection>
         return <FKModal open onClose={() => { if (!cardSaving) setCardEdit(null) }} width={560} variant="edit" title={titles[f.card]} Icon={FileText}
           onSubmit={saveCardEdit} submitting={cardSaving} submitLabel={T('حفظ', 'Save')} pages={[{ valid: true, content }]} />
@@ -1363,10 +1344,12 @@ ${noticeBlk}
 
   // ═══════════════ القائمة ═══════════════
   // فلترة + بحث
+  // تاريخ اليوم بالتوقيت المحلي (لا UTC) — الطوابع timestamptz فقصّ النص يُرحّل ما بعد منتصف الليل لليوم السابق.
+  const localYMD = v => { if (!v) return ''; const d = new Date(v); if (isNaN(d)) return ''; return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') }
   const matches = (r) => {
     const term = searchQ.trim().toLowerCase()
     if (term && ![r.worker_name, r.iqama_number, r.quote_no, r.phone].some(v => String(v || '').toLowerCase().includes(term))) return false
-    const d = (r.priced_at || r.created_at || '').slice(0, 10)
+    const d = localYMD(r.priced_at || r.created_at)
     if (advFilter.from && d && d < advFilter.from) return false
     if (advFilter.to && d && d > advFilter.to) return false
     if (advFilter.status && r.status !== advFilter.status) return false
@@ -1383,8 +1366,8 @@ ${noticeBlk}
   const avgStats = (() => { const total = searched.reduce((s, r) => s + Number(r.total_amount || 0), 0); return { value: searched.length ? Math.round(total / searched.length) : 0, count: searched.length } })()
 
   // تجميع حسب اليوم
-  const todayStr = new Date().toISOString().slice(0, 10)
-  const dayKey = r => { const d = r.status === 'priced' ? (r.priced_at || r.created_at) : (['approved', 'invoiced', 'completed'].includes(r.status)) ? (r.approved_at || r.priced_at || r.created_at) : r.created_at; return (d || '').slice(0, 10) || '—' }
+  const todayStr = localYMD(new Date())
+  const dayKey = r => { const d = r.status === 'priced' ? (r.priced_at || r.created_at) : (['approved', 'invoiced', 'completed'].includes(r.status)) ? (r.approved_at || r.priced_at || r.created_at) : r.created_at; return localYMD(d) || '—' }
   const groups = {}; const groupOrder = []
   filteredData.forEach(r => { const k = dayKey(r); if (!groups[k]) { groups[k] = []; groupOrder.push(k) } groups[k].push(r) })
   const dayNames = [T('الأحد', 'Sun'), T('الاثنين', 'Mon'), T('الثلاثاء', 'Tue'), T('الأربعاء', 'Wed'), T('الخميس', 'Thu'), T('الجمعة', 'Fri'), T('السبت', 'Sat')]
@@ -1395,7 +1378,6 @@ ${noticeBlk}
   const idIco = ico(<><rect x="3" y="4" width="18" height="16" rx="2" /><circle cx="9" cy="10" r="2" /><path d="M15 8h2M15 12h2M7 16h10" /></>)
   const phIco = ico(<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />)
   const brIco = ico(<><path d="M3 21h18" /><path d="M5 21V7l8-4v18" /><path d="M19 21V11l-6-4" /></>)
-  const svcIco = ico(<><rect x="2" y="7" width="20" height="14" rx="2" /><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" /></>)
   const invIco = ico(<><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" /><path d="M16 13H8M16 17H8M10 9H8" /></>)
   const dateIco = ico(<><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></>)
   const gcell = (icon, label, value) => value ? <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0, alignItems: 'flex-start' }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 9, color: 'var(--tx4)', fontWeight: 600, letterSpacing: '.2px' }}>{icon}{label}</span><span style={{ display: 'inline-flex', minWidth: 0, maxWidth: '100%' }}>{value}</span></div> : null
@@ -1505,7 +1487,6 @@ ${noticeBlk}
             const sc = stClr[r.status] || '#999'
             const cc = Number(r.total_amount || 0)
             const nat = natOf(r); const natFlag = nat?.flag_url || null
-            const tags = tagsOf(r); const svcPrimary = tags[0] || null
             const phoneVal = r.phone ? String(r.phone).replace(/^\+?966/, '0') : null
             const invoiceNo = r.invoice_id ? 'INV-' + String(r.invoice_id).slice(0, 8).toUpperCase() : null
             const branchCode = r._branchCode || r.priced_user?.branch?.code || r.created_user?.branch?.code || null

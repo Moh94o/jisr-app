@@ -459,9 +459,9 @@ export default function VisaPipelineGridPage({ sb, user, toast, lang, onTabChang
   }, [rows])
   const serviceOpts = useMemo(() => {
     const m = new Map()
-    for (const r of rows) { const s = r.sr?.service_type; if (s?.code && !m.has(s.code)) m.set(s.code, s.value_ar || s.code) }
+    for (const r of rows) { const s = r.sr?.service_type; if (s?.code && !m.has(s.code)) m.set(s.code, (isAr ? s.value_ar : (s.value_en || s.value_ar)) || s.code) }
     return [...m.entries()]
-  }, [rows])
+  }, [rows, isAr])
 
   const preStage = useMemo(() => rows.filter((r) => {
     if (fService && r.sr?.service_type?.code !== fService) return false
@@ -681,7 +681,7 @@ export default function VisaPipelineGridPage({ sb, user, toast, lang, onTabChang
       setEditing(null); setSeq((s) => s + 1)
       if (row && col) {
         const { bad } = writeCells([{ row, col, text }])
-        if (bad) toast && toast(invalidMsg(col))
+        if (bad) toast && toast(invalidMsg(col), 'error')
       }
     } else setEditing(null)
     if (moveDir) move(moveDir[0], moveDir[1], false)
@@ -755,11 +755,12 @@ export default function VisaPipelineGridPage({ sb, user, toast, lang, onTabChang
     }
     const { ok, bad } = writeCells(cells)
     setHead({ r: Math.min(view.length - 1, range.r1 + matrix.length - 1), c: Math.min(COLS.length - 1, range.c1 + Math.max(...matrix.map((m) => m.length)) - 1) })
-    const parts = [T(`لُصقت ${ok} خلية`, `Pasted ${ok} cells`)]
+    const none = ok === 0
+    const parts = [none ? T('لم تُلصق أي خليّة', 'Nothing pasted') : T(`لُصقت ${ok} خلية`, `Pasted ${ok} cells`)]
     if (bad) parts.push(T(`${bad} قيمة مرفوضة`, `${bad} rejected`))
     if (skippedRO) parts.push(T(`${skippedRO} للقراءة فقط`, `${skippedRO} read-only`))
     if (overflowRows) parts.push(T(`⚠ ${overflowRows} سطراً تجاوزت نهاية الصفحة ولم تُلصق`, `⚠ ${overflowRows} rows past page end not pasted`))
-    toast && toast(parts.join(' · '))
+    toast && toast(parts.join(' · '), none ? 'error' : undefined)
   }, [canEdit, view, COLS, range, writeCells, toast, T])
 
   const onKeyDown = useCallback((e) => {
@@ -839,15 +840,17 @@ export default function VisaPipelineGridPage({ sb, user, toast, lang, onTabChang
               if (error) throw new Error(error.message)
               newIq = data
             } else {
-              /* صفّ الإقامة يُنشأ عند أول كتابة — كما تفعل نافذة التأمين/رخصة العمل في الفاتورة */
-              const { data, error } = await sb.from('iqama_issuance_applications').insert({
+              /* صفّ الإقامة يُنشأ عند أول كتابة — كما تفعل نافذة التأمين/رخصة
+                 العمل في الفاتورة. و`upsert` لا `insert`: صفُّ التأشيرة واحدٌ
+                 بقيدٍ في القاعدة، وحفظتان متزامنتان كانتا تُولّدان صفّين. */
+              const { data, error } = await sb.from('iqama_issuance_applications').upsert({
                 service_request_id: row.sr?.id || null,
                 visa_application_id: row.id,
                 main_facility_id: row.main_facility_id || null,
                 created_by: user?.id || null,
                 medical_status: 'pending',
                 ...body,
-              }).select(IQ_FIELDS).single()
+              }, { onConflict: 'visa_application_id' }).select(IQ_FIELDS).single()
               if (error) throw new Error(error.message)
               newIq = data
             }

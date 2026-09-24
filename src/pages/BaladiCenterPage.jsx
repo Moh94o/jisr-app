@@ -86,7 +86,7 @@ export default function BaladiCenterPage({ sb, user, toast, lang, branchId }) {
     let qb = sb.from('service_requests')
       .select('id,request_ref_no,request_date,created_at,note,trade_name,cr_number,service_type_id,facility_id,new_confirmation_date,status:status_id(code,value_ar),facility:facility_id(name_ar,unified_number)')
       .is('deleted_at', null).in('service_type_id', ids)
-      .order('request_date', { ascending: false, nullsFirst: false }).limit(300)
+      .order('request_date', { ascending: false, nullsFirst: false }).limit(5000)
     if (userBranchId) qb = qb.eq('branch_id', userBranchId)
     const { data, error } = await qb
     if (error) { toast?.('تعذر تحميل المعاملات', 'error'); setRows([]); setLoading(false); return }
@@ -101,10 +101,10 @@ export default function BaladiCenterPage({ sb, user, toast, lang, branchId }) {
     return rows.filter(r => {
       if (statusFilter && r.status?.code !== statusFilter) return false
       if (facilityFilter && r.facility_id !== facilityFilter) return false
-      const d = r.request_date || (r.created_at || '').slice(0, 10)
+      const d = (r.request_date || r.created_at || '').slice(0, 10)
       if (fromDate && d < fromDate) return false
       if (toDate && d > toDate) return false
-      if (s && ![r.request_ref_no, r.cr_number, r.note, r.facility?.name_ar, r.facility?.unified_number].some(v => (v || '').includes(s))) return false
+      if (s && ![r.request_ref_no, r.cr_number, r.note, r.facility?.name_ar, r.facility?.unified_number].some(v => String(v ?? '').includes(s))) return false
       return true
     })
   }, [rows, q, statusFilter, facilityFilter, fromDate, toDate])
@@ -311,7 +311,7 @@ function AddModal({ sb, user, toast, typeByCode, newStatusId, userBranchId, onCl
     if (!sb) return
     let alive = true
     sb.from('facilities').select('id,name_ar,unified_number,cr_number')
-      .is('deleted_at', null).order('name_ar').limit(500)
+      .is('deleted_at', null).order('name_ar').limit(5000)
       .then(({ data }) => { if (alive) setFacOpts(data || []) })
     return () => { alive = false }
   }, [sb])
@@ -325,7 +325,7 @@ function AddModal({ sb, user, toast, typeByCode, newStatusId, userBranchId, onCl
     sb.from('service_requests')
       .select('id,request_ref_no,cr_number,facility_id,facility:facility_id(name_ar,unified_number)')
       .is('deleted_at', null).in('service_type_id', ids)
-      .order('request_date', { ascending: false, nullsFirst: false }).limit(300)
+      .order('request_date', { ascending: false, nullsFirst: false }).limit(5000)
       .then(({ data }) => { if (alive) setLicOpts(data || []) })
     return () => { alive = false }
   }, [sb, isRenew]) // eslint-disable-line
@@ -344,11 +344,12 @@ function AddModal({ sb, user, toast, typeByCode, newStatusId, userBranchId, onCl
       }).select('id').single()
       if (error || !sr?.id) throw error || new Error('insert failed')
       // Pending fee → surfaces in المدفوعات for settlement.
-      await sb.from('transaction_fees').insert({
+      const { error: feeErr } = await sb.from('transaction_fees').insert({
         service_request_id: sr.id, amount: Number(f.amount) || 0, paid_amount: 0, status: 'pending',
         sadad_no: f.sadad.trim() || null, fee_label_ar: meta(f.code).ar, notes: 'manual_pay_request', sort_order: 0,
       })
-      toast?.('تمت الإضافة — انتقل إلى سدادات الخدمات للسداد')
+      if (feeErr) toast?.('أُضيفت المعاملة لكن تعذّر تسجيل الرسوم', 'error')
+      else toast?.('تمت الإضافة — انتقل إلى سدادات الخدمات للسداد')
       setSaved(true)
       setTimeout(() => { onSaved() }, 1400)
     } catch (e) {
@@ -392,16 +393,20 @@ function AddModal({ sb, user, toast, typeByCode, newStatusId, userBranchId, onCl
 function BaladiDetail({ sb, user, toast, row, type, statuses, onBack, onChanged }) {
   const [atts, setAtts] = useState([])
   const [busy, setBusy] = useState(false)
-  if (!row) { onBack(); return null }
-  const m = meta(type?.code)
-  const st = STATUS_THEME[row.status?.code] || { c: C.gray, ar: row.status?.value_ar || '—' }
+  // الخطافات قبل أي return مبكّر — ترتيبها ثابت في كل رسم؛ والرجوع يُستدعى بعد الرسم لا أثناءه
+  useEffect(() => { if (!row) onBack() }, [row])
 
   useEffect(() => {
+    if (!row?.id) return
     let alive = true
     sb.from('attachments').select('id,file_name,file_url,created_at').eq('entity_type', 'service_request').eq('entity_id', row.id).order('created_at', { ascending: false })
       .then(({ data }) => { if (alive) setAtts(data || []) })
     return () => { alive = false }
-  }, [sb, row.id])
+  }, [sb, row?.id])
+
+  if (!row) return null
+  const m = meta(type?.code)
+  const st = STATUS_THEME[row.status?.code] || { c: C.gray, ar: row.status?.value_ar || '—' }
 
   const setStatus = async (id) => { const { error } = await sb.from('service_requests').update({ status_id: id }).eq('id', row.id); if (error) { toast?.('تعذّر التحديث', 'error'); return } toast?.('تم تحديث الحالة'); onChanged?.() }
   const upload = async (file) => {
@@ -413,7 +418,8 @@ function BaladiDetail({ sb, user, toast, row, type, statuses, onBack, onChanged 
       const { error: ue } = await sb.storage.from('attachments').upload(path, file, { cacheControl: '3600', upsert: false })
       if (ue) throw ue
       const { data: pub } = sb.storage.from('attachments').getPublicUrl(path)
-      const { data: ins } = await sb.from('attachments').insert({ entity_type: 'service_request', entity_id: row.id, file_name: file.name, file_url: pub?.publicUrl || path, storage_path: path, mime_type: file.type || null, size_bytes: file.size || null, notes: 'baladi_doc' }).select('id,file_name,file_url,created_at').single()
+      const { data: ins, error: ie } = await sb.from('attachments').insert({ entity_type: 'service_request', entity_id: row.id, file_name: file.name, file_url: pub?.publicUrl || path, storage_path: path, mime_type: file.type || null, size_bytes: file.size || null, notes: 'baladi_doc' }).select('id,file_name,file_url,created_at').single()
+      if (ie) throw ie
       if (ins) setAtts(p => [ins, ...p])
       toast?.('تم رفع الملف')
     } catch (e) { toast?.('تعذّر رفع الملف', 'error') } finally { setBusy(false) }

@@ -43,48 +43,43 @@ export async function listPermissionCatalog() {
   return Object.values(groups).sort((a, b) => a.sort - b.sort)
 }
 
-export async function getRolePermissionIds(roleId) {
+// المستخدمون الذين يحملون هذا الدور — عبر user_roles **أو** الدور الأساسي
+// (users.role_id)، فالنظام يستعمل الاثنين. الاسم من جدول الأشخاص الموحّد،
+// ويُجلب على حدة لا كتضمينٍ (embed) تجنّباً لعودة null متى حجبت RLS العلاقة.
+export async function listRoleUsers(roleId) {
   if (!roleId) return []
   const sb = getSupabase()
-  const { data, error } = await sb.from('role_permissions').select('permission_id').eq('role_id', roleId)
+  const [urRes, primRes] = await Promise.all([
+    sb.from('user_roles').select('user_id').eq('role_id', roleId),
+    sb.from('users').select('id').eq('role_id', roleId),
+  ])
+  const ids = Array.from(new Set([
+    ...(urRes.data || []).map(r => r.user_id),
+    ...(primRes.data || []).map(r => r.id),
+  ].filter(Boolean)))
+  if (!ids.length) return []
+  const { data: us, error } = await sb.from('users')
+    .select('id,email,person_id')
+    .in('id', ids)
+    .is('deleted_at', null)
   if (error) throw error
-  return (data || []).map(r => r.permission_id)
-}
-
-// Grant or revoke a single permission for a role (toggle).
-export async function setRolePermission(roleId, permissionId, granted) {
-  const sb = getSupabase()
-  if (granted) {
-    const { error } = await sb.from('role_permissions')
-      .upsert({ role_id: roleId, permission_id: permissionId }, { onConflict: 'role_id,permission_id' })
-    if (error) throw error
-  } else {
-    const { error } = await sb.from('role_permissions')
-      .delete().eq('role_id', roleId).eq('permission_id', permissionId)
-    if (error) throw error
+  const pids = Array.from(new Set((us || []).map(u => u.person_id).filter(Boolean)))
+  let pmap = new Map()
+  if (pids.length) {
+    const { data: ps } = await sb.from('persons').select('id,name_ar,name_en').in('id', pids)
+    pmap = new Map((ps || []).map(p => [p.id, p]))
   }
+  return (us || [])
+    .map(u => ({ id: u.id, email: u.email, name: pmap.get(u.person_id)?.name_ar || pmap.get(u.person_id)?.name_en || u.email }))
+    .sort((a, b) => String(a.name).localeCompare(String(b.name), 'ar'))
 }
 
-// Grant/revoke a batch of permissions in one go (e.g. "select all in section").
-export async function setRolePermissionsBatch(roleId, permissionIds, granted) {
+export async function createRole({ name_ar, name_en, color, ui_visibility }) {
   const sb = getSupabase()
-  const ids = Array.from(new Set(permissionIds || []))
-  if (!ids.length) return
-  if (granted) {
-    const rows = ids.map(permission_id => ({ role_id: roleId, permission_id }))
-    const { error } = await sb.from('role_permissions').upsert(rows, { onConflict: 'role_id,permission_id' })
-    if (error) throw error
-  } else {
-    const { error } = await sb.from('role_permissions').delete().eq('role_id', roleId).in('permission_id', ids)
-    if (error) throw error
-  }
-}
-
-export async function createRole({ name_ar, name_en, color }) {
-  const sb = getSupabase()
-  const { data, error } = await sb.from('roles')
-    .insert({ name_ar, name_en: name_en || null, color: color || null, is_active: true })
-    .select().single()
+  const row = { name_ar, name_en: name_en || null, color: color || null, is_active: true }
+  // دورٌ جديد يُولد مغلقاً بالكامل: كل مفاتيح الإظهار مطفأة صراحةً (طلب المستخدم).
+  if (ui_visibility && Object.keys(ui_visibility).length) row.ui_visibility = ui_visibility
+  const { data, error } = await sb.from('roles').insert(row).select().single()
   if (error) throw error
   return data
 }
@@ -110,7 +105,8 @@ export async function deleteRole(id) {
     e.code = 'role_in_use'
     throw e
   }
-  await sb.from('role_permissions').delete().eq('role_id', id)
+  const { error: rpErr } = await sb.from('role_permissions').delete().eq('role_id', id)
+  if (rpErr) throw rpErr
   const { error } = await sb.from('roles').delete().eq('id', id)
   if (error) throw error
 }

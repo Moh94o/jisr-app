@@ -6,8 +6,8 @@ import { navSetHere } from '../../lib/navStack.js'
 import { Modal as FKModal, ModalSection, GRID, TextField, IdField, PhoneField, Select, MultiSelect, Dropdown as FKDropdown, SuccessView, EmptyState } from '../../components/ui/FormKit.jsx'
 import { SkeletonCards, SkeletonList } from '../../components/ui/Skeleton.jsx'
 import {
-  Users, Phone, FileText, Wallet, Search,
-  AlertCircle, Hash, Calendar, Building2, Globe, TrendingUp, User, Copy, Check,
+  Users, Phone, Wallet, Search,
+  Calendar, Building2, User, Copy, Check,
   ArrowLeftRight, StickyNote, IdCard,
 } from 'lucide-react'
 
@@ -34,15 +34,6 @@ const svcColor = (code) => ({
   iqama_renewal: C.cyan, ajeer: C.purple, other: C.gold, general: C.gray,
 }[code] || C.gray)
 const ROLE_PALETTE = [C.gold, C.blue, '#16a085', '#bb8fce', '#f39c12', C.ok, '#e8c77a', '#5dade2', '#27ae60']
-const formatRelative = (iso) => {
-  if (!iso) return null
-  const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000)
-  if (s < 60) return 'الآن'
-  if (s < 3600) return `قبل ${Math.floor(s / 60)} د`
-  if (s < 86400) return `قبل ${Math.floor(s / 3600)} س`
-  if (s < 604800) return `قبل ${Math.floor(s / 86400)} يوم`
-  return new Date(iso).toLocaleDateString('ar-SA')
-}
 const payState = (invoiced, paid) => {
   if (invoiced <= 0) return { code: 'none', c: C.gray }
   if (paid >= invoiced) return { code: 'paid', c: C.ok }
@@ -239,7 +230,7 @@ export default function ClientsPage({ sb, lang, user, toast, emptyIcon }) {
     // (السجل بلا مكتب مسموح للجميع — مطابقةً لـ canTabBranch).
     const inOffice = (qb) => officeScope ? qb.or(`branch_id.in.(${officeScope.join(',')}),branch_id.is.null`) : qb
     Promise.all([
-      inOffice(sb.from('clients').select('id,branch_id,created_at,nationality_id,name_ar,name_en,id_number,phone,nationality:nationality_id(name_ar,name_en)').is('deleted_at', null)),
+      inOffice(sb.from('clients').select('id,branch_id,created_at,nationality_id,name_ar,name_en,id_number,phone,phone2,phone3,nationality:nationality_id(name_ar,name_en)').is('deleted_at', null)),
       inOffice(sb.from('service_requests').select('id,client_id,request_date,branch_id,quantity,status:status_id(code)').is('deleted_at', null)),
       inOffice(sb.from('invoices').select('total_amount,paid_amount,service_request_id').is('deleted_at', null)),
       sb.from('payments').select('service_request_id,payment_date').is('deleted_at', null),
@@ -254,7 +245,7 @@ export default function ClientsPage({ sb, lang, user, toast, emptyIcon }) {
     const cs = raw.clients.filter(c =>
       (!filters.branch_id || c.branch_id === filters.branch_id) &&
       (!filters.nationality_id || c.nationality_id === filters.nationality_id) &&
-      (!qq || [c.name_ar, c.name_en, c.id_number, c.phone].some(v => String(v || '').toLowerCase().includes(qq)))
+      (!qq || [c.name_ar, c.name_en, c.id_number, c.phone, c.phone2, c.phone3].some(v => String(v || '').toLowerCase().includes(qq)))
     )
     const clientIds = new Set(cs.map(c => c.id))
     // الطلبات الملغاة خارج كل الحسابات (الفوترة/المدفوع/العدّادات) — تظهر فقط في سجل الفواتير
@@ -324,7 +315,7 @@ export default function ClientsPage({ sb, lang, user, toast, emptyIcon }) {
   useEffect(() => {
     let alive = true; setLoading(true)
     let qb = sb.from('clients').select(`
-      id, name_ar, name_en, id_number, phone, created_at, nationality_id, branch_id, branch_ids,
+      id, name_ar, name_en, id_number, phone, phone2, phone3, created_at, nationality_id, branch_id, branch_ids,
       nationality:nationality_id(name_ar,name_en,flag_url),
       branch:branch_id(branch_code)
     `, { count: 'exact' })
@@ -336,7 +327,7 @@ export default function ClientsPage({ sb, lang, user, toast, emptyIcon }) {
     if (filters.nationality_id) qb = qb.eq('nationality_id', filters.nationality_id)
     if (q.trim()) {
       const s = q.trim().replace(/[%,]/g, '')
-      qb = qb.or(`name_ar.ilike.%${s}%,name_en.ilike.%${s}%,id_number.ilike.%${s}%,phone.ilike.%${s}%`)
+      qb = qb.or(`name_ar.ilike.%${s}%,name_en.ilike.%${s}%,id_number.ilike.%${s}%,phone.ilike.%${s}%,phone2.ilike.%${s}%,phone3.ilike.%${s}%`)
     }
     qb.then(({ data, count }) => { if (alive) { setRows(data || []); setTotal(count || 0); setLoading(false) } })
     return () => { alive = false }
@@ -354,7 +345,7 @@ export default function ClientsPage({ sb, lang, user, toast, emptyIcon }) {
     let alive = true
     ;(async () => {
       const { data } = await sb.from('clients').select(`
-      id, name_ar, name_en, id_number, phone, created_at, nationality_id, branch_id, branch_ids,
+      id, name_ar, name_en, id_number, phone, phone2, phone3, created_at, nationality_id, branch_id, branch_ids,
       nationality:nationality_id(name_ar,name_en,flag_url),
       branch:branch_id(branch_code)
     `).eq('id', selectedId).is('deleted_at', null).maybeSingle()
@@ -522,11 +513,9 @@ function ClientRow({ client, clientStats, onClick, T, isAr }) {
   const invoiced = Number(c.invoiced || 0)
   const paid = Number(c.paid || 0)
   const due = Math.max(0, invoiced - paid)
-  const ps = payState(invoiced, paid)
   const accent = colorFor(client.id)
   const name = (isAr ? client.name_ar : (client.name_en || client.name_ar)) || client.name_ar || client.name_en || '—'
   const invCount = c.invCount || 0
-  const workerCount = c.workerCount || 0
   const inv = num(Math.round(invoiced))
 
   /* ── reusable pieces ── */
@@ -534,9 +523,6 @@ function ClientRow({ client, clientStats, onClick, T, isAr }) {
     <div title={(isAr ? client.nationality?.name_ar : (client.nationality?.name_en || client.nationality?.name_ar)) || ''} style={{ width: size, height: size, borderRadius: radius, overflow: 'hidden', background: `linear-gradient(135deg, ${accent}33 0%, ${accent}14 100%)`, color: accent, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: Math.round(size * 0.42), fontWeight: 600, flexShrink: 0 }}>
       {client.nationality?.flag_url ? <img src={client.nationality.flag_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : initial(name)}
     </div>
-  )
-  const pill = (icon, label, color, bg, bd) => (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '2px 8px', borderRadius: 6, background: bg, border: `1px solid ${bd}`, color, fontSize: 10, fontWeight: 600 }}>{icon}{label}</span>
   )
   const baseBg = `linear-gradient(135deg, ${accent}0e 0%, var(--card-bg) 50%, var(--card-bg) 100%)`
   const card = (children, extra = {}) => (
@@ -547,7 +533,6 @@ function ClientRow({ client, clientStats, onClick, T, isAr }) {
   const nameText = (size = 15) => <span style={{ fontSize: size, fontWeight: 600, color: 'var(--tx)', letterSpacing: '-.2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</span>
   const idText = client.id_number ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}><IdCard size={15} color="var(--tx3)" /><span style={{ direction: 'ltr', fontSize: 13, color: 'var(--tx3)', fontFamily: 'monospace', letterSpacing: '.3px' }}>{client.id_number}</span></span> : null
   const phoneBit = client.phone ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}><Phone size={15} color="var(--tx3)" /><span style={{ direction: 'ltr', fontSize: 13, fontFamily: 'monospace', color: 'var(--tx3)', letterSpacing: '.3px' }}>{fmtPhone(client.phone)}</span></span> : null
-  const mline = (children, gap = 12) => <div style={{ display: 'inline-flex', alignItems: 'center', gap, fontSize: 11.5, color: 'var(--tx3)', fontWeight: 600, flexWrap: 'wrap' }}>{children}</div>
 
   return card(
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1px 184px', gap: 18, alignItems: 'stretch', padding: '18px 20px' }}>
@@ -592,7 +577,6 @@ function ClientDetailPage({ sb, client, clientStats, user, toast, onBack, T, isA
       .then(({ data }) => setRequests(data || []))
   }, [sb, client.id])
 
-  const accent = colorFor(client.id)
   const name = (isAr ? client.name_ar : (client.name_en || client.name_ar)) || client.name_ar || client.name_en || '—'
   // كل الحسابات (الملخص المالي والإحصاءات) تتجاهل الطلبات الملغاة — تظهر فقط في سجل الفواتير كختم «ملغية».
   const activeReqs = (requests || []).filter(r => r.status?.code !== 'cancelled')
@@ -620,6 +604,8 @@ function ClientDetailPage({ sb, client, clientStats, user, toast, onBack, T, isA
     client.name_en && client.name_ar ? { fk: 'ci_name_en', label: T('الاسم بالإنجليزية', 'Name (EN)'), value: client.name_en, mono: true } : null,
     { fk: 'ci_id_number', label: T('رقم الهوية', 'ID number'), value: client.id_number, mono: true, copy: true },
     { fk: 'ci_phone', label: T('الجوال', 'Phone'), value: fmtPhone(client.phone), mono: true, copy: true },
+    client.phone2 ? { fk: 'ci_phone', label: T('جوال إضافي ١', 'Extra phone 1'), value: fmtPhone(client.phone2), mono: true, copy: true } : null,
+    client.phone3 ? { fk: 'ci_phone', label: T('جوال إضافي ٢', 'Extra phone 2'), value: fmtPhone(client.phone3), mono: true, copy: true } : null,
     { fk: 'ci_nationality', label: T('الجنسية', 'Nationality'), value: isAr ? client.nationality?.name_ar : (client.nationality?.name_en || client.nationality?.name_ar) },
     { fk: 'ci_branch', label: T('المكتب', 'Branch'), value: ((client.branch_ids && client.branch_ids.length) ? client.branch_ids.map(id => branches.find(b => b.id === id)?.branch_code).filter(Boolean).join(T('، ', ', ')) : '') || client.branch?.branch_code, mono: true, wrap: true },
     { fk: 'ci_joined', label: T('تاريخ الإضافة', 'Joined'), value: fmtGreg(client.created_at), mono: true },
@@ -817,11 +803,16 @@ function InvoiceRow({ invoice, openInvoice, T, isAr, fv = () => true }) {
 /* ═══════════════════════════════════════════════════════════════
    Client edit modal — canonical FormKit edit window (variant="edit")
    ═══════════════════════════════════════════════════════════════ */
+// 966xxxxxxxxx / 05xxxxxxxx → الخانات التسع بعد +966
+const to9 = (v) => String(v || '').replace(/^\+?966/, '').replace(/^0/, '').replace(/\D/g, '').slice(0, 9)
+
 function ClientEditModal({ sb, client, branches, nationalities, toast, user, onClose, onSaved, T = (a) => a, isAr = true }) {
   const [f, setF] = useState({
     name_ar: client.name_ar || client.name_en || '',
     id_number: client.id_number || '',
-    phone: String(client.phone || '').replace(/^\+?966/, '').replace(/^0/, '').replace(/\D/g, '').slice(0, 9),
+    phone: to9(client.phone),
+    phone2: to9(client.phone2),
+    phone3: to9(client.phone3),
     nationality_id: client.nationality_id || '',
     branch_ids: (client.branch_ids && client.branch_ids.length) ? client.branch_ids : (client.branch_id ? [client.branch_id] : []),
   })
@@ -837,10 +828,13 @@ function ClientEditModal({ sb, client, branches, nationalities, toast, user, onC
   // shown input is valid. Hidden fields keep their existing value and never block save.
   const idDigits = (f.id_number || '').replace(/\D/g, '')
   const phoneDigits = (f.phone || '').replace(/\D/g, '')
+  // الجوالان الإضافيان اختياريان — لكن إن عُبّئ أحدهما فتسع خانات
+  const p2 = (f.phone2 || '').replace(/\D/g, ''), p3 = (f.phone3 || '').replace(/\D/g, '')
+  const extraOk = (!p2 || p2.length === 9) && (!p3 || p3.length === 9)
   const valid = !!(
     (!fVis('ci_name') || f.name_ar.trim()) &&
     (!fVis('ci_id_number') || idDigits.length === 10) &&
-    (!fVis('ci_phone') || phoneDigits.length === 9) &&
+    (!fVis('ci_phone') || (phoneDigits.length === 9 && extraOk)) &&
     (!fVis('ci_nationality') || f.nationality_id) &&
     (!fVis('ci_branch') || (f.branch_ids || []).length > 0)
   )
@@ -857,18 +851,23 @@ function ClientEditModal({ sb, client, branches, nationalities, toast, user, onC
     if (fVis('ci_id_number') && idDigits.length !== 10) { setErrMsg(T('رقم الهوية يجب أن يكون 10 أرقام', 'ID number must be 10 digits')); return }
     const phone9 = phoneDigits
     if (fVis('ci_phone') && phone9.length !== 9) { setErrMsg(T('رقم الجوال يجب أن يكون 9 أرقام بعد +966', 'Mobile must be 9 digits after +966')); return }
+    if (fVis('ci_phone') && !extraOk) { setErrMsg(T('الجوال الإضافي يجب أن يكون 9 أرقام بعد +966', 'Extra mobile must be 9 digits after +966')); return }
     if (fVis('ci_nationality') && !f.nationality_id) { setErrMsg(T('الجنسية مطلوبة', 'Nationality is required')); return }
     if (fVis('ci_branch') && !(f.branch_ids || []).length) { setErrMsg(T('يجب اختيار مكتب واحد على الأقل', 'Select at least one branch')); return }
     setSaving(true)
     const nowIso = new Date().toISOString()
     const newPhone = phone9 ? '966' + phone9 : null
+    const newPhone2 = p2 ? '966' + p2 : null
+    const newPhone3 = p3 ? '966' + p3 : null
     const branchIds = f.branch_ids || []
     // سجلّ التعديل — يُلحق بحقل edit_log (jsonb) مثل سجل الفاتورة: من عدّل، متى، وما الذي تغيّر.
-    const changes = clientEditChanges(client, { name_ar: f.name_ar.trim(), id_number: idDigits, phone: newPhone || '', nationality_id: f.nationality_id }, nationalities)
+    const changes = clientEditChanges(client, { name_ar: f.name_ar.trim(), id_number: idDigits, phone: newPhone || '', phone2: newPhone2 || '', phone3: newPhone3 || '', nationality_id: f.nationality_id }, nationalities)
     const patch = {
       name_ar: f.name_ar.trim() || null,
       id_number: f.id_number.trim() || null,
       phone: newPhone,
+      phone2: newPhone2,
+      phone3: newPhone3,
       nationality_id: f.nationality_id || null,
       branch_id: branchIds[0] || null,
       branch_ids: branchIds,
@@ -899,6 +898,8 @@ function ClientEditModal({ sb, client, branches, nationalities, toast, user, onC
               {fVis('ci_name') && <TextField label={T('الاسم', 'Name')} req full value={f.name_ar} onChange={v => set('name_ar', v)} placeholder={T('اسم العميل', 'Client name')} disabled={!fEd('ci_name')} />}
               {fVis('ci_id_number') && <IdField label={T('رقم الهوية', 'ID Number')} req value={f.id_number} onChange={v => set('id_number', v)} placeholder="0000000000" disabled={!fEd('ci_id_number')} />}
               {fVis('ci_phone') && <PhoneField label={T('رقم الجوال', 'Mobile Number')} req value={f.phone} onChange={v => set('phone', v)} disabled={!fEd('ci_phone')} />}
+              {fVis('ci_phone') && <PhoneField label={T('جوال إضافي ١', 'Extra phone 1')} value={f.phone2} onChange={v => set('phone2', v)} disabled={!fEd('ci_phone')} />}
+              {fVis('ci_phone') && <PhoneField label={T('جوال إضافي ٢', 'Extra phone 2')} value={f.phone3} onChange={v => set('phone3', v)} disabled={!fEd('ci_phone')} />}
               {fVis('ci_nationality') && <Select label={T('الجنسية', 'Nationality')} req value={f.nationality_id} onChange={v => set('nationality_id', v)} placeholder={T('— اختر —', '— Select —')} disabled={!fEd('ci_nationality')}
                 options={nationalities} getKey={n => n.id} getLabel={n => isAr ? n.name_ar : (n.name_en || n.name_ar)} />}
               {fVis('ci_branch') && <MultiSelect label={T('المكتب', 'Branch')} req hint={T('يمكن اختيار أكثر من مكتب', 'You can select more than one branch')} value={f.branch_ids} onChange={v => set('branch_ids', v)} placeholder={T('— اختر —', '— Select —')} disabled={!fEd('ci_branch')}

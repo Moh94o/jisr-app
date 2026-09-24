@@ -51,8 +51,10 @@ export async function syncInvoicePricing(sb, invoiceId, newTotal, { newLines, lo
   if (!invoiceId) return
   const nowIso = new Date().toISOString()
   const total = r2(newTotal)
-  const { data: invFresh } = await sb.from('invoices')
+  const { data: invFresh, error: readErr } = await sb.from('invoices')
     .select('paid_amount, pricing_log, status:status_id(code)').eq('id', invoiceId).maybeSingle()
+  // بلا هذا الفحص يُكتب pricing_log من الصفر (يُمحى السجلّ) وتُشتقّ الحالة من مدفوع = 0.
+  if (readErr) throw readErr
   const curPaid = Number(invFresh?.paid_amount) || 0
   const patch = { total_amount: total, last_activity_at: nowIso }
   if (newLines) patch.pricing_breakdown = newLines
@@ -70,7 +72,10 @@ export async function syncInvoicePricing(sb, invoiceId, newTotal, { newLines, lo
     const sumT = insRows.reduce((s, r) => s + (Number(r.total_amount) || 0), 0)
     if (Math.abs(r2(total - sumT)) > 0.005) {
       for (const row of redistributeInstallments(insRows, total)) {
-        if (r2(row.to) !== r2(row.from)) await sb.from('installments').update({ total_amount: r2(row.to) }).eq('id', row.id)
+        if (r2(row.to) !== r2(row.from)) {
+          const { error: insErr } = await sb.from('installments').update({ total_amount: r2(row.to) }).eq('id', row.id)
+          if (insErr) throw insErr
+        }
       }
     }
   }

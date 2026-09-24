@@ -133,7 +133,7 @@ export default function SbcCenterPage({ sb, user, toast, lang = 'ar', branchId }
     let qb = sb.from('service_requests')
       .select('id,request_ref_no,request_date,created_at,note,trade_name,cr_number,service_type_id,facility_id,document_type,new_confirmation_date,amendment,status:status_id(code,value_ar,value_en)')
       .is('deleted_at', null).in('service_type_id', ids)
-      .order('request_date', { ascending: false, nullsFirst: false }).limit(300)
+      .order('request_date', { ascending: false, nullsFirst: false }).limit(5000)
     if (userBranchId) qb = qb.eq('branch_id', userBranchId)
     const { data, error } = await qb
     if (error) { toast?.('تعذر تحميل المعاملات', 'error'); setRows([]); setLoading(false); return }
@@ -376,8 +376,9 @@ function SbcDetailPage({ sb, user, toast, lang, row, type, statuses, onBack, onC
         if (!ue) { const { data: pub } = sb.storage.from('attachments').getPublicUrl(path); const { data: ins } = await sb.from('attachments').insert({ entity_type: 'service_request', entity_id: row.id, file_name: crFile.name, file_url: pub?.publicUrl || path, storage_path: path, mime_type: crFile.type || null, size_bytes: crFile.size || null, notes: 'cr_file' }).select('id,file_name,file_url,size_bytes,created_at').single(); if (ins) setAtts(p => [ins, ...p]) }
       }
       const doneId = statuses.find(s => s.code === 'done')?.id
-      if (doneId) await sb.from('service_requests').update({ status_id: doneId }).eq('id', row.id)
+      const { error: se } = doneId ? await sb.from('service_requests').update({ status_id: doneId }).eq('id', row.id) : {}
       setFacility(fac)
+      if (se) throw se
       toast?.('تم إنجاز المعاملة وإضافة المنشأة')
       await onChanged?.()
     } catch (e) { toast?.(e.message || 'تعذر الإنجاز', 'error') } finally { setCompleting(false) }
@@ -395,10 +396,12 @@ function SbcDetailPage({ sb, user, toast, lang, row, type, statuses, onBack, onC
       const { data: pub } = sb.storage.from('attachments').getPublicUrl(path)
       const fileUrl = pub?.publicUrl || path
       // Attach to the facility's CR files + to the transaction record
-      const { data: ins } = await sb.from('attachments').insert({ entity_type: 'facility', entity_id: row.facility_id, file_name: crFile.name, file_url: fileUrl, storage_path: path, mime_type: crFile.type || null, size_bytes: crFile.size || null, notes: 'cr_document:' + (row.document_type || 'cr_extract') }).select('id,file_name,file_url,created_at').single()
+      const { data: ins, error: ae } = await sb.from('attachments').insert({ entity_type: 'facility', entity_id: row.facility_id, file_name: crFile.name, file_url: fileUrl, storage_path: path, mime_type: crFile.type || null, size_bytes: crFile.size || null, notes: 'cr_document:' + (row.document_type || 'cr_extract') }).select('id,file_name,file_url,created_at').single()
+      if (ae) throw ae
       await sb.from('attachments').insert({ entity_type: 'service_request', entity_id: row.id, file_name: crFile.name, file_url: fileUrl, storage_path: path, mime_type: crFile.type || null, size_bytes: crFile.size || null, notes: 'cr_document' })
       const doneId = statuses.find(s => s.code === 'done')?.id
-      if (doneId) await sb.from('service_requests').update({ status_id: doneId }).eq('id', row.id)
+      const { error: se } = doneId ? await sb.from('service_requests').update({ status_id: doneId }).eq('id', row.id) : {}
+      if (se) throw se
       if (ins) setDocFileRec(ins)
       toast?.('تم إنجاز المعاملة وإرفاق المستخرج')
       await onChanged?.()
@@ -428,12 +431,13 @@ function SbcDetailPage({ sb, user, toast, lang, row, type, statuses, onBack, onC
   }
 
   const changeStatus = async (id) => {
+    const prevId = statusId
     setStatusId(id); setBusy(true)
     try {
       const { error } = await sb.from('service_requests').update({ status_id: id }).eq('id', row.id)
       if (error) throw error
       toast?.('تم تحديث الحالة'); await onChanged?.()
-    } catch (e) { toast?.('تعذر التحديث', 'error') } finally { setBusy(false) }
+    } catch (e) { setStatusId(prevId); toast?.('تعذر التحديث', 'error') } finally { setBusy(false) }
   }
 
   const uploadFile = async (file) => {
@@ -675,8 +679,8 @@ function AddModal({ lang, sb, user, toast, typeByCode, newStatusId, userBranchId
   // simple-form fields (services without step definitions)
   const [tradeName, setTradeName] = useState('')
   const [crNumber, setCrNumber] = useState('')
-  const [note, setNote] = useState('')
-  const [file, setFile] = useState(null)
+  const [note] = useState('')
+  const [file] = useState(null)
   // name-reserve wizard fields
   const [language, setLanguage] = useState('ar')
   const [reservationNo, setReservationNo] = useState('')
@@ -723,21 +727,21 @@ function AddModal({ lang, sb, user, toast, typeByCode, newStatusId, userBranchId
     let alive = true
     sb.from('facilities')
       .select('id,name_ar,unified_number,gosi_number,hrsd_number,confirmation_date,opening:opening_request_id(entity_kind)')
-      .is('deleted_at', null).order('name_ar').limit(500)
+      .is('deleted_at', null).order('name_ar').limit(5000)
       .then(({ data }) => { if (alive) setFacOpts(data || []) })
     return () => { alive = false }
   }, [sb, needsFacility])
   useEffect(() => {
     if (!needsPersons) return
     let alive = true
-    sb.from('persons').select('id,name_ar,name_en,id_number').is('deleted_at', null).order('name_ar').limit(1000)
+    sb.from('persons').select('id,name_ar,name_en,id_number').is('deleted_at', null).order('name_ar').limit(5000)
       .then(({ data }) => { if (alive) setPersonOpts(data || []) })
     return () => { alive = false }
   }, [sb, needsPersons])
   useEffect(() => {
     if (!needsMuq) return
     let alive = true
-    sb.from('muaqqibs').select('id,name_ar,phone').is('deleted_at', null).order('name_ar').limit(500)
+    sb.from('muaqqibs').select('id,name_ar,phone').is('deleted_at', null).order('name_ar').limit(5000)
       .then(({ data }) => { if (alive) setMuqOpts(data || []) })
     return () => { alive = false }
   }, [sb, needsMuq])
@@ -811,14 +815,15 @@ function AddModal({ lang, sb, user, toast, typeByCode, newStatusId, userBranchId
         const { data: sr, error } = await sb.from('service_requests').insert(srPayload).select('id').single()
         if (error || !sr?.id) throw error || new Error('insert failed')
         // Pending fee → surfaces in المدفوعات for settlement
-        await sb.from('transaction_fees').insert({
+        const { error: feeErr } = await sb.from('transaction_fees').insert({
           service_request_id: sr.id, amount: Number(amount || 0), paid_amount: 0, status: 'pending',
           sadad_no: sadadNo.trim() || null,
           fee_label_ar: isDocuments ? (DOC_TYPES.find(d => d.v === docType)?.l || 'مستندات') : isCrAmend ? 'تعديل سجل تجاري' : isCrRenew ? 'تجديد سجل تجاري' : (isCrOpen ? 'فتح سجل تجاري' : 'حجز إسم تجاري'),
           fee_label_en: isDocuments ? 'Document' : isCrAmend ? 'Amend CR' : isCrRenew ? 'Renew CR' : (isCrOpen ? 'Open CR' : 'Trade Name Reservation'),
           notes: 'manual_pay_request', sort_order: 0,
         })
-        toast?.('تمت الإضافة — انتقل إلى سدادات الخدمات للسداد')
+        if (feeErr) toast?.('أُضيفت المعاملة لكن تعذر إنشاء رسم السداد: ' + (feeErr.message || ''), 'error')
+        else toast?.('تمت الإضافة — انتقل إلى سدادات الخدمات للسداد')
         setSaved(true)
         setTimeout(() => { onSaved() }, 1400)
         return

@@ -35,7 +35,7 @@ function body({ sourceId, personId, force = false, resetAt = '' }) {
     let d = document.getElementById('_jisr_qiwa_ui');
     if (!d) {
       d = document.createElement('div'); d.id = '_jisr_qiwa_ui';
-      d.style.cssText = 'position:fixed;top:16px;left:16px;background:#111;color:#27a046;padding:12px 18px;border-radius:10px;z-index:2147483647;font:700 13px/1.5 sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.5);max-width:380px;direction:rtl;text-align:right;border:1px solid rgba(39,160,70,.4)';
+      d.style.cssText = 'position:fixed;top:16px;left:16px;background:#111;color:#27a046;padding:12px 18px;border-radius:10px;z-index:2147483647;font:600 13px/1.5 sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.5);max-width:380px;direction:rtl;text-align:right;border:1px solid rgba(39,160,70,.4)';
       document.body.appendChild(d);
     }
     d.textContent = 'جسر قوى: ' + m;
@@ -166,6 +166,9 @@ function body({ sourceId, personId, force = false, resetAt = '' }) {
     // targets whatever company the session currently has active. The sweep at
     // the bottom switches context per company and calls it once per company.
     const syncActiveCompany = async () => {
+    /* تصفير حالة المنشأة السابقة: هذه المتغيّرات خارج الدالة، فلو فشل نداءٌ
+       لمنشأةٍ في المسح الشامل لبقيت قيمة المنشأة السابقة وكُتبت تحت هذه. */
+    activeCompany = null; criteria = null; indicators = null; cases = null; absher = null;
     // 3) Current company context (works on dashboard.qiwa.sa / visa.qiwa.sa when in a specific company).
     const cur = await qiwaGet(API_CORE + '/context/company');
     if (cur.ok && cur.data && cur.data.data) {

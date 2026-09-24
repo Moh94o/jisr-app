@@ -258,19 +258,6 @@ const cardChrome = {
   boxShadow: 'var(--shadow-sm)',
   overflow: 'hidden',
 }
-const cardHeader = {
-  display: 'flex', alignItems: 'center', gap: 8,
-  padding: '12px 22px',
-  borderBottom: '1px solid var(--bd)',
-}
-const cardTitle = { fontSize: 12, color: 'var(--tx2)', fontWeight: 600, letterSpacing: '.2px' }
-
-const STATUS_THEME = {
-  active:    { c: C.ok,     label_ar: 'نشط',     label_en: 'Active' },
-  suspended: { c: C.orange, label_ar: 'معلّق',   label_en: 'Suspended' },
-}
-const themeForStatus = (s) => STATUS_THEME[s] || { c: C.gray, label_ar: s || '—', label_en: s || '—' }
-
 // كل صيغة جنسية (اسم دولة أو صفة) → رمز الدولة. مصدرٌ واحد لتوحيد الصيغتين وعرض العلم.
 const NAT_CODES = {
   'أردني':'JO','الأردن':'JO','أفغاني':'AF','أفغانستان':'AF','افغانستان':'AF','أوغندي':'UG','أوغندا':'UG','إثيوبي':'ET','إثيوبيا':'ET','إندونيسي':'ID','إندونيسيا':'ID',
@@ -391,13 +378,6 @@ const CopyBtn = ({ value, T }) => {
     </button>
   )
 }
-
-const Badge = ({ theme, T }) => theme ? (
-  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 9px', borderRadius: 6, background: theme.c + '18', border: '1px solid ' + theme.c + '38', color: theme.c, fontSize: 10.5, fontWeight: 600 }}>
-    <span style={{ width: 5, height: 5, borderRadius: '50%', background: theme.c, boxShadow: '0 0 5px ' + theme.c }} />
-    {T(theme.label_ar, theme.label_en)}
-  </span>
-) : null
 
 // Iqama remaining-days cell. Renders the expiry date (14px) on top and a plain
 // coloured text line below — `N يوم متبقي` if still valid, `N يوم مضى` if expired.
@@ -670,7 +650,7 @@ export default function WorkforcePage({ sb, toast, lang, user, onTabChange }) {
   const [detail, setDetail] = useState(null)
   // View lens — like SbcFacilities tableView (SBC | GOSI). For workers it's
   // "all" vs "active" vs "suspended".
-  const [viewLens, setViewLens] = useState('all')
+  const [viewLens] = useState('all')
   // Manual "إضافة عامل" modal — inserts straight into the canonical `workers` table.
   const [showAdd, setShowAdd] = useState(false)
   const [adding, setAdding] = useState(false)
@@ -823,29 +803,9 @@ export default function WorkforcePage({ sb, toast, lang, user, onTabChange }) {
   }, [sb])
   useEffect(() => { load() }, [load])
 
-  // «تحديث من المزامنة»: يشغّل النقل المدمج promote_sync_to_canonical (مقيم/قوى/التأمينات…)
-  // يدوياً ثم يعيد جلب الجدول — نفس الدالة التي تعمل آلياً كل 15 دقيقة عبر pg_cron،
-  // فمركز المزامنة هو المصدر والجدول مرآته. الهوية ثابتة فلا تتأثر الفواتير.
-  const [syncing, setSyncing] = useState(false)
-  const refreshFromSync = useCallback(async () => {
-    if (!sb || syncing) return
-    setSyncing(true)
-    try {
-      toast?.(T('جاري التحديث من المزامنة...', 'Refreshing from sync...'))
-      const { data, error } = await sb.rpc('promote_sync_to_canonical')
-      if (error) throw error
-      const w = data?.workers || {}
-      toast?.(T(
-        `✅ العمال: ${w.updated ?? 0} محدّث + ${w.inserted ?? 0} جديد`,
-        `✅ Workers: ${w.updated ?? 0} updated + ${w.inserted ?? 0} new`,
-      ))
-      await load()
-    } catch (e) {
-      toast?.(T('خطأ في التحديث: ', 'Refresh error: ') + (e.message || String(e)), 'error')
-    } finally {
-      setSyncing(false)
-    }
-  }, [sb, syncing, toast, T, load])
+  /* «تحديث من المزامنة» أُزيل (٢٠٢٦-٠٩-٢٢): جدول العمالة صار سجلاً محفوظاً لا مرآةً
+     للمزامنة — لا يكتب فيه إلا نقل الكفالة وإصدار/تجديد الإقامة والموظف. ومقارنته
+     بالمنصّات في «جداول العمل ← العمالة الدائمة — البيانات الأساسية ← من المزامنة». */
 
   // فتح تفاصيل فاتورة (العرض الرابع) — نفس آلية التنقّل العامة في التطبيق.
   const goInvoice = (id) => { try { window.dispatchEvent(new CustomEvent('app-navigate-invoice', { detail: { id } })) } catch { /* ignore */ } }
@@ -1136,11 +1096,12 @@ export default function WorkforcePage({ sb, toast, lang, user, onTabChange }) {
         if (upErr) { toast?.(T('تعذّر رفع ' + u.label + ': ' + (upErr.message || ''), 'Upload failed for ' + u.label + ': ' + (upErr.message || ''))) }
         else {
           const { data: pub } = sb.storage.from('attachments').getPublicUrl(path)
-          await sb.from('attachments').insert({
+          const { error: attErr } = await sb.from('attachments').insert({
             entity_type: 'worker', entity_id: editRow.id,
             file_name: u.file.name, file_url: pub?.publicUrl || path, storage_path: path,
             mime_type: u.file.type || null, size_bytes: u.file.size || null, notes: u.notes, uploaded_by: user?.id || null,
           })
+          if (attErr) { toast?.(T('تعذّر رفع ' + u.label + ': ' + (attErr.message || ''), 'Upload failed for ' + u.label + ': ' + (attErr.message || ''))); continue }
           // حذف ناعم للملف المُستبدَل في نفس الخانة (يبقى المرفق الجديد فقط).
           if (prevFileIds[u.notes]?.length) {
             await sb.from('attachments').update({ deleted_at: new Date().toISOString() }).in('id', prevFileIds[u.notes])
@@ -1392,7 +1353,7 @@ export default function WorkforcePage({ sb, toast, lang, user, onTabChange }) {
       if (has(adv.balance) && !adv.balance.includes(balBucketOf(w, muqeemBalance))) return false
       if (has(adv.invoiceRemaining) && !adv.invoiceRemaining.includes(invRemBucketOf(w, workerInvoices))) return false
       if (search.trim()) {
-        const s = search.toLowerCase()
+        const s = search.trim().toLowerCase()
         // أرقام المنشأة التابع لها العامل — البحث بالرقم الموحّد/التأمينات/الموارد البشرية/السجل يُظهر كل عمالتها.
         const fac = facById[w.current_facility_id]
         const facMatch = fac && [fac.unified_number, fac.gosi_number, fac.hrsd_number, fac.cr_number]
@@ -1930,11 +1891,13 @@ export default function WorkforcePage({ sb, toast, lang, user, onTabChange }) {
   // Iqama donut math — 3 buckets matching IqamaCell thresholds.
   const safe = (n) => Number.isFinite(n) ? n : 0
   const iqamaTot = Math.max(1, safe(stats.expired) + safe(stats.exp30) + safe(stats.valid))
+  // b = شرائح expBucket المقابلة لكل قطاع (فلتر الإقامة متعدّد الاختيار — مصفوفة).
   const iqamaSegs = [
-    { k: 'valid',   l: T('سارية','Valid'),       v: safe(stats.valid),   c: C.ok },
-    { k: '30d',     l: T('≤ 30 يوم','≤ 30 days'), v: safe(stats.exp30),   c: C.gold },
-    { k: 'expired', l: T('منتهية','Expired'),    v: safe(stats.expired), c: C.red },
+    { k: 'valid',   l: T('سارية','Valid'),       v: safe(stats.valid),   c: C.ok,   b: ['60d', '90d', '6m', 'valid'] },
+    { k: '30d',     l: T('≤ 30 يوم','≤ 30 days'), v: safe(stats.exp30),   c: C.gold, b: ['10d', '30d'] },
+    { k: 'expired', l: T('منتهية','Expired'),    v: safe(stats.expired), c: C.red,  b: ['expired'] },
   ]
+  const sameKeys = (arr, keys) => Array.isArray(arr) && arr.length === keys.length && keys.every(x => arr.includes(x))
   const R = 42, CIRC = 2 * Math.PI * R
   let acc = 0
   const iqamaArcs = iqamaSegs.map(s => {
@@ -1966,24 +1929,6 @@ export default function WorkforcePage({ sb, toast, lang, user, onTabChange }) {
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, flexWrap: 'wrap' }}>
-        {(canPerm(user, 'workers.sync') || isGM(user)) && (
-        <button
-          onClick={refreshFromSync}
-          disabled={syncing}
-          title={T('تحديث بيانات الجدول من مركز المزامنة', 'Refresh table data from the Sync Center')}
-          style={{
-            height: 42, padding: '0 16px', borderRadius: 11,
-            cursor: syncing ? 'default' : 'pointer', opacity: syncing ? 0.6 : 1,
-            fontFamily: F, fontSize: 13, fontWeight: 600, color: 'var(--tx2)',
-            background: 'transparent', border: '1px dashed var(--bd)',
-            display: 'inline-flex', alignItems: 'center', gap: 8,
-            whiteSpace: 'nowrap',
-            transition: 'background .15s ease, border-color .15s ease, box-shadow .15s ease',
-          }}>
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ animation: syncing ? 'spin 1s linear infinite' : 'none' }}><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-          <span>{syncing ? T('جاري التحديث...', 'Refreshing...') : T('تحديث من المزامنة', 'Refresh from sync')}</span>
-        </button>
-        )}
         {canPerm(user, 'workers.create') && (
         <button
           onClick={() => { setAddErr(null); setAddPage(0); setShowAdd(true) }}
@@ -2080,8 +2025,8 @@ export default function WorkforcePage({ sb, toast, lang, user, onTabChange }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1, minWidth: 0 }}>
               {iqamaSegs.map(s => (
                 <button key={s.k}
-                  onClick={() => { setAdv(a => ({ ...a, iqama: a.iqama === s.k ? '' : s.k })); setPage(0) }}
-                  style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, fontWeight: 600, opacity: s.v === 0 ? 0.4 : 1, background: adv.iqama === s.k ? 'rgba(176,125,0,.08)' : 'transparent', border: 'none', cursor: 'pointer', padding: '4px 6px', borderRadius: 6, fontFamily: F, textAlign: 'right' }}>
+                  onClick={() => { setAdv(a => ({ ...a, iqama: sameKeys(a.iqama, s.b) ? [] : s.b })); setPage(0) }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, fontWeight: 600, opacity: s.v === 0 ? 0.4 : 1, background: sameKeys(adv.iqama, s.b) ? 'rgba(176,125,0,.08)' : 'transparent', border: 'none', cursor: 'pointer', padding: '4px 6px', borderRadius: 6, fontFamily: F, textAlign: 'right' }}>
                   <span style={{ width: 8, height: 8, borderRadius: 2, background: s.c, flexShrink: 0 }} />
                   <span style={{ color: 'var(--tx2)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'start' }}>{s.l}</span>
                   <span style={{ color: s.v === 0 ? 'var(--tx4)' : s.c, fontVariantNumeric: 'tabular-nums', direction: 'ltr', fontWeight: 600, flexShrink: 0 }}>{num(s.v)}</span>
@@ -2106,11 +2051,11 @@ export default function WorkforcePage({ sb, toast, lang, user, onTabChange }) {
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, flex: 1 }}>
             {natTop.slice(0, 4).map(([n, count]) => (
-              <button key={n} onClick={() => { setAdv(a => ({ ...a, nationality: a.nationality === n ? '' : n })); setPage(0) }}
+              <button key={n} onClick={() => { setAdv(a => ({ ...a, nationality: sameKeys(a.nationality, [n]) ? [] : [n] })); setPage(0) }}
                 style={{
                   borderRadius: 12, padding: '8px 10px',
-                  background: adv.nationality === n ? 'rgba(176,125,0,.12)' : 'rgba(255,255,255,.025)',
-                  border: '1px solid ' + (adv.nationality === n ? 'rgba(176,125,0,.4)' : 'rgba(255,255,255,.04)'),
+                  background: sameKeys(adv.nationality, [n]) ? 'rgba(176,125,0,.12)' : 'rgba(255,255,255,.025)',
+                  border: '1px solid ' + (sameKeys(adv.nationality, [n]) ? 'rgba(176,125,0,.4)' : 'rgba(255,255,255,.04)'),
                   display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 4,
                   cursor: 'pointer', textAlign: 'start', fontFamily: F,
                 }}>
@@ -2386,19 +2331,12 @@ export default function WorkforcePage({ sb, toast, lang, user, onTabChange }) {
   )
 }
 
-const selStyle = { width: '100%', height: 40, padding: '0 12px', borderRadius: 10, background: 'var(--inputBg)', border: '1px solid var(--bd)', color: 'var(--tx)', fontSize: 12.5, fontFamily: F, outline: 'none', cursor: 'pointer' }
 const FilterField = ({ label, children }) => (
   <div>
     <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--tx3)', paddingInlineStart: 2, marginBottom: 7 }}>{label}</div>
     {children}
   </div>
 )
-function PageBtn({ children, onClick, disabled }) {
-  return (
-    <button onClick={onClick} disabled={disabled} style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,.04)', border: '1px solid var(--bd)', color: disabled ? 'var(--tx5)' : 'var(--tx2)', cursor: disabled ? 'not-allowed' : 'pointer', fontSize: 16, fontWeight: 600, opacity: disabled ? .4 : 1, fontFamily: F }}>{children}</button>
-  )
-}
-
 function Empty({ T, hasData }) {
   return (
     <EmptyState
@@ -2753,7 +2691,6 @@ function RenewalCard({ w, f, sb, T, isAr, toast }) {
 
 /* ═══════════════════════ Worker Detail (mirrors Facility detail) ═══════════════════════ */
 function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEdit, onSaved, onDelete, onTransfer, canEdit, canDelete, user, attKey }) {
-  const t = themeForStatus(w.worker_status)
   const iqamaDays = daysUntil(w.iqama_expiry_date)
 
   // الفرع التابع للعامل: افتراضياً يتبع فرع منشأته تلقائياً؛ ويمكن تخصيصه يدوياً (workers.branch_id)
@@ -2788,7 +2725,6 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
   const branchById = useMemo(() => Object.fromEntries((branches || []).map(b => [b.id, b])), [branches])
   const ownBranch = branchOverride ? (branchById[branchOverride] || null) : null
   const facBranchLabel = brLabelOf(branchById[f?.branch_id] || f?.branch)
-  const branchLabel = ownBranch ? brLabelOf(ownBranch) : facBranchLabel
   const branchIsOverride = !!ownBranch
   // نافذة تخصيص فرع العامل — «تلقائي (حسب المنشأة)» يمسح التخصيص (branch_id = null).
   const [brEdit, setBrEdit] = useState(false)
@@ -2839,7 +2775,8 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
   const closeConfirm = () => { if (busy) return; const wasDone = !!done; setDone(null); setConfirm(null); if (wasDone) onBack?.() }
 
   // تصفير الحالة المؤقتة (override التأمين + قيود السجل المضافة) عند تبديل العامل المعروض.
-  useEffect(() => { setInsOverride(null); setLogExtra([]) }, [w.id])
+  // (يُصفَّر أيضاً عند إعادة جلب العامل نفسه — الصفّ الجديد يحمل القيد والقيم، فلا تتكرّر في السجل.)
+  useEffect(() => { setInsOverride(null); setLogExtra([]) }, [w])
   // فواتير وخدمات العامل (تُحمّل عند فتح الصفحة) — نفس كرت صفحة المنشأة.
   const [facRows, setFacRows] = useState(null)
   // عميل ووسيط كل فاتورة — لكرت «عميل ووسيط الفاتورة» (خاصة تأشيرة بإقامة/نقل الكفالة
@@ -3010,7 +2947,9 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
       if (newExp) patch.iqama_expiry_date = newExp
       if (newSc != null) patch.sponsor_changes = newSc
       if (changes.length) {
-        const prevLog = Array.isArray(w.edit_log) ? w.edit_log : []
+        // السجل الحالي من القاعدة لا لقطة الصفحة — حتى لا نمحو قيوداً أُضيفت بعد فتحها (مثل «استعلام التأمين»).
+        const { data: freshRow } = await sb.from('workers').select('edit_log').eq('id', w.id).maybeSingle()
+        const prevLog = Array.isArray(freshRow?.edit_log) ? freshRow.edit_log : (Array.isArray(w.edit_log) ? w.edit_log : [])
         patch.edit_log = [...prevLog, { at: new Date().toISOString(), by: user?.id || null, by_name: user?.person?.name_ar || user?.person?.name_en || null, via: 'muqeem_fetch', changes }]
       }
       const { error } = await sb.from('workers').update(patch).eq('id', w.id)
@@ -3083,11 +3022,14 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
         let logEntry = null
         if (insChanges.length) {
           logEntry = { at: new Date().toISOString(), by: user?.id || null, by_name: user?.person?.name_ar || user?.person?.name_en || null, via: 'insurance_check', changes: insChanges }
-          const prevLog = Array.isArray(w.edit_log) ? w.edit_log : []
+          const { data: freshRow } = await sb.from('workers').select('edit_log').eq('id', w.id).maybeSingle()
+          const prevLog = Array.isArray(freshRow?.edit_log) ? freshRow.edit_log : (Array.isArray(w.edit_log) ? w.edit_log : [])
           patch.edit_log = [...prevLog, logEntry]
         }
-        try { await sb.from('workers').update(patch).eq('id', w.id) } catch { /* العرض يبقى من النتيجة */ }
-        if (logEntry) setLogExtra(prev => [...prev, logEntry])   // إظهار القيد في السجل فوراً دون إعادة تحميل
+        let insSaveErr = null
+        try { const { error } = await sb.from('workers').update(patch).eq('id', w.id); insSaveErr = error } catch (e) { insSaveErr = e } /* العرض يبقى من النتيجة */
+        if (insSaveErr) toast?.(T('تعذّر حفظ بيانات التأمين: ', 'Could not save insurance data: ') + (insSaveErr.message || ''))
+        else if (logEntry) setLogExtra(prev => [...prev, logEntry])   // إظهار القيد في السجل فوراً دون إعادة تحميل
         setInsOverride({ insurance_expiry_date: end || null, insurance_company: company, insurance_policy_number: policy })
         setChi(c => ({ ...c, phase: 'done', result: { insured: true, end, company, policy } }))
       } else {
@@ -3186,9 +3128,6 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
   // حالة الإقامة: أخضر >30، ذهبي 1–30، أحمر ≤0 (نفس عتبات IqamaCell).
   const iqColor = iqamaDays == null ? C.gray : iqamaDays <= 0 ? C.red : iqamaDays <= 30 ? C.gold : C.ok
   const iqShort = iqamaDays == null ? T('غير محدد', '—') : iqamaDays <= 0 ? T('منتهية', 'Expired') : iqamaDays <= 30 ? T('قريبة الانتهاء', 'Expiring') : T('سارية', 'Valid')
-  // حالة التأمين الطبي: نفس عتبات الإقامة.
-  const insDays = daysUntil(w.insurance_expiry_date)
-  const insColor = insDays == null ? C.gray : insDays <= 0 ? C.red : insDays <= 30 ? C.gold : C.ok
 
   return (
     <div style={{ fontFamily: F, paddingTop: 0, paddingBottom: 80, color: 'var(--tx2)' }}>
@@ -3517,7 +3456,7 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
                 <div style={{ padding: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   <Field k={T('رقم التأشيرة','Visa No.')} v={v.visaNumber} mono color={C.blue} />
                   <Field k={T('نوع التأشيرة','Visa Type')} v={v.visaType?.ar} color={C.gold} />
-                  <Field k={T('تاريخ الإصدار','Issue Date')} v={fmtMDate(v.visaIssueDateg)} mono />
+                  <Field k={T('تاريخ الإصدار','Issue Date')} v={fmtMDate(v.visaIssueDateg || v.visaIssueDateG)} mono />
                   <Field k={T('العودة قبل','Return Before')} v={retStr} mono color={retClr} suffix={T(`(${retDays} يوم)`, `(${retDays}d)`)} />
                 </div>
               </div>
@@ -3539,7 +3478,7 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
                 }>{T('الخروج النهائي','Final Exit')}</CardHead>
                 <div style={{ padding: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   <Field k={T('رقم التأشيرة','Visa No.')} v={v.visaNumber} mono color={C.red} />
-                  <Field k={T('تاريخ الإصدار','Issue Date')} v={fmtMDate(v.visaIssueDateG)} mono />
+                  <Field k={T('تاريخ الإصدار','Issue Date')} v={fmtMDate(v.visaIssueDateG || v.visaIssueDateg)} mono />
                   <Field full k={T('تاريخ المغادرة النهائية','Final Departure Date')} v={fmtMDate(v.visaFinalDepartureDateG)} mono color={depClr}
                     suffix={depDays == null ? undefined : depDays >= 0 ? T(`(${depDays} يوم)`, `(${depDays}d)`) : T(`(منذ ${Math.abs(depDays)} يوم)`, `(${Math.abs(depDays)}d ago)`)} />
                 </div>
@@ -3900,18 +3839,6 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
           </div>
         </div>
       )}
-    </div>
-  )
-}
-
-function FacChip({ label, value, toast, T }) {
-  return (
-    <div style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px' }}>
-      <div style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 600, marginBottom: 4 }}>{label}</div>
-      <div style={{ fontSize: 12.5, color: value ? 'var(--tx)' : 'var(--tx5)', fontWeight: 600, direction: 'ltr', fontFamily: 'ui-monospace, monospace', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-        {value || '—'}
-        {value && <CopyBtn value={value} toast={toast} T={T} />}
-      </div>
     </div>
   )
 }

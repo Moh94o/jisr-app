@@ -99,7 +99,6 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
     male: { ar: 'ذكر', en: 'Male', hi: 'पुरुष', ur: 'مرد', bn: 'পুরুষ' },
     female: { ar: 'أنثى', en: 'Female', hi: 'महिला', ur: 'عورت', bn: 'মহিলা' },
     txnDetails: { ar: 'بيانات المعاملة', en: 'Transaction Details', hi: 'लेन-देन विवरण', ur: 'لین دین کی تفصیلات', bn: 'লেনদেন বিবরণ' },
-    visaNo: { ar: 'رقم التأشيرة', en: 'Visa No.', hi: 'वीज़ा संख्या', ur: 'ویزا نمبر', bn: 'ভিসা নম্বর' },
     borderNo: { ar: 'رقم الحدود', en: 'Border No.', hi: 'बॉर्डर नंबर', ur: 'بارڈر نمبر', bn: 'বর্ডার নম্বর' },
     wakalahNo: { ar: 'رقم الوكالة', en: 'Wakalah No.', hi: 'वकालह नंबर', ur: 'وکالہ نمبر', bn: 'ওয়াকালাহ নম্বর' },
     file: { ar: 'الملف', en: 'File', hi: 'फ़ाइल', ur: 'فائل', bn: 'ফাইল' },
@@ -118,7 +117,7 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
     payments: { ar: 'المدفوعات', en: 'Payments', hi: 'भुगतान', ur: 'ادائیگیاں', bn: 'পেমেন্ট' },
     paid: { ar: 'المدفوع', en: 'Paid', hi: 'भुगतान किया', ur: 'ادا شدہ', bn: 'পরিশোধিত' },
     remaining: { ar: 'المتبقي', en: 'Remaining', hi: 'शेष', ur: 'باقی', bn: 'বাকি' },
-    total: { ar: 'الإجمالي', en: 'Total', hi: 'कुल', ur: 'کल', bn: 'মোট' },
+    total: { ar: 'الإجمالي', en: 'Total', hi: 'कुल', ur: 'کل', bn: 'মোট' },
     subtotalInitial: { ar: 'الإجمالي الابتدائي', en: 'Subtotal', hi: 'उप-योग', ur: 'ذیلی کل', bn: 'উপমোট' },
     absherDiscount: { ar: 'خصم أبشر', en: 'Absher Discount', hi: 'अबशर छूट', ur: 'ابشر رعایت', bn: 'আবশের ছাড়' },
     officeDiscount: { ar: 'خصم المكتب', en: 'Office Discount', hi: 'कार्यालय छूट', ur: 'دفتر رعایت', bn: 'অফিস ছাড়' },
@@ -164,7 +163,6 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
     method: { ar: 'الطريقة', en: 'Method', hi: 'तरीका', ur: 'طریقہ', bn: 'পদ্ধতি' },
     date: { ar: 'التاريخ', en: 'Date', hi: 'तारीख', ur: 'تاریخ', bn: 'তারিখ' },
     remainingAfter: { ar: 'المتبقي بعد هذه الدفعة', en: 'Remaining', hi: 'शेष', ur: 'باقی رقم', bn: 'বাকি' },
-    remaining: { ar: 'المتبقي', en: 'Remaining', hi: 'शेष', ur: 'باقی', bn: 'বাকি' },
     noPayments: { ar: 'لا توجد مدفوعات مستلمة بعد', en: 'No payments received yet', hi: 'अभी तक कोई भुगतान नहीं', ur: 'ابھی کوئی ادائیگی موصول نہیں', bn: 'এখনও কোনো পেমেন্ট নেই' },
     parties: { ar: 'الأطراف', en: 'Parties', hi: 'पक्ष', ur: 'فریقین', bn: 'পক্ষসমূহ' },
     clientData: { ar: 'العميل', en: 'Client', hi: 'ग्राहक', ur: 'کلائنٹ', bn: 'ক্লায়েন্ট' },
@@ -276,16 +274,10 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
   const occTr = v => { const s = String(v || ''); return (printLang !== 'ar' && printLang !== 'ur' && occMap[s]) ? occMap[s] : s }
   const personName = p => { if (!p) return '—'; const a = p.name_ar || '', e = p.name_en || ''; return ((printLang === 'ar' || printLang === 'ur') ? (a || e) : (e || a)) || '—' }
   const natName = nat => nat ? (localize(nat) || '—') : '—'
-  const natFlag = nat => nat?.flag_url ? ` <img class="flag" src="${esc(nat.flag_url)}" alt=""/>` : ''
-  const fld = (labHtml, valHtml) => `<div class="field"><div class="label">${labHtml}</div><div class="value">${valHtml}</div></div>`
-  const grid = cells => `<div class="tbl g3">${cells.filter(Boolean).join('')}</div>`
-  const banner = (k, count) => `<div class="banner">${lab(k)}${count != null ? ` <span class="bcount">(<span class="num">${count}</span>)</span>` : ''}</div>`
-  const mono = v => `<span class="mono">${esc(v)}</span>`
 
   // Ordinal installment fallback label ("الدفعة الأولى" / "First Installment" / "किस्त 1").
   const arOrdF = ['الأولى', 'الثانية', 'الثالثة', 'الرابعة', 'الخامسة', 'السادسة', 'السابعة', 'الثامنة', 'التاسعة', 'العاشرة']
   const enOrd = ['First', 'Second', 'Third', 'Fourth', 'Fifth', 'Sixth', 'Seventh', 'Eighth', 'Ninth', 'Tenth']
-  const arOrdM = ['الأول', 'الثاني', 'الثالث', 'الرابع', 'الخامس', 'السادس', 'السابع', 'الثامن', 'التاسع', 'العاشر']
   const instOrdLabel = n => printLang === 'ar' ? ('الدفعة ' + (arOrdF[n - 1] || n)) : printLang === 'en' ? ((enOrd[n - 1] || ('#' + n)) + ' Installment') : ((L.payment[printLang] || 'Installment') + ' ' + n)
 
   // ── Data extraction (mirrors the on-screen detail layout) ──
@@ -319,7 +311,6 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
   const officeCode = inv.branch?.branch_code || ''
   const officePhone = inv.branch?.phone ? String(inv.branch.phone).replace(/^\+?966/, '0') : '0569036528'
   const cancelled = inv.status?.code === 'cancelled'
-  const clientName = personName(client)
   const clientId = client?.id_number || client?.iqama_number
   const invoiceNo = noDash(inv.invoice_no || '')
   const genLabel = g => g === 'female' ? lab('female') : g === 'male' ? lab('male') : ''
@@ -327,8 +318,6 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
   // ترتيب زمني تصاعدي: الأقدم أعلى والأحدث أسفل.
   const pays = (data?.pays || []).slice().sort((a, b) => (a.payment_date || '').localeCompare(b.payment_date || ''))
 
-  // permanent-visa milestone keys (reused by the Black & Gold installments table)
-  const permKeys = ['mVisaIssue', 'mWakalah', 'mIqamaIssue']
   const totalA = Number(inv.total_amount || 0), paidA = Number(inv.paid_amount || 0), remA = Number(inv.remaining_amount || 0)
   const notePublic = (inv.note_public || '').trim()
   // بنود التسعيرة المطبوعة — من نفس نموذج كرت التسعير والمحرّر (lib/invoicePricingModel.js):
@@ -372,11 +361,6 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
     return null
   }
   const isStagedVisa = VISA_SVC_CODES.has(code) && code !== 'work_visa'
-  const milestoneOf = (it, i) => {
-    const ord = it.installment_order || (i + 1)
-    const k = isStagedVisa ? milestoneKeyFor(it) : null
-    return (k ? lab(k) : null) || localize(it.payment_milestone) || (insts.length === 1 ? lab('singlePayment') : instOrdLabel(ord))
-  }
 
   // ── HERO: دفعة اليوم (صافي المحصّل اليومي) ──
   // يوم العمل يبدأ 5:00 فجراً بتوقيت الرياض (= 02:00 UTC): نزيح الطابع الزمني -2 ساعة ثم نأخذ تاريخ UTC،
@@ -684,7 +668,6 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
   // قسم «المعاملة» (للخدمات الصفرية فقط): الحالة + بيانات الموافقة/الإنجاز/الإلغاء — مرحلتان للنقل الخارجي.
   const txnBlk = isZeroPrint ? (() => {
     const dt = d0?.details || {}
-    const pname = p => p ? (rtl ? (p.name_ar || p.name_en) : (p.name_en || p.name_ar)) : ''
     const fmtDT = d => { if (!d) return ''; const x = new Date(d); if (isNaN(x)) return ''; return `${fmtD(d)} · ${String(x.getHours()).padStart(2, '0')}:${String(x.getMinutes()).padStart(2, '0')}` }
     // قسم «المعاملة» في المطبوعات يعرض تاقات الحالة فقط (الحالة + التاريخ داخل التاق) — بلا أي صفوف
     // نصّية: لا «بواسطة»، لا ملاحظات/أسباب (المحاسب/الإنجاز/الإلغاء)، ولا بيانات مُدخلة (مرفقات/أرقام/تواريخ).
@@ -887,12 +870,12 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
     if (s.includes('معامل السعودة')) { const m = s.match(/×\s*\d+/); return lab('saudizationFactor') + (m ? ' ' + m[0] : '') }
     if (s.includes('تصديق طلب مفتوح')) return lab('chamberOpenCert')
     if (s.includes('تصديق المطبوعات') || s.includes('تصديق مطبوعات')) return lab('chamberPrinted')
-    return s
+    return esc(s)
   }
   // تسمية سطر الخصم بلغة الطباعة — الأسماء القانونية من نموذج التسعير، وأي اسم حرّ يكتبه
   // الموظف («إلغاء رسم التأمين» مثلاً) يُطبع كما أُدخل فيفهم العميل سبب النقص.
   const DISC_LAB = { 'خصم أبشر': 'absherDiscount', 'خصم المكتب': 'officeDiscount', 'خصم إضافي': 'extraDiscount', 'خصم المدير': 'managerDiscount', 'خصم': 'discount' }
-  const fmtDiscLabel = l => DISC_LAB[l] ? lab(DISC_LAB[l]) : l
+  const fmtDiscLabel = l => DISC_LAB[l] ? lab(DISC_LAB[l]) : esc(l)
   const feeLines = priceModel.fees
   const lineSum = priceModel.subtotal
   const discLines = priceModel.discounts
@@ -905,7 +888,7 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
     return `<span style="display:inline-flex;align-items:baseline;gap:4px;direction:ltr">${curLeft ? curPart + numPart : numPart + curPart}</span>`
   }
   const priceTotalRows = disc > 0.005
-    ? `<tr class="sub-row"><td>${lab('subtotalInitial')}</td><td class="l">${amtCell(lineSum)}</td></tr>${discLines.map(l => `<tr class="disc-row"><td>${esc(fmtDiscLabel(l.label))}</td><td class="l">${amtCell(l.amount, true)}</td></tr>`).join('')}<tr class="total-row"><td>${lab('finalTotal')}</td><td class="l">${amtCell(totalA)}</td></tr>`
+    ? `<tr class="sub-row"><td>${lab('subtotalInitial')}</td><td class="l">${amtCell(lineSum)}</td></tr>${discLines.map(l => `<tr class="disc-row"><td>${fmtDiscLabel(l.label)}</td><td class="l">${amtCell(l.amount, true)}</td></tr>`).join('')}<tr class="total-row"><td>${lab('finalTotal')}</td><td class="l">${amtCell(totalA)}</td></tr>`
     : `<tr class="total-row"><td>${lab('total')}</td><td class="l">${amtCell(totalA)}</td></tr>`
   // عدد الأشهر بجانب بنود تجديد الإقامة (الأشهر المُحتسبة، تشمل المتأخرة) ورسوم كرت العمل (أشهر التجديد) — نفس طباعة الحسبة.
   const monthsTc = ((code === 'transfer' || code === 'iqama_renewal') && data?.tc) ? data.tc : null
@@ -939,7 +922,7 @@ export function buildInvoiceDoc(inv, data, printLang = 'ar') {
   // عدد التأشيرات بجانب اسم البند — السطر يحمل قيمة كل التأشيرات مجتمعةً، فبدون العدد
   // يبدو المبلغ سعرَ تأشيرة واحدة. شارة «N×» بجانب الاسم تكفي، بلا أعمدة إضافية.
   const qtyBadge = l => { const n = visaLineQty(l.label, code, inv.service_quantity); return n > 0 ? `<span class="qty">${n}×</span>` : '' }
-  const priceTbl = feeLines.length ? `<table class="price-table"><thead><tr><th>${lab('item')}</th><th class="l">${lab('value')}</th></tr></thead><tbody>${feeLines.map(l => `<tr><td>${esc(fmtPriceLabel(l.label || '') + monthSuffix(l.label))}${qtyBadge(l)}</td><td class="l">${amtCell(l.amount)}</td></tr>`).join('')}${priceTotalRows}</tbody></table>` : ''
+  const priceTbl = feeLines.length ? `<table class="price-table"><thead><tr><th>${lab('item')}</th><th class="l">${lab('value')}</th></tr></thead><tbody>${feeLines.map(l => `<tr><td>${fmtPriceLabel(l.label || '')}${esc(monthSuffix(l.label))}${qtyBadge(l)}</td><td class="l">${amtCell(l.amount)}</td></tr>`).join('')}${priceTotalRows}</tbody></table>` : ''
   const pctPaid = pctOf(paidA, totalA)
   // الإجمالي الابتدائي والخصومات تظهر في جدول البنود — فلا نكرّرها هنا، نكتفي بالإجمالي النهائي.
   const discRows = `<div class="sum-row"><span class="k">${lab(disc > 0 ? 'finalTotal' : 'total')}</span><span class="v">${num2(nm(totalA))} ${cur}</span></div>`

@@ -483,7 +483,6 @@ try {
   const TMP = 'eyJhbGciOiJIUzUxMiJ9.' + b64url({ AUTH: 'ELM_ABSHER_SSO', absherReferenceNumber: 'x', exp: Math.floor(Date.now() / 1000) + 600 }) + '.sig'
   const ORG_B = 'eyJhbGciOiJIUzUxMiJ9.' + b64url({ sub: '7042064787', moiNumber: '7042064787', exp: Math.floor(Date.now() / 1000) + 600 }) + '.sig'
   const { msgs, calls } = await runRenew({ duration: 3, targetMoi: '7042064787', tmpJwt: TMP, ssoUsers: [{ username: '7041873717', userId: 'uA' }, { username: '7042064787', userId: 'uB' }], ssoIdToken: ORG_B })
-  const last = msgs[msgs.length - 1] || ''
   if (msgs.some((m) => /is not defined/.test(m))) fail('runtime error: ' + msgs.find((m) => /is not defined/.test(m)))
   else ok('no runtime errors')
   const gu = calls.find((c) => /get-users$/.test(c.url))

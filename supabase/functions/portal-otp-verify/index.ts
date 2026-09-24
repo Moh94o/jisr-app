@@ -85,7 +85,8 @@ serve(async (req) => {
   if (linkErr) return err('link_failed', linkErr.message, 500)
   const hashed = (linkData?.properties as any)?.hashed_token
   if (!hashed) return err('link_missing_token', 'magic link token missing')
-  const { data: sessionData, error: vErr } = await sb.auth.verifyOtp({
+  // عميل منفصل: verifyOtp يحفظ جلسة البوابة في العميل فتصير طلبات sb اللاحقة بتوكن العميل لا بمفتاح الخدمة
+  const { data: sessionData, error: vErr } = await serviceClient().auth.verifyOtp({
     type: 'magiclink', token_hash: hashed,
   })
   if (vErr || !sessionData?.session) return err('verify_failed', vErr?.message ?? 'no session', 500)

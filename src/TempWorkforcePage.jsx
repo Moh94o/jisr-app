@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import BackButton from './components/BackButton'
-import { can as canPerm, can, cardVisible, canCardBtn, isGM } from './lib/permissions.js'
+import { can, cardVisible, canCardBtn, isGM } from './lib/permissions.js'
 import { navSetHere } from './lib/navStack.js'
 import { UserPlus, Building2, Search, X, Hash, FileText, ShieldCheck, Users, MapPin, Check, Plus, Pencil, Trash2, Phone, ChevronLeft, ChevronRight, HeartPulse, RefreshCw, AlertCircle, LogOut } from 'lucide-react'
 import { Modal as FKModal, ModalSection, ActionButton, SuccessView, GRID, TextField, IdField, DateField, Select, FileField, PhoneField, PhoneListField, EmptyState } from './components/ui/FormKit.jsx'
@@ -58,14 +58,6 @@ const WORKER_LBL = {
   work_permit_file: ['ملف رخصة العمل', 'Work permit file'],
   exit_visa_file: ['ملف التأشيرة', 'Visa file'],
 }
-const fmtAgo = (iso, isAr) => {
-  if (!iso) return '—'
-  const d = (Date.now() - new Date(iso).getTime()) / 1000
-  if (d < 60) return isAr ? 'الآن' : 'now'
-  if (d < 3600) return isAr ? `قبل ${Math.floor(d/60)}د` : `${Math.floor(d/60)}m`
-  if (d < 86400) return isAr ? `قبل ${Math.floor(d/3600)}س` : `${Math.floor(d/3600)}h`
-  return isAr ? `قبل ${Math.floor(d/86400)}ي` : `${Math.floor(d/86400)}d`
-}
 const daysUntil = (iso) => {
   if (!iso) return null
   return Math.ceil((new Date(iso).getTime() - Date.now()) / 86400000)
@@ -89,18 +81,6 @@ const cardChrome = {
   boxShadow: 'var(--shadow-sm)',
   overflow: 'hidden',
 }
-const cardHeader = {
-  display: 'flex', alignItems: 'center', gap: 8,
-  padding: '12px 22px',
-  borderBottom: '1px solid var(--bd)',
-}
-const cardTitle = { fontSize: 12, color: 'var(--tx2)', fontWeight: 600, letterSpacing: '.2px' }
-
-const STATUS_THEME = {
-  active:    { c: C.ok,     label_ar: 'نشط',     label_en: 'Active' },
-  suspended: { c: C.orange, label_ar: 'معلّق',   label_en: 'Suspended' },
-}
-const themeForStatus = (s) => STATUS_THEME[s] || { c: C.gray, label_ar: s || '—', label_en: s || '—' }
 
 const NAT_CODES = {
   'أردني':'JO','أفغاني':'AF','افغانستان':'AF','أوغندي':'UG','إثيوبي':'ET','إندونيسي':'ID','باكستاني':'PK','باكستان':'PK','بنغلاديشي':'BD','بنغلادش':'BD',
@@ -141,13 +121,6 @@ const CopyBtn = ({ value, T }) => {
     </button>
   )
 }
-
-const Badge = ({ theme, T }) => theme ? (
-  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 9px', borderRadius: 6, background: theme.c + '18', border: '1px solid ' + theme.c + '38', color: theme.c, fontSize: 10.5, fontWeight: 600 }}>
-    <span style={{ width: 5, height: 5, borderRadius: '50%', background: theme.c, boxShadow: '0 0 5px ' + theme.c }} />
-    {T(theme.label_ar, theme.label_en)}
-  </span>
-) : null
 
 // Iqama remaining-days cell. Renders the expiry date (14px) on top and a plain
 // coloured text line below — `N يوم متبقي` if still valid, `N يوم مضى` if expired.
@@ -401,7 +374,7 @@ export default function TempWorkforcePage({ sb, toast, lang, user, onTabChange }
   const [detail, setDetail] = useState(null)
   // View lens — like SbcFacilities tableView (SBC | GOSI). For workers it's
   // "all" vs "active" vs "suspended".
-  const [viewLens, setViewLens] = useState('all')
+  const [viewLens] = useState('all')
   // Manual "إضافة عامل مؤقت" modal — inserts straight into the `temproryworkers` table.
   const [showAdd, setShowAdd] = useState(false)
   const [adding, setAdding] = useState(false)
@@ -695,11 +668,12 @@ export default function TempWorkforcePage({ sb, toast, lang, user, onTabChange }
         if (upErr) { toast?.(T('تعذّر رفع ' + u.label + ': ' + (upErr.message || ''), 'Upload failed for ' + u.label + ': ' + (upErr.message || ''))) }
         else {
           const { data: pub } = sb.storage.from('attachments').getPublicUrl(path)
-          await sb.from('attachments').insert({
+          const { error: attErr } = await sb.from('attachments').insert({
             entity_type: 'worker', entity_id: editRow.id,
             file_name: u.file.name, file_url: pub?.publicUrl || path, storage_path: path,
             mime_type: u.file.type || null, size_bytes: u.file.size || null, notes: u.notes, uploaded_by: user?.id || null,
           })
+          if (attErr) { toast?.(T('تعذّر رفع ' + u.label + ': ' + (attErr.message || ''), 'Upload failed for ' + u.label + ': ' + (attErr.message || ''))); continue }
           // حذف ناعم للملف المُستبدَل في نفس الخانة (يبقى المرفق الجديد فقط).
           if (prevFileIds[u.notes]?.length) {
             await sb.from('attachments').update({ deleted_at: new Date().toISOString() }).in('id', prevFileIds[u.notes])
@@ -802,7 +776,7 @@ export default function TempWorkforcePage({ sb, toast, lang, user, onTabChange }
         if (adv.iqama === 'valid' && !(d != null && d > 30)) return false
       }
       if (search.trim()) {
-        const s = search.toLowerCase()
+        const s = search.trim().toLowerCase()
         // أرقام المنشأة التابع لها العامل — البحث بالرقم الموحّد/التأمينات/الموارد البشرية/السجل يُظهر كل عمالتها.
         const fac = facById[w.current_facility_id]
         const facMatch = fac && [fac.unified_number, fac.gosi_number, fac.hrsd_number, fac.cr_number]
@@ -1456,11 +1430,6 @@ const FilterField = ({ label, children }) => (
     {children}
   </div>
 )
-function PageBtn({ children, onClick, disabled }) {
-  return (
-    <button onClick={onClick} disabled={disabled} style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--bd2)', border: '1px solid var(--bd)', color: disabled ? 'var(--tx5)' : 'var(--tx2)', cursor: disabled ? 'not-allowed' : 'pointer', fontSize: 16, fontWeight: 600, opacity: disabled ? .4 : 1, fontFamily: F }}>{children}</button>
-  )
-}
 
 function Empty({ T, hasData }) {
   return (
@@ -1549,7 +1518,6 @@ function WorkerEditLog({ entries, created, fileUrls = {}, T }) {
 
 /* ═══════════════════════ Worker Detail (mirrors Facility detail) ═══════════════════════ */
 function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEdit, onSaved, onDelete, onTransfer, canEdit, user, attKey }) {
-  const t = themeForStatus(w.worker_status)
   const iqamaDays = daysUntil(w.iqama_expiry_date)
 
   // الفرع التابع للعامل: افتراضياً يتبع فرع منشأته تلقائياً؛ ويمكن تخصيصه يدوياً (branch_id)
@@ -1749,10 +1717,14 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
         let logEntry = null
         if (insChanges.length) {
           logEntry = { at: new Date().toISOString(), by: user?.id || null, by_name: user?.person?.name_ar || user?.person?.name_en || null, via: 'insurance_check', changes: insChanges }
-          const prevLog = Array.isArray(w.edit_log) ? w.edit_log : []
+          // نقرأ السجل الحالي من القاعدة (لا لقطة w) حتى لا نمحو قيوداً أُضيفت بعد فتح الصفحة.
+          const { data: freshRow } = await sb.from('temproryworkers').select('edit_log').eq('id', w.id).maybeSingle()
+          const prevLog = Array.isArray(freshRow?.edit_log) ? freshRow.edit_log : (Array.isArray(w.edit_log) ? w.edit_log : [])
           patch.edit_log = [...prevLog, logEntry]
         }
-        try { await sb.from('temproryworkers').update(patch).eq('id', w.id) } catch { /* العرض يبقى من النتيجة */ }
+        let saveErr = null
+        try { const { error } = await sb.from('temproryworkers').update(patch).eq('id', w.id); saveErr = error } catch (e) { saveErr = e }
+        if (saveErr) { toast?.(T('تعذّر حفظ بيانات التأمين: ' + (saveErr.message || ''), 'Failed to save insurance data: ' + (saveErr.message || ''))); logEntry = null }
         if (logEntry) setLogExtra(prev => [...prev, logEntry])   // إظهار القيد في السجل فوراً دون إعادة تحميل
         setInsOverride({ insurance_expiry_date: end || null, insurance_company: company, insurance_policy_number: policy })
         setChi(c => ({ ...c, phase: 'done', result: { insured: true, end, company, policy } }))
@@ -1828,9 +1800,6 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
   // حالة الإقامة: أخضر >30، ذهبي 1–30، أحمر ≤0 (نفس عتبات IqamaCell).
   const iqColor = iqamaDays == null ? C.gray : iqamaDays <= 0 ? C.red : iqamaDays <= 30 ? C.gold : C.ok
   const iqShort = iqamaDays == null ? T('غير محدد', '—') : iqamaDays <= 0 ? T('منتهية', 'Expired') : iqamaDays <= 30 ? T('قريبة الانتهاء', 'Expiring') : T('سارية', 'Valid')
-  // حالة التأمين الطبي: نفس عتبات الإقامة.
-  const insDays = daysUntil(w.insurance_expiry_date)
-  const insColor = insDays == null ? C.gray : insDays <= 0 ? C.red : insDays <= 30 ? C.gold : C.ok
   // حالة تأشيرة الخروج: نفس عتبات الإقامة.
   const exitVisaDays = daysUntil(w.exit_visa_expiry)
   const exitColor = exitVisaDays == null ? C.gray : exitVisaDays <= 0 ? C.red : exitVisaDays <= 30 ? C.gold : C.ok
@@ -2307,18 +2276,6 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
           </div>
         </div>
       )}
-    </div>
-  )
-}
-
-function FacChip({ label, value, toast, T }) {
-  return (
-    <div style={{ background: 'rgba(0,0,0,.18)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px' }}>
-      <div style={{ fontSize: 10.5, color: 'var(--tx4)', fontWeight: 600, marginBottom: 4 }}>{label}</div>
-      <div style={{ fontSize: 12.5, color: value ? 'var(--tx)' : 'var(--tx5)', fontWeight: 600, direction: 'ltr', fontFamily: 'ui-monospace, monospace', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-        {value || '—'}
-        {value && <CopyBtn value={value} toast={toast} T={T} />}
-      </div>
     </div>
   )
 }

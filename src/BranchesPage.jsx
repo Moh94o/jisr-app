@@ -15,24 +15,7 @@ import { SkeletonCards, SkeletonList } from './components/ui/Skeleton.jsx'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const GOLD = C.gold
-const GOLD_SOFT = '#e8c77a'
 const nm = v => Number(v || 0).toLocaleString('en-US')
-
-const BPill = ({ color, value, label }) => (
-  <div style={{
-    padding: '7px 12px', borderRadius: 10,
-    background: 'var(--card-grad2)',
-    border: '1px solid var(--bd)',
-    boxShadow: 'inset 0 1px 0 rgba(255,255,255,.05), 0 2px 4px rgba(0,0,0,.22)',
-    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
-  }}>
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-      <span style={{ width: 6, height: 6, borderRadius: '50%', background: color, boxShadow: '0 0 5px ' + color }} />
-      <div style={{ fontSize: 18, fontWeight: 600, color, letterSpacing: '-.3px', direction: 'ltr', lineHeight: 1 }}>{value}</div>
-    </div>
-    <div style={{ fontSize: 11, color: 'var(--tx2)', fontWeight: 600 }}>{label}</div>
-  </div>
-)
 
 const formatRelative = (iso) => {
   if (!iso) return null
@@ -41,7 +24,7 @@ const formatRelative = (iso) => {
   if (s < 3600) return `قبل ${Math.floor(s / 60)} د`
   if (s < 86400) return `قبل ${Math.floor(s / 3600)} س`
   if (s < 604800) return `قبل ${Math.floor(s / 86400)} يوم`
-  return new Date(iso).toLocaleDateString('ar-SA')
+  return new Date(iso).toLocaleDateString('en-CA')
 }
 
 // Multi-select dropdown options for a bank account's purposes (value is a ' · '-joined string).
@@ -446,7 +429,6 @@ export default function BranchesPage({ sb, toast, user, lang }) {
             // Only genuinely deactivated staff count as «معطّل» — the General Manager is excluded
             // entirely (he isn't per-branch staff), not lumped in as if he were disabled.
             const inactive = users.filter(u => !u.is_active && u.role_name !== 'المدير العام').length
-            const withStaff = branches.filter(b => Number(dashboards[b.id]?.staff_total || 0) > 0).length
             return (
               <>
                 <div style={{ position: 'absolute', insetInlineStart: -60, top: -60, width: 180, height: 180, borderRadius: '50%', background: `radial-gradient(circle, ${C.blue}18 0%, transparent 70%)`, pointerEvents: 'none' }} />
@@ -673,15 +655,11 @@ export default function BranchesPage({ sb, toast, user, lang }) {
 function BranchCard({ branch, dashboard, onClick, onEdit }) {
   const isActive = branch.is_active === true
   const tone = isActive ? C.ok : '#777'
-  const balance = Number(dashboard?.bank_total_balance || 0)
   const staff = Number(dashboard?.staff_total ?? branch.workers_count ?? 0)
   const lastActivity = formatRelative(dashboard?.last_activity_at)
   const alerts = Number(dashboard?.bank_low_alerts || 0)
-  const activity30 = Number(dashboard?.activity_30d || 0)
-  const accounts = Number(dashboard?.bank_accounts_active || 0)
-  // Activity bar: scale to 30 (1 op/day) for full bar; clamp 0-100
-  const pct = Math.min(100, Math.round((activity30 / 30) * 100))
   const code = branch.branch_code || '—'
+  const nick = String(branch.name_ar || branch.nickname || '').trim()
   const locParts = [branch.region_name, branch.city_name, branch.district_name].filter(Boolean)
   const phoneStr = branch.phone ? String(branch.phone).replace(/^\+?966/, '0') : null
 
@@ -767,70 +745,10 @@ function BranchCard({ branch, dashboard, onClick, onEdit }) {
           </div>
           <div className="brs-row-vdiv" style={{ minHeight: 56 }} />
           <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {nick && <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--tx)', letterSpacing: '-.2px', lineHeight: 1.2 }}>{nick}</div>}
             <Location big /><MetaLine size={11.5} />
           </div>
           <StaffBox big />
-        </div>
-      </div>
-    </div>
-  )
-}
-
-const Metric = ({ Icon, value, label, color, borderL, borderR, mono }) => (
-  <div style={{
-    padding: '10px 8px', textAlign: 'center',
-    borderInlineEnd: borderR ? '1px solid var(--bd2)' : 'none',
-    borderInlineStart: borderL ? '1px solid var(--bd2)' : 'none',
-  }}>
-    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4,
-      color, fontSize: 13, fontWeight: 600, lineHeight: 1.2, marginBottom: 2,
-      direction: mono ? 'ltr' : 'rtl', fontFamily: mono ? "'JetBrains Mono', Cairo, sans-serif" : F }}>
-      <Icon size={11} strokeWidth={2} />
-      <span>{value}</span>
-    </div>
-    <div style={{ fontSize: 9, fontWeight: 600, color, opacity: .7 }}>{label}</div>
-  </div>
-)
-
-/* ═══════════════════════════════════════════════════════════════
-   Generic 14-day bar chart (same silhouette as UserRolePage's chart).
-   ═══════════════════════════════════════════════════════════════ */
-
-function BranchActivityChart({ days, color, label }) {
-  const max = Math.max(1, ...days.map(d => d.count))
-  const total = days.reduce((s, d) => s + d.count, 0)
-  return (
-    <div style={{ padding: '0 4px 8px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        marginBottom: 18, padding: '0 4px' }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6,
-          fontSize: 11, fontWeight: 600, color: 'var(--tx3)', letterSpacing: '.3px' }}>
-          <Activity size={13} color={color} /> {label}
-        </span>
-        <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--tx4)' }}>
-          الإجمالي: <span style={{ color, fontWeight: 600 }}>{total}</span> عملية
-        </span>
-      </div>
-      <div style={{ position: 'relative', height: 130, padding: '4px 2px 10px', overflow: 'hidden' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${days.length}, 1fr)`,
-          gap: 5, alignItems: 'end', height: '100%', direction: 'ltr' }}>
-          {days.map((d, i) => {
-            const h = (d.count / max) * 100
-            return (
-              <div key={i} style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', height: '100%' }}>
-                <div title={`${d.date.toLocaleDateString('ar-SA')} — ${d.count} عملية`}
-                  style={{ width: '70%', minHeight: d.count > 0 ? 3 : 0,
-                    height: `${h}%`,
-                    background: d.count > 0
-                      ? `linear-gradient(180deg, ${color} 0%, ${color}88 100%)`
-                      : 'var(--bd)',
-                    borderRadius: '4px 4px 2px 2px',
-                    border: d.count > 0 ? `1px solid ${color}55` : '1px solid var(--bd2)',
-                    boxShadow: d.count > 0 ? `0 0 8px ${color}33` : 'none',
-                    transition: '.2s' }} />
-              </div>
-            )
-          })}
         </div>
       </div>
     </div>
@@ -867,28 +785,12 @@ function LocationBody({ branch }) {
 function BranchDetailPage({ sb, branch, dashboard, users, banks: propsBanks, docs, roles, onReload, onBack, onEdit, onDelete, toast, user, lang }) {
   const isActive = branch.is_active === true
   const activeStaff = users.filter(u => u.is_active).length
-  const activity30 = Number(dashboard?.activity_30d || 0)
   const lastActivity = formatRelative(dashboard?.last_activity_at)
   const alerts = Number(dashboard?.bank_low_alerts || 0)
 
   // Local banks state — initialized from parent, refreshable after adding a new account
   const [banks, setBanks] = useState(propsBanks || [])
   useEffect(() => { setBanks(propsBanks || []) }, [propsBanks])
-  const reloadBanks = useCallback(async () => {
-    if (!sb || !branch?.id) return
-    const { data } = await sb.from('bank_account_branches')
-      .select('id, branch_id, account_purpose, bank_accounts!inner(*)')
-      .eq('branch_id', branch.id)
-      .eq('is_active', true)
-      .is('deleted_at', null)
-      .is('bank_accounts.deleted_at', null)
-    setBanks((data || []).map(j => ({
-      ...(j.bank_accounts || {}),
-      _junction_id: j.id,
-      branch_id: j.branch_id,
-      account_purpose: j.account_purpose,
-    })))
-  }, [sb, branch?.id])
   // Live balances computed server-side from real money movements
   // (payments in + cash deposits in − fees paid out). See v_bank_account_balances.
   const bankIds = useMemo(() => banks.map(b => b.id).filter(Boolean).sort().join(','), [banks])
@@ -914,94 +816,6 @@ function BranchDetailPage({ sb, branch, dashboard, users, banks: propsBanks, doc
     })()
     return () => { alive = false }
   }, [sb, bankIds])
-  const totalBalance = banks.reduce((s, a) => s + Number(a.current_balance || 0), 0)
-
-  // Bank-account add modal
-  const [bankPop, setBankPop] = useState(false)
-  const [bankForm, setBankForm] = useState({})
-  const [bankSaving, setBankSaving] = useState(false)
-  const [bankSuccess, setBankSuccess] = useState(false)
-  const openAddBank = () => { setBankForm({ mode: 'new', is_primary: false, current_balance: 0 }); setBankPop(true) }
-  const openEditBank = (account) => {
-    setBankForm({
-      mode: 'edit', _edit_account_id: account.id, _junction_id: account._junction_id,
-      bank_name: account.bank_name, bank_name_en: account.bank_name_en || '', account_name: account.account_name, account_name_en: account.account_name_en || '',
-      account_number: account.account_number, iban: account.iban, swift_code: account.swift_code,
-      account_purpose: account.account_purpose, is_primary: !!account.is_primary,
-    })
-    setBankPop(true)
-  }
-  const saveBankAccount = async () => {
-    setBankSaving(true)
-    // Upload the optional IBAN document to the shared `attachments` bucket + table.
-    const uploadIban = async (accountId) => {
-      const file = bankForm._ibanFile
-      if (!file || !accountId) return
-      const safe = (file.name || 'file').replace(/[^\w.\-]+/g, '_')
-      const path = `bank_accounts/${accountId}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}_${safe}`
-      const { error: upErr } = await sb.storage.from('attachments').upload(path, file, { cacheControl: '3600', upsert: false })
-      if (upErr) throw upErr
-      const { data: pub } = sb.storage.from('attachments').getPublicUrl(path)
-      const { error: insErr } = await sb.from('attachments').insert({
-        entity_type: 'bank_account', entity_id: accountId,
-        file_name: file.name, file_url: pub?.publicUrl || path, storage_path: path,
-        mime_type: file.type || null, size_bytes: file.size || null, notes: 'ملف الآيبان',
-      })
-      if (insErr) throw insErr
-    }
-    try {
-      // Edit mode: update the existing account + its branch-junction purpose.
-      if (bankForm.mode === 'edit') {
-        const upd = {
-          bank_name: bankForm.bank_name || null, bank_name_en: bankForm.bank_name_en || null, account_name: bankForm.account_name || null, account_name_en: bankForm.account_name_en || null,
-          account_number: bankForm.account_number || null, iban: bankForm.iban || null,
-          swift_code: bankForm.swift_code || null, is_primary: !!bankForm.is_primary,
-          sbc_facility_id: bankForm.sbc_facility_id || null,
-        }
-        const { error } = await sb.from('bank_accounts').update(upd).eq('id', bankForm._edit_account_id)
-        if (error) throw error
-        if (bankForm._junction_id) {
-          await sb.from('bank_account_branches').update({ account_purpose: bankForm.account_purpose || null }).eq('id', bankForm._junction_id)
-        }
-        await uploadIban(bankForm._edit_account_id)
-        setBankSuccess(true)
-        setTimeout(() => { setBankSuccess(false); setBankPop(false); reloadBanks() }, 1400)
-        return null
-      }
-      let bankAccountId = bankForm._link_account_id
-      // Mode "new" creates the bank account first; "link" reuses an existing one.
-      if (!bankAccountId) {
-        const d = { ...bankForm, branch_id: branch.id }
-        delete d.mode; delete d._link_account_id; delete d._link_account; delete d.account_purpose; delete d._ibanFile; delete d._branch_ids; delete d._sbc_facility; delete d._orig
-        Object.keys(d).forEach(k => { if (d[k] === '') d[k] = null })
-        const { data, error } = await sb.from('bank_accounts').insert(d).select('id').single()
-        if (error) throw error
-        bankAccountId = data.id
-      }
-      // Insert junction row linking this branch with its specific purpose.
-      const { error: jErr } = await sb.from('bank_account_branches').insert({
-        bank_account_id: bankAccountId,
-        branch_id: branch.id,
-        account_purpose: bankForm.account_purpose || null,
-      })
-      if (jErr) throw jErr
-      await uploadIban(bankAccountId)
-      setBankSuccess(true)
-      setTimeout(() => { setBankSuccess(false); setBankPop(false); reloadBanks() }, 1400)
-      return null
-    } catch (e) {
-      const msg = (e.message || '').toLowerCase()
-      // Return the error string so the modal shows it inline in its footer (no toast).
-      if (e.code === '23505' || msg.includes('duplicate') || msg.includes('unique')) {
-        return 'هذا الحساب مربوط بالفعل بهذا المكتب'
-      } else if (e.code === '42501' || msg.includes('row-level security')) {
-        return 'لا تملك صلاحية إضافة حساب بنكي'
-      } else if (e.code === '23502' || msg.includes('null value')) {
-        return 'تنقص بيانات مطلوبة — تأكد من تعبئة كل الحقول الأساسية'
-      }
-      return 'تعذّر حفظ الحساب: ' + (e.message || '').slice(0, 80)
-    } finally { setBankSaving(false) }
-  }
 
   // 14-day invoice activity for this branch
   const [invoices14, setInvoices14] = useState([])
@@ -1290,7 +1104,7 @@ function BranchDetailPage({ sb, branch, dashboard, users, banks: propsBanks, doc
                       {days14.map((d, i) => {
                         const h = (d.count / max) * 100
                         return (
-                          <div key={i} title={`${d.date.toLocaleDateString('ar-SA')} — ${d.count} فاتورة`}
+                          <div key={i} title={`${d.date.toLocaleDateString('en-CA')} — ${d.count} فاتورة`}
                             style={{ height: `${h}%`, minHeight: d.count > 0 ? 3 : 0, background: d.count > 0 ? `linear-gradient(180deg, ${GOLD} 0%, ${GOLD}88 100%)` : 'var(--bd)', borderRadius: '3px 3px 1px 1px', border: d.count > 0 ? `1px solid ${GOLD}55` : '1px solid var(--bd2)', boxShadow: d.count > 0 ? `0 0 6px ${GOLD}33` : 'none' }} />
                         )
                       })}
@@ -1334,18 +1148,20 @@ export function BankAccountFormModal({ sb, open, onClose, form, setForm, saving,
   useEffect(() => {
     if (mode !== 'link' || !sb) return
     const q = searchQ.trim()
-    if (q.length < 1) { setSearchResults([]); return }
+    if (q.length < 1) { setSearchResults([]); setSearching(false); return }
     setSearching(true)
+    let alive = true
     const t = setTimeout(async () => {
       const { data } = await sb.from('bank_accounts')
         .select('id, bank_name, account_name, account_number, iban, current_balance, bank_account_branches(branch_id, account_purpose, branches(branch_code))')
         .or(`account_number.ilike.%${q}%,iban.ilike.%${q}%`)
         .is('deleted_at', null)
         .limit(8)
+      if (!alive) return
       setSearchResults(data || [])
       setSearching(false)
     }, 250)
-    return () => clearTimeout(t)
+    return () => { alive = false; clearTimeout(t) }
   }, [sb, mode, searchQ])
   useEffect(() => { if (!open) { setSearchQ(''); setSearchResults([]) } }, [open])
 
@@ -1357,15 +1173,17 @@ export function BankAccountFormModal({ sb, open, onClose, form, setForm, saving,
   useEffect(() => {
     if (!sb) return
     const q = facQ.trim()
-    if (q.length < 2) { setFacResults([]); return }
+    if (q.length < 2) { setFacResults([]); setFacSearching(false); return }
     setFacSearching(true)
+    let alive = true
     const t = setTimeout(async () => {
       const { data } = await sb.from('sbc_facilities').select(FAC_SEL)
         .or(`cr_number.ilike.%${q}%,cr_national_number.ilike.%${q}%,gosi_unified_national_number.ilike.%${q}%,main_cr_number.ilike.%${q}%`)
         .limit(8)
+      if (!alive) return
       setFacResults(data || []); setFacSearching(false)
     }, 250)
-    return () => clearTimeout(t)
+    return () => { alive = false; clearTimeout(t) }
   }, [sb, facQ])
   useEffect(() => { if (!open) { setFacQ(''); setFacResults([]) } }, [open])
   // Edit: preload the already-linked facility so its dates render without a re-search.
@@ -1595,43 +1413,6 @@ export function BankAccountFormModal({ sb, open, onClose, form, setForm, saving,
    Shared bits for the detail page.
    ═══════════════════════════════════════════════════════════════ */
 
-const InfoCard = ({ title, Icon, badge, rightSlot, children }) => (
-  <div className="brs-card">
-    <div className="brs-card-title" style={{ justifyContent: 'space-between' }}>
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-        {Icon && <Icon size={15} color={GOLD} />}
-        {title}
-        {badge != null && (
-          <span style={{
-            marginInlineStart: 4, padding: '3px 9px', borderRadius: 6,
-            background: `${GOLD}15`,
-            fontSize: 10, fontWeight: 600, color: GOLD_SOFT, direction: 'ltr',
-            display: 'inline-flex', alignItems: 'center', gap: 5,
-          }}>
-            <span style={{ width: 5, height: 5, borderRadius: '50%', background: GOLD }} />
-            {badge}
-          </span>
-        )}
-      </span>
-      {rightSlot}
-    </div>
-    {children}
-  </div>
-)
-
-const EmptyLine = ({ text, Icon }) => (
-  <div style={{
-    padding: 24, textAlign: 'center',
-    background: 'var(--card-grad2)',
-    border: '1px solid var(--bd)',
-    borderRadius: 10, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
-    boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04), 0 2px 4px rgba(0,0,0,.18)',
-  }}>
-    {Icon && <Icon size={20} color={GOLD} style={{ opacity: .45 }} />}
-    <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--tx4)' }}>{text}</div>
-  </div>
-)
-
 export function BankRow({ account, sb, toast, onEdit, onReload }) {
   const lowBal = account.min_balance_alert != null &&
     Number(account.current_balance || 0) <= Number(account.min_balance_alert)
@@ -1677,11 +1458,6 @@ export function BankRow({ account, sb, toast, onEdit, onReload }) {
       toast?.(msg.includes('row-level security') || e.code === '42501' ? 'لا تملك صلاحية حذف الحساب' : 'تعذّر الحذف: ' + (e.message || '').slice(0, 80), 'error')
       setDeleting(false); setConfirmDel(false)
     }
-  }
-  const delCard = async (id) => {
-    const { error } = await sb.from('bank_cards').update({ deleted_at: new Date().toISOString() }).eq('id', id)
-    if (error) { toast?.('تعذّر حذف البطاقة', 'error'); return }
-    toast?.('تم حذف البطاقة'); loadCards()
   }
   // Activate / deactivate the bank account (for this branch) and individual cards.
   const accActive = account.is_active !== false
@@ -1949,22 +1725,6 @@ export function BankCardModal({ sb, accountId, bankName, card, toast, onClose, o
         </div>
       </FKSection>
     </FKModal>
-  )
-}
-
-// Unified info row (id / phone / role) — display only, no copy.
-const MetaRow = ({ Icon, dot, value, label, mono, color }) => {
-  return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 7,
-      background: 'var(--inputBg)', border: '1px solid var(--bd2)',
-      fontSize: 11, color: 'var(--tx2)', fontWeight: 600,
-    }}>
-      <span style={{ fontSize: 9.5, color: 'var(--tx5)', fontWeight: 600, flexShrink: 0 }}>{label}</span>
-      <span style={{ marginInlineStart: 'auto', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', direction: mono ? 'ltr' : 'rtl', fontFamily: mono ? "'JetBrains Mono','Cairo',sans-serif" : F }}>{value}</span>
-      {Icon && <Icon size={11} color={color || 'var(--tx4)'} strokeWidth={2.3} style={{ flexShrink: 0 }} />}
-      {dot && <span style={{ width: 5, height: 5, borderRadius: '50%', background: dot, flexShrink: 0 }} />}
-    </div>
   )
 }
 

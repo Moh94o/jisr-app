@@ -99,61 +99,6 @@ export const MODULE_ACTIONS = {
     A('invoice', 'إصدار فاتورة من التسعيرة', 'special'),
     A('edit', 'تعديل التسعيرة', 'edit'), A('delete', 'حذف التسعيرة', 'delete'),
   ],
-  // «توريد العمالة» — تسعيرات عقود توريد العمالة (حاسبة داخلية + عرض سعر PDF للعميل)
-  manpower_calc: [
-    A('view', 'عرض التسعيرات', 'view'), A('create', 'إنشاء تسعيرة', 'create'),
-    A('edit', 'تعديل التسعيرات', 'edit'), A('delete', 'حذف التسعيرات', 'delete'),
-    A('print', 'طباعة عرض السعر', 'print'),
-    A('approve', 'اعتماد التسعيرة', 'special'), A('view_profit', 'عرض الربح والجدوى والمخاطر', 'special'),
-  ],
-
-  // بطاقة الأسعار — مرجع تكلفة الساعة وسعر الفوترة
-  manpower_rates: [
-    A('view', 'عرض بطاقة الأسعار', 'view'), A('create', 'إضافة مهنة', 'create'),
-    A('edit', 'تعديل الأسعار', 'edit'), A('delete', 'حذف مهنة', 'delete'),
-    A('view_cost', 'عرض التكلفة والهامش', 'special'),
-  ],
-  // عقود توريد العمالة
-  manpower_contracts: [
-    A('view', 'عرض العقود', 'view'), A('create', 'إنشاء عقد', 'create'),
-    A('edit', 'تعديل العقود', 'edit'), A('delete', 'حذف العقود', 'delete'),
-    A('activate', 'اعتماد العقد', 'special'), A('close', 'إقفال العقد', 'special'),
-    A('print', 'طباعة العقد', 'print'),
-  ],
-  // كشوف الدوام
-  manpower_timesheets: [
-    A('view', 'عرض كشوف الدوام', 'view'), A('create', 'إنشاء كشف دوام', 'create'),
-    A('edit', 'تعديل الكشوف', 'edit'), A('delete', 'حذف الكشوف', 'delete'),
-    A('approve', 'اعتماد الكشف', 'special'), A('print', 'طباعة الكشف', 'print'),
-  ],
-  // سجل العمالة المتاحة
-  manpower_pool: [
-    A('view', 'عرض سجل العمالة', 'view'), A('create', 'تسجيل عامل', 'create'),
-    A('edit', 'تعديل بيانات العمال', 'edit'), A('delete', 'حذف من السجل', 'delete'),
-    A('contact', 'تسجيل التواصل والترشيح', 'special'),
-  ],
-  // المستخلصات — مطالبات دورية على العقد
-  manpower_claims: [
-    A('view', 'عرض المستخلصات', 'view'), A('create', 'إنشاء مستخلص', 'create'),
-    A('edit', 'تعديل المستخلصات', 'edit'), A('delete', 'حذف المستخلصات', 'delete'),
-    A('submit', 'تقديم المستخلص', 'special'), A('approve', 'اعتماد المستخلص', 'special'),
-    A('pay', 'تسجيل السداد', 'special'), A('print', 'طباعة المستخلص', 'print'),
-  ],
-  // فواتير توريد العمالة — الوثيقة الضريبية الرسمية المُصدرة من المستخلص
-  manpower_invoices: [
-    A('view', 'عرض الفواتير', 'view'), A('create', 'إصدار فاتورة', 'create'),
-    A('edit', 'تعديل الفواتير', 'edit'), A('delete', 'حذف الفواتير', 'delete'),
-    A('issue', 'اعتماد وإصدار الفاتورة', 'special'), A('pay', 'تسجيل الدفعات', 'special'),
-    A('cancel', 'إلغاء الفاتورة', 'special'), A('print', 'طباعة الفاتورة', 'print'),
-  ],
-  // رواتب وأرباح التوريد — كشف رواتب العمال شهرياً + حساب الأرباح وتقسيم الشركاء
-  manpower_payroll: [
-    A('view', 'عرض كشوف الرواتب', 'view'), A('create', 'إنشاء كشف رواتب', 'create'),
-    A('edit', 'تعديل الكشوف', 'edit'), A('delete', 'حذف الكشوف', 'delete'),
-    A('approve', 'اعتماد كشف الرواتب', 'special'), A('pay', 'تسجيل صرف الرواتب', 'special'),
-    A('view_pnl', 'عرض الأرباح وتقسيم الشركاء', 'special'), A('print', 'طباعة كشف الرواتب', 'print'),
-  ],
-
   sync_hub: [
     A('access', 'الوصول لمركز المزامنة', 'view'), A('sync', 'تنفيذ المزامنة', 'sync'),
     A('manage_operator', 'إدارة المشغّل', 'special'),
@@ -168,7 +113,14 @@ export const MODULE_ACTIONS = {
     /* فكّ الصفوف المقفولة (مثل صفّ التأشيرة بعد رفع ملفها) — امتيازٌ صريح:
        لا يتسرّب بالتوافق القديم لدورٍ لم يُضبط، ويُمنح قصداً لمن يُراد. */
     A('unlock_rows', 'السماح بالتعديل — فك قفل الصفوف المقفولة', 'special'),
+    /* القاعدة في الجداول: ما أدخله موظّفٌ أو رفعه لا يمسّه سواه. هذه الصلاحية
+       ترفع القيد — المدير العام يملكها دائماً، وغيره لا ينالها إلا بمنحٍ. */
+    A('edit_others', 'تعديل وحذف ما أدخله غيره (الخلايا والمرفقات)', 'special'),
     A('create', 'إضافة صف', 'create'),
+    /* «استدعاء فاتورة» ليس إضافةَ صفّ: هو جلبُ تأشيرات فاتورةٍ كاملة إلى أسبوع
+       العمل. فصُلت عن `create` بطلب المستخدم — يُسمح لموظّفٍ بالإدخال ولا
+       يُسمح له بجرّ فواتير إلى الشيت (وبالعكس). */
+    A('pull_invoice', 'السماح باستدعاء الفواتير', 'create'),
     A('delete', 'حذف صف', 'delete'),
     A('columns', 'إدارة الأعمدة (إضافة/إخفاء/تنسيق/صيغ)', 'special'),
     A('layout', 'الفرز والتصفية والتثبيت وعرض الأعمدة', 'special'),
@@ -223,10 +175,7 @@ export const TAB_MODULE = {
   visa_wakalah_grid: 'work_visas', iqama_grid: 'work_visas', iqama_delivery_grid: 'work_visas',
   invoices: 'invoices',
   jub1_receipts: 'jub1_receipts',
-  transfer_calc: 'quotations', renewal_calc: 'renewal_calc', manpower_calc: 'manpower_calc',
-  manpower_rates: 'manpower_rates', manpower_contracts: 'manpower_contracts', manpower_claims: 'manpower_claims',
-  manpower_timesheets: 'manpower_timesheets', manpower_pool: 'manpower_pool',
-  manpower_invoices: 'manpower_invoices', manpower_payroll: 'manpower_payroll',
+  transfer_calc: 'quotations', renewal_calc: 'renewal_calc',
   sync_hub: 'sync_hub', sync_log: 'sync_hub', ops_excels: 'ops_excels',
   admin_clients: 'admin_clients', admin_agents: 'admin_agents',
   admin_offices: 'admin_offices', admin_bank_accounts: 'admin_bank_accounts',
@@ -245,14 +194,6 @@ export const MODULE_META = {
   jub1_receipts: { label_ar: 'سندات JUB1', icon: 'receipt', sort: 46 },
   quotations: { label_ar: 'تسعيرات التنازل', icon: 'calc', sort: 50 },
   renewal_calc: { label_ar: 'تسعيرات التجديد', icon: 'refresh', sort: 51 },
-  manpower_calc: { label_ar: 'تسعيرات توريد العمالة', icon: 'calc', sort: 52 },
-  manpower_rates: { label_ar: 'بطاقة الأسعار', icon: 'coins', sort: 53 },
-  manpower_contracts: { label_ar: 'عقود توريد العمالة', icon: 'notes', sort: 54 },
-  manpower_timesheets: { label_ar: 'كشوف الدوام', icon: 'calendar', sort: 55 },
-  manpower_claims: { label_ar: 'المستخلصات', icon: 'receipt', sort: 56 },
-  manpower_pool: { label_ar: 'العمالة المتاحة', icon: 'labor', sort: 57 },
-  manpower_invoices: { label_ar: 'فواتير توريد العمالة', icon: 'invoice', sort: 58 },
-  manpower_payroll: { label_ar: 'رواتب وأرباح التوريد', icon: 'payment', sort: 59 },
   sync_hub: { label_ar: 'مركز المزامنة', icon: 'facility', sort: 110 },
   ops_excels: { label_ar: 'جداول العمل', icon: 'calendar', sort: 115 },
   admin_clients: { label_ar: 'العملاء', icon: 'clients', sort: 90 },
@@ -286,7 +227,10 @@ export const cardOptIn = (tabId, key) => !!((TAB_CARDS[tabId] || []).find((c) =>
 const OPS_SHEET_ACTS = [
   ca('edit', 'تعديل الخلايا', 'edit'),
   ca('unlock_rows', 'السماح بالتعديل (الصفوف المقفولة)'),
+  ca('edit_others', 'تعديل ما أدخله غيره'),
   ca('create', 'إضافة صف', 'create'),
+  // على الجداول التي «إضافتها» استدعاءُ فاتورة (الوكالة · الإقامات · التوصيل)
+  ca('pull_invoice', 'السماح باستدعاء الفواتير', 'create'),
   ca('delete', 'حذف صف', 'delete'),
   ca('columns', 'إدارة الأعمدة'),
   ca('layout', 'الفرز والتصفية والعرض'),
@@ -306,62 +250,61 @@ const OPS_SHEETS = [
   ['companies', 'المنشآت الرئيسية', 'مركز المزامنة'],
   ['exemption', 'الإعفاء', 'مركز المزامنة'],
   ['owner_exemption', 'إعفاء الملاك', 'مركز المزامنة', true],
-  ['companies_detailed', 'المنشآت تفصيلي', 'مركز المزامنة'],
-  ['fac_sbc', 'المنشآت المركز السعودي', 'مركز المزامنة'],
-  ['fac_qiwa', 'المنشآت قوى', 'مركز المزامنة'],
-  ['fac_gosi', 'المنشآت التأمينات', 'مركز المزامنة'],
-  ['fac_muqeem', 'المنشآت مقيم', 'مركز المزامنة'],
   ['fac_attachments', 'مرفقات المنشآت', 'مركز المزامنة'],
   ['subscriptions', 'الاشتراكات', 'مركز المزامنة'],
   ['nitaqat', 'نطاقات والاستقطاب', 'مركز المزامنة'],
   ['qawaem', 'القوائم المالية', 'مركز المزامنة'],
   ['mudad', 'مدد', 'مركز المزامنة'],
-  ['ajeer', 'المنشآت أجير', 'مركز المزامنة'],
   ['baladi_licenses', 'رخص البلدية', 'مركز المزامنة'],
   ['permanent_workers', 'العمالة — البيانات الأساسية', 'العمالة'],
-  ['permanent_workers_dates', 'العمالة الدائمة — التواريخ والتأشيرات', 'العمالة'],
-  ['permanent_workers_actual', 'العمالة الدائمة — البيانات الفعلية', 'العمالة'],
-  ['permanent_workers_invoices', 'العمالة الدائمة — الفواتير', 'العمالة'],
   ['recoveries', 'الاسترجاعات', 'العمالة'],
   ['final_exit', 'خروج نهائي', 'العمالة'],
   ['saudization', 'السعودة — مزامنة', 'السعودة'],
-  // ⬇ مساران: التأشيرة بإقامة = إصدار التأشيرات ← الوكالة ← الإقامات ← الطباعة والاستلام
+  // ⬇ مساران: التأشيرة بإقامة = إصدار التأشيرات ← الوكالة ← الإقامات ← الطباعة والاستلام ← التوصيل
   ['saudization_entry', 'السعودة — إدخال', 'السعودة'],
   ['work_visas', 'إصدار التأشيرات', 'الخدمات'],
   ['visa_wakalas', 'وكالة التأشيرات', 'الخدمات'],
   ['iqama_issuance', 'إصدار الإقامات', 'الخدمات'],
   ['iqama_delivery', 'طباعة واستلام الإقامات', 'الخدمات'],
+  ['iqama_dispatch', 'توصيل الإقامات', 'الخدمات', true],
+  ['iqama_renewal', 'تجديد الإقامات', 'الخدمات', true],
   ['transfer_txn', 'نقل الكفالة', 'الخدمات'],
-  ['ajeer_requests', 'رفع طلبات أجير', 'الخدمات'],
-  ['ajeer_secondment', 'الإعارة (أجير)', 'الخدمات'],
   // ⬇ جداول خدمات الطلبات (محرّك svSheet في OpsExcelsPage) — مصدرها الفواتير.
   //    العنصر الرابع `true` = محجوب افتراضياً حتى يُمنح صراحةً (optIn).
-  ['svc_exit_visas', 'تأشيرات الخروج والعودة والخروج النهائي', 'الخدمات', true],
   ['svc_chamber', 'تصديق الغرفة التجارية', 'الخدمات', true],
   ['svc_ajeer', 'عقود أجير', 'الخدمات', true],
   ['svc_medical', 'التأمين الطبي', 'الخدمات', true],
   ['svc_profession', 'تغيير المهنة', 'الخدمات', true],
   ['svc_ext_transfer', 'الموافقة للنقل الخارجي', 'الخدمات', true],
+  ['svc_exit_reentry', 'الخروج والعودة', 'الخدمات', true],
+  ['svc_final_exit', 'الخروج النهائي', 'الخدمات', true],
   ['svc_salary', 'تعديل الراتب', 'الخدمات', true],
   ['svc_passport', 'تحديث بيانات الجواز', 'الخدمات', true],
   ['svc_documents', 'المستندات', 'الخدمات', true],
-  ['svc_supplier_payroll', 'طلب رواتب سبلاير', 'الخدمات', true],
   ['invoices', 'الفواتير', 'المالية'],
   ['agent_commissions', 'عمولات الوسطاء', 'المالية'],
   ['collections', 'تحصيل الفواتير', 'المالية'],
   ['deposits', 'متابعة الإيداعات', 'المالية'],
   ['sadad', 'دفتر السدادات', 'المالية'],
   ['sadad_requests', 'طلبات السداد', 'المالية'],
-  ['manpower_rates', 'بطاقة الأسعار', 'توريد العمالة'],
-  ['manpower_pool', 'العمالة المتاحة', 'توريد العمالة'],
-  // مقفول (optIn) **و** محجوز للمدير العام في GM_ONLY_VIEWS: منحُ البطاقة هنا
-  // لدورٍ آخر لا يفتحه — الشيت يدمج سجلّات ويحذفها، والقاعدة تمنعه بـRLS أيضاً.
-  ['client_dupes', 'تكرار العملاء', 'الإدارة', true],
 ]
+/* مجموعة كل جدول — يقرؤها تبويب «الخدمات» ليرتّب جداوله تحت عناوين مجموعاتها
+   في القائمة الجانبية. المصدر هو هذه القائمة نفسها فلا تتفرّق التسمية. */
+export const OPS_SHEET_GROUP = Object.fromEntries(OPS_SHEETS.map(([k, , g]) => [k, g || 'أخرى']))
 const EDIT = [ca('edit', 'تعديل', 'edit')]
 const CMT_NOTE = [ca('add_comment', 'إضافة تعليق')]
 
 export const TAB_CARDS = {
+  /* لوحة الرئيسية (HomeDashboard) — كل قسم محجوب افتراضياً (optIn) حتى يمنحه المدير.
+     الأرقام المالية تتبع أيضاً صلاحية إحصاءات الفواتير (`stats:invoices`) في الخادم. */
+  home: [
+    C('income', 'الدخل وحركة التحصيل', 'core', [], true),
+    C('offices', 'مقارنة المكاتب', 'core', [], true),
+    C('invoices', 'الفواتير وأنواعها وحالة السداد', 'core', [], true),
+    C('workers', 'العمالة والجنسيات', 'core', [], true),
+    C('iqama', 'صلاحية الإقامات', 'core', [], true),
+    C('agents', 'الوسطاء', 'core', [], true),
+  ],
   // The المنشآت tab detail is the basic registry page (decoupled from Sync Hub);
   // the external-platform cards (GOSI/Qiwa/SBC/Muqeem) live in the Sync Hub view,
   // not here, so only the basic-registry cards are listed.
@@ -428,51 +371,6 @@ export const TAB_CARDS = {
     C('pricing', 'التسعيرة', 'core', EDIT), C('financial_summary', 'الملخص المالي'),
     C('comments', 'التعليقات', 'core', CMT_NOTE),
     C('actions_print', 'الإجراءات والطباعة', 'core', [ca('approve', 'تصديق الحسبة'), ca('cancel', 'إلغاء الحسبة')]),
-  ],
-  // «توريد العمالة» — بطاقات صفحة تفاصيل التسعيرة
-  manpower_calc: [
-    C('client', 'العميل والطلب', 'core', EDIT), C('work', 'تفاصيل العمل', 'core', EDIT),
-    C('revenue', 'بنود عرض السعر', 'core', EDIT),
-    C('pnl', 'الربح والجدوى والمخاطر'),
-    C('actions_print', 'الإجراءات والطباعة', 'core', [ca('print', 'طباعة عرض السعر')]),
-  ],
-  // «العقود» — بطاقات صفحة تفاصيل العقد
-  manpower_contracts: [
-    C('client', 'العميل والعقد', 'core', EDIT), C('terms', 'الشروط والالتزامات', 'core', EDIT),
-    C('lines', 'بنود العقد', 'core', EDIT),
-    C('workers', 'عمال العقد', 'core', [ca('link', 'ربط/فك عامل من السجل')]),
-    C('timesheets', 'كشوف دوام العقد'), C('claims', 'مستخلصات العقد'),
-    C('actions_print', 'الإجراءات والطباعة', 'core', [ca('print', 'طباعة العقد')]),
-  ],
-  // «كشوف الدوام» — بطاقات صفحة تفاصيل الكشف
-  manpower_timesheets: [
-    C('header', 'العقد والفترة', 'core', EDIT), C('grid', 'شبكة الدوام', 'core', EDIT),
-    C('summary', 'ملخّص الساعات'),
-    C('actions_print', 'الإجراءات والطباعة', 'core', [ca('print', 'طباعة الكشف')]),
-  ],
-  // «العمالة المتاحة» — بطاقات صفحة تفاصيل العامل المسجَّل
-  manpower_pool: [
-    C('identity', 'بيانات العامل', 'core', EDIT), C('work', 'المهنة والجاهزية', 'core', EDIT),
-    C('contact', 'التواصل والترشيح', 'core', EDIT),
-  ],
-  // «المستخلصات» — بطاقات صفحة تفاصيل المستخلص
-  manpower_claims: [
-    C('header', 'العقد والفترة', 'core', EDIT), C('lines', 'بنود المستخلص', 'core', EDIT),
-    C('financial', 'الملخص المالي'),
-    C('actions_print', 'الإجراءات والطباعة', 'core', [ca('print', 'طباعة المستخلص')]),
-  ],
-  // «فواتير توريد العمالة» — بطاقات صفحة تفاصيل الفاتورة
-  manpower_invoices: [
-    C('client', 'العميل والفاتورة', 'core', EDIT), C('lines', 'بنود الفاتورة', 'core', EDIT),
-    C('financial', 'الملخص المالي'),
-    C('payments', 'الدفعات', 'core', [ca('pay', 'تسجيل دفعة'), ca('delete_payment', 'حذف دفعة', 'delete')]),
-    C('actions_print', 'الإجراءات والطباعة', 'core', [ca('print', 'طباعة الفاتورة')]),
-  ],
-  // «رواتب وأرباح التوريد» — بطاقات صفحة تفاصيل كشف الرواتب
-  manpower_payroll: [
-    C('header', 'الشهر والمصدر', 'core', EDIT), C('workers', 'رواتب العمال', 'core', EDIT),
-    C('pnl', 'الأرباح وتقسيم الشركاء'),
-    C('actions_print', 'الإجراءات والطباعة', 'core', [ca('print', 'طباعة كشف الرواتب')]),
   ],
   sync_hub: [C('facilities_overview', 'المنشآت'), C('sync_activities_log', 'أنشطة المزامنة')],
   /* «جداول العمل»: كل **جدول** بطاقةٌ مستقلّة — إخفاؤها يمنع الجدول كلّه من
@@ -902,3 +800,49 @@ export const lockableFields = () => {
 
 // All modules, for migration parity / iteration.
 export const ALL_MODULES = Object.keys(MODULE_ACTIONS)
+
+/* ── دورٌ جديد يُولد مغلقاً بالكامل ──────────────────────────────────────────
+   طلب المستخدم: عند إنشاء دورٍ جديد تكون **كل مفاتيح الإظهار مطفأة** صراحةً،
+   فيُشغّل المديرُ ما يريده فقط. تُبنى خريطة `ui_visibility` تخزّن `false` لكل
+   ما يرسمه محرّر الصلاحيات: التبويبات والأقسام، بطاقات صفحات التفاصيل وأفعالها،
+   الحقول (إظهار + قفل تعديل)، المراحل، والنوافذ المنبثقة — بما فيها جداول
+   «الخدمات» (`card:ops_excels:<key>`) وأعمدتها. تُمرَّر `nav`/`hubTabs` لأنها
+   مصدر معرّفات التبويبات والأقسام (لا تعيش في هذا الكتالوج).
+   `home` مستثناة عمداً: لوحةُ البداية تبقى قابلةً للوصول دائماً. */
+export function closedRoleVisibility(nav = [], hubTabs = {}) {
+  const v = {}
+  const hide = (k) => { if (k) v[k] = false }
+  // 1) الأقسام (hubs) والتبويبات (leaf tabs / group headers ليست تبويباً)
+  for (const n of (nav || [])) {
+    if (n.id === 'home') continue
+    hide(n.id)
+    for (const t of (hubTabs?.[n.id] || [])) {
+      if (t.hdr) continue
+      if (t.sheet) hide(`card:ops_excels:${t.sheet}`)
+      else hide(t.id)
+    }
+  }
+  // 2) بطاقات صفحات التفاصيل + أفعالها (يشمل جداول «الخدمات» عبر ops_excels)
+  for (const [tab, cards] of Object.entries(TAB_CARDS)) {
+    for (const c of (cards || [])) {
+      hide(`card:${tab}:${c.key}`)
+      for (const a of (c.actions || [])) hide(`cardact:${tab}:${c.key}:${a.action}`)
+    }
+  }
+  // 3) الحقول: إظهار + قفل التعديل (يشمل أعمدة جداول «الخدمات» عبر getter)
+  for (const [tab, fields] of Object.entries(TAB_FIELDS)) {
+    for (const f of (fields || [])) {
+      hide(`field:${tab}:${f.key}`)
+      if (f.edit) hide(`fieldedit:${tab}:${f.key}`)
+    }
+  }
+  // 4) مراحل الحاسبات
+  for (const [tab, stages] of Object.entries(TAB_STAGES)) {
+    for (const s of (stages || [])) hide(`stage:${tab}:${s.key}`)
+  }
+  // 5) النوافذ المنبثقة
+  for (const [tab, modals] of Object.entries(TAB_MODALS)) {
+    for (const m of (modals || [])) hide(`modal:${tab}:${m.key}`)
+  }
+  return v
+}
