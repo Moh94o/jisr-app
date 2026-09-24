@@ -1043,6 +1043,8 @@ const SHEET_CSS = `
 @media(max-width:640px){
   .fk-modal-ovl:not(.fk-ovl-center){padding:0!important;align-items:flex-end!important}
   .fk-modal-box{width:100%!important;max-width:100%!important;border-radius:22px 22px 0 0!important;max-height:calc(100dvh - 20px)!important;box-shadow:0 -18px 60px var(--shadowClr)!important;animation:fk-sheet .32s cubic-bezier(.32,.72,0,1);padding-bottom:max(env(safe-area-inset-bottom),2px)}
+  .fk-modal-ovl:not(.fk-ovl-center) .fk-modal-box{height:calc(100% - env(safe-area-inset-top,0px) - 10px)!important;max-height:none!important;border-left:none!important;border-right:none!important;border-bottom:none!important}
+  html.ios-gap body:has(.fk-modal-ovl:not(.fk-ovl-center) .fk-modal-box){background:var(--modal-bg)!important}
   .fk-modal-box::before{content:'';position:absolute;top:7px;left:50%;transform:translateX(-50%);width:42px;height:4px;border-radius:99px;background:var(--tx6);z-index:5}
 }
 @keyframes fk-sheet{from{transform:translateY(46px);opacity:.5}to{transform:none;opacity:1}}`
