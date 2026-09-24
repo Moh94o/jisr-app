@@ -267,7 +267,7 @@ const OPS_SHEETS = [
   ['visa_wakalas', 'وكالة التأشيرات', 'الخدمات'],
   ['iqama_issuance', 'إصدار الإقامات', 'الخدمات'],
   ['iqama_delivery', 'طباعة واستلام الإقامات', 'الخدمات'],
-  ['iqama_dispatch', 'توصيل الإقامات', 'الخدمات', true],
+  ['iqama_dispatch', 'طباعة الإقامات', 'الخدمات', true],
   ['iqama_renewal', 'تجديد الإقامات', 'الخدمات', true],
   ['transfer_txn', 'نقل الكفالات', 'الخدمات'],
   // ⬇ جداول خدمات الطلبات (محرّك svSheet في OpsExcelsPage) — مصدرها الفواتير.

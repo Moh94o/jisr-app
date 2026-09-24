@@ -1764,7 +1764,8 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
                   const arr = [{ key: 'transfer', short: T('نقل', 'Tr'), stage: stOf(sd.transfer), full: T('النقل', 'Transfer') }]
                   arr.push({ key: 'insurance', short: T('تأمين', 'Ins'), stage: stOf(sd.insurance), full: T('التأمين', 'Insurance') })
                   if (!tcRow.transfer_only) arr.push({ key: 'workpermit', short: T('رخصة', 'WP'), stage: stOf(sd.work_permit), full: T('رخصة العمل', 'Work Permit') })
-                  arr.push({ key: 'muqeem', short: T('إقامة', 'Iqama'), stage: stOf(sd.muqeem), full: T('الإقامة', 'Iqama') })
+                  // «نقل فقط» بلا مرحلة مقيم — تكتمل بالنقل والتأمين (قرار المستخدم 2026-09-24)
+                  if (!tcRow.transfer_only) arr.push({ key: 'muqeem', short: T('إقامة', 'Iqama'), stage: stOf(sd.muqeem), full: T('الإقامة', 'Iqama') })
                   return arr.map(s => ({ ...s, title: stTitle(s.full, s.stage) }))
                 })()
                 // تجديد الإقامة: مرحلتان (التأمين · الإقامة) — تاق لكل مرحلة في كرت القائمة، مثل نقل الكفالة.
@@ -2362,7 +2363,7 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user }) {
       if (!transferDone) { if (stageModalOk('inv_stage_transfer')) stageActions.push(<StageRow key="mark" color={C.gold} label={T('النقل','Transfer')} icon={<TransferStageIco />} onClick={() => openTransferStage('transfer')} />) }
       else if (!insDone) { if (stageModalOk('inv_stage_transfer_insurance')) stageActions.push(<StageRow key="mark" color={C.gold} label={T('التأمين','Insurance')} icon={<RenewalDataIco />} onClick={() => openTransferStage('insurance')} />) }
       else if (!transferOnly && !wpDone) { if (stageModalOk('inv_stage_transfer_workpermit')) stageActions.push(<StageRow key="mark" color={C.gold} label={T('رخصة العمل','Work Permit')} icon={<RenewalDataIco />} onClick={() => openTransferStage('workpermit')} />) }
-      else if (!muqeemDone) { if (stageModalOk('inv_stage_transfer_iqama')) stageActions.push(<StageRow key="mark" color={C.gold} label={T('الإقامة','Iqama')} icon={<RenewalDataIco />} onClick={() => openTransferStage('muqeem')} />) }
+      else if (!transferOnly && !muqeemDone) { if (stageModalOk('inv_stage_transfer_iqama')) stageActions.push(<StageRow key="mark" color={C.gold} label={T('الإقامة','Iqama')} icon={<RenewalDataIco />} onClick={() => openTransferStage('muqeem')} />) }
       const hasPending = stageActions.length > before
       // كل المراحل مكتملة والفاتورة «منجزة» → شارة الإنجاز الإجمالية (كما كان). وإلا نعرض شارات المراحل المنجزة.
       if (reqDone && !hasPending) stageStatus.push(doneBadge)
@@ -4225,6 +4226,24 @@ const ActionModal = ({ type, stage = null, onClose, sb, T, isAr, inv, total, pai
             } catch { /* رفع ملف المرحلة أفضل-جهد */ }
           }
           successInfo = { title: doneTitle, desc: T('تم حفظ بيانات المرحلة. يمكنك متابعة المرحلة التالية.', 'Stage data saved. You can proceed to the next stage.'), rows: [] }
+          }
+          /* «نقل فقط»: لا مرحلة مقيم — المعاملة تكتمل متى صار النقل «منجز» والتأمين «منجز»
+             أو «لا يحتاج» (قرار المستخدم 2026-09-24، نفس قاعدة شيت نقل الكفالات). */
+          const srCode = inv.service_request?.status?.code
+          if (isTransferDone && trTransferOnly && srId && srCode !== 'done' && srCode !== 'cancelled'
+            && sd.transfer?.status === 'done' && (sd.insurance?.status === 'done' || sd.insurance?.status === 'skipped')) {
+            const { data: rst } = await sb.from('lookup_items')
+              .select('id,category:lookup_categories!inner(category_key)')
+              .eq('category.category_key', 'request_status').eq('code', 'done').maybeSingle()
+            if (rst?.id) {
+              const { data: srUpd } = await sb.from('service_requests')
+                .update({ status_id: rst.id, completed_by: user?.id || null, completed_at: nowIso, updated_at: nowIso })
+                .eq('id', srId).select('id')
+              if (srUpd && srUpd.length) {
+                successInfo = { ...(successInfo || {}), title: T('اكتملت المعاملة', 'Transaction completed'),
+                  desc: T('نقل فقط: اكتمل النقل والتأمين فأُنجزت المعاملة.', 'Transfer only: transfer and insurance are done, so the transaction was completed.'), rows: [] }
+              }
+            }
           }
         } else if (acctPending) {
           // خدمات موافقة المحاسب — مرحلة موافقة المحاسب: نعم→approved / لا→rejected (سبب إجباري).
@@ -10232,7 +10251,7 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
                           [T('تاريخ انتهاء رخصة العمل', 'Work Permit Expiry'), wp.expiry ? fmtGreg(wp.expiry, isAr) : '—', false],
                           [T('المبلغ', 'Amount'), wp.amount != null ? `${num(wp.amount)} ${T('ريال', 'SAR')}` : '—', false],
                         ] : [])}
-                        {stageBar('muqeem', T('الإقامة', 'Iqama'), mu, wp?.at || ins?.at || inv.created_at, data?.muqeemFile, mu ? [
+                        {!transferOnly && stageBar('muqeem', T('الإقامة', 'Iqama'), mu, wp?.at || ins?.at || inv.created_at, data?.muqeemFile, mu ? [
                           [T('رقم الإقامة', 'Iqama No'), mu.iqama_number || tc.iqama_number || '—', true, null, true],
                           [T('تاريخ انتهاء الإقامة', 'Iqama Expiry'), mu.iqama_expiry ? fmtGreg(mu.iqama_expiry, isAr) : '—', false, C.gold],
                           [T('المدة الفعلية', 'Actual Duration'), muActualDur || '—', false, C.gold],
