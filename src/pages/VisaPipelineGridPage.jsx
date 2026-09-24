@@ -1025,12 +1025,6 @@ export default function VisaPipelineGridPage({ sb, user, toast, lang, onTabChang
         </select>
       </div>
 
-      {!canEdit && (
-        <div style={{ marginBottom: 10, padding: '9px 13px', borderRadius: 9, background: 'rgba(232,114,101,.08)', border: '1px solid rgba(232,114,101,.28)', color: C.red, fontSize: 12.5, fontWeight: 600 }}>
-          {T('ليس لديك صلاحية تعديل التأشيرات — الجدول للعرض فقط.', 'You lack visa edit permission — this grid is read-only.')}
-        </div>
-      )}
-
       {/* ── شريط الصيغة ── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 10 }}>
         <span style={{ fontSize: 11.5, fontFamily: MONO, fontWeight: 600, color: C.gold2, background: 'var(--accent-soft)',

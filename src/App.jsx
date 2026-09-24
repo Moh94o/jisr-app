@@ -581,7 +581,9 @@ const VISA_TAB_ICON={work_visas:'labor',visa_wakalas:'receipt'};
 const LABOR_SHEET_KEYS=['permanent_workers','recoveries','final_exit'];
 /* قسم «المنشآت»: جداول بيانات المنشأة من المزامنة، بالترتيب الذي أملاه المستخدم (2026-09-24).
    `companies` («الشركات») هو ما سمّاه «المنشآت الرئيسية». لا تخلطه بـ`workforce` («المنشآت والعمالة»). */
-const FAC_SHEET_KEYS=['persons','companies','fac_attachments','subscriptions','qawaem','mudad','baladi_licenses'];
+const FAC_SHEET_KEYS=['companies','fac_attachments','subscriptions','qawaem','mudad','baladi_licenses'];
+/* قسم «المكاتب» (طلب المستخدم 2026-09-24): جدول الأشخاص (نُقل من «المنشآت») ثم جدول المكاتب */
+const OFFICE_SHEET_KEYS=['persons','offices'];
 /* قسم «السعودة»: المزامنة ثم الإدخال (طلب المستخدم 2026-09-24) */
 const SAUDI_SHEET_KEYS=['saudization','saudization_entry'];
 /* جداولُ تحت قسم «المالية» بجوار صفحاته (طلب المستخدم 2026-09-24) — تُعرض بمحرّك الجداول نفسه */
@@ -589,7 +591,7 @@ const FIN_SHEET_KEYS=['collections'];
 /* «الخدمات» تبدأ بخدمات الطلبات بهذا الترتيب (طلب المستخدم 2026-09-24)، ثم بقيّة الجداول بمجموعاتها */
 const SVC_FIRST_KEYS=['svc_chamber','svc_ajeer','svc_medical','svc_profession','svc_ext_transfer','svc_exit_reentry','svc_final_exit','svc_salary','svc_passport'];
 /* الجداول التي لها قسمٌ خاصّ فتسقط من «الخدمات» */
-const HUB_OWNED_KEYS=new Set([...IQAMA_SHEET_KEYS,...VISA_SHEET_KEYS,...LABOR_SHEET_KEYS,...FAC_SHEET_KEYS,...SAUDI_SHEET_KEYS,...FIN_SHEET_KEYS]);
+const HUB_OWNED_KEYS=new Set([...IQAMA_SHEET_KEYS,...VISA_SHEET_KEYS,...LABOR_SHEET_KEYS,...FAC_SHEET_KEYS,...SAUDI_SHEET_KEYS,...FIN_SHEET_KEYS,...OFFICE_SHEET_KEYS]);
 /* قسم «الخدمات» (طلب المستخدم 2026-09-24): جداول مجموعة «الخدمات» في قسمٍ مستقلّ — خدمات الطلبات
    بالترتيب المطلوب ثم بقيّة المجموعة (المستندات). وما سواها من الجداول بقي في «أخرى» (services_hub). */
 const SVC_GROUP_KEYS=()=>{const avail=new Set(OPS_SHEET_TABS.map(t=>t.key));
@@ -631,7 +633,8 @@ visa_hub:(OPS_SHEET_TABS.find(t=>VISA_SHEET_KEYS.includes(t.key)&&isVisible(opsT
 labor_hub:(OPS_SHEET_TABS.find(t=>LABOR_SHEET_KEYS.includes(t.key)&&isVisible(opsTabId(t.key)))||{}).key?opsTabId((OPS_SHEET_TABS.find(t=>LABOR_SHEET_KEYS.includes(t.key)&&isVisible(opsTabId(t.key)))||{}).key):opsTabId('permanent_workers'),
 // «الخدمات» تفتح على أوّل جدولٍ يراه المستخدم — لا على جدولٍ ثابتٍ قد يكون محجوباً عنه
 // «المنشآت» و«السعودة» تفتحان على أوّل جدولٍ يراه المستخدم بترتيب القسم
-facilities_hub:firstVisibleSheet(FAC_SHEET_KEYS,'persons'),
+facilities_hub:firstVisibleSheet(FAC_SHEET_KEYS,'companies'),
+offices_hub:firstVisibleSheet(OFFICE_SHEET_KEYS,'persons'),
 saudi_hub:firstVisibleSheet(SAUDI_SHEET_KEYS,'saudization'),
 // «الخدمات» تفتح على أوّل جدولٍ يراه المستخدم فيها بترتيبها (خدمات الطلبات أوّلاً)
 svc_hub:firstVisibleSheet(SVC_GROUP_KEYS(),'svc_chamber'),
@@ -657,6 +660,7 @@ const T=(ar,en)=>lang==='ar'?ar:en;const nav=[
 {id:'pricing_hub',l:T('الحسبات','Calc'),i:'calc'},
 {id:'persons_hub',l:T('الأشخاص','Persons'),i:'client'},
 {id:'facilities_hub',l:T('المنشآت','Facilities'),i:'facility'},
+{id:'offices_hub',l:T('المكاتب','Offices'),i:'branch'},
 {id:'saudi_hub',l:T('السعودة','Saudization'),i:'chart'},
 {id:'svc_hub',l:T('الخدمات','Services'),i:'notes'},
 {id:'services_hub',l:T('أخرى','Other'),i:'calendar'},
@@ -697,6 +701,7 @@ const visaTabs=VISA_SHEET_KEYS.map(k=>{const t=OPS_SHEET_TABS.find(x=>x.key===k)
 /* قسما «المنشآت» و«السعودة» (طلب المستخدم 2026-09-24) — بمحرّك «الخدمات» نفسه؛ الصلاحية بطاقة `card:ops_excels:<key>` كما هي */
 const sheetTabsOf=(keys)=>keys.map(k=>{const t=OPS_SHEET_TABS.find(x=>x.key===k);if(!t)return null;const nm=sheetNames[k];return{id:opsTabId(k),l:nm?(lang==='ar'?nm.ar:(nm.en||nm.ar)):T(t.ar,t.en),i:t.icon,sheet:k}}).filter(Boolean);
 const facTabs=sheetTabsOf(FAC_SHEET_KEYS);
+const officeTabs=sheetTabsOf(OFFICE_SHEET_KEYS);
 const saudiTabs=sheetTabsOf(SAUDI_SHEET_KEYS);
 const svcGroupTabs=sheetTabsOf(SVC_GROUP_KEYS());
 const laborTabs=LABOR_SHEET_KEYS.map(k=>{const t=OPS_SHEET_TABS.find(x=>x.key===k);if(!t)return null;const nm=sheetNames[k];return{id:opsTabId(k),l:nm?(lang==='ar'?nm.ar:(nm.en||nm.ar)):T(t.ar,t.en),i:t.icon,sheet:k}}).filter(Boolean);
@@ -707,6 +712,7 @@ const hubTabs={
   iqama_hub:iqamaTabs,
   labor_hub:laborTabs,
   facilities_hub:facTabs,
+  offices_hub:officeTabs,
   saudi_hub:saudiTabs,
   /* أُزيلت من القائمة الجانبية بطلب المستخدم: «العمالة المؤقتة» وجداول
      التأشيرات/الوكالات/إصدار الإقامات/توصيل الإقامات. مسارات الصفحات باقية
@@ -1184,7 +1190,7 @@ return<div data-avatar onClick={openProfile} title={(lang==='en'?(user?.person?.
 <div style={{fontSize:18,fontWeight:600,color:'var(--tx)'}}>{T('لا تملك صلاحية الوصول','No access')}</div>
 <div style={{fontSize:13,color:'var(--tx4)',maxWidth:380,lineHeight:1.7}}>{T('ليس لديك صلاحية لعرض هذه الصفحة. تواصل مع المدير العام لمنحك الصلاحية.','You do not have permission to view this page. Contact the General Manager to request access.')}</div>
 </div>)})()}
-{canViewPage(user,pg)&&pg==='home'&&<HomeDashboard sb={sb} user={user} lang={lang} onNavigate={setPage}/>}
+{canViewPage(user,pg)&&pg==='home'&&<HomeDashboard sb={sb} user={user} lang={lang} onNavigate={setPage} logo={<Logo size={72} style={{margin:'0 auto 16px'}}/>}/>}
 
 {/* ═══ HUB CONTENT (sidebar handles navigation) ═══ */}
 {(()=>{

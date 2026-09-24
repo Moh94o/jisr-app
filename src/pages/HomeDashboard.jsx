@@ -248,7 +248,7 @@ function DashSkeleton() {
   )
 }
 
-export default function HomeDashboard({ sb, user, lang = 'ar', onNavigate }) {
+export default function HomeDashboard({ sb, user, lang = 'ar', onNavigate, logo = null }) {
   const isAr = lang === 'ar'
   const T = (ar, en) => (isAr ? ar : en)
   const [data, setData] = useState(() => swrGet(SWR_KEY) || null)
@@ -392,9 +392,12 @@ export default function HomeDashboard({ sb, user, lang = 'ar', onNavigate }) {
   if (!anyCard) {
     return (
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 40 }}>
-        <div style={{ ...card, maxWidth: 420, textAlign: 'center', padding: 32 }}>
-          <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--tx)', marginBottom: 6 }}>{T('أهلاً بك في جسر', 'Welcome to Jisr')}</div>
-          <div style={sub}>{T('لم تُفعَّل لك بطاقات لوحة المؤشرات بعد. تواصل مع المدير العام لإتاحتها.', 'No dashboard cards are enabled for you yet. Ask the general manager to grant them.')}</div>
+        <div style={{ ...card, maxWidth: 440, width: '100%', textAlign: 'center', padding: '34px 30px 28px', position: 'relative', overflow: 'hidden',
+          background: 'linear-gradient(180deg, rgba(176,125,0,.08), rgba(176,125,0,0) 50%), var(--card-bg)' }}>
+          <div style={{ position: 'absolute', top: 0, insetInline: 0, height: 3, background: `linear-gradient(90deg, transparent, ${GOLD}, transparent)`, opacity: 0.7 }} />
+          {logo}
+          <div style={{ fontSize: 19, fontWeight: 600, color: 'var(--tx)', marginBottom: 8 }}>{T('أهلاً بك في جسر', 'Welcome to Jisr')}</div>
+          <div style={{ fontSize: 13, color: 'var(--tx3)', lineHeight: 1.8 }}>{T('لم تُفعَّل لك بطاقات لوحة المؤشرات بعد.', 'No dashboard cards are enabled for you yet.')}</div>
         </div>
       </div>
     )

@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom'
 import { can as canPerm, hasPerm, isGM as isGmUser } from '../lib/permissions.js'
 import { registerOpsColumns, registerOpsLayouts, opsFieldKey, cardOptIn, OPS_SHEET_GROUP } from '../lib/permCatalog.js'
 import { DONE_INPUTS, SALARY_RETURN_INPUTS } from '../lib/doneInputs.js'
+import { branchNick } from '../lib/utils.js'
 /* أسماء بنود التسعير من مصدرها الواحد — نفس ما يحرّر به كرت التسعير ويُطبع به
    قالب الفاتورة. بطاقة الشيت لا تُسمّي بنداً باسمٍ ثانٍ. */
 import { quoteFeeFields, isFlatRenewal, isDiscountLine } from '../lib/invoicePricingModel.js'
@@ -1437,7 +1438,6 @@ const WFC = {
    والأعمدة المدمجة = بطاقة المنشأة (الاسم/الموحّد/التأمينات/الموارد). */
 const WF_MERGE_KEY = (r) => (r.unified_number != null && r.unified_number !== '' ? String(r.unified_number) : (r.facility_ar || null))
 const WF_MERGE_COLS = ['facility_branches', 'facility_ar', 'unified_number', 'gosi_number', 'hrsd_number', 'absher_balance']
-const WF_FAC = [WFC.facility, WFC.unified, WFC.gosi, WFC.hrsd]
 
 /* ── أعمدة سجلّ العمالة («البيانات الأساسية») ────────────────────────────────
    صفوف السجل تحمل أسماء حقول شيت المزامنة نفسها، فأعمدة WFC تُستعمل كما هي.
@@ -9009,6 +9009,37 @@ const personFacsText = (fc, isAr) => {
 }
 
 const VIEWS = [
+  /* ── المكاتب (طلب المستخدم 2026-09-24): الاسم المستعار والمكتب والمدينة والحي ──
+     من جدول `branches` مباشرة — للعرض فقط: التعديل مكانه صفحة «المكاتب» في
+     الإدارة، وخليّةٌ هنا تُكتب في طبقة الشيت وحدها فتوهم بتعديلٍ لم يحدث.
+     المكتب التجريبي لا يُدرج (كما في كل تجميعات المكاتب). */
+  {
+    key: 'offices',
+    ar: 'المكاتب', en: 'Offices',
+    hintAr: 'المكاتب — الاسم المستعار والمدينة والحي',
+    hintEn: 'Offices — nickname, city & district',
+    noSync: true,
+    async load(sb) {
+      const { data, error } = await sb.from('branches')
+        .select('id,branch_code,name_ar,is_test,city:city_id(name_ar),district:district_id(name_ar)')
+        .is('deleted_at', null).order('branch_code')
+      if (error) throw error
+      return (data || []).filter((b) => !b.is_test).map((b) => ({
+        _id: b.id,
+        nickname: branchNick(b),
+        branch_code: b.branch_code || '',
+        city_ar: (b.city && b.city.name_ar) || '',
+        district_ar: (b.district && b.district.name_ar) || '',
+      }))
+    },
+    search: (r) => [r.nickname, r.branch_code, r.city_ar, r.district_ar],
+    columns: [
+      { key: 'nickname', ar: 'الاسم المستعار', en: 'Nickname', w: 230, kind: 'text', readOnly: true },
+      { key: 'branch_code', ar: 'المكتب', en: 'Office', w: 130, kind: 'mono', readOnly: true },
+      { key: 'city_ar', ar: 'المدينة', en: 'City', w: 160, kind: 'text', readOnly: true },
+      { key: 'district_ar', ar: 'الحي', en: 'District', w: 180, kind: 'text', readOnly: true },
+    ],
+  },
   {
     key: 'persons',
     ar: 'الأشخاص', en: 'Persons',
@@ -12618,14 +12649,14 @@ export const opsTabId = (key) => OPS_TAB_PREFIX + key
 export const opsTabKey = (pageId) => String(pageId || '').startsWith(OPS_TAB_PREFIX) ? String(pageId).slice(OPS_TAB_PREFIX.length) : ''
 /* ترتيب المجموعات في القائمة — المزامنة أوّلاً (مصدر البيانات) ثم من يعمل
    عليها، والإدارة آخراً. مجموعةٌ لا تُذكر هنا تُلحَق في آخر القائمة. */
-const OPS_GROUP_ORDER = ['مركز المزامنة', 'العمالة', 'السعودة', 'الخدمات', 'المالية', 'الإدارة']
+const OPS_GROUP_ORDER = ['مركز المزامنة', 'المكاتب', 'العمالة', 'السعودة', 'الخدمات', 'المالية', 'الإدارة']
 const OPS_GROUP_EN = {
   'مركز المزامنة': 'Sync Hub', 'العمالة': 'Workforce', 'السعودة': 'Saudization',
-  'الخدمات': 'Services', 'المالية': 'Finance', 'الإدارة': 'Admin', 'أخرى': 'Other',
+  'الخدمات': 'Services', 'المالية': 'Finance', 'الإدارة': 'Admin', 'أخرى': 'Other', 'المكاتب': 'Offices',
 }
 const OPS_GROUP_ICON = {
   'مركز المزامنة': 'refresh', 'العمالة': 'labor', 'السعودة': 'chart',
-  'الخدمات': 'notes', 'المالية': 'invoice', 'الإدارة': 'settings', 'أخرى': 'calendar',
+  'الخدمات': 'notes', 'المالية': 'invoice', 'الإدارة': 'settings', 'أخرى': 'calendar', 'المكاتب': 'branch',
 }
 /* قائمة التبويبات: مفتاحٌ واسمان ومجموعة وأيقونة — مرتَّبةً بالمجموعة ثم
    بترتيب `VIEWS` داخلها. تُستبعد `HIDDEN_VIEWS` (شيتا قسمٍ محجوبٍ كلّه). */
@@ -17674,12 +17705,6 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
         </div>
         )
       })()}
-
-      {!isEmptyView && !canEdit && (
-        <div style={{ marginBottom: 10, padding: '9px 13px', borderRadius: 9, background: 'rgba(232,114,101,.08)', border: '1px solid rgba(232,114,101,.28)', color: C.red, fontSize: 12.5, fontWeight: 600 }}>
-          {T('ليس لديك صلاحية التعديل — الجدول للعرض فقط.', 'You lack edit permission — this grid is read-only.')}
-        </div>
-      )}
 
       {canEdit && selRows.size > 0 && (
         <div style={{ marginBottom: 10, padding: '8px 12px', borderRadius: 9, background: 'var(--accent-soft)', border: '1px solid var(--accent-bd)', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
