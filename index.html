@@ -39,7 +39,7 @@
     <!-- PWA Meta Tags -->
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="تأشيرة البناء" />
     <meta name="application-name" content="تأشيرة البناء والإنشاء" />
     <!-- لون شريط الحالة في الجوال = لون ترويسة البرنامج (الوضع الفاتح مفروض على واجهة الموظفين) -->
@@ -90,6 +90,18 @@
         body {
           padding: 0;
         }
+      }
+      /* black-translucent forces white status-bar text; a soft shade keeps it readable on the light theme */
+      .pwa-standalone body::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: env(safe-area-inset-top, 0px);
+        background: linear-gradient(rgba(60, 45, 15, .42), rgba(60, 45, 15, .18));
+        z-index: 10000;
+        pointer-events: none;
       }
       * {
         -webkit-user-select: none;
