@@ -1166,7 +1166,7 @@ const sAct=pg===t.id;const subClr=sAct?C.gold:'var(--sbtx)';const subIcon=DT(sub
 {/* ═══ MAIN AREA ═══ */}
 <div style={{flex:1,display:'flex',flexDirection:'column',background:'var(--bg)',minWidth:0}}>
 {/* ═══ TOPBAR ═══ */}
-<header className='dash-header' style={{minHeight:56,background:'var(--sb)',display:'flex',alignItems:'center',gap:14,padding:'max(0px, env(safe-area-inset-top)) 20px 0',flexShrink:0,boxShadow:'0 2px 12px rgba(0,0,0,.12)',minWidth:0}}>
+<header className='dash-header' style={{minHeight:56,background:'var(--sb)',display:'flex',alignItems:'center',gap:14,padding:'0 20px',flexShrink:0,boxShadow:'0 2px 12px rgba(0,0,0,.12)',minWidth:0}}>
 <div className='mob-hamburger' onClick={()=>setSideOpen(!sideOpen)} onMouseEnter={()=>setHbHover(true)} onMouseLeave={()=>setHbHover(false)} style={{display:'none',width:40,height:40,borderRadius:10,background:sideOpen?'rgba(176,125,0,.12)':(hbHover?'rgba(176,125,0,.07)':'transparent'),flexDirection:'column',alignItems:'center',justifyContent:'center',gap:5,cursor:'pointer',flexShrink:0,transition:'.18s'}}><span style={{width:22,height:2.2,borderRadius:2,background:'linear-gradient(90deg,var(--accent-strong),var(--accent))',transition:'.22s'}}/><span style={{width:22,height:2.2,borderRadius:2,background:'linear-gradient(90deg,var(--accent-strong),var(--accent))',transition:'.22s'}}/><span style={{width:22,height:2.2,borderRadius:2,background:'linear-gradient(90deg,var(--accent-strong),var(--accent))',transition:'.22s'}}/></div>
 {/* عنوان الصفحة الحالية — يعكس اختيار السايد بار */}
 {(()=>{
