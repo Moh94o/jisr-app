@@ -92,7 +92,7 @@
         }
       }
       /* black-translucent forces white status-bar text; a soft shade keeps it readable on the light theme */
-      .pwa-standalone body::before {
+      .pwa-standalone:not(.ios-gap) body::before {
         content: '';
         position: fixed;
         top: 0;
@@ -165,6 +165,16 @@
     <script>
       if (window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches) {
         document.documentElement.classList.add('pwa-standalone');
+        /* iOS bug: with status-bar-style "default" + viewport-fit=cover the app is one
+           status-bar height shorter than the screen, leaving a strip at the bottom. */
+        var checkGap = function () {
+          var portrait = window.innerHeight > window.innerWidth;
+          var gap = screen.height - window.innerHeight;
+          document.documentElement.classList.toggle('ios-gap', portrait && gap > 20);
+        };
+        checkGap();
+        window.addEventListener('resize', checkGap);
+        window.addEventListener('orientationchange', function () { setTimeout(checkGap, 300); });
       }
       document.addEventListener('touchmove', function(e) {
         if (e.target.closest('.dash-content, .dash-side, [style*="overflowY"], [style*="overflow-y"]')) return;
