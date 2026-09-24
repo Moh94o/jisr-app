@@ -27,3 +27,21 @@ b, strong,
   text-overflow: clip !important;
   word-break: break-word;
 }
+
+/* ═══ الجوال ═══ */
+html { touch-action: manipulation; }
+@media (max-width: 768px) {
+  /* بطاقة العميل: مربّعا الهوية والجوال في سطرٍ مستقلّ تحت الاسم */
+  div:has(> .cli-boxes) { flex-wrap: wrap !important; }
+  .cli-boxes { flex-basis: 100% !important; }
+  .cli-boxes > div { flex: 1 1 0; min-width: 0 !important; }
+  /* شبكة المكاتب: عمودان وتمرير بدل انضغاط الصفوف */
+  div.branch-grid.branch-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    grid-template-rows: none !important;
+    grid-auto-rows: auto !important;
+    overflow-y: auto;
+    align-content: start;
+  }
+  div.branch-grid > .bento-card { min-height: 96px !important; }
+}

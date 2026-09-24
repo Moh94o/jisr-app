@@ -176,6 +176,18 @@
         window.addEventListener('resize', checkGap);
         window.addEventListener('orientationchange', function () { setTimeout(checkGap, 300); });
       }
+      /* iOS: when a tap fires a mouseover that changes the page (React hover state),
+         Safari swallows the click and the user has to tap twice. Hide the emulated
+         hover events that follow a touch so the first tap always clicks. */
+      (function () {
+        var lastTouch = 0;
+        document.addEventListener('touchstart', function () { lastTouch = Date.now(); }, { capture: true, passive: true });
+        ['mouseover', 'mouseout', 'mouseenter', 'mouseleave'].forEach(function (t) {
+          window.addEventListener(t, function (e) {
+            if (Date.now() - lastTouch < 1000) e.stopImmediatePropagation();
+          }, true);
+        });
+      })();
       document.addEventListener('touchmove', function(e) {
         if (e.target.closest('.dash-content, .dash-side, [style*="overflowY"], [style*="overflow-y"]')) return;
         if (e.touches.length > 1) return;
