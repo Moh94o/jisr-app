@@ -4,6 +4,7 @@ import { can as canPerm, hasPerm, isGM as isGmUser } from '../lib/permissions.js
 import { registerOpsColumns, registerOpsLayouts, opsFieldKey, cardOptIn, OPS_SHEET_GROUP } from '../lib/permCatalog.js'
 import { DONE_INPUTS, SALARY_RETURN_INPUTS } from '../lib/doneInputs.js'
 import { branchNick } from '../lib/utils.js'
+import { useBackHandler } from '../lib/mobileBack.js'
 /* أسماء بنود التسعير من مصدرها الواحد — نفس ما يحرّر به كرت التسعير ويُطبع به
    قالب الفاتورة. بطاقة الشيت لا تُسمّي بنداً باسمٍ ثانٍ. */
 import { quoteFeeFields, isFlatRenewal, isDiscountLine } from '../lib/invoicePricingModel.js'
@@ -14825,6 +14826,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
   const [chiAsk, setChiAsk] = useState(null)        // {iqama, resolve} — نافذة كابتشا التأمين
   const [formBusy, setFormBusy] = useState(false)   // رفع مرفقات النموذج جارٍ
   const [detailRow, setDetailRow] = useState(null)  // rowId لبطاقة تفاصيل الصف
+  const touchTapRef = useRef(false)  // آخر نقرةٍ على الجدول كانت لمساً؟ ('edit' = على الخليّة النشطة)
   /* { rowId, colKey } — نافذة «تفاصيل الخليّة»: من أدخلها ومتى وما عُدّل عليها.
      تُفتح من زرّ الخليّة نفسها أو من قائمة كليك اليمين. */
   const [cellInfo, setCellInfo] = useState(null)
@@ -17310,6 +17312,9 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
     return () => { window.removeEventListener('click', close); window.removeEventListener('scroll', close, true) }
   }, [ctx, hdrCtx])
 
+  // زر الرجوع في الجوال يطوي قائمة الخيارات المفتوحة
+  useBackHandler(!!(ctx || hdrCtx), () => { setCtx(null); setHdrCtx(null) })
+
   /* ═══ العرض ═══ */
   // حدود مجموعات الدمج تُحسب مرة لكل مجموعة صفوف (بدل مسح أمامي/خلفي لكل صف في كل رسم)
   /* أبعاد الدمج: العرض قد يدمج بأكثر من مفتاح — كتلةُ اليوم لعمود اليوم، وعمليةُ
@@ -17666,6 +17671,13 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
         .ox-ctx hr{border:none;border-top:1px solid var(--bd);margin:5px 8px}
         .ox-ctx .del:hover{background:rgba(232,114,101,.12);color:${C.red}}
         .ox-ctx .del:hover .ic{color:${C.red}}
+        /* الجوال: قائمة الخيارات ورقةُ إجراءاتٍ من أسفل الشاشة بأزرارٍ بحجم الإصبع */
+        @media(max-width:640px){
+          .ox-ctx{top:auto!important;left:8px!important;right:8px!important;bottom:calc(8px + env(safe-area-inset-bottom,0px))!important;
+            max-width:none;min-width:0;z-index:400;border-radius:18px;padding:8px;max-height:70vh;box-shadow:0 0 0 100vmax rgba(0,0,0,.38),0 -10px 50px rgba(0,0,0,.35);animation:oxSheet .22s ease-out}
+          .ox-ctx button{font-size:14.5px;padding:12px 12px;min-height:46px}
+          @keyframes oxSheet{from{transform:translateY(30px);opacity:.4}to{transform:none;opacity:1}}
+        }
         .ox-ov{position:fixed;inset:0;z-index:70;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px}
         .ox-modal{width:min(440px,96vw);background:var(--card-grad2,var(--card));border:1px solid var(--bd);border-radius:14px;
           box-shadow:0 24px 60px rgba(0,0,0,.4);padding:20px;font-family:${F}}
@@ -18352,7 +18364,8 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
                             draggable={canEdit}
                             onDragStart={(e) => { if (!canEdit) return; dragRowRef.current = row._id; e.dataTransfer.effectAllowed = 'move' }}
                             onDragEnd={() => { dragRowRef.current = null }}
-                            onClick={(e) => { if (canEdit) selectRowClick(row._id, r, e) }}
+                            onPointerDown={(e) => { touchTapRef.current = e.pointerType === 'touch' }}
+                            onClick={(e) => { if (touchTapRef.current) { touchTapRef.current = false; setDetailRow(row._id); return } if (canEdit) selectRowClick(row._id, r, e) }}
                             onDoubleClick={() => setDetailRow(row._id)}
                             // خلفية عمود الترقيم صمّاء: شريطٌ ثابت لا تنفذ إليه غسلة الصفّ
                             style={{ ...cellBase, height: rowH, justifyContent: 'center', color: rowSel ? '#000' : (rowSt?.color || 'var(--tx3)'), fontWeight: rowSel ? 600 : Math.min(600, rowSt?.weight || 400), fontFamily: MONO, fontSize: rowSt?.size || 11.5, background: rowSel ? C.gold2 : 'linear-gradient(var(--bd2),var(--bd2)), var(--bg)', cursor: canEdit ? 'grab' : 'default', gap: 5, ...(frozenStyle(c, rowSel ? C.gold2 : FROZEN_BG, 4) || {}), ...(gDown ? { borderBottom: 'none' } : {}), ...(gSpan ? { overflow: 'visible', zIndex: 6 } : {}), ...(blockEdge || {}) }}>
@@ -18446,6 +18459,16 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
                              هذه القيمة ومتى — من ختم الخليّة المحفوظ (`__m`). */
                           title={lockWhy ? `🔒 ${lockWhy}`
                             : ((col.cellTip && col.cellTip(raw, row, isAr)) || cellStamp(row, col, isAr))}
+                          /* اللمس (الجوال): النقرة الأولى تحدّد الخليّة، والنقرة على
+                             الخليّة المحدّدة نفسها تفتح تحريرها — بديلُ النقر المزدوج
+                             الذي لا يُعتمد عليه في شاشات اللمس. */
+                          onPointerDown={(e) => { touchTapRef.current = e.pointerType === 'touch' ? (mActive ? 'edit' : 'sel') : false }}
+                          onClick={() => {
+                            if (touchTapRef.current !== 'edit' || isEd) { touchTapRef.current = false; return }
+                            touchTapRef.current = false
+                            if (col.kind === 'longtext' && !editable) { setLongEdit({ row, col, text: String(baseVal(row, col) ?? ''), ro: true }); return }
+                            beginEdit(mr, c)
+                          }}
                           onMouseDown={(e) => {
                             if (e.button !== 0) return
                             if (isEd) return
@@ -19570,7 +19593,20 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
                   label={`${isAr ? c.ar : c.en}${formulaMap[c.key] ? ' ƒ' : ''}`}
                   /* المرفق ملفٌ يُفتح لا رابطٌ يُقرأ — انظر OxFileVal */
                   value={oxIsFileVal(val) ? <OxFileVal v={val} isAr={isAr} onView={setFileView} /> : val}
-                  mono={!oxIsFileVal(val) && (c.kind === 'mono' || c.kind === 'num' || c.kind === 'date')} />
+                  mono={!oxIsFileVal(val) && (c.kind === 'mono' || c.kind === 'num' || c.kind === 'date')}
+                  /* تعديل الحقل من البطاقة نفسها — الطريق الأيسر على الجوال من
+                     خليّةٍ صغيرة في جدولٍ عريض: تُغلق البطاقة وتُفتح الخليّة للتحرير. */
+                  action={canEdit && isEditable(row, c) ? (
+                    <button type="button" title={T('تعديل', 'Edit')} onClick={() => {
+                      const r = viewRows.findIndex((x) => x._id === row._id), ci = COLS.indexOf(c)
+                      setDetailRow(null)
+                      if (r < 0 || ci < 0) return
+                      setAnchor({ r, c: ci }); setHead({ r, c: ci })
+                      setTimeout(() => beginEdit(r, ci), 60)
+                    }} style={{ flexShrink: 0, width: 34, height: 34, borderRadius: 9, border: '1px solid var(--bd)', background: 'transparent', color: 'var(--accent)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                      <Pencil size={15} />
+                    </button>
+                  ) : null} />
               )
             })}
           </Modal>

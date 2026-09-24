@@ -1,5 +1,6 @@
 import React from 'react'
 import { navPeekFor, navBack } from '../lib/navStack'
+import { useBackHandler } from '../lib/mobileBack'
 
 // Shared back button used across every page. Minimal dashed outline that turns
 // into the card background (borderless) with white text on hover. Arrow points
@@ -25,6 +26,8 @@ export default function BackButton({ onClick, onBack, label = 'رجوع', title,
         : (isAr ? 'الصفحة السابقة' : 'previous page'))
     : label
   const click = from ? () => { if (!navBack(navKind, navId)) handle?.() } : handle
+  // زر الرجوع في الجوال = هذا الزر (تفاصيلُ مفتوحة ترجع إلى قائمتها أو سياقها السابق)
+  useBackHandler(!!click, () => click?.())
 
   return (
     <button onClick={click} title={title || text}

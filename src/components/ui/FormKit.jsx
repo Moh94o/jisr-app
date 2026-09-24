@@ -21,6 +21,7 @@
 
 import React, { useState, useEffect, useRef, useId, useContext, createContext } from 'react'
 import ReactDOM from 'react-dom'
+import { useBackHandler } from '../../lib/mobileBack'
 import { X, ChevronDown, ChevronLeft, ChevronRight, Check, Search, Save, Calendar as CalIcon, Clock as ClockIcon, Minus, Plus, Upload, Paperclip, AlertTriangle, Info, Trash2, Copy, Circle, CheckCircle2 } from 'lucide-react'
 
 /* ═══════════════════════════════ التوكنز ═══════════════════════════════ */
@@ -1057,6 +1058,8 @@ export function Modal({ open, onClose, title, subtitle, Icon, width = 720, child
   const [tabUn, setTabUn] = useState(0)
   const [closeHov, setCloseHov] = useState(false)
   useEffect(() => { if (!open) { setPage(0); setTabUn(0) } }, [open])
+  // زر الرجوع في الجوال يغلق النافذة بدل أن يُخرج من البرنامج
+  useBackHandler(!!open && !!onClose, () => onClose?.())
   if (!open) return null
 
   // التبويبات — وصول حرّ بين الأقسام (للوحات العرض). تتعايش مع footer لكن ليس مع pages.
@@ -1260,6 +1263,7 @@ export function SuccessScreen({ open, ...rest }) {
 // تأكيد إجراء (حذف افتراضياً). danger=false يجعلها ذهبية بدل الحمراء.
 export function ConfirmDialog({ open, onConfirm, onCancel, title, message, itemName, confirmText, cancelText, danger = true, lang }) {
   const { dir, T } = useFKLang(lang)
+  useBackHandler(!!open && !!onCancel, () => onCancel?.())
   if (!open) return null
   title = title ?? T('تأكيد الحذف', 'Confirm Deletion')
   message = message ?? T('هل أنت متأكد؟ لا يمكن التراجع عن هذا الإجراء.', 'Are you sure? This action cannot be undone.')
