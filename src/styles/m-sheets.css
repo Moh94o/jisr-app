@@ -105,7 +105,7 @@
     box-shadow: 0 1px 2px rgba(90,70,30,.05);
   }
   .msh-hero-lead {
-    width: 60px; height: 60px; border-radius: 20px; display: flex; align-items: center; justify-content: center; margin-bottom: 4px;
+    width: 60px; height: 60px; border-radius: 20px; display: flex; align-items: center; justify-content: center; margin-bottom: 4px; overflow: hidden;
     background: linear-gradient(145deg, rgba(176,125,0,.22), rgba(176,125,0,.08)); color: #8a6200; font-size: 21px; font-weight: 600;
   }
   .msh-hero h2 { margin: 0; font-size: 21px; font-weight: 600; color: var(--tx); line-height: 1.35; letter-spacing: -.2px; }

@@ -1564,6 +1564,13 @@ const recoveryStatusCol = (key, ar, en) => ({
 /* صورة العامل تأتي من مزامنة مقيم (bucket عام muqeem-pdfs) عبر workers.photo_path */
 const WORKER_PHOTO_BASE = 'https://gcvshzutdslmdkwqwteh.supabase.co/storage/v1/object/public/muqeem-pdfs/'
 const workerPhotoUrl = (path) => (path ? WORKER_PHOTO_BASE + String(path).split('/').map(encodeURIComponent).join('/') : null)
+/* صورة بطاقة الجوال: صورة العامل إن وُجدت، وإلا الحرف الأول */
+function MLeadPhoto({ path, initial }) {
+  const [err, setErr] = useState(false)
+  const url = workerPhotoUrl(path)
+  if (!url || err) return initial
+  return <img src={url} alt="" loading="lazy" onError={() => setErr(true)} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center top', display: 'block' }} />
+}
 /* خلية صورة داخل الشبكة: صورة مصغّرة (أو الحرف الأول عند غيابها) + النقر يفتحها مكبّرة */
 function PhotoCell({ path, name, size, onOpen }) {
   const [err, setErr] = useState(false)
@@ -17624,7 +17631,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
         badgeObj: badge,
         amount: amt,
         accent: r._hidden ? 'gray' : (tone && tone !== 'gray' ? tone : null),
-        leading: (title || '؟').trim().charAt(0),
+        leading: r.photo_path ? <MLeadPhoto key={r.photo_path} path={r.photo_path} initial={(title || '؟').trim().charAt(0)} /> : (title || '؟').trim().charAt(0),
         fields: mSpec.fields.map((k) => { const c = col(k); const v = txt(r, k); return v ? { label: isAr ? c.ar : (c.en || c.ar), value: v, ltr: isLtr(c) } : null }).filter(Boolean),
         children: stg.length ? <StageDots items={stg} isAr={isAr} /> : null,
       }
