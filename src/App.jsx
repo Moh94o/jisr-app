@@ -1136,10 +1136,11 @@ flds:[
 {sideOpen&&<div className='mob-overlay' onClick={()=>setSideOpen(false)} style={{position:'fixed',inset:0,background:'rgba(0,0,0,.55)',backdropFilter:'blur(3px)',zIndex:199,display:'none'}}/>}
 {/* ═══ SIDEBAR — Design 5 Grouped ═══ */}
 <aside className={'dash-side'+(sideOpen?' side-open':'')} style={{width:210,paddingTop:'max(0px, env(safe-area-inset-top))',paddingLeft:'max(0px, env(safe-area-inset-left))',paddingBottom:'max(0px, env(safe-area-inset-bottom))',background:'var(--sb)',display:'flex',flexDirection:'column',flexShrink:0}}>
-{/* Logo */}
-<div style={{padding:'14px 24px 44px',flexShrink:0,textAlign:'center',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center'}}>
-<div style={{fontSize:lang==='ar'?16:13,fontWeight:600,color:'var(--accent)',lineHeight:1.3,fontFamily:"'Reem Kufi','Cairo',sans-serif",letterSpacing:lang==='ar'?'.3px':'2px',textAlign:'center'}}>{lang==='ar'?'تأشيرة البناء والإنشاء':'VISA ALBINA & ALINSHA'}</div>
-<div style={{fontSize:8.5,fontWeight:500,color:'var(--accent)',opacity:.6,letterSpacing:lang==='ar'?'2.2px':'.3px',marginTop:6,fontFamily:"'Reem Kufi','Cairo',sans-serif",direction:lang==='ar'?'ltr':'rtl',textAlign:'center'}}>{lang==='ar'?'VISA ALBINA & ALINSHA':'تأشيرة البناء والإنشاء'}</div>
+{/* Logo — «جسر» اسم البرنامج، وتحته اسم المنشأة */}
+<div style={{padding:'16px 20px 40px',flexShrink:0,textAlign:'center',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center'}}>
+<div style={{fontSize:lang==='ar'?30:22,fontWeight:600,color:'var(--accent)',lineHeight:1,letterSpacing:lang==='ar'?0:'4px',fontFamily:"'Reem Kufi','Cairo',sans-serif",paddingBottom:lang==='ar'?4:0}}>{lang==='ar'?'جسر':'JISR'}</div>
+<div style={{fontSize:lang==='ar'?13:10.5,fontWeight:500,color:'var(--tx2)',lineHeight:1.3,marginTop:10,fontFamily:"'Reem Kufi','Cairo',sans-serif",letterSpacing:lang==='ar'?'.3px':'1.5px'}}>{lang==='ar'?'تأشيرة البناء والإنشاء':'VISA ALBINA & ALINSHA'}</div>
+<div style={{fontSize:8,fontWeight:500,color:'var(--accent)',opacity:.6,letterSpacing:lang==='ar'?'2px':'.3px',marginTop:5,fontFamily:"'Reem Kufi','Cairo',sans-serif",direction:lang==='ar'?'ltr':'rtl'}}>{lang==='ar'?'VISA ALBINA & ALINSHA':'تأشيرة البناء والإنشاء'}</div>
 </div>
 {/* Nav */}
 <nav style={{flex:1,overflowY:'auto',padding:'0 10px 12px',scrollbarWidth:'none',msOverflowStyle:'none',WebkitOverflowScrolling:'touch'}}>
