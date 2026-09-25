@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import BackButton from './components/BackButton'
 import { Logo } from './components/Logo.jsx'
+import { OrbitLogo } from './components/OrbitLogo.jsx'
 import InvoicePageFull from './InvoicePage.jsx'
 import SettingsPageFull from './SettingsPage.jsx'
 import AdminPageFull from './AdminPage.jsx'
@@ -18,7 +19,7 @@ import ServiceAdminPage from './ServiceAdminPage.jsx'
 import FeesAdminPage from './pages/FeesAdminPage.jsx'
 import VisaGridPage from './pages/VisaGridPage.jsx'
 import VisaPipelineGridPage from './pages/VisaPipelineGridPage.jsx'
-import OpsExcelsPage, {OPS_SHEET_TABS, OPS_TAB_PREFIX, opsTabId, opsTabKey, opsSheetTabVisible, primeOpsSheetNames} from './pages/OpsExcelsPage.jsx'
+import OpsExcelsPage, {OPS_SHEET_TABS, OPS_TAB_PREFIX, opsTabId, opsTabKey, opsSheetTabVisible, primeOpsSheetNames, cachedOpsSheetNames} from './pages/OpsExcelsPage.jsx'
 import {hydrateSvcAdminFromDb} from './lib/serviceAdminSync.js'
 import KafalaCalculator, { DateField, Sel } from './pages/KafalaCalculator.jsx'
 import RenewalCalcPage from './pages/RenewalCalcPage.jsx'
@@ -180,11 +181,10 @@ function Splash(){return<div style={{position:'fixed',inset:0,display:'flex',fle
   <style>{`@keyframes splGlow{0%,100%{opacity:.3;transform:scale(1)}50%{opacity:.65;transform:scale(1.14)}}@keyframes splFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}`}</style>
   {/* شبكة خافتة مموّهة في الخلفية */}
   <div style={{position:'absolute',inset:0,pointerEvents:'none',backgroundImage:'linear-gradient(var(--bd2) 1px,transparent 1px),linear-gradient(90deg,var(--bd2) 1px,transparent 1px)',backgroundSize:'46px 46px',maskImage:'radial-gradient(ellipse 58% 50% at 50% 44%,#000,transparent 78%)',WebkitMaskImage:'radial-gradient(ellipse 58% 50% at 50% 44%,#000,transparent 78%)'}}/>
-  {/* الشعار + هالة نابضة + قوس تحميل ذهبي يدور */}
+  {/* الشعار + هالة نابضة + مداراتٌ كالإلكترونات حول النواة (OrbitLogo) */}
   <div style={{position:'relative',width:144,height:144,display:'flex',alignItems:'center',justifyContent:'center'}}>
     <div style={{position:'absolute',width:122,height:122,borderRadius:'50%',background:'radial-gradient(circle,rgba(176,125,0,.42),transparent 70%)',filter:'blur(10px)',animation:'splGlow 2.6s ease-in-out infinite'}}/>
-    <div style={{position:'absolute',width:132,height:132,borderRadius:'50%',background:'conic-gradient(from 90deg,rgba(176,125,0,0),rgba(176,125,0,.15) 55%,#B07D00)',WebkitMask:'radial-gradient(farthest-side,transparent calc(100% - 3px),#000 calc(100% - 3px))',mask:'radial-gradient(farthest-side,transparent calc(100% - 3px),#000 calc(100% - 3px))',animation:'spin 1.1s linear infinite'}}/>
-    <div style={{animation:'splFloat 3s ease-in-out infinite'}}><Logo size={94} style={{border:'none',boxShadow:'none',background:'none'}}/></div>
+    <div style={{animation:'splFloat 3s ease-in-out infinite'}}><OrbitLogo size={94}/></div>
   </div>
   {/* اسم التطبيق */}
   <div style={{position:'relative',display:'flex',flexDirection:'column',alignItems:'center',gap:7,animation:'fadeIn .9s ease'}}>
@@ -533,6 +533,9 @@ function DashPage({sb,user,onLogout,toast,lang,switchLang,setLang}){const[pg,set
    (عمودٌ مستقلّ لأن `ui_visibility` تُستبدَل بمرئيّات الدور عند الدخول)، يضبطه
    المدير من صفحة المستخدم؛ وإلا الافتراض حسب الدور (أدوار الفواتير/المحاسب →
    الفواتير، وغيرها → الرئيسية). */
+/* بعد تحديث الصفحة (F5) نعود لنفس الصفحة التي كان عليها المستخدم في هذا التبويب
+   (sessionStorage مفتاحه بالمستخدم) — لا لصفحة البداية — ما دام يملك صلاحيتها. */
+try{const kept=sessionStorage.getItem('jisr_pg_'+(user?.id||''));if(kept&&canViewPage(user,kept))return kept}catch{}
 const lp=user?.landing_page;
 if(lp&&typeof lp==='string')return lp;
 return landsOnInvoices(user)?'invoices':'home';
@@ -545,7 +548,7 @@ useEffect(()=>{hydrateSvcAdminFromDb().catch(e=>console.warn('[svcAdminSync] sta
    layout.name_ar/name_en). التبويب يتبع الاسم الظاهر في الجدول وإلا صار للجدول
    اسمان: واحدٌ في القائمة وآخر فوقه. استعلامٌ واحد عند الدخول — والفشل يترك
    الأسماء الأصلية كما هي. */
-const[sheetNames,setSheetNames]=useState({});
+const[sheetNames,setSheetNames]=useState(()=>cachedOpsSheetNames());
 useEffect(()=>{if(!sb)return;let dead=false;sb.from('ops_sheet_config').select('view_key,layout').then(({data})=>{if(dead||!data)return;const m={};for(const r of data){const l=r.layout||{};if(l.name_ar)m[r.view_key]={ar:l.name_ar,en:l.name_en||l.name_ar}}primeOpsSheetNames(m);setSheetNames(m)},()=>{});return()=>{dead=true}},[sb]);
 const[showKafalaCalc,setShowKafalaCalc]=useState(false);
 const[showRenewalCalc,setShowRenewalCalc]=useState(false);
@@ -561,7 +564,7 @@ useEffect(()=>{const handler=(e)=>{navPushFrom('temp_workers',{kind:'temp_worker
 useEffect(()=>{const handler=(e)=>{navPushFrom('facilities',{kind:'facility',id:e.detail?.id});setPg('facilities');setTimeout(()=>window.dispatchEvent(new CustomEvent('facility-open',{detail:e.detail})),80)};window.addEventListener('app-navigate-facility',handler);return()=>window.removeEventListener('app-navigate-facility',handler)},[]);
 // سلسلة الرجوع الذكية: إبلاغ المكدس بكل تغيّر صفحة (التنقّل اليدوي يقطع السلسلة)،
 // ومعالجة حدث الاسترجاع الذي يعيد فتح الموقع المحفوظ (صفحة + تفاصيل عبر event أو hash).
-useEffect(()=>{navReportPg(pg)},[pg]);
+useEffect(()=>{navReportPg(pg);try{sessionStorage.setItem('jisr_pg_'+(user?.id||''),pg)}catch{}},[pg]);
 useEffect(()=>{const handler=(e)=>{const loc=e.detail||{};if(loc.hash){try{window.location.hash=loc.hash}catch{}}
 if(loc.pg)setPg(loc.pg);
 setTimeout(()=>{try{if(loc.hash)window.dispatchEvent(new HashChangeEvent('hashchange'));if(loc.event)window.dispatchEvent(new CustomEvent(loc.event,{detail:{...(loc.detail||{}),__restore:true}}))}catch{}},80)};
@@ -1137,7 +1140,7 @@ flds:[
 {/* ═══ SIDEBAR — Design 5 Grouped ═══ */}
 <aside className={'dash-side'+(sideOpen?' side-open':'')} style={{width:210,paddingTop:'max(0px, env(safe-area-inset-top))',paddingLeft:'max(0px, env(safe-area-inset-left))',paddingBottom:'max(0px, env(safe-area-inset-bottom))',background:'var(--sb)',display:'flex',flexDirection:'column',flexShrink:0}}>
 {/* Logo — «جسر» اسم البرنامج، وتحته اسم المنشأة */}
-<div style={{padding:'16px 20px 40px',flexShrink:0,textAlign:'center',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center'}}>
+<div style={{padding:'4px 20px 36px',flexShrink:0,textAlign:'center',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center'}}>
 <div style={{fontSize:lang==='ar'?30:22,fontWeight:600,color:'var(--accent)',lineHeight:1,letterSpacing:lang==='ar'?0:'4px',fontFamily:"'Reem Kufi','Cairo',sans-serif",paddingBottom:lang==='ar'?4:0}}>{lang==='ar'?'جسر':'JISR'}</div>
 <div style={{fontSize:lang==='ar'?13:10.5,fontWeight:500,color:'var(--tx2)',lineHeight:1.3,marginTop:10,fontFamily:"'Reem Kufi','Cairo',sans-serif",letterSpacing:lang==='ar'?'.3px':'1.5px'}}>{lang==='ar'?'تأشيرة البناء والإنشاء':'VISA ALBINA & ALINSHA'}</div>
 <div style={{fontSize:8,fontWeight:500,color:'var(--accent)',opacity:.6,letterSpacing:lang==='ar'?'2px':'.3px',marginTop:5,fontFamily:"'Reem Kufi','Cairo',sans-serif",direction:lang==='ar'?'ltr':'rtl'}}>{lang==='ar'?'VISA ALBINA & ALINSHA':'تأشيرة البناء والإنشاء'}</div>
@@ -3081,7 +3084,7 @@ return<div key={a.id} onClick={()=>{setSaveErr(null);setF({...a});setPop(a.id)}}
 </div>}
 
 
-function BrandPanel({lang,L}){return<div style={{flex:1,position:'relative',display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden',background:'radial-gradient(ellipse 110% 90% at 50% 45%,var(--sf),var(--bg) 70%)'}}><div style={{position:'absolute',inset:0,pointerEvents:'none',backgroundImage:'linear-gradient(var(--bd2) 1px,transparent 1px),linear-gradient(90deg,var(--bd2) 1px,transparent 1px)',backgroundSize:'44px 44px'}}/><div style={{position:'absolute',top:0,bottom:0,width:1,[lang==='ar'?'right':'left']:0,background:'linear-gradient(180deg,transparent,rgba(176,125,0,.2) 20%,rgba(176,125,0,.45) 50%,rgba(176,125,0,.2) 80%,transparent)'}}/><div style={{position:'relative',zIndex:2,display:'flex',flexDirection:'column',alignItems:'center',textAlign:'center',padding:'40px 48px'}}><div style={{position:'relative',width:172,height:172,display:'flex',alignItems:'center',justifyContent:'center',marginBottom:30}}><Logo size={150}/></div><p style={{fontSize:15,fontWeight:400,color:'var(--tx3)',lineHeight:2,fontFamily:"'Reem Kufi','Cairo',sans-serif"}}><span style={{color:'var(--tx)',fontWeight:600,letterSpacing:'.3px'}}>{L.tagline}</span><br/>{L.tagline2}</p></div></div>}
+function BrandPanel({lang,L}){return<div style={{flex:1,position:'relative',display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden',background:'radial-gradient(ellipse 110% 90% at 50% 45%,var(--sf),var(--bg) 70%)'}}><div style={{position:'absolute',inset:0,pointerEvents:'none',backgroundImage:'linear-gradient(var(--bd2) 1px,transparent 1px),linear-gradient(90deg,var(--bd2) 1px,transparent 1px)',backgroundSize:'44px 44px'}}/><div style={{position:'absolute',top:0,bottom:0,width:1,[lang==='ar'?'right':'left']:0,background:'linear-gradient(180deg,transparent,rgba(176,125,0,.2) 20%,rgba(176,125,0,.45) 50%,rgba(176,125,0,.2) 80%,transparent)'}}/><div style={{position:'relative',zIndex:2,display:'flex',flexDirection:'column',alignItems:'center',textAlign:'center',padding:'40px 48px'}}><div style={{position:'relative',display:'flex',alignItems:'center',justifyContent:'center',marginBottom:18}}><OrbitLogo size={150}/></div><p style={{fontSize:15,fontWeight:400,color:'var(--tx3)',lineHeight:2,fontFamily:"'Reem Kufi','Cairo',sans-serif"}}><span style={{color:'var(--tx)',fontWeight:600,letterSpacing:'.3px'}}>{L.tagline}</span><br/>{L.tagline2}</p></div></div>}
 
 function LangBtn({L,switchLang,abs}){const isToEn=L.otherLang==='English';const s=abs?{position:'absolute',top:'calc(22px + env(safe-area-inset-top, 0px))',[isToEn?'left':'right']:22,zIndex:10}:{};return<><style>{`.lang-btn svg text{fill:var(--tx2);transition:fill .2s}.lang-btn:hover svg text{fill:#B07D00}`}</style><div className="lang-btn" onClick={switchLang} title={isToEn?'English':'العربية'} style={{...s,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',fontFamily:F,padding:4}}><svg width="28" height="28" viewBox="0 0 24 24" fill="none"><text x="12" y="18" textAnchor="middle" fontSize="18" fontFamily="Cairo, Tajawal, sans-serif" fontWeight="600">{isToEn?'E':'ع'}</text></svg></div></>}
 

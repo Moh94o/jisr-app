@@ -67,7 +67,7 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
       d.style.cssText = 'position:fixed;top:16px;left:16px;background:#111;color:#0ea5e9;padding:12px 18px;border-radius:10px;z-index:2147483647;font:600 13px/1.5 sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.5);max-width:420px;direction:rtl;text-align:right;border:1px solid rgba(14,165,233,.4)';
       document.body.appendChild(d);
     }
-    d.textContent = 'جسر مدد 3: ' + m;
+    d.textContent = 'جسر مدد 4: ' + m;
     return d;
   };
 
@@ -251,12 +251,12 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
   // Three attempts: a timeout is retried rather than written off. Mudad is slow
   // under load, and a first sweep discarded 144 establishments on single 20s
   // misses that a retry would likely have caught.
-  const mudad = async (path, extraHeaders) => {
+  const mudad = async (path, extraHeaders, init) => {
     for (let attempt = 0; attempt < 3; attempt++) {
       const ac = new AbortController();
       const timer = setTimeout(() => ac.abort(), REQ_TIMEOUT);
       try {
-        const r = await origFetch(API + path, { headers: headers(extraHeaders), signal: ac.signal });
+        const r = await origFetch(API + path, Object.assign({ headers: headers(Object.assign(init && init.body != null ? { 'Content-Type': 'application/json' } : {}, extraHeaders)), signal: ac.signal }, init || {}));
         const ct = r.headers.get('content-type') || '';
         const b = ct.indexOf('json') !== -1 ? await r.json().catch(() => null) : (await r.text()).slice(0, 2000);
         // 401 mid-sweep = the session died; refresh once and retry.
@@ -285,7 +285,9 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
   // ── Establishment list ─────────────────────────────────────────────────
   const listPage = async (pageNumber, pageSize) => {
     const q = new URLSearchParams({ activeEmployment: 'true', mlsdUnifiedId: '', pageNumber: String(pageNumber), pageSize: String(pageSize) });
-    return mudad('compliance/v1/users/compliance-user/landing-page-info?' + q.toString());
+    // Mudad moved this from GET to POST (empty JSON body) in 2026-09 — GET now
+    // answers 404, which is how the button broke. Same path, same query string.
+    return mudad('compliance/v1/users/compliance-user/landing-page-info?' + q.toString(), null, { method: 'POST', body: '{}' });
   };
 
   const num = (v) => { if (v == null) return null; const n = parseFloat(String(v).replace(/[^\\d.]/g, '')); return isNaN(n) ? null : n; };

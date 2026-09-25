@@ -105,6 +105,8 @@ async function runMudad({ estCount = 5, expiredAfter = Infinity, priorRows = nul
     if (!valid.has(h.bearer_token)) return jsonRes(401, { message: 'Authorization Failed. Please contact administrator.' })
 
     if (/landing-page-info/.test(u)) {
+      // Mudad moved the list to POST in 2026-09; a GET now answers 404.
+      if ((opts.method || 'GET') !== 'POST') return jsonRes(404, { message: 'Not Found' })
       const p = new URL('https://x/?' + u.split('?')[1])
       const page = Number(p.searchParams.get('pageNumber')), size = Number(p.searchParams.get('pageSize'))
       const all = Array.from({ length: estCount }, (_, i) => mkEst(i))

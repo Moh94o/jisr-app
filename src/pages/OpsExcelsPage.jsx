@@ -404,6 +404,10 @@ async function applySbcName(sb, rows, cfg) {
   const { unified, field } = cfg
   return rows.map((r) => {
     const s = m.get(String(unified(r) ?? ''))
+    /* `_fac_en`: اسم السجل بالإنجليزية — يُعرض مكان الاسم العربي في الواجهة الإنجليزية
+       (`fmtDisp`)؛ المخزَّن يبقى عربياً للفرز والدمج والتصدير. */
+    const en = String((s && s.entity_full_name_en) || '').trim()
+    if (en) r = { ...r, _fac_en: en }
     const n = String((s && (s.entity_full_name_ar || s.entity_full_name_en)) || '').trim()
     if (!n) return r
     const cur = String(r[field] ?? '').trim()
@@ -862,8 +866,14 @@ const opsSwrCache = new Map()        // 'ops:view:<key>' → { src, ov, lay, pre
    باستعلامٍ مستقلّ بعد تركيب كل تبويب، فيظهر الاسم الأصلي («العمالة الدائمة —
    البيانات الأساسية») ثم يتبدّل. يملؤها App.jsx عند الدخول (`primeOpsSheetNames`)
    و`loadSheets` بعد كل جلب، فيبدأ كل تركيبٍ بالاسم الصحيح. */
-let opsNameCache = null              // { view_key: { ar, en } }
-export const primeOpsSheetNames = (m) => { opsNameCache = { ...(opsNameCache || {}), ...(m || {}) } }
+/* ويُحفظ في المتصفح أيضاً (2026-09-25): بعد تحديث الصفحة يعود المستخدم إلى الشيت مباشرةً
+   (بقاء الصفحة عند F5) قبل أن يصل استعلام الأسماء — فكان الاسم الأصلي يومض ثم يتبدّل. */
+const OPS_NAMES_KEY = 'jisr_ops_sheet_names'
+let opsNameCache = (() => { try { return JSON.parse(localStorage.getItem(OPS_NAMES_KEY) || 'null') } catch { return null } })()   // { view_key: { ar, en } }
+const saveOpsNames = (m) => { try { localStorage.setItem(OPS_NAMES_KEY, JSON.stringify(m || {})) } catch { /* لا تخزين */ } }
+// App يمرّر الخريطة **كاملة** (كل الأسماء المخزَّنة) فتُستبدل — فتسميةٌ أُزيلت لا تبقى عالقةً في الكاش
+export const primeOpsSheetNames = (m) => { opsNameCache = { ...(m || {}) }; saveOpsNames(opsNameCache) }
+export const cachedOpsSheetNames = () => opsNameCache || {}
 const OPS_SHARED_TTL = 120_000
 const _sharedCache = new Map()       // slot → { p, at }
 function sharedP(slot, make) {
@@ -1468,8 +1478,10 @@ const WFR = {
   // المفتاحان `src`/`src_synced` كما في شيت المزامنة — فيبقى موضعهما في التخطيط المحفوظ
   src: { key: 'src', ar: 'مصدر البيانات', en: 'Data source', w: 170, kind: 'text', readOnly: true,
     get: (r, isAr) => (r._sync ? (r.source_platforms || '') : deriveSources(r.field_sources, isAr !== false)) },
-  updated: { key: 'src_synced', ar: 'آخر تحديث للسجل', en: 'Registry updated', w: 125, kind: 'date', readOnly: true,
-    get: (r) => { const x = r._sync ? (r._regRow || {}) : r; return ymd(x.registry_at || x.updated_at) } },
+  /* آخر مزامنة للعامل من المنصّات (`source_synced_at`) — طلب المستخدم 2026-09-25. كان يقرأ
+     `registry_at` أولاً (تاريخ **دخول** السجل، موجودٌ لكل عامل) فلم يكن يعرض تحديثاً قطّ. */
+  updated: { key: 'src_synced', ar: 'آخر مزامنة', en: 'Last sync', w: 125, kind: 'date', readOnly: true,
+    get: (r) => ymd(r._sync ? (r.last_sync || (r._regRow || {}).source_synced_at) : r.source_synced_at) },
   /* «عبر» (طلب المستخدم ٢٠٢٦-٠٩-٢٣): أين يوجد العامل — يُحسب في القاعدة
      (`v_ops_workers_registry.via_sources`): فواتير (فاتورةٌ سارية لأي خدمة) أو
      «فواتير ملغاة» (لا سارية، وله فاتورة **نقل كفالة أو تأشيرة** ملغاة — وحدهما
@@ -6698,6 +6710,19 @@ const FAC_DOC_LABEL = {
   'تقرير المقيمين': 'تقرير المقيمين (مقيم)',
   'تقرير التابعين': 'تقرير التابعين (مقيم)',
 }
+/* أنواع المستندات بالإنجليزية — للواجهة الإنجليزية (القيمة الخام عربية في القاعدة) */
+const FAC_DOC_LABEL_EN = {
+  'السجل التجاري': 'Commercial Registration (Arabic)',
+  'السجل التجاري (إنجليزي)': 'Commercial Registration (English)',
+  'عقد التأسيس': 'Articles of Association',
+  'تقرير المقيمين': 'Residents Report (Muqeem)',
+  'تقرير التابعين': 'Dependents Report (Muqeem)',
+  'شهادة السلامة والصحة المهنية': 'Occupational Safety & Health Certificate',
+  'شهادة الالتزام (التأمينات)': 'GOSI Compliance Certificate',
+  'شهادة الزكاة والدخل': 'Zakat & Income Certificate',
+  'فاتورة السجل التجاري': 'Commercial Registration Invoice',
+  'رخصة بلدية': 'Baladi License',
+}
 /* مصدر الملف (source_ar في v_ops_facility_files) ← منصّته في facility_sources.source_id */
 const FAC_FILE_SRC = { 'المركز السعودي': 'sbc', 'بلدي (المركز السعودي)': 'sbc', 'التأمينات': 'gosi', 'مقيم': 'muqeem' }
 const PLAT_FAC_COLS = [
@@ -9667,7 +9692,7 @@ const VIEWS = [
       /* أسماء عرضٍ أوضح (طلب المستخدم 2026-09-24): «السجل التجاري (عربي)» يقابل «(إنجليزي)»،
          وتقريرا مقيم يحملان منصّتهما. القيمة الخام باقية — عليها ترتيب FAC_FILE_ORDER والبحث. */
       { key: 'doc_type_ar', ar: 'نوع المستند', en: 'Document type', w: 210, kind: 'text',
-        get: (r) => { const d = String(r.doc_type_ar || '').trim(); return FAC_DOC_LABEL[d] || d } },
+        get: (r, isAr) => { const d = String(r.doc_type_ar || '').trim(); return (isAr === false ? FAC_DOC_LABEL_EN[d] : FAC_DOC_LABEL[d]) || d } },
       { key: 'file_url', ar: 'الملف', en: 'File', w: 110, kind: 'link', doc: true,
         linkLabel: 'فتح', linkLabelEn: 'Open' },
       { key: 'file_date', ar: 'تاريخ الملف', en: 'File date', w: 115, kind: 'date' },
@@ -11674,6 +11699,15 @@ const VIEWS = [
        وخليّةٌ مدموجة قابلة للتحرير يحرّر فيها المستخدم صفّاً لا يراه. */
     mergeKey: WF_MERGE_KEY,
     mergeCols: WF_MERGE_COLS.filter((k) => !['unified_number', 'gosi_number', 'hrsd_number'].includes(k)),
+    /* صفّ العناوين فوق الرؤوس (طلب المستخدم 2026-09-25) — على أقسام الشيت كما رتّبها */
+    bands: [
+      { ar: 'العامل', en: 'Worker', keys: ['_photo', 'name_ar', 'iqama_number'] },
+      { ar: 'المنشأة', en: 'Establishment', keys: ['facility_ar', 'unified_number', 'gosi_number', 'hrsd_number'] },
+      { ar: 'الإقامة والوثائق', en: 'Iqama & documents', keys: ['birth_date', 'iqama_expiry_date', 'work_permit_expiry', 'insurance_expiry_date', 'official_mobile', 'passport_number', 'passport_expiry', 'wage_total'] },
+      { ar: 'مقيم', en: 'Muqeem', keys: ['border_number', 'nationality_ar', 'occupation_ar', 'muqeem_files'] },
+      { ar: 'المتابعة', en: 'Follow-up', keys: ['op_notes', 'op_follow'] },
+      { ar: 'المزامنة', en: 'Sync', keys: ['src_synced', 'via_sources', 'registry_origin'] },
+    ],
     /* السجل المحفوظ (جدول العمالة) لا المزامنة — انظر loadRegistryWorkforce */
     load: (sb) => loadRegistryWorkforce(sb),
     /* ثابتٌ كالإكسل: لا زرّ «تحديث من المزامنة» ولا لقطات أسبوعية */
@@ -12022,11 +12056,28 @@ const VIEWS = [
     hintAr: 'القوائم المالية لكل منشأة',
     hintEn: 'Financial statements per establishment',
     mergeKey: (r) => (r.unified_number != null ? String(r.unified_number) : (r.facility_ar || null)),
-    mergeCols: ['facility_ar', 'unified_number', 'gosi_number', 'hrsd_number', 'annual_confirm_date'],
+    mergeCols: ['facility_ar', 'unified_number', 'gosi_number', 'hrsd_number', 'sbc_sync_person', 'sbc_synced_at', 'annual_confirm_date'],
+    /* صفّ الجهات فوق الرؤوس (طلب المستخدم 2026-09-25) — على أقسام الشيت كما رتّبها */
+    bands: [
+      { ar: 'المنشأة', en: 'Establishment', keys: ['facility_ar', 'unified_number', 'gosi_number', 'hrsd_number', 'annual_confirm_date', 'fy_end'] },
+      { ar: 'الإيداع', en: 'Filing', keys: ['filed_on', 'fiscal_year', 'statutory_period', 'on_time', 'resubmission', 'filing_status', 'calendar_type', 'unaudited', 'audit_firm'] },
+      { ar: 'المتابعة', en: 'Follow-up', keys: ['sbc_sync_person', 'sbc_synced_at', 'op_status', 'op_notes', 'op_follow'] },
+    ],
     async load(sb) {
-      const src = await fetchAll(sb, 'v_ops_qawaem', '*',
-        (q) => q.order('unified_number', { nullsFirst: false }).order('fiscal_year', { ascending: false, nullsFirst: false }))
-      return src.map((r) => ({ ...r, _id: r.id }))
+      /* «الشخص» = حساب المركز السعودي للأعمال الذي زامن المنشأة — من نفس مصدر شيت
+         «الاشتراكات» (`v_ops_subscriptions.sbc_sync_person`) مربوطاً بالرقم الموحّد،
+         فلا يختلف الاسم بين الشيتين (طلب المستخدم 2026-09-25). */
+      const [src, subs] = await Promise.all([
+        fetchAll(sb, 'v_ops_qawaem', '*',
+          (q) => q.order('unified_number', { nullsFirst: false }).order('fiscal_year', { ascending: false, nullsFirst: false })),
+        fetchAll(sb, 'v_ops_subscriptions', 'unified_number,sbc_sync_person,sbc_sync_color,sbc_synced_at'),
+      ])
+      const pmap = new Map()
+      for (const x of subs) if (x.unified_number && (x.sbc_sync_person || x.sbc_synced_at) && !pmap.has(String(x.unified_number))) pmap.set(String(x.unified_number), x)
+      return src.map((r) => {
+        const p = r.unified_number != null ? pmap.get(String(r.unified_number)) : null
+        return { ...r, _id: r.id, sbc_sync_person: p ? p.sbc_sync_person : '', sbc_sync_color: p ? p.sbc_sync_color : '', sbc_synced_at: p ? p.sbc_synced_at : null }
+      })
     },
     search: (r) => [r.facility_ar, r.unified_number, r.fiscal_year, r.filing_status],
     addFields: [
@@ -12036,9 +12087,16 @@ const VIEWS = [
     columns: [
       /* بيانات المنشأة — مدمجة عبر سنواتها المالية */
       { key: 'facility_ar', ar: 'اسم المنشأة', en: 'Facility', w: 240, kind: 'text' },
-      { key: 'unified_number', ar: 'الرقم الموحّد', en: 'Unified no.', w: 140, kind: 'mono' },
-      { key: 'gosi_number', ar: 'رقم التأمينات', en: 'GOSI no.', w: 130, kind: 'mono' },
-      { key: 'hrsd_number', ar: 'رقم الموارد', en: 'HRSD no.', w: 130, kind: 'mono' },
+      /* «المنشأة» كنقل الكفالات (طلب المستخدم 2026-09-25): الرقم الموحّد وضغطتُه تفتح
+         بطاقة المنشأة (اسمها وأرقامها الثلاثة) — وكذا أخواه متى أُظهرا. */
+      { key: 'unified_number', ar: 'الرقم الموحّد', en: 'Unified no.', w: 140, kind: 'mono', fg: facNumFg, fmt: (v) => fmtUniDisp(v),
+        tap: facInfoCard, tapTip: { ar: 'اعرض بيانات المنشأة', en: 'Show facility details' } },
+      { key: 'gosi_number', ar: 'رقم التأمينات', en: 'GOSI no.', w: 130, kind: 'mono', fg: facNumFg,
+        tap: facInfoCard, tapTip: { ar: 'اعرض بيانات المنشأة', en: 'Show facility details' } },
+      { key: 'hrsd_number', ar: 'رقم الموارد', en: 'HRSD no.', w: 130, kind: 'mono', fg: facNumFg, fmt: (v) => fmtHrsdDisp(v),
+        tap: facInfoCard, tapTip: { ar: 'اعرض بيانات المنشأة', en: 'Show facility details' } },
+      { ...personBgCol('sbc_sync_person', 'الشخص', 'SBC synced by', 'sbc_sync_color'), readOnly: true, source: 'sync' },
+      { key: 'sbc_synced_at', ar: 'آخر مزامنة', en: 'Last sync', w: 120, kind: 'date', readOnly: true, source: 'sync', get: (r) => ymd(r.sbc_synced_at) },
       { key: 'annual_confirm_date', ar: 'تاريخ التأكيد السنوي', en: 'Annual confirm', w: 140, kind: 'date', get: (r) => ymd(r.annual_confirm_date), bg: (v, row) => {
         const conf = row && row.annual_confirm_date
         if (!conf) return null
@@ -12054,9 +12112,11 @@ const VIEWS = [
          نافذة الإيداع النظامية لا نهايةُ السنة، فلا يُشتقّ منه. */
       { key: 'fy_end', ar: 'نهاية السنة المالية', en: 'Fiscal year end', w: 140, kind: 'date', ops: true },
       /* حالة متابعة (إدخال يدوي) — قائمة منسدلة ملوّنة */
-      { key: 'op_status', ar: 'الحالة', en: 'Status', w: 130, kind: 'text', ops: true, select: true, options: () => ['تم', 'في الانتظار', 'مشكلة'],
+      /* «معتمدة» بدل «تم/أنجزت»، و«أودعت» خطوةٌ قبلها بلونٍ أزرق (طلب المستخدم 2026-09-25).
+         «تم» القديمة تُقرأ «معتمدة» لونًا فقط — حُوِّلت قيمتها الوحيدة في القاعدة. */
+      { key: 'op_status', ar: 'الحالة', en: 'Status', w: 130, kind: 'text', ops: true, select: true, options: () => ['أودعت', 'معتمدة', 'في الانتظار', 'مشكلة'],
         optLabel: iqmStateLabel('op_status'), fmt: iqmStageFmt('op_status'),
-        bg: (v) => { const t = iqFirst(v); return t === 'تم' ? 'rgba(46,204,113,.32)' : t === 'في الانتظار' ? 'rgba(234,179,8,.32)' : t === 'مشكلة' ? 'rgba(232,114,101,.32)' : null } },
+        bg: (v) => { const t = iqFirst(v); return (t === 'معتمدة' || t === 'تم') ? 'rgba(46,204,113,.32)' : t === 'أودعت' ? 'rgba(93,173,226,.32)' : t === 'في الانتظار' ? 'rgba(234,179,8,.32)' : t === 'مشكلة' ? 'rgba(232,114,101,.32)' : null } },
       { key: 'filing_status', ar: 'حالة الإيداع (المركز)', en: 'Filing status (SBC)', w: 200, kind: 'text', get: (r, isAr) => qawaemStatusLabel(r.filing_status, isAr), bg: (v, row) => { const s = String((row && row.filing_status) || '').toLowerCase(); return s.includes('approved') ? 'rgba(46,204,113,.28)' : s.includes('pending') ? 'rgba(234,179,8,.26)' : s.includes('rejected') ? 'rgba(232,114,101,.28)' : null } },
       { key: 'calendar_type', ar: 'نوع التقويم', en: 'Calendar', w: 100, kind: 'text' },
       { key: 'statutory_period', ar: 'الفترة النظامية للإيداع', en: 'Statutory period', w: 210, kind: 'mono', get: (r) => { const s = r.statutory_period; if (!s) return ''; const p = String(s).split(' → '); return p.length === 2 ? `${p[1]} ← ${p[0]}` : s } },
@@ -12080,15 +12140,16 @@ const VIEWS = [
   {
     key: 'mudad',
     ar: 'مدد', en: 'Mudad',
-    hintAr: 'منشآت مدد وعمّالها',
-    hintEn: 'Mudad establishments & their workers',
+    hintAr: 'التزام المنشآت بحماية الأجور ومتابعة رواتب عمّالها شهرياً',
+    hintEn: 'Wage-protection compliance of establishments and monthly payroll follow-up',
     /* صفٌّ لكل **عامل غير سعودي**، وبطاقة المنشأة مدمجة رأسياً فوق عمّالها (نفس
        نمط عروض العمالة والسعودة). المنشأة بلا عامل غير سعودي تبقى بصفٍّ واحد
        فارغ الأعمدة العمّالية — كي لا تختفي منشأة من الشيت. */
     // الترقيم بالمنشأة لا بالعامل — «١، ٢، ٣…» عدد المنشآت لا عدد الصفوف
     groupNumbering: true,
+    soloRowH: 84,   // منشأةٌ بصفٍّ واحد: ارتفاعٌ يسع أرقامها الثلاثة (انظر `rowTop`)
     mergeKey: (r) => String(r.national_unified_id || r.mlsd_unified_id || ''),
-    mergeCols: ['name', 'national_unified_id', 'mlsd_unified_id', 'gosi_number', 'hrsd_number',
+    mergeCols: ['name', 'fac_nums', 'national_unified_id', 'mlsd_unified_id', 'gosi_number', 'hrsd_number',
       'compliance_percentage', 'compliance_status', 'wage_period', 'open_violations',
       'pending_justifications', 'active_employment', 'wps_notes_score', 'src', 'sync_person', 'last_synced_at',
       'op_follow', 'op_notes'],
@@ -12096,6 +12157,13 @@ const VIEWS = [
        وقيمتها تُخزَّن تحت مفتاح المنشأة فلا تتبدّل ولا تضيع مع تغيّر عمّالها. */
     groupRowKey: (r) => (r.mlsd_unified_id ? `fac__${r.mlsd_unified_id}` : null),
     groupCols: ['op_follow', 'op_notes'],
+    /* صفّ الجهات فوق الرؤوس (طلب المستخدم 2026-09-25) — على نمط «الاشتراكات». */
+    bands: [
+      { ar: 'المنشأة', en: 'Establishment', keys: ['fac_nums', 'name', 'mlsd_unified_id', 'sync_person'] },
+      { ar: 'الالتزام', en: 'Compliance', keys: ['wage_period', 'compliance_percentage', 'compliance_status', 'wps_notes_score', 'open_violations', 'pending_justifications', 'active_employment'] },
+      { ar: 'العمالة', en: 'Workers', keys: ['name_ar', 'iqama_no', 'wage_total'] },
+      { ar: 'المتابعة', en: 'Follow-up', keys: ['op_follow', 'op_notes', 'last_synced_at'] },
+    ],
     async load(sb) {
       /* أربعة مصادر: مدد (الصف الأساس) · قوى لدرجة ملاحظات WPS · المنشآت لأرقام
          التأمينات والموارد · مشتركو التأمينات للعمّال. سلسلة الربط:
@@ -12170,18 +12238,23 @@ const VIEWS = [
       /* الاسم من المركز السعودي للأعمال متى وُجد — واسم مدد احتياطياً */
       { key: 'name', ar: 'اسم المنشأة', en: 'Establishment', w: 240, kind: 'text', manual: true,
         get: (r, isAr) => sbcName(r, isAr, r.name) },
-      /* ضغطة أيٍّ من الأرقام الثلاثة تفتح بطاقة المنشأة — نفس سلوك «تجديد الإقامات»
-         (طلب المستخدم 2026-09-24). مدد يسمّي الموحّد والاسم بغير اسمَيهما هناك. */
-      { key: 'national_unified_id', ar: 'الرقم الوطني الموحّد', en: 'National unified', w: 150, kind: 'mono',
+      /* «المنشأة»: أرقامها الثلاثة (الموحّد · التأمينات · الموارد) فوق بعضها في خليّة
+         واحدة، لكلٍّ زرّ نسخ، وضغطة الرقم تفتح بطاقة المنشأة (طلب المستخدم 2026-09-25).
+         نصّ `get` (الأرقام بأسطر) يبقى للبحث والفرز والتصدير؛ العرض وحده من `render`. */
+      { key: 'fac_nums', ar: 'المنشأة', en: 'Establishment', w: 175, kind: 'text', readOnly: true, source: 'sync',
+        get: (r) => [r.national_unified_id, r.gosi_number, r.hrsd_number].filter(Boolean).join('\n'),
+        render: (r, raw, isAr, ctx = {}) => mSpanWrap(ctx.mSpan, ctx.mSpanH, (
+          <FacNumsStack isAr={isAr} h={ctx.h} onTap={ctx.tap} nums={[
+            { v: r.national_unified_id, ar: 'الموحّد', en: 'Unified', color: '#B07D00' },
+            { v: r.gosi_number, ar: 'التأمينات', en: 'GOSI', color: '#2ecc71' },
+            { v: r.hrsd_number, ar: 'الموارد', en: 'HRSD', color: '#5dade2' },
+          ]} />)),
         tap: mudadFacCard, tapTip: { ar: 'اعرض بيانات المنشأة', en: 'Show facility details' } },
       /* نفس تسمية كرت مدد في مركز المزامنة — «رقم منشأة مدد» لا «معرّف» */
       { key: 'mlsd_unified_id', ar: 'رقم منشأة مدد', en: 'Mudad establishment no.', w: 150, kind: 'mono' },
-      /* رقما التأمينات والموارد من جدول المنشآت — نفس ترتيبهما في كل الشيتات */
-      { key: 'gosi_number', ar: 'التأمينات', en: 'GOSI', w: 130, kind: 'mono',
-        tap: mudadFacCard, tapTip: { ar: 'اعرض بيانات المنشأة', en: 'Show facility details' } },
-      { key: 'hrsd_number', ar: 'رقم الموارد', en: 'HRSD', w: 130, kind: 'mono',
-        tap: mudadFacCard, tapTip: { ar: 'اعرض بيانات المنشأة', en: 'Show facility details' } },
-      { key: 'compliance_percentage', ar: 'نسبة الالتزام', en: 'Compliance', w: 120, kind: 'num' },
+      /* 100 أخضر · 0 أحمر · ما بينهما أصفر (طلب المستخدم 2026-09-25) */
+      { key: 'compliance_percentage', ar: 'نسبة الالتزام', en: 'Compliance', w: 120, kind: 'num',
+        bg: (v) => { const n = parseFloat(latin(String(v ?? ''))); return Number.isNaN(n) ? null : n >= 100 ? 'rgba(46,204,113,.32)' : n <= 0 ? 'rgba(232,114,101,.32)' : 'rgba(234,179,8,.32)' } },
       { key: 'compliance_status', ar: 'حالة الالتزام', en: 'Status', w: 130, kind: 'text',
         get: (r, isAr) => mudadStatus(r.compliance_status, isAr), bg: (v, r) => mudadStatusBg(v, r?.compliance_status) },
       { key: 'wage_period', ar: 'فترة الأجور', en: 'Wage period', w: 120, kind: 'text', get: (r) => mudadPeriod(r.wage_period) },
@@ -13238,7 +13311,7 @@ function DateCellEditor({ seed, value, ltr, inRef, onPick, onKeyDown, onBlur }) 
 /* زرّ نسخ صغير داخل الخليّة: رقمٌ يُنقل إلى بوّابةٍ حكومية أو رسالةٍ للعميل
    يُنسَخ بضغطة بدل تحديد الخليّة. يتحوّل لعلامة صحّ لحظةً بعد النسخ — النسخ بلا
    إقرارٍ يترك المستخدم يخمّن هل وقع. (تحديد الخليّة و`Ctrl+C` يبقيان كما هما.) */
-function CopyBtn({ text, title }) {
+function CopyBtn({ text, title, size = 16 }) {
   const [ok, setOk] = useState(false)
   if (!text) return null
   return (
@@ -13250,13 +13323,41 @@ function CopyBtn({ text, title }) {
       }}
       onMouseEnter={(e) => { if (!ok) e.currentTarget.style.color = C.gold }}
       onMouseLeave={(e) => { if (!ok) e.currentTarget.style.color = 'var(--tx4)' }}
-      style={{ width: 16, height: 16, padding: 0, border: 'none', background: 'transparent', cursor: 'pointer',
+      style={{ width: size, height: size, padding: 0, border: 'none', background: 'transparent', cursor: 'pointer',
         color: ok ? '#2ecc71' : 'var(--tx4)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
         flexShrink: 0, transition: 'color .15s' }}>
       {ok
-        ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-        : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>}
+        ? <svg width={size - 4} height={size - 4} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+        : <svg width={size - 4} height={size - 4} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>}
     </button>
+  )
+}
+
+/* أرقام المنشأة فوق بعضها (عمود «المنشأة» في شيت مدد): شبكةٌ من عمودين — زرّ
+   النسخ ثم الرقم بلونه (ضغطته تفتح بطاقة المنشأة، واسمه تلميحاً عند المرور) —
+   فتصطفّ الأرقام وأزرارها عموداً عموداً. `roomy` في الخليّة المدمجة عبر عدّة صفوف
+   (مسافاتٌ أرحب)؛ وإلا فأسطرٌ أضيق تسع ارتفاع صفٍّ واحد. */
+function FacNumsStack({ nums, isAr, h = 38, onTap }) {
+  const list = (nums || []).filter((n) => n.v)
+  if (!list.length) return null
+  const roomy = h >= 72   // ارتفاعٌ يسع الأسطر الثلاثة بمسافاتٍ مريحة
+  const gap = roomy ? 7 : h >= 60 ? 5 : h >= 50 ? 3 : 0
+  return (
+    <span style={{ display: 'inline-grid', gridTemplateColumns: 'auto auto', alignItems: 'center',
+      columnGap: roomy ? 7 : 5, rowGap: gap, direction: 'ltr', pointerEvents: 'auto' }}>
+      {list.map((n) => (
+        <React.Fragment key={n.en}>
+          <CopyBtn text={n.v} title={isAr ? 'نسخ الرقم' : 'Copy'} size={roomy ? 16 : 13} />
+          <span onMouseDown={onTap ? (e) => e.stopPropagation() : undefined}
+            onClick={onTap ? (e) => { e.stopPropagation(); onTap() } : undefined}
+            title={(isAr ? n.ar : n.en) + (onTap ? (isAr ? ' — اعرض بيانات المنشأة' : ' — show facility details') : '')}
+            style={{ textAlign: 'left', fontFamily: 'ui-monospace,Consolas,monospace', lineHeight: roomy ? '18px' : '13px',
+              fontSize: roomy ? 13 : 11.5, fontWeight: 600, color: n.color, fontVariantNumeric: 'tabular-nums',
+              cursor: onTap ? 'pointer' : undefined, textDecoration: onTap ? 'underline' : undefined, textUnderlineOffset: 3,
+              textDecorationColor: 'rgba(176,125,0,.35)', whiteSpace: 'nowrap' }}>{n.v}</span>
+        </React.Fragment>
+      ))}
+    </span>
   )
 }
 
@@ -14100,6 +14201,15 @@ class OxErrorBoundary extends React.Component {
    كرتَه هنا بصمت (لا عمود ⇒ لا كرت)، فراجِعهما معاً. والجدول الذي لا سطر له —
    والجداول المخصّصة — يأخذ كرت «عدد الصفوف» وحده. */
 const SC = (type, ar, en, o = {}) => ({ type, ar, en, ...o })
+/* أيامٌ باقية على تاريخٍ (سنة-شهر-يوم) من اليوم — ضمن [lo, hi]؛ و`lo === null` = «بلا تاريخ» */
+const iqExpIn = (v, lo, hi) => {
+  const m = String(v ?? '').match(/(\d{4})-(\d{2})-(\d{2})/)
+  if (lo === null) return !m
+  if (!m) return false
+  const t = new Date(+m[1], +m[2] - 1, +m[3]), n = new Date(); n.setHours(0, 0, 0, 0)
+  const d = Math.round((t - n) / 864e5)
+  return d >= lo && d <= hi
+}
 /* تمامُ الوكالة: التصديقان «تم» ولها تاريخ — ثلاثتُها أو لا تمام. تعريفٌ واحد
    يقرؤه كرتا «تمّت بالكامل» و«متبقّية» معاً، فلا يفترق الكرتان ويبقى قسمُهما
    للوكالات تامّاً. */
@@ -14333,12 +14443,22 @@ const VIEW_STATS = {
     SC('sum', 'سعوديون مطلوبون', 'Saudis needed', { k: 'nitaqat_saudis_to_be_hired', tone: 'warn' }),
     SC('sum', 'تأشيرات عمل متبقّية', 'Unused work visas', { k: 'visa_work_unused' }),
   ],
-  /* شيتا «العمالة» بلا كروت (طلب المستخدم): خمسةُ كروتٍ فوق ٣٦٠٠ صف كانت
-     تلتفّ سطرين وتدفع الشبكة تحت الطيّة، والأرقام نفسها في صفّ الإجماليات أسفل
-     العمود المعنيّ. الاثنان معاً لا الأوّل وحده — هي بياناتٌ واحدة بعدستين،
-     فإخلاء واحدةٍ يُبقي الكروت تظهر وتختفي مع كل تبديل. ومصفوفةٌ فارغة **صراحةً**
-     لا حذفُ السطر: الحذف يُسقطها على الاحتياطي (كرت «عدد الصفوف») فتعود. */
-  permanent_workers: [],
+  /* «العمالة»: كرتٌ **واحد** لانتهاء الإقامة كـ«المراحل» في تجديد الإقامة (طلب المستخدم 2026-09-25) —
+     كانت خمسةُ كروتٍ تلتفّ سطرين فأُزيلت، والكرت المجمّع صفٌّ واحد.
+     شرائح لا تتداخل فمجموعُها عددُ من له تاريخ. «بلا تاريخ» تسقط متى كانت صفراً. */
+  permanent_workers: [
+    // بلا `ofRows`: كل شريحةٍ برقمها وحده، لا «/ عدد العمالة كلّها» (طلب المستخدم 2026-09-25)
+    SC('group', 'انتهاء الإقامة', 'Iqama expiry', { items: [
+      SC('pred', 'منتهية', 'Expired', { need: ['iqama_expiry_date'], tone: 'bad', fn: (v) => iqExpIn(v('iqama_expiry_date'), -Infinity, -1) }),
+      SC('pred', 'خلال 14 يوماً', 'Within 14 days', { need: ['iqama_expiry_date'], tone: 'bad', fn: (v) => iqExpIn(v('iqama_expiry_date'), 0, 14) }),
+      SC('pred', '15 – 30 يوماً', '15–30 days', { need: ['iqama_expiry_date'], tone: 'warn', fn: (v) => iqExpIn(v('iqama_expiry_date'), 15, 30) }),
+      SC('pred', '31 – 60 يوماً', '31–60 days', { need: ['iqama_expiry_date'], tone: 'warn', fn: (v) => iqExpIn(v('iqama_expiry_date'), 31, 60) }),
+      SC('pred', '61 – 90 يوماً', '61–90 days', { need: ['iqama_expiry_date'], tone: 'warn', fn: (v) => iqExpIn(v('iqama_expiry_date'), 61, 90) }),
+      SC('pred', '91 – 120 يوماً', '91–120 days', { need: ['iqama_expiry_date'], tone: 'ok', fn: (v) => iqExpIn(v('iqama_expiry_date'), 91, 120) }),
+      SC('pred', 'أكثر من 120 يوماً', 'Over 120 days', { need: ['iqama_expiry_date'], tone: 'ok', fn: (v) => iqExpIn(v('iqama_expiry_date'), 121, Infinity) }),
+      SC('pred', 'بلا تاريخ', 'No date', { need: ['iqama_expiry_date'], hideZero: true, fn: (v) => iqExpIn(v('iqama_expiry_date'), null) }),
+    ] }),
+  ],
   offices: [],
   fac_attachments: [],
   recoveries: [
@@ -14370,10 +14490,13 @@ const VIEW_STATS = {
   ],
   qawaem: [
     SC('rows', 'القوائم', 'Statements'),
-    SC('filled', 'أُودعت', 'Filed', { k: 'filed_on', tone: 'ok' }),
-    SC('empty', 'لم تُودع', 'Not filed', { k: 'filed_on', tone: 'warn' }),
-    SC('eq', 'في المدة النظامية', 'On time', { k: 'on_time', v: YES, tone: 'ok' }),
-    SC('eq', 'متأخّرة', 'Late', { k: 'on_time', v: ['لا', 'No'], tone: 'bad' }),
+    /* الأربعة في كرتٍ واحد كـ«المراحل» في نقل الكفالات (طلب المستخدم 2026-09-25) */
+    SC('group', 'الإيداع', 'Filing', { ofRows: true, items: [
+      SC('filled', 'أُودعت', 'Filed', { k: 'filed_on', tone: 'ok' }),
+      SC('empty', 'لم تُودع', 'Not filed', { k: 'filed_on', tone: 'warn' }),
+      SC('eq', 'في المدة النظامية', 'On time', { k: 'on_time', v: YES, tone: 'ok' }),
+      SC('eq', 'متأخّرة', 'Late', { k: 'on_time', v: ['لا', 'No'], tone: 'bad' }),
+    ] }),
   ],
   /* «مدد» بلا كروت إحصاء (طلب المستخدم). القائمة **فارغة** لا محذوفة: الحذف
      يُسقط المفتاح فيسري الافتراضي (كرت «عدد الصفوف») ويبقى الشريط ظاهراً. */
@@ -15275,6 +15398,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
     const ov = {}
     for (const r of (data || [])) { if (r.layout && r.layout.name_ar) ov[r.view_key] = { ar: r.layout.name_ar, en: r.layout.name_en || r.layout.name_ar } }
     opsNameCache = ov
+    saveOpsNames(ov)
     setNameOverrides(ov)
   }, [sb])
   useEffect(() => { loadSheets() }, [loadSheets])
@@ -15737,7 +15861,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
     return visible.filter((r) =>
       cols.some((c) => hitCell(r, c))
       // اسم المنشأة الذي حلّ محلّه اسمُ السجل التجاري يبقى مطلوباً بالبحث
-      || hit(r._orig_facility)
+      || hit(r._orig_facility) || hit(r._fac_en)
       || (view.search ? view.search(r) : []).some(hit))
   }, [visible, searchQ, view, colDefs, valOf, colTypeMap, isAr])
 
@@ -15755,7 +15879,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
     const hitCell = (r, c) => { const v = valOf(r, c); return hit(v) || (!!(c.select || colTypeMap[c.key] === 'select') && hit(optText(v, isAr))) }
     let n = 0
     for (const r of out) {
-      if (cols.some((c) => hitCell(r, c)) || hit(r._orig_facility)
+      if (cols.some((c) => hitCell(r, c)) || hit(r._orig_facility) || hit(r._fac_en)
         || (view.search ? view.search(r) : []).some(hit)) n++
     }
     return n
@@ -15943,6 +16067,10 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
   const fmtDisp = useCallback((row, col) => {
     const raw = dispOf(row, col)
     if (raw === '' || raw === '••••••') return raw
+    /* الواجهة الإنجليزية: اسم المنشأة من السجل التجاري بالإنجليزية متى وُجد (طلب
+       المستخدم 2026-09-25 «إذا البرنامج إنجليزي يكون كل شي إنجليزي») — لكل شيتٍ يُعلن
+       `sbcName`. العرض وحده؛ المخزَّن عربيٌّ كما هو. */
+    if (!isAr && row._fac_en && view.sbcName && col.key === view.sbcName.field) return row._fac_en
     /* `col.fmt` — تزيين **العرض** وحده: القيمة المخزَّنة تبقى كما هي للفرز
        والبحث والتصدير والتحرير. لزم لأن التجاوز المحفوظ يسبق `col.get` في
        `baseVal`، فما يُضاف للعرض لا موضع له إلا هنا. */
@@ -15964,7 +16092,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
       if (/^\d{4}-\d{2}-\d{2}[T ]/.test(s)) return s.slice(0, 10)
     }
     return raw
-  }, [dispOf, numFmtOf, colTypeMap, isAr])
+  }, [dispOf, numFmtOf, colTypeMap, isAr, view])
 
   const isDirty = useCallback((row, col) => {
     if (col.kind === 'rownum') return false
@@ -17413,21 +17541,41 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
      (نقلُها لأعلى يجرّ viewRows وتوابعه معها ويفتح باب TDZ). */
   mergeRef.current = mergeGroups
   colSpecRef.current = mergeColSpec
+  /* ارتفاع الكتلة المنفردة (`view.soloRowH`): منشأةٌ بصفٍّ واحد تأخذ ارتفاعاً أكبر
+     يسع خليّتها متعدّدة الأسطر، وكتل الصفوف المتعدّدة تبقى بارتفاع الصف العادي
+     (طلب المستخدم 2026-09-25) — فلا تتضخّم المنشأة ذات العمّال الكثيرين. `rowTop`
+     = إزاحة كل صفّ من الأعلى (بطول n+1) لنافذة الرسم والفواصل؛ null = ارتفاعٌ موحّد. */
+  const rowTop = useMemo(() => {
+    if (!view.soloRowH || !blockRanges) return null
+    const n = viewRows.length, out = new Float64Array(n + 1)
+    const solo = Math.max(rowH, view.soloRowH)
+    for (let i = 0; i < n; i++) out[i + 1] = out[i] + ((blockRanges.starts[i] === i && blockRanges.ends[i] === i) ? solo : rowH)
+    return out
+  }, [view.soloRowH, blockRanges, viewRows.length, rowH])
+  const rowHOf = (r) => (rowTop ? rowTop[r + 1] - rowTop[r] : rowH)
+  const topOf = (r) => (rowTop ? rowTop[r] : r * rowH)
   // نافذة الرسم الافتراضي: مدى الصفوف المرئية + هامش، مع ضمّ رأس مجموعة الدمج
   const vwin = useMemo(() => {
     const total = viewRows.length
     const h = rowH || ROW_H
     // هامش سخيّ (شاشة ونصف فوق وتحت) كي تكون الصفوف مرسومة سلفاً قبل وصولك إليها
     const over = Math.max(600, vport.height * 1.5)
-    let s = Math.max(0, Math.floor((vport.start - over) / h))
-    let e = Math.min(total, Math.ceil((vport.start + vport.height + over) / h))
+    // أوّل صفٍّ تبدأ إزاحته عند y أو بعدها (بحثٌ ثنائي على `rowTop` إن تفاوتت الارتفاعات)
+    const idxAt = (y) => {
+      if (!rowTop) return y / h
+      let lo = 0, hi = total
+      while (lo < hi) { const mid = (lo + hi) >> 1; if (rowTop[mid + 1] <= y) lo = mid + 1; else hi = mid }
+      return lo
+    }
+    let s = Math.max(0, Math.floor(idxAt(vport.start - over)))
+    let e = Math.min(total, Math.ceil(idxAt(vport.start + vport.height + over)) + (rowTop ? 1 : 0))
     // ضمّ الصف النشط دائماً (قد يقفز التنقّل بالكيبورد خارج النافذة)
     if (head.r < s) s = Math.max(0, head.r - 2)
     if (head.r >= e) e = Math.min(total, head.r + 3)
     // ضمّ رأس مجموعة الدمج كي تظهر خلية المنشأة المدمجة
     if (mergeGroups && s > 0 && s < total) s = Math.min(...mergeGroups.map((g) => g.starts[s]))
     return { s, e }
-  }, [viewRows, vport, rowH, head.r, mergeGroups])
+  }, [viewRows, vport, rowH, head.r, mergeGroups, rowTop])
   const ctxRow = ctx ? allRows.find((r) => r._id === ctx.rowId) : null
   const hdrCtxCol = hdrCtx ? colDefs.get(hdrCtx.colKey) : null
   const selHiddenCount = useMemo(() => [...selRows].reduce((a, id) => a + (allRows.find((r) => r._id === id)?._hidden ? 1 : 0), 0), [selRows, allRows])
@@ -17862,7 +18010,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
       onOpen: setMRowId,
       // فلاتر/فرزٌ شخصيّ محفوظ (من الحاسب) يسري هنا أيضاً — فيُقال ويُمسح بضغطة
       filters: (activeFilterKeys.length || sortCfg) ? { count: activeFilterKeys.length, sort: !!sortCfg, clear: () => persistPrefs({ ...prefs, filters: {}, sort: null }) } : null,
-      hidden: (hiddenCount > 0 && canEdit) ? { count: hiddenCount, on: showHidden, toggle: () => setShowHidden((v) => !v) } : null,
+      hidden: null,   // زرّ «المحذوفة» أُزيل بطلب المستخدم (2026-09-25)
       resetKey: filterKey + '|' + tabSel + '|' + weekFSel + '|' + daySel,
       rowOf: (id) => allRows.find((r) => r._id === id) || null,
       groups: mGroups, cell, actions, locked: (row) => isRowLocked(row),
@@ -18337,11 +18485,6 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
             ✕ {T(`مسح الفلاتر/الفرز${activeFilterKeys.length ? ` (${activeFilterKeys.length})` : ''}`, `Clear filters/sort${activeFilterKeys.length ? ` (${activeFilterKeys.length})` : ''}`)}
           </button>
         )}
-        {hiddenCount > 0 && (
-          <button className="ox-btn" onClick={() => setShowHidden((v) => !v)} style={showHidden ? { background: 'var(--accent-soft)', color: 'var(--accent)', borderColor: 'var(--accent-bd)' } : undefined}>
-            {showHidden ? T('إخفاء المحذوفة', 'Hide removed') : T(`المحذوفة (${hiddenCount})`, `Removed (${hiddenCount})`)}
-          </button>
-        )}
         {totalPages > 1 && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}
             title={T(`${enNum(filtered.length)} صف موزّعة على ${totalPages} صفحات (${enNum(PAGE_ROWS)} لكل صفحة)`,
@@ -18367,7 +18510,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
           شريطُ حصصٍ تحتها. الصفُّ **مرن** (flex) لا شبكة: البسيط ينمو 1 والمجمّع
           بعدد عناصره، فتملأ الكروت سطراً واحداً وتلتفّ على الجوال. الرقم بأرقامٍ
           جدوليّة فلا يرقص عرضه، ويتقلّص حجمه مع طوله كي لا تُقَصّ المبالغ. */}
-      {stats.length > 0 && (() => {
+      {!loading && stats.length > 0 && (() => {
         const toneClr = (t) => t === 'ok' ? '#27a046' : t === 'warn' ? '#c08a12' : t === 'bad' ? C.red : C.gold
         const toneSoft = (t) => t === 'ok' ? 'rgba(39,160,70,.12)' : t === 'warn' ? 'rgba(192,138,18,.14)'
           : t === 'bad' ? 'rgba(232,114,101,.14)' : 'rgba(176,125,0,.12)'
@@ -18655,7 +18798,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
                           `No rows in this week (${weekLabel(weekFSel, false)}) — press “Prev” for the week before, or “All weeks”`)}
                 </div>
               )}
-              {vwin.s > 0 && <div aria-hidden style={{ height: vwin.s * rowH }} />}
+              {vwin.s > 0 && <div aria-hidden style={{ height: topOf(vwin.s) }} />}
               {viewRows.slice(vwin.s, vwin.e).map((row, j) => {
                 const r = vwin.s + j
                 const err = rowErr[row._id]
@@ -18727,7 +18870,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
                             onClick={(e) => { if (touchTapRef.current) { touchTapRef.current = false; setDetailRow(row._id); return } if (canEdit) selectRowClick(row._id, r, e) }}
                             onDoubleClick={() => setDetailRow(row._id)}
                             // خلفية عمود الترقيم صمّاء: شريطٌ ثابت لا تنفذ إليه غسلة الصفّ
-                            style={{ ...cellBase, height: rowH, justifyContent: 'center', color: rowSel ? '#000' : (rowSt?.color || 'var(--tx3)'), fontWeight: rowSel ? 600 : Math.min(600, rowSt?.weight || 400), fontFamily: MONO, fontSize: rowSt?.size || 11.5, background: rowSel ? C.gold2 : 'linear-gradient(var(--bd2),var(--bd2)), var(--bg)', cursor: canEdit ? 'grab' : 'default', gap: 5, ...(frozenStyle(c, rowSel ? C.gold2 : FROZEN_BG, 4) || {}), ...(gDown ? { borderBottom: 'none' } : {}), ...(gSpan ? { overflow: 'visible', zIndex: 6 } : {}), ...(blockEdge || {}) }}>
+                            style={{ ...cellBase, height: rowHOf(r), justifyContent: 'center', color: rowSel ? '#000' : (rowSt?.color || 'var(--tx3)'), fontWeight: rowSel ? 600 : Math.min(600, rowSt?.weight || 400), fontFamily: MONO, fontSize: rowSt?.size || 11.5, background: rowSel ? C.gold2 : 'linear-gradient(var(--bd2),var(--bd2)), var(--bg)', cursor: canEdit ? 'grab' : 'default', gap: 5, ...(frozenStyle(c, rowSel ? C.gold2 : FROZEN_BG, 4) || {}), ...(gDown ? { borderBottom: 'none' } : {}), ...(gSpan ? { overflow: 'visible', zIndex: 6 } : {}), ...(blockEdge || {}) }}>
                             {row._manual && <span title={T('صف يدوي', 'Manual row')} style={{ width: 6, height: 6, borderRadius: '50%', background: rowSel ? '#000' : C.blue, display: 'inline-block' }} />}
                             {err
                               ? <span title={err} style={{ width: 7, height: 7, borderRadius: '50%', background: C.red, display: 'inline-block' }} />
@@ -18863,7 +19006,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
                             // كل الخلايا تبقى RTL (حتى يبقى الفاصل العمودي borderInlineEnd على جهة واحدة
                             // ثابتة لكل الأعمدة مهما أُعيد ترتيبها). الاتجاه LTR يُطبَّق على النص وحده أدناه.
                             justifyContent: 'center',
-                            height: wrap ? 'auto' : rowH, minHeight: rowH,
+                            height: wrap ? 'auto' : rowHOf(r), minHeight: rowHOf(r),
                             fontFamily: (col.kind === 'mono' || col.kind === 'num') ? MONO : F,
                             cursor: editable ? 'cell' : 'default',
                             /* في العمود المدمج لا تُرسَم حالة التنشيط على الشطر
@@ -18931,7 +19074,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
                             /* `col.render(row, raw, isAr)` — عرضٌ مخصَّص للخليّة (سطران،
                                نقاط ملوّنة…) **للعرض وحده**: البحث والفرز والتصدير
                                والتحرير تبقى على نصّ `get` كما هو. */
-                            : (col.render && !isEd) ? col.render(row, raw, isAr)
+                            : (col.render && !isEd) ? col.render(row, raw, isAr, { mSpan, mSpanH, h: mSpan ? mSpanH : rowHOf(r), tap: col.tap ? () => openTapCard(col, row) : null })
                             : col.kind === 'photo' ? (
                             <PhotoCell path={raw} name={row.name_ar || row.name_en} size={rowH} onOpen={setFileView} />
                           ) : col.kind === 'bmk' ? (
@@ -19216,7 +19359,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
                   </div>
                 )
               })}
-              {vwin.e < viewRows.length && <div aria-hidden style={{ height: (viewRows.length - vwin.e) * rowH }} />}
+              {vwin.e < viewRows.length && <div aria-hidden style={{ height: topOf(viewRows.length) - topOf(vwin.e) }} />}
               {hasTotals && viewRows.length > 0 && (
                 <div style={{ display: 'grid', gridTemplateColumns: tmpl, minWidth: totalW, borderTop: `2px solid ${C.gold}` }}>
                   {COLS.map((col, c) => {
