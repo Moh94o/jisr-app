@@ -20,7 +20,7 @@
   .sr-body .sr-flat > .fk-section > div:first-child, .sr-body .fk-section.sr-flat-sec > div:first-child {
     position: static !important; background: none !important; padding: 0 2px 12px !important;
     display: flex !important; flex-direction: column; align-items: flex-start !important; gap: 2px !important;
-    font-size: 20px !important; font-weight: 800 !important; color: var(--tx) !important; letter-spacing: -.2px;
+    font-size: 20px !important; font-weight: 600 !important; color: var(--tx) !important; letter-spacing: -.2px;
   }
   .sr-body .sr-flat > .fk-section > div:first-child > svg, .sr-body .fk-section.sr-flat-sec > div:first-child > svg { display: none; }
   .sr-body .sr-flat > .fk-section > div:first-child > span + span, .sr-body .fk-section.sr-flat-sec > div:first-child > span + span {
@@ -51,7 +51,7 @@
   .sr-body .branch-grid .bento-icon, .sr-body .svc-grid .bento-icon { width: 46px !important; height: 46px !important; border-radius: 14px !important; flex-shrink: 0; }
   .sr-body .branch-grid .bento-icon svg, .sr-body .svc-grid .bento-icon svg { width: 25px; height: 25px; }
   .sr-body .branch-grid .bento-label, .sr-body .svc-grid .bento-label {
-    font-size: 15.5px !important; font-weight: 700 !important; line-height: 1.35 !important; text-align: start !important;
+    font-size: 15.5px !important; font-weight: 600 !important; line-height: 1.35 !important; text-align: start !important;
     margin-top: auto; color: var(--tx) !important;
   }
   .sr-body .branch-grid .bento-sub { font-size: 12px !important; font-weight: 600; color: var(--tx4) !important; margin-top: -6px; }
@@ -87,7 +87,7 @@
   }
   [dir=rtl] .sr-body .wz-search-row input { padding: 0 14px 0 42px !important; }
   .sr-body .wz-search-row > button {
-    height: 48px !important; border-radius: 14px !important; padding: 0 14px !important; font-size: 14px !important; font-weight: 700 !important;
+    height: 48px !important; border-radius: 14px !important; padding: 0 14px !important; font-size: 14px !important; font-weight: 600 !important;
     border: 0 !important; background: rgba(176,125,0,.12) !important; color: #8a6200 !important;
   }
 
@@ -108,7 +108,7 @@
   .wz-flag img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .wz-row-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
   .wz-row-title { display: flex; align-items: center; gap: 6px; min-width: 0; }
-  .wz-row-name { font-size: 16px; font-weight: 700; color: var(--tx); line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .wz-row-name { font-size: 16px; font-weight: 600; color: var(--tx); line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
   .wz-row.on .wz-row-name { color: #8a6200; }
   .wz-row-sub { font-size: 12.5px; font-weight: 600; color: var(--tx4); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; direction: ltr; text-align: end; }
   [dir=ltr] .wz-row-sub { text-align: start; }
@@ -116,12 +116,12 @@
   .wz-meta { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 600; color: var(--tx3); font-variant-numeric: tabular-nums; white-space: nowrap; }
   .wz-meta svg { color: #B07D00; opacity: .85; flex-shrink: 0; }
   .wz-meta[style] svg { color: currentColor; }
-  .wz-tag { flex-shrink: 0; font-size: 11px; font-weight: 700; color: #2f7cb3; background: rgba(47,124,179,.12); border-radius: 999px; padding: 1px 8px; }
+  .wz-tag { flex-shrink: 0; font-size: 11px; font-weight: 600; color: #2f7cb3; background: rgba(47,124,179,.12); border-radius: 999px; padding: 1px 8px; }
   .wz-row-chev { flex-shrink: 0; color: var(--tx5, #b3a98f); }
   [dir=ltr] .wz-row-chev { transform: scaleX(-1); }
   .wz-change {
     flex-shrink: 0; height: 34px; padding: 0 14px; border-radius: 999px; border: 0; cursor: pointer;
-    background: rgba(90,70,30,.08); color: var(--tx2); font-family: inherit; font-size: 13.5px; font-weight: 700;
+    background: rgba(90,70,30,.08); color: var(--tx2); font-family: inherit; font-size: 13.5px; font-weight: 600;
   }
   .wz-check { flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%; background: #B07D00; color: #fff; display: flex; align-items: center; justify-content: center; }
 
@@ -130,11 +130,11 @@
   .sr-body .wz-opt { min-height: 64px; padding: 12px 14px !important; border-radius: 16px !important; gap: 12px !important; }
   .sr-body .wz-opt > div:first-child { width: 40px !important; height: 40px !important; border-radius: 12px !important; }
   .sr-body .wz-opt > div:first-child svg { width: 20px; height: 20px; }
-  .sr-body .wz-opt > div:nth-child(2) > span:first-child { font-size: 15px !important; font-weight: 700 !important; }
+  .sr-body .wz-opt > div:nth-child(2) > span:first-child { font-size: 15px !important; font-weight: 600 !important; }
   .sr-body .wz-opt > div:nth-child(2) > span:last-child { font-size: 12.5px !important; font-weight: 500 !important; color: var(--tx4) !important; white-space: normal !important; }
   .sr-body .wz-opt > div:last-child:not(:nth-child(2)) { width: 24px !important; height: 24px !important; }
   .sr-body .wz-opt-grid + div { font-size: 12.5px !important; }
-  .sr-body div:has(> .wz-opt-grid) > span:first-child { font-size: 14px !important; font-weight: 700 !important; }
+  .sr-body div:has(> .wz-opt-grid) > span:first-child { font-size: 14px !important; font-weight: 600 !important; }
 
   /* ── تفاصيل العامل/المنشأة المختار: شبكة عمودين ──────────────────────── */
   .sr-body .wz-pill-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px !important; }
@@ -154,14 +154,14 @@
     background: var(--m-surface, #fbf9f4); border: .5px solid var(--m-line, rgba(90,70,30,.1)); border-radius: 18px;
     padding: 12px 16px 8px; margin-bottom: 12px !important; box-shadow: 0 1px 2px rgba(90,70,30,.05);
   }
-  .sr-body .wz-sum-title { font-size: 13.5px !important; font-weight: 700 !important; padding-bottom: 8px !important; margin-bottom: 4px !important; border-bottom-color: var(--m-line, rgba(90,70,30,.1)) !important; }
+  .sr-body .wz-sum-title { font-size: 13.5px !important; font-weight: 600 !important; padding-bottom: 8px !important; margin-bottom: 4px !important; border-bottom-color: var(--m-line, rgba(90,70,30,.1)) !important; }
   .sr-body .wz-sum-row { padding: 7px 0 !important; min-height: 34px; align-items: center !important; border-bottom: .5px solid rgba(90,70,30,.07); }
   .sr-body .wz-sum-row:last-child { border-bottom: 0; }
   .sr-body .wz-sum-row > span:first-child { font-size: 13.5px !important; color: var(--tx3) !important; flex-shrink: 0; }
   .sr-body .wz-sum-row > span:last-child { font-size: 14.5px !important; color: var(--tx) ; font-variant-numeric: tabular-nums; min-width: 0; text-align: end !important; }
 }
 @media (max-width: 768px) {
-  .wz-flag.ini { font-size: 18px; font-weight: 800; color: #8a6200; background: linear-gradient(145deg, rgba(176,125,0,.2), rgba(176,125,0,.07)); }
+  .wz-flag.ini { font-size: 18px; font-weight: 600; color: #8a6200; background: linear-gradient(145deg, rgba(176,125,0,.2), rgba(176,125,0,.07)); }
 }
 
 @media (max-width: 768px) {
@@ -172,7 +172,7 @@
 
   /* الوسيط: ترويسة صفّ واضحة وزرّ + كبير */
   .sr-body .wz-broker { padding: 14px 16px !important; border-radius: 16px !important; }
-  .sr-body .wz-broker-head > span:first-child { font-size: 15px !important; font-weight: 700 !important; }
+  .sr-body .wz-broker-head > span:first-child { font-size: 15px !important; font-weight: 600 !important; }
   .sr-body .wz-broker-head > span:nth-child(2) { font-size: 12.5px !important; }
   .sr-body .wz-broker-head > button { width: 36px !important; height: 36px !important; border-radius: 12px !important; margin-inline-start: auto; }
   .sr-body .wz-broker-head > button svg { width: 16px; height: 16px; }
@@ -227,7 +227,7 @@
   .sr-body .sr-step-svc > .fk-section > div:first-child > span + span { display: none; }
 
   /* مبلغ في طرف الصفّ (الحسبات) */
-  .wz-amt { flex-shrink: 0; display: inline-flex; align-items: baseline; gap: 3px; font-size: 16px; font-weight: 800; color: #B07D00; font-variant-numeric: tabular-nums; direction: ltr; }
+  .wz-amt { flex-shrink: 0; display: inline-flex; align-items: baseline; gap: 3px; font-size: 16px; font-weight: 600; color: #B07D00; font-variant-numeric: tabular-nums; direction: ltr; }
   .wz-amt small { font-size: 11px; font-weight: 600; color: var(--tx4); }
   .sr-body div:has(> .wz-row) { gap: 10px !important; }
 
