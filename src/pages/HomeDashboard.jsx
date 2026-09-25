@@ -16,6 +16,8 @@ import { cardVisible } from '../lib/permissions.js'
 import { Shimmer } from '../components/ui/Skeleton.jsx'
 import { DateField } from '../components/ui/FormKit.jsx'
 import { ALL_SERVICES, SVC_CODE_MAP } from '../ServiceRequestPage.jsx'
+import { useIsMobile, MChips } from '../components/mobile/MobileKit.jsx'
+import '../styles/m-home.css'
 
 // ── الألوان (مُتحقَّق منها بمدقّق الألوان على سطح #faf8f3) ──
 const GOLD = '#B07D00'
@@ -267,6 +269,7 @@ export default function HomeDashboard({ sb, user, lang = 'ar', onNavigate, logo 
   const [rangeOpen, setRangeOpen] = useState(false)
   const rangeRef = useRef(null)
   rangeRef.current = range
+  const isMobile = useIsMobile()
 
   const show = useCallback((k) => cardVisible(user, 'home', k), [user])
   const anyCard = ['income', 'offices', 'invoices', 'workers', 'iqama', 'agents'].some(show)
@@ -500,6 +503,83 @@ export default function HomeDashboard({ sb, user, lang = 'ar', onNavigate, logo 
       ))}
     </div>
   )
+
+  // ════ عرض الجوال (≤768px): رأس مضغوط + شرائح أفقية للفترة والمكتب + ورقة سفلية للتاريخ المحدد ════
+  const mDate = data?.today && new Date(data.today + 'T12:00:00Z').toLocaleDateString(isAr ? 'ar-u-nu-latn' : 'en-GB', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' })
+  const mHeader = isMobile && (
+    <div className="mh-head">
+      <div className="mh-head-t">
+        <h1>{T('الرئيسية', 'Home')}</h1>
+        <div className="mh-meta">
+          {mDate && <span>{mDate}</span>}
+          {loadedAt && (
+            <span className="mh-live">
+              <i data-busy={busy ? '1' : '0'} />
+              {busy ? T('جارٍ التحديث…', 'Updating…') : <>{T('محدَّث', 'Updated')} <b>{loadedAt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</b></>}
+            </span>
+          )}
+        </div>
+      </div>
+      <button className="mh-iconbtn" onClick={load} disabled={busy} aria-label={T('تحديث', 'Refresh')}>
+        <RefreshCw size={18} strokeWidth={2} className={busy ? 'mh-spin' : undefined} />
+      </button>
+    </div>
+  )
+  const mCustomLbl = period === 'custom' && data?.custom
+    ? (data.custom.from === data.custom.to ? data.custom.from.slice(5) : `${data.custom.from.slice(5)} – ${data.custom.to.slice(5)}`)
+    : T('تاريخ محدد', 'Custom')
+  const mPeriodChips = isMobile && (
+    <MChips value={period} onChange={pickPeriod} options={[
+      ...PERIODS.map((p) => ({ value: p, label: { today: T('اليوم', 'Today'), yesterday: T('أمس', 'Yesterday'), week: T('الأسبوع', 'Week'), month: T('الشهر', 'Month'), year: T('السنة', 'Year') }[p] })),
+      { value: 'custom', label: <span className="mh-chip-ic"><CalendarRange size={14} strokeWidth={2} /><span dir={period === 'custom' && data?.custom ? 'ltr' : undefined}>{mCustomLbl}</span></span> },
+    ]} />
+  )
+  const mOfficeTabs = agg ? agg.officeRows.filter((o) => o.id && o.active !== false && agg.invOffices.has(o.id)) : []
+  const mOfficeChips = isMobile && agg && mOfficeTabs.length > 1 && (
+    <MChips value={agg.s} onChange={pickOffice} options={[
+      { value: 'all', label: T('كل المكاتب', 'All offices') },
+      ...mOfficeTabs.map((o) => ({ value: o.id, label: o.test ? <>{o.label} <span style={{ color: ST.crit, fontSize: 11 }}>{T('تجريبي', 'Test')}</span></> : o.label })),
+    ]} />
+  )
+  const mRangeSheet = isMobile && rangeOpen && (
+    <div className="mh-sheet-bg" onClick={() => setRangeOpen(false)}>
+      <div className="mh-sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+        <div className="mh-grab" />
+        <div className="mh-sheet-head">
+          <b>{T('تاريخ محدد', 'Custom date')}</b>
+          <button className="mh-x" onClick={() => setRangeOpen(false)} aria-label="close"><X size={18} /></button>
+        </div>
+        <div className="mh-presets">
+          {presets.map(([l, f, t]) => <button key={l} className="mk-chip" disabled={busy} onClick={() => applyRange({ from: f, to: t })}>{l}</button>)}
+        </div>
+        <div className="mh-dates">
+          <DateField label={T('من', 'From')} value={draft.from} max={draft.to || t0} onChange={(v) => setDraft((d) => ({ ...d, from: v }))} />
+          <DateField label={T('إلى', 'To')} value={draft.to} min={draft.from || undefined} max={t0} onChange={(v) => setDraft((d) => ({ ...d, to: v }))} />
+        </div>
+        <button className="mh-primary" onClick={() => applyRange(draft)} disabled={!draftOk || busy}>
+          {busy ? T('جارٍ الحساب…', 'Calculating…') : T('تطبيق', 'Apply')}
+        </button>
+        {range && <button className="mh-secondary" onClick={() => { setRange(null); rangeRef.current = null; setPeriod('month'); setRangeOpen(false); fetchDash(null) }}>{T('إزالة التاريخ', 'Clear date')}</button>}
+      </div>
+    </div>
+  )
+
+  if (isMobile && !data) {
+    return (
+      <div className="mh">
+        {mHeader}
+        {mPeriodChips}
+        {mRangeSheet}
+        {err ? <div className="mh-card mh-err">{T('تعذّر تحميل لوحة المؤشرات', 'Could not load the dashboard')}</div> : (
+          <>
+            <div className="mh-hero mh-hero-skel"><Shimmer w="35%" h={12} /><Shimmer w="60%" h={30} /><Shimmer w="100%" h={6} /></div>
+            <div className="mh-tiles">{[0, 1, 2, 3].map((i) => <div key={i} className="mh-tile"><Shimmer w="50%" h={11} /><Shimmer w="70%" h={22} /></div>)}</div>
+            <div className="mh-card"><Shimmer w="30%" h={13} /><div style={{ height: 12 }} /><Shimmer h={160} r={10} /></div>
+          </>
+        )}
+      </div>
+    )
+  }
 
   if (!data) {
     return (
@@ -920,6 +1000,291 @@ export default function HomeDashboard({ sb, user, lang = 'ar', onNavigate, logo 
 
   const grid2 = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,420px),1fr))', gap: 16 }
   const pair = (a, b) => (a || b) && <div style={grid2}>{a}{b}</div>
+
+  // ════ عرض الجوال: نفس الأرقام أعلاه، مرتّبةً كتطبيقٍ أصلي (بطاقة دخل رئيسية + مربعات + بطاقات بعرض كامل) ════
+  if (isMobile) {
+    const mSeg = (value, onChange, options) => (
+      <div className="mh-seg" role="tablist">
+        {options.map(([v, l]) => <button key={v} role="tab" aria-selected={v === value} data-on={v === value ? '1' : '0'} onClick={() => onChange(v)}>{l}</button>)}
+      </div>
+    )
+    const mDelta = (cur, prev) => {
+      const d = delta(cur, prev)
+      if (d === 0 && !cur && !prev) return <span className="mh-delta flat">{T('لا حركة', 'No activity')}</span>
+      if (d === null) return <span className="mh-delta up">{T('جديد', 'New')}</span>
+      const flat = Math.abs(d) < 0.005, up = d > 0
+      const Ic = flat ? Minus : up ? TrendingUp : TrendingDown
+      return <span className={'mh-delta ' + (flat ? 'flat' : up ? 'up' : 'down')}><Ic size={13} strokeWidth={2.4} /><span dir="ltr">{flat ? '0%' : `${up ? '+' : ''}${Math.round(d * 100)}%`}</span></span>
+    }
+    const mEmpty = (t) => <div className="mh-empty">{t}</div>
+    const mBarRows = (rows, { highlight, onPick, valueFmt = fmt } = {}) => {
+      const max = Math.max(0, ...rows.map((r) => n0(r.v)))
+      const tot = rows.reduce((a, r) => a + n0(r.v), 0)
+      return (
+        <div className="mh-bars">
+          {rows.map((r, i) => (
+            <div key={r.k ?? i} className={'mh-bar' + (onPick ? ' mk-tap' : '') + (highlight && highlight !== r.k ? ' dim' : '')} onClick={onPick ? () => onPick(r.k) : undefined}>
+              <div className="mh-bar-top">
+                <span className="mh-bar-l">{r.l}{r.note && <small>{r.note}</small>}</span>
+                <span className="mh-bar-v">{valueFmt(r.v)}</span>
+                <span className="mh-bar-p">{tot ? pctOf(r.v, tot) : 0}%</span>
+              </div>
+              <div className="mh-bar-track"><i style={{ width: `${max ? Math.max(2, (n0(r.v) / max) * 100) : 0}%`, background: r.c || GOLD }} /></div>
+            </div>
+          ))}
+        </div>
+      )
+    }
+    const mDonut = (parts, center, centerSub, size = 124) => (
+      <div className="mh-donut" style={{ width: size, height: size }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie data={parts.filter((p) => p.v > 0)} dataKey="v" nameKey="l" innerRadius={size / 2 - 17} outerRadius={size / 2 - 2} paddingAngle={2} stroke="var(--m-surface)" strokeWidth={2} isAnimationActive={false}>
+              {parts.filter((p) => p.v > 0).map((p) => <Cell key={p.k} fill={p.c} />)}
+            </Pie>
+          </PieChart>
+        </ResponsiveContainer>
+        <div className="mh-donut-c"><b>{center}</b><small>{centerSub}</small></div>
+      </div>
+    )
+    const mLegendRows = (parts, total) => (
+      <div className="mh-dl">
+        {parts.map((p) => (
+          <div key={p.k} className="mh-dl-row">
+            <span className="mh-dl-l"><i style={{ background: p.c }} />{p.l}</span>
+            <span className="mh-dl-v">{fmt(p.v)}</span>
+            {total > 0 && <span className="mh-dl-p">{pctOf(p.v, total)}%</span>}
+          </div>
+        ))}
+      </div>
+    )
+    const axisTick = { fontSize: 11, fill: AXIS, fontFamily: 'Cairo' }
+
+    // ── بطاقة الدخل الرئيسية ──
+    const mHero = show('income') && money && (
+      <div className="mh-hero">
+        <div className="mh-hero-lbl"><Wallet size={15} strokeWidth={2} /><span>{T('الدخل', 'Income')}</span><em>{periodLabel[period]}</em></div>
+        <div className="mh-hero-num"><b>{fmt(net)}</b><small>{SAR}</small></div>
+        <div className="mh-hero-cmp">{mDelta(net, netP)}<span>{prevLabel[period]}</span></div>
+        <div className="mh-hero-bar">
+          {F.cash + F.bank > 0 ? <><i style={{ flex: `${F.cash} 1 0`, background: '#e8c35a' }} /><i style={{ flex: `${F.bank} 1 0`, background: '#7fb0ea' }} /></> : <i style={{ flex: 1, background: 'rgba(255,255,255,.12)' }} />}
+        </div>
+        <div className="mh-hero-split">
+          {[
+            { k: 'cash', c: '#e8c35a', l: T('نقداً', 'Cash'), v: F.cash },
+            { k: 'bank', c: '#7fb0ea', l: T('تحويل', 'Bank'), v: F.bank },
+            { k: 'out', c: '#f08a7e', l: T('ملغى', 'Cancelled'), v: F.out, red: true },
+          ].map((x) => (
+            <div key={x.k}>
+              <span><i style={{ background: x.c }} />{x.l}</span>
+              <b className={x.red && x.v ? 'red' : undefined}>{fmt(x.v)}</b>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+
+    // ── مربعات المؤشرات ──
+    const tiles = [
+      show('invoices') && { k: 'inv', icon: FileText, c: SERIES[1], l: T('فواتير جديدة', 'New invoices'), v: fmt(I.cnt),
+        sub: <>{mDelta(I.cnt, I.cntP)}{money && <span>{T('بقيمة', 'Worth')} <b>{compact(I.sum)}</b></span>}</> },
+      show('invoices') && { k: 'old', icon: Banknote, c: GOLD, l: T('فواتير دفعات', 'With payments'), v: fmt(P.oldCnt),
+        sub: money ? <span>{T('دُفع', 'Paid')} <b>{fmt(P.oldSum)}</b></span> : I.canc > 0 && <span>{T('ملغاة', 'Cancelled')} <b className="red">{fmt(I.canc)}</b></span> },
+      show('invoices') && money && { k: 'recv', icon: Building2, c: ST.serious, l: T('المتبقي على العملاء', 'Outstanding'), v: fmt(agg.recv.sum), unit: SAR,
+        sub: <span>{T('على', 'On')} <b>{fmt(agg.recv.cnt)}</b> {T('فاتورة', 'invoices')}</span> },
+      show('workers') && { k: 'wk', icon: Users, c: SERIES[2], l: T('العمالة المسجّلة', 'Workers'), v: fmt(W.total), unit: T('عامل', ''),
+        sub: <span><b className="red">{fmt(W.expired)}</b> {T('منتهية', 'expired')} · <b className="org">{fmt(W.d30)}</b> {T('خلال 30 يوماً', '≤30d')}</span> },
+    ].filter(Boolean)
+    const mTiles = tiles.length > 0 && (
+      <div className="mh-tiles">
+        {tiles.map(({ k, icon: Ic, c, l, v, unit, sub: s }) => (
+          <div key={k} className="mh-tile" style={{ '--tone': c }}>
+            <div className="mh-tile-h"><span className="mh-tile-ic"><Ic size={16} strokeWidth={2} /></span><span className="mh-tile-l">{l}</span></div>
+            <div className="mh-tile-v">{v}{unit && <small>{unit}</small>}</div>
+            {s && <div className="mh-tile-s">{s}</div>}
+          </div>
+        ))}
+      </div>
+    )
+
+    // ── حركة الدخل ──
+    const mTrend = show('income') && money && (
+      <section className="mh-card">
+        <div className="mh-card-h"><h3>{T('حركة الدخل', 'Income trend')}</h3></div>
+        {mSeg(trend, setTrend, [['daily', T('آخر 30 يوماً', 'Last 30 days')], ['monthly', T('آخر 12 شهراً', 'Last 12 months')]])}
+        <div className="mh-legend">
+          <span><i style={{ background: GOLD }} />{T('الداخل', 'Received')} <b>{fmt(trendData.reduce((s, r) => s + r.in, 0))}</b></span>
+          <span><i style={{ background: ST.crit }} />{T('الملغى', 'Cancelled')} <b>{fmt(trendData.reduce((s, r) => s + r.out, 0))}</b></span>
+        </div>
+        <div className="mh-chart" style={{ height: 176 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={trendData} margin={{ top: 6, right: 2, left: 2, bottom: 0 }}>
+              <defs>
+                <linearGradient id="mhIn" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={GOLD} stopOpacity={0.3} /><stop offset="100%" stopColor={GOLD} stopOpacity={0.02} /></linearGradient>
+              </defs>
+              <CartesianGrid stroke={GRID} vertical={false} />
+              <XAxis dataKey="x" reversed={isAr} tickFormatter={(x) => (trend === 'daily' ? x.slice(8) + '/' + x.slice(5, 7) : x.slice(5) + '/' + x.slice(2, 4))} tick={axisTick} tickLine={false} axisLine={{ stroke: GRID }} minTickGap={22} />
+              <YAxis orientation={isAr ? 'right' : 'left'} tickFormatter={compact} tick={axisTick} tickLine={false} axisLine={false} width={36} />
+              <Tooltip wrapperStyle={{ zIndex: 20, outline: 'none' }} content={<ChartTip T={T} />} cursor={{ stroke: 'rgba(120,100,60,.35)', strokeWidth: 1 }} />
+              <Area type="monotone" dataKey="in" name={T('الداخل', 'Received')} stroke={GOLD} strokeWidth={2} fill="url(#mhIn)" activeDot={{ r: 4.5, stroke: '#fff', strokeWidth: 2 }} />
+              <Area type="monotone" dataKey="out" name={T('الملغى', 'Cancelled')} stroke={ST.crit} strokeWidth={1.6} strokeDasharray="4 3" fill="none" activeDot={{ r: 4, stroke: '#fff', strokeWidth: 2 }} />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      </section>
+    )
+
+    // ── حالة السداد ──
+    const mStatus = show('invoices') && (
+      <section className="mh-card">
+        <div className="mh-card-h"><h3>{T('حالة سداد الفواتير', 'Payment status')}</h3><span className="mh-card-note">{periodLabel[period]}</span></div>
+        {statusTotal ? (
+          <div className="mh-donut-row">
+            {mDonut(statusParts, `${pctOf(I.paid, statusTotal)}%`, T('مسدّدة', 'paid'))}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              {mLegendRows(statusParts, statusTotal)}
+              {I.canc > 0 && <div className="mh-dl-foot"><span>{T('أُلغيت في الفترة', 'Cancelled')}</span><b>{fmt(I.canc)}</b></div>}
+            </div>
+          </div>
+        ) : mEmpty(T('لا فواتير في هذه الفترة', 'No invoices in this period'))}
+      </section>
+    )
+
+    // ── المتبقي على العملاء حسب الخدمة ──
+    const mRecv = show('invoices') && money && (
+      <section className="mh-card">
+        <div className="mh-card-h"><h3>{T('المتبقي على العملاء', 'Outstanding balance')}</h3><span className="mh-card-note">{fmt(agg.recv.cnt)} {T('فاتورة مفتوحة', 'open invoices')}</span></div>
+        {recvTotal ? (
+          <>
+            <div className="mh-big"><b>{fmt(recvTotal)}</b><small>{SAR}</small></div>
+            <div className="mh-stack">{recvParts.filter((p) => p.v > 0).map((p) => <i key={p.k} style={{ flex: `${p.v} 1 0`, background: p.c }} />)}</div>
+            <div className="mh-dl">
+              {recvParts.map((p) => (
+                <div key={p.k} className="mh-dl-row">
+                  <span className="mh-dl-l"><i style={{ background: p.c }} />{p.l}<small>({fmt(p.cnt)})</small></span>
+                  <span className="mh-dl-v">{fmt(p.v)}</span>
+                  <span className="mh-dl-p">{pctOf(p.v, recvTotal)}%</span>
+                </div>
+              ))}
+            </div>
+          </>
+        ) : mEmpty(T('لا مبالغ متبقية', 'Nothing outstanding'))}
+      </section>
+    )
+
+    // ── الفواتير حسب الخدمة ──
+    const mSvc = show('invoices') && (
+      <section className="mh-card">
+        <div className="mh-card-h"><h3>{T('الفواتير حسب الخدمة', 'Invoices by service')}</h3>{!money && <span className="mh-card-note">{periodLabel[period]}</span>}</div>
+        {money && mSeg(svcMetric, setSvcMetric, [['cnt', T('العدد', 'Count')], ['sum', T('القيمة', 'Value')]])}
+        {svcRows.some((r) => n0(r.v) > 0) ? mBarRows(svcRows.filter((r) => n0(r.v) > 0)) : mEmpty(T('لا فواتير في هذه الفترة', 'No invoices in this period'))}
+      </section>
+    )
+
+    // ── الفواتير الصادرة شهرياً ──
+    const mInvMonthly = show('invoices') && (
+      <section className="mh-card">
+        <div className="mh-card-h"><h3>{T('الفواتير الصادرة شهرياً', 'Invoices per month')}</h3><span className="mh-card-note">{T('آخر 12 شهراً', 'Last 12 months')}</span></div>
+        <div className="mh-chart" style={{ height: 160 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={agg.monthly} margin={{ top: 6, right: 2, left: 2, bottom: 0 }} barCategoryGap="24%">
+              <CartesianGrid stroke={GRID} vertical={false} />
+              <XAxis dataKey="x" reversed={isAr} tickFormatter={(x) => x.slice(5)} tick={axisTick} tickLine={false} axisLine={{ stroke: GRID }} interval={1} />
+              <YAxis orientation={isAr ? 'right' : 'left'} allowDecimals={false} tick={axisTick} tickLine={false} axisLine={false} width={30} />
+              <Tooltip wrapperStyle={{ zIndex: 20, outline: 'none' }} content={<ChartTip T={T} />} cursor={{ fill: 'rgba(176,125,0,.07)' }} />
+              <Bar dataKey="n" name={T('فواتير', 'Invoices')} fill={SERIES[1]} radius={[5, 5, 0, 0]} maxBarSize={22} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </section>
+    )
+
+    // ── مقارنة المكاتب ──
+    const cmpShort = { net: T('الدخل', 'Income'), cnt: T('الفواتير', 'Invoices'), sum: T('القيمة', 'Value'), workers: T('العمالة', 'Workers') }
+    const mOffices = show('offices') && (
+      <section className="mh-card">
+        <div className="mh-card-h"><h3>{T('مقارنة المكاتب', 'Office comparison')}</h3><span className="mh-card-note">{metric === 'workers' ? T('حالياً', 'Now') : periodLabel[period]}</span></div>
+        {mSeg(metric, setCmpMetric, cmpOpts.map(([k]) => [k, cmpShort[k]]))}
+        {cmpRows.length ? mBarRows(cmpRows, { highlight: agg.s !== 'all' ? agg.s : null, onPick: (id) => id && pickOffice(id) }) : mEmpty(T('لا بيانات في هذه الفترة', 'No data for this period'))}
+      </section>
+    )
+
+    // ── الوسطاء ──
+    const mAgents = show('agents') && (
+      <section className="mh-card">
+        <div className="mh-card-h"><h3>{T('الوسطاء', 'Brokers')}</h3><span className="mh-card-note">{fmt(agRows.length)} {T('وسيط', 'brokers')} · {fmt(agInvTotal)} {T('فاتورة', 'invoices')}</span></div>
+        {agRows.length ? (
+          <div className="mh-ag">
+            {agShown.map((r) => {
+              const svcs = Object.entries(r.svc).sort((a, b) => svcRank(a[0]) - svcRank(b[0]) || b[1] - a[1])
+              const offs = Object.entries(r.offices).sort((a, b) => b[1] - a[1])
+              return (
+                <div key={r.id} className="mh-ag-row">
+                  <span className="mh-av">{String(r.name).trim().charAt(0)}</span>
+                  <div className="mh-ag-main">
+                    <div className="mh-ag-name">{r.name}</div>
+                    {agg.s === 'all' && <div className="mh-ag-off">{offs.map(([b, n]) => offs.length > 1 ? `${officeLabel(b === '-' ? null : b)} (${n})` : officeLabel(b === '-' ? null : b)).join('، ')}</div>}
+                    <div className="mh-tags">{svcs.map(([code, n]) => <span key={code}><b>{fmt(n)}</b>{svcName(code)}</span>)}</div>
+                  </div>
+                  <div className="mh-ag-num">
+                    <b>{fmt(r.cnt)}</b><small>{T('فاتورة', 'inv.')}</small>
+                    {money && <span>{fmt(r.sum)} {SAR}</span>}
+                  </div>
+                </div>
+              )
+            })}
+            {agRows.length > AG_TOP && <button className="mh-more" onClick={() => setAgAll((v) => !v)}>{agAll ? T('عرض أقل', 'Show less') : T(`عرض الكل (${agRows.length})`, `Show all (${agRows.length})`)}</button>}
+          </div>
+        ) : mEmpty(T('لا فواتير بوسطاء في هذه الفترة', 'No broker invoices in this period'))}
+      </section>
+    )
+
+    // ── صلاحية الإقامات ──
+    const mIqama = show('iqama') && (
+      <section className="mh-card">
+        <div className="mh-card-h"><h3>{T('صلاحية الإقامات', 'Iqama validity')}</h3><span className="mh-card-note">{fmt(W.total)} {T('عامل', 'workers')}</span></div>
+        <div className="mh-stack" style={{ height: 10 }}>{W.total ? expParts.filter((p) => p.v > 0).map((p) => <i key={p.k} style={{ flex: `${p.v} 1 0`, background: p.c }} />) : <i style={{ flex: 1, background: 'var(--bd2)' }} />}</div>
+        <div className="mh-cells">
+          {expParts.map((p) => (
+            <div key={p.k} className="mh-cell">
+              <span className="mh-cell-l"><i style={{ background: p.c }} />{p.l}</span>
+              <span className="mh-cell-v">{fmt(p.v)}<small>{pctOf(p.v, W.total)}%</small></span>
+            </div>
+          ))}
+        </div>
+      </section>
+    )
+
+    // ── الجنسيات ──
+    const mNat = show('workers') && (
+      <section className="mh-card">
+        <div className="mh-card-h"><h3>{T('العمالة حسب الجنسية', 'By nationality')}</h3><span className="mh-card-note">{natSorted.length} {T('جنسية', 'nationalities')}</span></div>
+        {W.total ? (
+          <div className="mh-donut-row">
+            {mDonut(natParts, compact(W.total), T('عامل', 'workers'))}
+            <div style={{ flex: 1, minWidth: 0 }}>{mLegendRows(natParts, W.total)}</div>
+          </div>
+        ) : mEmpty(T('لا عمالة مسجّلة', 'No workers'))}
+      </section>
+    )
+
+    const grp = (title, ...items) => items.some(Boolean) && React.createElement(React.Fragment, null, <div className="mh-group">{title}</div>, ...items)
+    return (
+      <div className="mh">
+        {mHeader}
+        {mPeriodChips}
+        {mOfficeChips}
+        {mRangeSheet}
+        {!money && show('income') && <div className="mh-note"><Info size={15} />{T('الأرقام المالية غير متاحة لدورك — تظهر الأعداد فقط.', 'Financial figures are not available for your role — counts only.')}</div>}
+        {mHero}
+        {mTiles}
+        {grp(T('المالية', 'Finance'), mTrend, mStatus, mRecv)}
+        {grp(T('الفواتير', 'Invoices'), mSvc, mInvMonthly)}
+        {grp(T('المكاتب والوسطاء', 'Offices & brokers'), mOffices, mAgents)}
+        {grp(T('العمالة', 'Workers'), mIqama, mNat)}
+      </div>
+    )
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingBottom: 24 }}>

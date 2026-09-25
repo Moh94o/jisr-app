@@ -6,6 +6,8 @@ import { noDash, branchLabel } from '../../lib/utils.js'
 import { navSetHere } from '../../lib/navStack.js'
 import { Modal as FKModal, ModalSection, GRID, TextField, IdField, PhoneField, CurrencyField, Select, SuccessView, EmptyState } from '../../components/ui/FormKit.jsx'
 import { SkeletonCards, SkeletonList } from '../../components/ui/Skeleton.jsx'
+import { useIsMobile, MStatStrip, MCardList, MSearch, MChips, MBadge } from '../../components/mobile/MobileKit.jsx'
+import { MPageHead, MBack, MHero, MGroup, MKV, MItem, MLink, MTiles, MAvatar } from './MAdminKit.jsx'
 import {
   Phone, FileText, Wallet, Search,
   Calendar, Building2, User, Copy, Check,
@@ -185,6 +187,7 @@ function InfoSectionCard({ title, items, headerAction }) {
 export default function AgentsPage({ sb, lang, user, toast, emptyIcon }) {
   const isAr = lang !== 'en'
   const T = (a, e) => isAr ? a : e
+  const isMobile = useIsMobile()
 
   const [agents, setAgents] = useState([])
   const [loading, setLoading] = useState(true)
@@ -305,6 +308,57 @@ export default function AgentsPage({ sb, lang, user, toast, emptyIcon }) {
   }
 
   const initialLoading = loading && agents.length === 0
+
+  if (isMobile) {
+    const comTotal = agents.reduce((s, a) => s + Number(a._stats?.sum || 0), 0)
+    const comPaid = agents.reduce((s, a) => s + Number(a._stats?.paid || 0), 0)
+    const topNat = stats?.topNats?.[0]
+    return (
+      <div style={{ fontFamily: F, color: 'var(--tx2)' }}>
+        <MPageHead title={T('الوسطاء', 'Agents')} sub={T(`${num(stats?.total || 0)} وسيط · ${num(stats?.newThisMonth || 0)} جديد هذا الشهر`, `${num(stats?.total || 0)} agents · ${num(stats?.newThisMonth || 0)} new this month`)} />
+        <MStatStrip items={[
+          { label: T('الوسطاء', 'Agents'), value: num(stats?.total || 0), tone: 'gold', sub: T(`${num(stats?.newThisMonth || 0)} هذا الشهر`, `${num(stats?.newThisMonth || 0)} this month`) },
+          { label: T('إجمالي العمولات', 'Commissions'), value: num(Math.round(comTotal)), unit: T('ريال', 'SAR'), tone: 'blue' },
+          { label: T('غير مدفوعة', 'Unpaid'), value: num(Math.round(Math.max(0, comTotal - comPaid))), unit: T('ريال', 'SAR'), tone: comTotal - comPaid > 0 ? 'orange' : 'green' },
+          topNat && { label: T('أكثر جنسية', 'Top nationality'), value: num(topNat[1]), tone: 'purple', sub: topNat[0] },
+        ]} />
+        <MSearch value={q} onChange={v => { setQ(v); setPage(0) }} placeholder={T('ابحث بالاسم أو الهوية أو الجوال', 'Search name, ID or phone')} />
+        {branches.length > 1 && (
+          <MChips value={filters.branch_id} onChange={v => { setFilters(f => ({ ...f, branch_id: v })); setPage(0) }}
+            options={[{ value: '', label: T('كل المكاتب', 'All offices') }, ...branches.map(b => ({ value: b.id, label: b.branch_code || b.name_ar, count: agents.filter(a => String(a.branch_id) === String(b.id)).length || undefined }))]} />
+        )}
+        <MCardList loading={initialLoading} rows={pageRows.map(a => {
+          const c = a._stats || {}
+          const sum = Number(c.sum || 0), due = Math.max(0, sum - Number(c.paid || 0))
+          const name = a.name_ar || a.name_en || '—'
+          return {
+            key: a.id, title: name,
+            subtitle: [a.branch?.branch_code, a.nationality?.name_ar].filter(Boolean).join(' · '),
+            leading: <MAvatar img={a.nationality?.flag_url} text={initial(name)} tone={colorFor(a.id)} size={42} />,
+            amount: sum > 0 ? { value: num(Math.round(sum)), unit: T('ريال', 'SAR'), tone: 'gold' } : null,
+            fields: [
+              { label: T('الطلبات', 'Requests'), value: num(c.count || 0) },
+              { label: T('غير المدفوع', 'Unpaid'), value: sum <= 0 ? '—' : due > 0 ? num(Math.round(due)) : T('مدفوعة ✓', 'Paid ✓'), tone: sum <= 0 ? undefined : due > 0 ? 'orange' : 'green' },
+              { label: T('الجوال', 'Phone'), value: fmtPhone(a.phone) || '—', ltr: true },
+              { label: T('العمولة الافتراضية', 'Default'), value: Number(a.default_commission_amount || 0) > 0 ? num(a.default_commission_amount) : '—' },
+            ],
+            onClick: () => setSelectedId(a.id),
+          }
+        })} empty={
+          <EmptyState icon={emptyIcon}
+            title={q || hasFilters ? T('لا توجد نتائج مطابقة', 'No matches') : T('لا يوجد وسطاء بعد', 'No agents yet')}
+            desc={q || hasFilters ? T('جرّب تعديل التصفية أو كلمة البحث', 'Try adjusting the filter or search') : T('أضِف أول وسيط لتتبّع الطلبات والعمولات', 'Add your first agent to track requests and commissions')} />
+        } />
+        {!loading && total > PAGE && (
+          <div className="ma-pager">
+            <button disabled={page === 0} onClick={() => setPage(p => Math.max(0, p - 1))}>{T('السابق', 'Prev')}</button>
+            <span>{T('صفحة', 'Page')} {page + 1} {T('من', 'of')} {totalPages}</span>
+            <button disabled={page + 1 >= totalPages} onClick={() => setPage(p => p + 1)}>{T('التالي', 'Next')}</button>
+          </div>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div style={{ fontFamily: F, paddingTop: 0, color: 'var(--tx2)' }}>
@@ -467,6 +521,7 @@ function AgentRow({ agent, agentStats, onClick, T, isAr }) {
 function AgentDetailPage({ sb, user, agent, agentStats, toast, onBack, T, isAr, branches = [], nationalities = [], onReload, canEdit = true }) {
   const [links, setLinks] = useState(null)
   const [editing, setEditing] = useState(false)
+  const isMobile = useIsMobile()
 
   useEffect(() => {
     sb.from('service_request_agents').select(`
@@ -543,6 +598,70 @@ function AgentDetailPage({ sb, user, agent, agentStats, toast, onBack, T, isAr, 
     Number(agent.default_commission_amount || 0) > 0 ? { label: T('العمولة الافتراضية', 'Default commission'), value: num(agent.default_commission_amount), mono: true, color: GOLD } : null,
     { label: T('تاريخ الإضافة', 'Joined'), value: fmtGreg(agent.created_at), mono: true },
   ].filter(Boolean).map(f => ({ ...f, toast }))
+
+  if (isMobile) {
+    const paidCom = (links || []).filter(r => r.commission_paid_at).reduce((s, r) => s + Number(r.commission_amount || 0), 0)
+    return (
+      <div style={{ fontFamily: F, color: 'var(--tx2)', direction: 'rtl' }}>
+        <MBack onBack={onBack} label={T('الوسطاء', 'Agents')} />
+        <MHero img={agent.nationality?.flag_url} avatar={initial(name)} tone={colorFor(agent.id)} title={name} sub={fmtPhone(agent.phone)} subLtr
+          badges={<>
+            {branchCode && <MBadge text={branchCode} tone="gold" />}
+            {agent.nationality?.name_ar && <MBadge text={agent.nationality.name_ar} tone="blue" />}
+          </>} />
+        {cardVisible(user, 'admin_agents', 'statistics') && (
+          <MGroup title={T('العمولات', 'Commissions')}>
+            <MTiles items={[
+              { label: T('الطلبات', 'Requests'), value: links === null ? '…' : num(reqCount), tone: 'blue' },
+              { label: T('الإجمالي', 'Total'), value: links === null ? '…' : num(Math.round(totalCom)), tone: 'gold' },
+              { label: T('غير مدفوعة', 'Unpaid'), value: links === null ? '…' : num(Math.round(Math.max(0, totalCom - paidCom))), tone: totalCom - paidCom > 0 ? 'orange' : 'green' },
+            ]} />
+            <MKV label={T('عدد الفواتير', 'Invoices')} value={links === null ? '…' : num(activeInvoices.length)} />
+            <MKV label={T('العمولة الافتراضية', 'Default commission')} value={Number(agent.default_commission_amount || 0) > 0 ? num(agent.default_commission_amount) : '—'} />
+            <MKV label={T('آخر فاتورة', 'Last invoice')} value={lastInvoiceIso ? daysAgoLabel(lastInvoiceIso, isAr) : '—'} tone="gold" />
+          </MGroup>
+        )}
+        {cardVisible(user, 'admin_agents', 'agent_info') && (
+          <MGroup title={T('بيانات الوسيط', 'Agent')} action={canCardBtn(user, 'admin_agents', 'agent_info', 'edit') ? <MLink onClick={() => setEditing(true)}>{T('تعديل', 'Edit')}</MLink> : null}>
+            {infoItems.map((f, i) => <MKV key={i} label={f.label} value={f.value} ltr={f.mono} copy={f.copy} tone={f.color} toast={toast} />)}
+          </MGroup>
+        )}
+        {cardVisible(user, 'admin_agents', 'invoices_log') && (
+          <MGroup title={`${T('سجل الفواتير', 'Invoices')} · ${fltActive ? `${filteredInvoiceRows.length}/${invoiceRows.length}` : invoiceRows.length}`}>
+            {invoiceRows.length > 0 && (
+              <div className="ma-inset-chips">
+                <MChips value={fltSvc !== 'all' ? 'svc:' + fltSvc : fltStatus}
+                  onChange={v => { if (String(v).startsWith('svc:')) { setFltSvc(v.slice(4)); setFltStatus('all') } else { setFltStatus(v); setFltSvc('all') } }} options={[
+                  { value: 'all', label: T('الكل', 'All') }, { value: 'active', label: T('غير ملغاة', 'Active') }, { value: 'cancelled', label: T('ملغاة', 'Cancelled') },
+                  ...svcOptions.filter(o => o.v !== 'all').map(o => ({ value: 'svc:' + o.v, label: o.l })),
+                ]} />
+              </div>
+            )}
+            {links === null && <div className="ma-empty">{T('جاري التحميل…', 'Loading…')}</div>}
+            {links !== null && invoiceRows.length === 0 && <div className="ma-empty">{T('لا توجد فواتير بعد', 'No invoices yet')}</div>}
+            {invoiceRows.length > 0 && filteredInvoiceRows.length === 0 && <div className="ma-empty">{T('لا توجد فواتير مطابقة للفلاتر', 'No invoices match the filters')}</div>}
+            {filteredInvoiceRows.map(inv => {
+              const t = Number(inv.total_amount || 0), p = Number(inv.paid_amount || 0), rem = Number(inv.remaining_amount || 0)
+              const cancelled = isCancelled(inv)
+              const st = cancelled ? { t: T('ملغاة', 'Cancelled'), c: 'red' } : rem > 0 ? (p > 0 ? { t: T('جزئي', 'Partial'), c: 'orange' } : { t: T('غير مدفوعة', 'Unpaid'), c: 'red' }) : { t: T('مدفوعة', 'Paid'), c: 'green' }
+              const svcName = isAr ? inv.service_type?.value_ar : (inv.service_type?.value_en || inv.service_type?.value_ar)
+              return (
+                <MItem key={inv.id} dim={cancelled} onClick={() => openInvoice(inv.id)} tone={st.c}
+                  leading={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6M8 13h8M8 17h5" /></svg>}
+                  title={noDash(inv.invoice_no) || `#${String(inv.id).slice(0, 8)}`}
+                  sub={[svcName, inv.branch?.branch_code, fmtGreg(inv.created_at)].filter(Boolean).join(' · ')}
+                  value={<span className="ma-inv-val"><b>{num(t)}</b><small data-tone={st.c}>{rem > 0 && !cancelled ? `${T('متبقٍ', 'Due')} ${num(rem)}` : st.t}</small></span>} />
+              )
+            })}
+          </MGroup>
+        )}
+        {editing && (
+          <AgentEditModal sb={sb} agent={agent} branches={branches} nationalities={nationalities} toast={toast}
+            onClose={() => setEditing(false)} onSaved={() => { setEditing(false); onReload?.() }} />
+        )}
+      </div>
+    )
+  }
 
   return (
     <div style={{ fontFamily: F, paddingTop: 0, paddingBottom: 48, color: 'var(--tx2)', direction: 'rtl' }}>

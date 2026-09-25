@@ -3,6 +3,8 @@ import { Edit3, Power, PowerOff, Plus, Wallet, ShieldAlert, ShieldCheck, X, Land
 import { getSupabase } from '../lib/supabase.js'
 import { can } from '../lib/permissions.js'
 import { Shimmer } from '../components/ui/Skeleton.jsx'
+import { useIsMobile, MChips } from '../components/mobile/MobileKit.jsx'
+import { MPageHead, MGroup, MItem, MSwitch } from './admin/MAdminKit.jsx'
 
 // الإدارة ← الرسوم — admin catalog for payment-request fees, grouped into one card per
 // platform category (المركز السعودي / قوى / مقيم / أبشر أعمال / الغرفة التجارية / أخرى).
@@ -85,6 +87,7 @@ export default function FeesAdminPage({ toast, lang, user }) {
   const [editingId, setEditingId] = useState(null) // fee id being edited | 'new'
   const [draft, setDraft] = useState({})
   const [saving, setSaving] = useState(false)
+  const isMobile = useIsMobile()
 
   const load = async () => {
     const { data, error } = await sb.from('fee_settings').select('*').order('sort_order').order('created_at')
@@ -245,6 +248,77 @@ export default function FeesAdminPage({ toast, lang, user }) {
             )}
           </div>
         )}
+      </div>
+    )
+  }
+
+  if (isMobile) {
+    const numInput = (k, ph) => (
+      <input className="ma-input ma-input-num" type="text" inputMode="decimal" value={draft[k] ?? ''} placeholder={ph} dir="ltr"
+        onChange={e => { let v = e.target.value.replace(/[^0-9.]/g, ''); const i = v.indexOf('.'); if (i !== -1) v = v.slice(0, i + 1) + v.slice(i + 1).replace(/\./g, ''); setDraft(p => ({ ...p, [k]: v })) }} />
+    )
+    const seg = (value, onChange, options, disabled) => (
+      <div className="ma-seg">{options.map(o => <button key={o.v} type="button" disabled={disabled} className={value === o.v ? 'on' : ''} onClick={() => onChange(o.v)}>{o.l}</button>)}</div>
+    )
+    const mEditor = (isNew) => (
+      <div className="ma-editor">
+        <label className="ma-field"><span>{T('اسم الرسم (عربي)', 'Fee name (Arabic)')}</span>
+          <input className="ma-input" type="text" value={draft.label_ar || ''} onChange={e => setDraft(p => ({ ...p, label_ar: e.target.value }))} placeholder={T('مثال: رسوم إصدار رخصة عمل', 'e.g. Work permit fee')} /></label>
+        <label className="ma-field"><span>{T('الاسم (إنجليزي) — اختياري', 'Name (English) — optional')}</span>
+          <input className="ma-input" type="text" dir="ltr" value={draft.label_en || ''} onChange={e => setDraft(p => ({ ...p, label_en: e.target.value }))} placeholder="—" /></label>
+        <div className="ma-field"><span>{T('التصنيف', 'Category')}</span>
+          <MChips value={draft.category || 'other'} onChange={v => setDraft(p => ({ ...p, category: v }))} options={CATS.map(c => ({ value: c.code, label: T(c.ar, c.en) }))} /></div>
+        <div className="ma-field"><span>{T('نوع الرسم', 'Fee type')}</span>
+          {seg(draft.amount_type, v => setDraft(p => ({ ...p, amount_type: v })), [{ v: 'fixed', l: T('ثابت — بدون إدخال', 'Fixed') }, { v: 'variable', l: T('متغير — إدخال يدوي', 'Variable') }])}</div>
+        {draft.amount_type === 'fixed' ? (
+          <label className="ma-field"><span>{T('المبلغ الثابت (ريال)', 'Fixed amount (SAR)')}</span>{numInput('fixed_amount', '2,000')}</label>
+        ) : (<>
+          <label className="ma-field"><span>{T('الحد الأعلى للإدخال (ريال) — فارغ = بلا حد', 'Max input (SAR) — empty = no cap')}</span>{numInput('max_amount', T('بدون حد', 'no cap'))}</label>
+          <div className="ma-field"><span>{T('عند تجاوز الحد', 'When over the cap')}</span>
+            {seg(draft.over_max_action || 'reject', v => setDraft(p => ({ ...p, over_max_action: v })), [{ v: 'reject', l: T('رفض الإدخال', 'Reject') }, { v: 'review', l: T('قبول مع مراجعة', 'Accept + review') }], !(Number(draft.max_amount) > 0))}</div>
+        </>)}
+        <div className="ma-editor-btns">
+          <button type="button" className="ma-act" onClick={cancelEdit}>{T('إلغاء', 'Cancel')}</button>
+          <button type="button" className="ma-act primary" onClick={saveDraft} disabled={saving}>{saving ? T('جارٍ الحفظ…', 'Saving…') : isNew ? T('إضافة الرسم', 'Add fee') : T('حفظ', 'Save')}</button>
+        </div>
+      </div>
+    )
+    const activeN = rows.filter(r => r.is_active).length
+    return (
+      <div style={{ fontFamily: F, color: 'var(--tx2)' }}>
+        <MPageHead title={T('الرسوم', 'Fees')} sub={T(`${rows.length} رسم · ${activeN} مفعّل`, `${rows.length} fees · ${activeN} active`)} />
+        {loading ? (
+          <div className="mk-cards">{[0, 1, 2, 3].map(i => <div key={i} className="mk-card mk-skel"><span /><span /><span /></div>)}</div>
+        ) : CATS.map(cat => {
+          const catRows = rows.filter(r => (CATS.some(c => c.code === r.category) ? r.category : 'other') === cat.code)
+          const adding = editingId === 'new' && (draft.category || 'other') === cat.code
+          const Icon = cat.Icon
+          return (
+            <MGroup key={cat.code} title={`${T(cat.ar, cat.en)} · ${catRows.length}`}>
+              {catRows.length === 0 && !adding && !can(user, 'admin_fees.create') && <div className="ma-empty">{T('لا توجد رسوم في هذا التصنيف بعد.', 'No fees yet.')}</div>}
+              {catRows.map(r => {
+                const variable = r.amount_type === 'variable'
+                const isEdit = editingId === r.id
+                return (
+                  <React.Fragment key={r.id}>
+                    <MItem dim={!r.is_active} tone={cat.c} leading={<Icon size={20} strokeWidth={2} />}
+                      onClick={can(user, 'admin_fees.edit') ? () => (isEdit ? cancelEdit() : startEdit(r)) : undefined} chevron={false}
+                      title={isAr ? r.label_ar : (r.label_en || r.label_ar)}
+                      sub={variable
+                        ? `${T('متغير', 'Variable')} · ${r.max_amount != null ? (r.over_max_action === 'review' ? T('تجاوز الحد: مراجعة', 'over cap: review') : T('تجاوز الحد: رفض', 'over cap: reject')) : T('بلا حد', 'no cap')}`
+                        : T('ثابت — يُرسل مباشرة', 'Fixed — sent directly')}
+                      value={<span className="ma-inv-val"><b style={{ color: variable ? '#2f7cb3' : undefined }}>{variable ? (r.max_amount != null ? fmtNum(r.max_amount) : '∞') : fmtNum(r.fixed_amount)}</b><small>{variable ? T('الحد الأعلى', 'max') : T('ريال', 'SAR')}</small></span>}
+                      trailing={can(user, 'admin_fees.edit') ? <MSwitch on={!!r.is_active} onChange={() => toggleActive(r)} /> : null} />
+                    {isEdit && mEditor(false)}
+                  </React.Fragment>
+                )
+              })}
+              {can(user, 'admin_fees.create') && (adding ? mEditor(true) : (
+                <MItem onClick={() => startNew(cat.code)} tone={cat.c} leading={<Plus size={20} />} title={<span style={{ color: cat.c }}>{T('إضافة رسم', 'Add fee')}</span>} chevron={false} />
+              ))}
+            </MGroup>
+          )
+        })}
       </div>
     )
   }

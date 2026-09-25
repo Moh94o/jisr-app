@@ -9,6 +9,8 @@ import { buildMudadBookmarklet } from './mudadSyncBookmarklet.js'
 import { Sel } from './KafalaCalculator.jsx'
 import { Ban, ShieldOff, RefreshCw, ClipboardCheck, ChevronRight, ChevronLeft } from 'lucide-react'
 import { Modal as FKModal, ActionButton, SuccessView, TextField, ScrollBox, EmptyState } from '../components/ui/FormKit.jsx'
+import { useIsMobile, MStatStrip, MCardList, MChips, MSearch, MBadge } from '../components/mobile/MobileKit.jsx'
+import '../styles/m-synchub.css'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = {
@@ -4610,6 +4612,10 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
   // Explicit page pick wins; then a drilldown-provided id; then first account.
   const spid = chosenPersonId || syncPersonId || fallbackPersonId
 
+  // عرض الجوال — تبويب ملف المنشأة النشط + عدد البطاقات المعروضة (تمرير لا نهائي)
+  const isMobile = useIsMobile()
+  const [mTab, setMTab] = useState('overview')
+  const [mLimit, setMLimit] = useState(30)
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState(null)
@@ -5700,10 +5706,387 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
   // nothing meaningful to show.
   const isInitiallyEmpty = !loading && rows.length === 0
 
+  // لوحة البحث المتقدم — مشتركة بين الحاسب والجوال (نفس المخرَج على الحاسب)
+  const renderAdvPanel = () => (
+        <div style={{ marginBottom: 22, padding: '16px 18px', background: 'var(--card-grad2)', border: '1px solid var(--bd)', borderRadius: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
+            <div>
+              <div style={advLbl}>{T('المالك / الشريك', 'Owner / Partner')}</div>
+              <Sel value={adv.owner} onChange={v => setAdv(a => ({ ...a, owner: v }))}
+                placeholder={`${T('الكل', 'All')} (${partnerOptions.length})`}
+                maxVisible={4}
+                searchable
+                multiple
+                searchPlaceholder={T('ابحث بالاسم أو الرقم…', 'Search by name or ID…')}
+                options={(() => {
+                  const persons = partnerOptions.filter(p => !p.isCompany)
+                  const companies = partnerOptions.filter(p => p.isCompany)
+                  const toOpt = p => ({ v: p.id || p.name, l: p.name || '—', sub: p.id || undefined })
+                  const out = [{ v: '', l: `${T('الكل', 'All')} (${partnerOptions.length})` }]
+                  if (persons.length) out.push(...persons.map(toOpt))
+                  if (persons.length && companies.length) out.push({ divider: true, l: T('المنشآت', 'Facilities') })
+                  if (companies.length) out.push(...companies.map(toOpt))
+                  return out
+                })()}/>
+            </div>
+            <div>
+              <div style={advLbl}>{T('المدير / المدراء', 'Manager / Managers')}</div>
+              <Sel value={adv.manager} onChange={v => setAdv(a => ({ ...a, manager: v }))}
+                placeholder={`${T('الكل', 'All')} (${managerOptions.length})`}
+                maxVisible={4}
+                searchable
+                multiple
+                searchPlaceholder={T('ابحث بالاسم أو الرقم…', 'Search by name or ID…')}
+                options={(() => {
+                  const persons = managerOptions.filter(p => !p.isCompany)
+                  const companies = managerOptions.filter(p => p.isCompany)
+                  const toOpt = p => ({ v: p.id || p.name, l: p.name || '—', sub: p.id || undefined })
+                  const out = [{ v: '', l: `${T('الكل', 'All')} (${managerOptions.length})` }]
+                  if (persons.length) out.push(...persons.map(toOpt))
+                  if (persons.length && companies.length) out.push({ divider: true, l: T('المنشآت', 'Facilities') })
+                  if (companies.length) out.push(...companies.map(toOpt))
+                  return out
+                })()}/>
+            </div>
+            <div>
+              <div style={advLbl}>{T('المدينة', 'City')}</div>
+              <input value={adv.city} onChange={e => setAdv(a => ({ ...a, city: e.target.value }))} placeholder={T('الرياض، جدة…', 'Riyadh, Jeddah…')} style={advInp}/>
+            </div>
+            <div>
+              <div style={advLbl}>{T('حالة السجل', 'CR Status')}</div>
+              <Sel value={adv.status} onChange={v => setAdv(a => ({ ...a, status: v }))}
+                placeholder={T('الكل', 'All')}
+                maxVisible={4}
+                multiple
+                options={(() => {
+                  const out = [{ v: '', l: T('الكل', 'All') }]
+                  for (const s of statusOptions) {
+                    out.push({ v: s, l: s })
+                    // Slot the "in confirmation" sub-filter directly after the
+                    // plain "نشط" entry so related options stay adjacent.
+                    if (/نشط|active/i.test(s)) {
+                      out.push({ v: '__active_confirm__', l: T('نشط (ضمن فترة التأكيد)', 'Active (within confirmation)') })
+                    }
+                  }
+                  return out
+                })()}/>
+            </div>
+            <div>
+              <div style={advLbl}>{T('نطاق المنشأة', 'Nitaq')}</div>
+              <Sel value={adv.nitaq} onChange={v => setAdv(a => ({ ...a, nitaq: v }))}
+                placeholder={T('الكل', 'All')}
+                maxVisible={4}
+                multiple
+                options={[
+                  { v: '', l: T('الكل', 'All') },
+                  ...nitaqOptions.map(n => ({ v: n, l: n })),
+                ]}/>
+            </div>
+            <div>
+              <div style={advLbl}>{T('عدد الملاك', 'Partners count')}</div>
+              <Sel value={adv.partnersCount} onChange={v => setAdv(a => ({ ...a, partnersCount: v }))}
+                placeholder={T('الكل', 'All')}
+                maxVisible={4}
+                multiple
+                options={[
+                  { v: '', l: T('الكل', 'All') },
+                  ...partnersCountOptions,
+                ]}/>
+            </div>
+            <div>
+              <div style={advLbl}>{T('عدد المشرفين', 'Admins count')}</div>
+              <Sel value={adv.adminsCount} onChange={v => setAdv(a => ({ ...a, adminsCount: v }))}
+                placeholder={T('الكل', 'All')}
+                maxVisible={4}
+                multiple
+                options={[
+                  { v: '', l: T('الكل', 'All') },
+                  ...adminsCountOptions,
+                ]}/>
+            </div>
+            <div>
+              <div style={advLbl}>
+                {T('ترتيب حسب تاريخ التأكيد', 'Sort by confirm date')}
+                {adv.sortConfirm && adv.sortIssue && <span style={{ marginInlineStart: 6, fontSize: 10, color: C.gold, fontWeight: 600 }}>{T('· رئيسي', '· primary')}</span>}
+              </div>
+              <Sel value={adv.sortConfirm} onChange={v => setAdv(a => ({ ...a, sortConfirm: v }))}
+                placeholder={T('بدون ترتيب', 'No sort')}
+                options={[
+                  { v: '', l: T('بدون ترتيب', 'No sort') },
+                  { v: 'asc', l: T('تصاعدي · الأقدم أولاً', 'Ascending · oldest first') },
+                  { v: 'desc', l: T('تنازلي · الأحدث أولاً', 'Descending · newest first') },
+                ]}/>
+            </div>
+            <div>
+              <div style={advLbl}>
+                {T('ترتيب حسب تاريخ الإصدار', 'Sort by issue date')}
+                {adv.sortConfirm && adv.sortIssue && <span style={{ marginInlineStart: 6, fontSize: 10, color: C.blue, fontWeight: 600 }}>{T('· ثانوي', '· secondary')}</span>}
+              </div>
+              <Sel value={adv.sortIssue} onChange={v => setAdv(a => ({ ...a, sortIssue: v }))}
+                placeholder={T('بدون ترتيب', 'No sort')}
+                options={[
+                  { v: '', l: T('بدون ترتيب', 'No sort') },
+                  { v: 'asc', l: T('تصاعدي · الأقدم أولاً', 'Ascending · oldest first') },
+                  { v: 'desc', l: T('تنازلي · الأحدث أولاً', 'Descending · newest first') },
+                ]}/>
+            </div>
+          </div>
+        </div>
+  )
+
+  // ═══ الجوال: قائمة المنشآت المُزامَنة بنمط تطبيق أصلي ═══════════════════
+  // عرض فقط — نفس الحالة والمرشّحات (search / adv / displayRows / setDetail).
+  const mStatusPick = (Array.isArray(adv.status) && adv.status.length === 1) ? adv.status[0] : (Array.isArray(adv.status) && adv.status.length ? '__multi__' : '')
+  const mStatusChips = (() => {
+    const isAct = (s) => /نشط|active/i.test(s)
+    const cnt = (s) => normalized.filter(r => {
+      const st = String(r._status || '').trim()
+      if (s === '__active_confirm__') return isAct(st) && r.is_in_confirmation_period
+      if (st !== s) return false
+      return !(isAct(st) && r.is_in_confirmation_period)
+    }).length
+    const out = [{ value: '', label: T('الكل', 'All'), count: normalized.length }]
+    for (const s of statusOptions) {
+      out.push({ value: s, label: s, count: cnt(s) })
+      if (isAct(s)) {
+        const n = cnt('__active_confirm__')
+        if (n) out.push({ value: '__active_confirm__', label: T('ضمن فترة التأكيد', 'In confirmation'), count: n })
+      }
+    }
+    if (mStatusPick === '__multi__') out.push({ value: '__multi__', label: T('عدة حالات', 'Multiple') })
+    return out
+  })()
+  const mSetStatus = (v) => { if (v === '__multi__') return; setAdv(a => ({ ...a, status: v ? [v] : [] })); setMLimit(30) }
+  const mLastSync = rows.reduce((m, r) => (r.last_synced_at && (!m || r.last_synced_at > m)) ? r.last_synced_at : m, null)
+  const mIcoFacility = (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18"/><path d="M5 21V8l7-5 7 5v13"/><path d="M9 21v-6h6v6"/></svg>
+  )
+  const mIcoBranch = (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M6 8.5v3a4 4 0 0 0 4 4h5.5"/></svg>
+  )
+  const mConfirmInfo = (cd) => {
+    if (!cd) return { tone: null, left: null }
+    const t = new Date(cd).getTime()
+    if (Number.isNaN(t)) return { tone: null, left: null }
+    const d = Math.floor((Date.now() - t) / 86400000)
+    if (d < 0) return { tone: d > -60 ? 'orange' : 'green', left: d > -60 ? T(`بعد ${-d} يوم`, `in ${-d}d`) : null }
+    if (d <= 90) return { tone: 'red', left: T(`${90 - d} يوم للتعليق`, `${90 - d}d to suspension`) }
+    return { tone: 'red', left: T('متأخر', 'Overdue') }
+  }
+  const mStatusTone = (s) => {
+    const v = String(s || '')
+    if (/نشط|active/i.test(v)) return 'green'
+    if (/معلق|موقوف|suspend/i.test(v)) return 'orange'
+    if (/مشطوب|ملغ|cancel|struck/i.test(v)) return 'red'
+    if (/منتهي|expired/i.test(v)) return 'orange'
+    return 'gray'
+  }
+  const renderMobileList = () => {
+    const shown = displayRows.slice(0, mLimit)
+    const cardRows = shown.map(r => {
+      const branch = !!r._isBranch || (!r.is_main && !!r._parentNatNo)
+      const molNo = (r.hrsd_labor_office_id != null && r.hrsd_sequence_number != null)
+        ? `${r.hrsd_labor_office_id}-${r.hrsd_sequence_number}` : (r.hrsd_labor_office_id != null ? String(r.hrsd_labor_office_id) : null)
+      const ci = mConfirmInfo(r._confirmDate)
+      const inConfirm = r.is_in_confirmation_period && /نشط|active/i.test(String(r._status || ''))
+      const partners = r._partners || []
+      const owner = partners[0] ? extractPartyDisplay(partners[0]).name : null
+      const nitaqC = r.hrsd_nitaq_name ? nitaqBandColor(r.hrsd_nitaq_name) : null
+      const workers = r.hrsd_total_laborers ?? r.gosi_number_of_contributors
+      return {
+        key: (r.cr_national_number || r.cr_number || r.id) + (r._isBranch ? '_b' : ''),
+        leading: <span className={'msync-lead' + (branch ? ' is-branch' : '')}>{branch ? mIcoBranch : mIcoFacility}</span>,
+        title: r.entity_full_name_ar || r.entity_full_name_en || '—',
+        subtitle: [branch ? T('فرع', 'Branch') : (r.is_main ? T('رئيسي', 'Main') : null), r._form, r._city].filter(Boolean).join(' · '),
+        badge: inConfirm ? { text: T('فترة التأكيد', 'Confirming'), tone: 'orange' } : { text: r._status || '—', tone: mStatusTone(r._status) },
+        onClick: () => { setMTab('overview'); setDetail(r) },
+        fields: [
+          { label: T('الرقم الموحد', 'Unified No.'), value: r.cr_national_number || '—', ltr: true },
+          { label: T('مكتب العمل', 'MOL file'), value: molNo || '—', ltr: true },
+          { label: T('التأكيد السنوي', 'Annual confirmation'), value: r._confirmDate ? (<span className="msync-date"><bdi dir="ltr">{fmtDMY(r._confirmDate)}</bdi>{ci.left && <small>{ci.left}</small>}</span>) : '—', tone: ci.tone },
+          { label: T('العمالة', 'Workers'), value: workers != null ? (<span className="msync-date"><bdi>{num(workers)}</bdi>{r.hrsd_nitaq_name && <small style={nitaqC ? { color: nitaqC } : undefined}>{r.hrsd_nitaq_name}</small>}</span>) : '—' },
+        ],
+        children: owner ? (
+          <div className="msync-owner">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>
+            <span>{owner}</span>
+            {partners.length > 1 && <em>+{partners.length - 1}</em>}
+          </div>
+        ) : null,
+      }
+    })
+    const advActive = [adv.owner, adv.manager, adv.partnersCount, adv.adminsCount, adv.nitaq].some(v => Array.isArray(v) && v.length) || !!adv.city.trim() || !!adv.sortConfirm || !!adv.sortIssue
+    return (
+      <div className="msync">
+        <div className="msync-head">
+          <h1>{T('المنشآت المُزامَنة', 'Synced facilities')}</h1>
+          <p>
+            {T(`${num(rows.length)} منشأة`, `${num(rows.length)} facilities`)}
+            {mLastSync && <> · {T('آخر مزامنة', 'Last sync')} {fmtAgo(mLastSync, lang)}</>}
+          </p>
+        </div>
+
+        {err && <div className="msync-err">{err}</div>}
+
+        {isInitiallyEmpty ? (
+          <div className="msync-empty">
+            <span className="msync-empty-ico">
+              <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M3 9h18"/></svg>
+            </span>
+            <b>{T('لا توجد منشآت مُزامَنة بعد', 'No synced facilities yet')}</b>
+            <span>{T('تبدأ المزامنة من الكمبيوتر: افتح المركز السعودي للأعمال واضغط زر المزامنة في شريط الإشارات، وستظهر منشآتك هنا تلقائياً.', 'Syncing starts on a computer: open the Saudi Business Center and click the sync bookmark — your facilities appear here automatically.')}</span>
+          </div>
+        ) : (<>
+          <MStatStrip items={[
+            { label: T('إجمالي المنشآت', 'Total'), value: num(counts.total), tone: 'gold', sub: T(`${num(counts.main)} رئيسية · ${num(counts.branches)} فرع`, `${num(counts.main)} main · ${num(counts.branches)} branches`) },
+            counts.confirmation > 0 && { label: T('ضمن فترة التأكيد', 'In confirmation'), value: num(counts.confirmation), tone: 'orange', sub: T('تحتاج تأكيداً سنوياً', 'Need annual confirmation'), onClick: () => mSetStatus(mStatusPick === '__active_confirm__' ? '' : '__active_confirm__') },
+            { label: T('إجمالي العمالة', 'Workers'), value: num(rows.reduce((a, r) => a + (Number(r.hrsd_total_laborers ?? r.gosi_number_of_contributors) || 0), 0)), tone: 'blue', sub: T('حسب الموارد البشرية', 'Per HRSD') },
+            counts.manager > 0 && { label: T('مدير فيها', 'As manager'), value: num(counts.manager), tone: 'purple' },
+            counts.partner > 0 && { label: T('شريك فيها', 'As partner'), value: num(counts.partner), tone: 'blue' },
+            counts.liquidation > 0 && { label: T('تحت التصفية', 'Liquidation'), value: num(counts.liquidation), tone: 'red' },
+          ]} />
+
+          <div className="msync-searchrow">
+            <MSearch value={search} onChange={v => { setSearch(v); setMLimit(30) }} placeholder={T('اسم، سجل، رقم موحد، تأمينات…', 'Name, CR, unified, GOSI…')} />
+            <button type="button" className={'msync-filter' + (advOpen || advActive ? ' on' : '')} onClick={() => setAdvOpen(v => !v)} aria-label={T('تصفية', 'Filter')}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="6" x2="14" y2="6"/><line x1="18" y1="6" x2="20" y2="6"/><circle cx="16" cy="6" r="2"/><line x1="4" y1="12" x2="8" y2="12"/><line x1="12" y1="12" x2="20" y2="12"/><circle cx="10" cy="12" r="2"/><line x1="4" y1="18" x2="16" y2="18"/><circle cx="18" cy="18" r="2"/></svg>
+              {advActive && <i />}
+            </button>
+          </div>
+          {advOpen && (
+            <div className="msync-adv">
+              {renderAdvPanel()}
+              <div className="msync-adv-foot">
+                {advActive && <button type="button" onClick={() => setAdv(a => ({ owner: [], manager: [], partnersCount: [], adminsCount: [], city: '', status: a.status, sortConfirm: '', sortIssue: '', nitaq: [] }))}>{T('مسح التصفية', 'Clear')}</button>}
+                <button type="button" className="primary" onClick={() => setAdvOpen(false)}>{T('تم', 'Done')}</button>
+              </div>
+            </div>
+          )}
+          <MChips options={mStatusChips} value={mStatusPick} onChange={mSetStatus} />
+
+          <div className="msync-count">
+            {displayRows.length === rows.length
+              ? T(`${num(displayRows.length)} منشأة`, `${num(displayRows.length)} facilities`)
+              : T(`${num(displayRows.length)} من ${num(rows.length)} منشأة`, `${num(displayRows.length)} of ${num(rows.length)}`)}
+          </div>
+
+          <MCardList
+            rows={cardRows}
+            loading={loading}
+            onEndReached={displayRows.length > mLimit ? () => setMLimit(n => n + 30) : undefined}
+            empty={(
+              <div className="msync-empty small">
+                <b>{T('لا توجد نتائج مطابقة', 'No matching results')}</b>
+                <span>{T('جرّب تعديل البحث أو الحالة', 'Try another search or status')}</span>
+              </div>
+            )}
+          />
+        </>)}
+
+        <div className="msync-note">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+          <span>{T('تشغيل المزامنة ونقل البيانات إلى المنشآت يتمّان من الكمبيوتر — هنا تتصفّح ما تمّت مزامنته.', 'Running syncs and promoting data happen on a computer — here you browse what was synced.')}</span>
+        </div>
+      </div>
+    )
+  }
+
+  // ═══ الجوال: ملف المنشأة — شاشة كاملة بتبويبات (شرائح) بدل عمودين ═══════
+  const mExpiring = (muqeemResidents || []).filter(r => {
+    const t = r.iqama_expiry_date ? new Date(r.iqama_expiry_date).getTime() : NaN
+    return !Number.isNaN(t) && (t - Date.now()) / 86400000 <= 30
+  }).length
+  const mDetailTabs = detail ? [
+    { value: 'overview', label: T('نظرة عامة', 'Overview') },
+    { value: 'owners', label: T('الملاك والمدراء', 'Owners'), count: ((detail.partners || detail._raw?.parityList || []).length + (detail.managers || detail._raw?.mangmentInformation?.managerList || []).length) || undefined },
+    { value: 'cr', label: T('السجل التجاري', 'Register') },
+    { value: 'workers', label: T('العمالة', 'Workers') },
+    { value: 'gosi', label: T('التأمينات', 'GOSI'), count: gosiContributors.length || undefined },
+    { value: 'qiwa', label: qiwaCompany ? T('قوى والموارد', 'Qiwa & HRSD') : T('الموارد البشرية', 'HRSD') },
+    muqeemCompany && { value: 'muqeem', label: T('مقيم', 'Muqeem'), count: muqeemResidents.length || undefined },
+    (ajeerEst || mudadEst || ajeerNotices.length > 0) && { value: 'ajeer', label: T('أجير ومدد', 'Ajeer & Mudad') },
+    (rowHistory.length > 0 || fileVersions.length > 0) && { value: 'history', label: T('سجل التغييرات', 'History'), count: rowHistory.length || undefined },
+  ].filter(Boolean) : []
+  const mTabSafe = mDetailTabs.some(t => t.value === mTab) ? mTab : 'overview'
+  // على الجوال تُفتح كروت التبويب مباشرةً (لا طيّ داخل تبويب) — نفس حدث «توسيع الكل»
+  useEffect(() => {
+    if (!isMobile || !detail) return
+    const t = setTimeout(() => window.dispatchEvent(new CustomEvent('synchub-expand-all', { detail: { expand: true } })), 60)
+    return () => clearTimeout(t)
+  }, [isMobile, detail, mTabSafe, qiwaCompany, muqeemCompany, gosiEstablishment, extDetail])
+  useEffect(() => {
+    if (!isMobile) return
+    try { window.scrollTo(0, 0); document.querySelector('.dash-content')?.scrollTo?.(0, 0) } catch { /* noop */ }
+  }, [isMobile, detail])
+  const renderMobileDetailHead = ({ hasRequestsData, hrsd, gosi }) => {
+    const isBranch = !!(detail._isBranch || detail.main_cr_national_number || detail.main_cr_number)
+    const inConfirm = detail.is_in_confirmation_period
+    const ci = mConfirmInfo(detail._confirmDate)
+    const workers = hrsd.totalLaborers ?? gosi.total
+    const saudis = hrsd.saudiLaborers ?? gosi.saudi
+    const nitaqC = hrsd.nitaqName ? nitaqBandColor(hrsd.nitaqName) : null
+    return (<>
+      <div className="msd-bar">
+        <button type="button" className="msd-back" onClick={() => setDetail(null)}>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+            {(lang || 'ar') !== 'en' ? <polyline points="9 18 15 12 9 6" /> : <polyline points="15 18 9 12 15 6" />}
+          </svg>
+          {T('المنشآت', 'Facilities')}
+        </button>
+        <span className="msd-bar-src">
+          <CrListBadge row={detail} T={T} />
+          <RequestsBadge row={detail} T={T} />
+        </span>
+      </div>
+      <div className="msd-hero">
+        <span className={'msync-lead lg' + (isBranch ? ' is-branch' : '')}>{isBranch ? mIcoBranch : mIcoFacility}</span>
+        <h2>{detail.entity_full_name_ar || T('منشأة', 'Facility')}</h2>
+        {detail.entity_full_name_en && <p className="en" dir="ltr">{detail.entity_full_name_en}</p>}
+        <div className="msd-pills">
+          <MBadge text={isBranch ? T('فرع', 'Branch') : T('رئيسي', 'Main')} tone={isBranch ? 'blue' : 'gold'} />
+          <MBadge text={detail._status || '—'} tone={mStatusTone(detail._status)} />
+          {inConfirm && <MBadge text={T('ضمن فترة التأكيد', 'In confirmation')} tone="orange" />}
+          {detail.in_liquidation_process && <MBadge text={T('تصفية', 'Liquidation')} tone="red" />}
+          {ci.left && <MBadge text={ci.left} tone={ci.tone} />}
+        </div>
+        {hasRequestsData && (
+          <p className="msd-prov">
+            {T('من «طلباتي» — بوابة الشركات', 'From "My Requests"')}
+            {detail.request_reference_no && <> · <bdi dir="ltr">{detail.request_reference_no}</bdi></>}
+          </p>
+        )}
+        <div className="msd-facts">
+          <button type="button" onClick={() => setMTab('workers')}>
+            <b>{workers != null ? num(workers) : '—'}</b><span>{T('العمالة', 'Workers')}</span>
+          </button>
+          <button type="button" onClick={() => setMTab('gosi')}>
+            <b>{saudis != null ? num(saudis) : '—'}</b><span>{T('سعوديون', 'Saudis')}</span>
+          </button>
+          <button type="button" onClick={() => setMTab(qiwaCompany ? 'qiwa' : 'qiwa')}>
+            <b style={nitaqC ? { color: nitaqC } : undefined} className="sm">{hrsd.nitaqName || '—'}</b><span>{T('النطاق', 'Nitaq')}</span>
+          </button>
+          {muqeemCompany ? (
+            <button type="button" onClick={() => setMTab('muqeem')}>
+              <b style={mExpiring ? { color: '#c0392b' } : undefined}>{num(mExpiring)}</b><span>{T('إقامات تنتهي قريباً', 'Expiring iqamas')}</span>
+            </button>
+          ) : (
+            <button type="button" onClick={() => setMTab('cr')}>
+              <b className="sm" dir="ltr" style={ci.tone ? { color: ci.tone === 'red' ? '#c0392b' : ci.tone === 'orange' ? '#d97a1e' : '#1f8a4c' } : undefined}>{fmtDMY(detail._confirmDate)}</b><span>{T('التأكيد السنوي', 'Confirmation')}</span>
+            </button>
+          )}
+        </div>
+      </div>
+      <div className="msd-tabs">
+        <MChips options={mDetailTabs} value={mTabSafe} onChange={setMTab} />
+      </div>
+    </>)
+  }
+
   return (
     <div style={{ fontFamily: F }}>
       <style>{`.sbc-tbl-scroll::-webkit-scrollbar{display:none}`}</style>
-      {!detail && (<>
+      {!detail && isMobile && renderMobileList()}
+      {!detail && !isMobile && (<>
       {/* Page title + description + sync anchor */}
       <div style={{ marginBottom: 22, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
         {/* Title shares row 1 with the CTA; the sync bookmarklets carry
@@ -6260,132 +6643,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
       </div>
 
       {/* Advanced search panel — matches Invoices page filter panel */}
-      {advOpen && (
-        <div style={{ marginBottom: 22, padding: '16px 18px', background: 'var(--card-grad2)', border: '1px solid var(--bd)', borderRadius: 14 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
-            <div>
-              <div style={advLbl}>{T('المالك / الشريك', 'Owner / Partner')}</div>
-              <Sel value={adv.owner} onChange={v => setAdv(a => ({ ...a, owner: v }))}
-                placeholder={`${T('الكل', 'All')} (${partnerOptions.length})`}
-                maxVisible={4}
-                searchable
-                multiple
-                searchPlaceholder={T('ابحث بالاسم أو الرقم…', 'Search by name or ID…')}
-                options={(() => {
-                  const persons = partnerOptions.filter(p => !p.isCompany)
-                  const companies = partnerOptions.filter(p => p.isCompany)
-                  const toOpt = p => ({ v: p.id || p.name, l: p.name || '—', sub: p.id || undefined })
-                  const out = [{ v: '', l: `${T('الكل', 'All')} (${partnerOptions.length})` }]
-                  if (persons.length) out.push(...persons.map(toOpt))
-                  if (persons.length && companies.length) out.push({ divider: true, l: T('المنشآت', 'Facilities') })
-                  if (companies.length) out.push(...companies.map(toOpt))
-                  return out
-                })()}/>
-            </div>
-            <div>
-              <div style={advLbl}>{T('المدير / المدراء', 'Manager / Managers')}</div>
-              <Sel value={adv.manager} onChange={v => setAdv(a => ({ ...a, manager: v }))}
-                placeholder={`${T('الكل', 'All')} (${managerOptions.length})`}
-                maxVisible={4}
-                searchable
-                multiple
-                searchPlaceholder={T('ابحث بالاسم أو الرقم…', 'Search by name or ID…')}
-                options={(() => {
-                  const persons = managerOptions.filter(p => !p.isCompany)
-                  const companies = managerOptions.filter(p => p.isCompany)
-                  const toOpt = p => ({ v: p.id || p.name, l: p.name || '—', sub: p.id || undefined })
-                  const out = [{ v: '', l: `${T('الكل', 'All')} (${managerOptions.length})` }]
-                  if (persons.length) out.push(...persons.map(toOpt))
-                  if (persons.length && companies.length) out.push({ divider: true, l: T('المنشآت', 'Facilities') })
-                  if (companies.length) out.push(...companies.map(toOpt))
-                  return out
-                })()}/>
-            </div>
-            <div>
-              <div style={advLbl}>{T('المدينة', 'City')}</div>
-              <input value={adv.city} onChange={e => setAdv(a => ({ ...a, city: e.target.value }))} placeholder={T('الرياض، جدة…', 'Riyadh, Jeddah…')} style={advInp}/>
-            </div>
-            <div>
-              <div style={advLbl}>{T('حالة السجل', 'CR Status')}</div>
-              <Sel value={adv.status} onChange={v => setAdv(a => ({ ...a, status: v }))}
-                placeholder={T('الكل', 'All')}
-                maxVisible={4}
-                multiple
-                options={(() => {
-                  const out = [{ v: '', l: T('الكل', 'All') }]
-                  for (const s of statusOptions) {
-                    out.push({ v: s, l: s })
-                    // Slot the "in confirmation" sub-filter directly after the
-                    // plain "نشط" entry so related options stay adjacent.
-                    if (/نشط|active/i.test(s)) {
-                      out.push({ v: '__active_confirm__', l: T('نشط (ضمن فترة التأكيد)', 'Active (within confirmation)') })
-                    }
-                  }
-                  return out
-                })()}/>
-            </div>
-            <div>
-              <div style={advLbl}>{T('نطاق المنشأة', 'Nitaq')}</div>
-              <Sel value={adv.nitaq} onChange={v => setAdv(a => ({ ...a, nitaq: v }))}
-                placeholder={T('الكل', 'All')}
-                maxVisible={4}
-                multiple
-                options={[
-                  { v: '', l: T('الكل', 'All') },
-                  ...nitaqOptions.map(n => ({ v: n, l: n })),
-                ]}/>
-            </div>
-            <div>
-              <div style={advLbl}>{T('عدد الملاك', 'Partners count')}</div>
-              <Sel value={adv.partnersCount} onChange={v => setAdv(a => ({ ...a, partnersCount: v }))}
-                placeholder={T('الكل', 'All')}
-                maxVisible={4}
-                multiple
-                options={[
-                  { v: '', l: T('الكل', 'All') },
-                  ...partnersCountOptions,
-                ]}/>
-            </div>
-            <div>
-              <div style={advLbl}>{T('عدد المشرفين', 'Admins count')}</div>
-              <Sel value={adv.adminsCount} onChange={v => setAdv(a => ({ ...a, adminsCount: v }))}
-                placeholder={T('الكل', 'All')}
-                maxVisible={4}
-                multiple
-                options={[
-                  { v: '', l: T('الكل', 'All') },
-                  ...adminsCountOptions,
-                ]}/>
-            </div>
-            <div>
-              <div style={advLbl}>
-                {T('ترتيب حسب تاريخ التأكيد', 'Sort by confirm date')}
-                {adv.sortConfirm && adv.sortIssue && <span style={{ marginInlineStart: 6, fontSize: 10, color: C.gold, fontWeight: 600 }}>{T('· رئيسي', '· primary')}</span>}
-              </div>
-              <Sel value={adv.sortConfirm} onChange={v => setAdv(a => ({ ...a, sortConfirm: v }))}
-                placeholder={T('بدون ترتيب', 'No sort')}
-                options={[
-                  { v: '', l: T('بدون ترتيب', 'No sort') },
-                  { v: 'asc', l: T('تصاعدي · الأقدم أولاً', 'Ascending · oldest first') },
-                  { v: 'desc', l: T('تنازلي · الأحدث أولاً', 'Descending · newest first') },
-                ]}/>
-            </div>
-            <div>
-              <div style={advLbl}>
-                {T('ترتيب حسب تاريخ الإصدار', 'Sort by issue date')}
-                {adv.sortConfirm && adv.sortIssue && <span style={{ marginInlineStart: 6, fontSize: 10, color: C.blue, fontWeight: 600 }}>{T('· ثانوي', '· secondary')}</span>}
-              </div>
-              <Sel value={adv.sortIssue} onChange={v => setAdv(a => ({ ...a, sortIssue: v }))}
-                placeholder={T('بدون ترتيب', 'No sort')}
-                options={[
-                  { v: '', l: T('بدون ترتيب', 'No sort') },
-                  { v: 'asc', l: T('تصاعدي · الأقدم أولاً', 'Ascending · oldest first') },
-                  { v: 'desc', l: T('تنازلي · الأحدث أولاً', 'Descending · newest first') },
-                ]}/>
-            </div>
-          </div>
-        </div>
-      )}
+      {advOpen && renderAdvPanel()}
 
       {/* عدّاد الصفوف — المنسدلة انتقلت إلى صف البحث؛ يبقى العدّاد وحده محاذياً للطرف */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, justifyContent: 'flex-end', padding: '0 14px' }}>
@@ -7063,10 +7321,10 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
         // cards below stay gated on hasSbcData alone.
         const hasRequestsData = !!detail?.requests_synced_at
         return (
-        <div className="synchub-detail" style={{ fontFamily: F, paddingTop: 0, paddingBottom: 80, color: 'var(--tx2)' }}>
+        <div className={'synchub-detail' + (isMobile ? ' m-sync-detail' : '')} data-mtab={isMobile ? mTabSafe : undefined} style={{ fontFamily: F, paddingTop: 0, paddingBottom: 80, color: 'var(--tx2)' }}>
           <style>{FAC_DETAIL_TYPE_SCALE}</style>
           {/* Top bar — Back + expand/collapse-all (mirrors FacilityDetailPage top bar) */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, gap: 12, flexWrap: 'wrap' }}>
+          <div className="m-hide" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, gap: 12, flexWrap: 'wrap' }}>
             <BackButton onBack={() => setDetail(null)} label={T('رجوع','Back')} />
             <div style={{ display: 'flex', gap: 8 }}>
               {[
@@ -7084,8 +7342,10 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
             </div>
           </div>
 
+          {isMobile && renderMobileDetailHead({ hasRequestsData, hrsd, gosi, theme })}
+
           {/* Hero header — facility name + main/partner tag only */}
-          <div style={{ marginBottom: 18, marginTop: 6 }}>
+          <div className="m-hide" style={{ marginBottom: 18, marginTop: 6 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               {detail.in_liquidation_process && (
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 9px', borderRadius: 6, background: C.red + '18', border: '1px solid ' + C.red + '38', color: C.red, fontSize: 10.5, fontWeight: 600 }}>
@@ -7139,10 +7399,11 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
               long activity name) the moment a card expands. Clamping the min to 0
               — with min-width:0 on the column below — keeps the card width fixed
               and lets inner content truncate instead of stretching the layout. */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 340px', gap: 14, alignItems: 'flex-start' }}>
+          <div className="msd-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 340px', gap: 14, alignItems: 'flex-start' }}>
             {/* Main column */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0 }}>
+            <div className="msd-main" style={{ display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0 }}>
 
+              <div className="msec" data-msec="overview">
               {/* Identifiers card — CR/national numbers + all government authority registrations
                   consolidated into a single panel so the user sees every "official number" in one place.
                   Compact inline layout (label left + value right) to stay within original card height.
@@ -7248,6 +7509,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                 )
               })()}
 
+              </div><div className="msec" data-msec="owners">
               {/* Partners */}
               {partners.length > 0 && (
                 <CollapsibleCard title={T('الملاك والشركاء', 'Partners')} color={C.blue} badge={num(partners.length)} defaultExpanded showSbcIcon>
@@ -7277,6 +7539,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                 </CollapsibleCard>
               )}
 
+              </div><div className="msec" data-msec="cr">
               {/* Classification card — merged with the "Full CR Data" fields
                    so all non-duplicate CR attributes live in one place. The
                    pair Gregorian/Hijri date row appears at the bottom.
@@ -7411,6 +7674,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                 )
               })()}
 
+              </div><div className="msec" data-msec="gosi">
               {/* GOSI — social insurance */}
               {hasGosi && (
                 <CollapsibleCard title={T('المؤسسة العامة للتأمينات الإجتماعية', 'General Organization for Social Insurance')} color={C.ok} defaultExpanded showSbcIcon badge={gosiState === 'loading' ? T('جارٍ الجلب…','loading…') : undefined}>
@@ -7493,6 +7757,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                 </CollapsibleCard>
               )}
 
+              </div><div className="msec" data-msec="qiwa">
               {/* HRSD / Qiwa — labor office */}
               {hasHrsd && (
                 <CollapsibleCard title={T('وزارة الموارد البشرية', 'Ministry of Human Resources and Social Development')} color={C.cyan} defaultExpanded showSbcIcon badge={hrsdState === 'loading' ? T('جارٍ الجلب…','loading…') : undefined}>
@@ -7670,9 +7935,11 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                 </CollapsibleCard>
               )}
 
+              </div><div className="msec" data-msec="cr">
               {/* Activities */}
               <ActivitiesCard activities={activities} lang={lang} T={T} />
 
+              </div>
               {/* ─── New cards — built in the same shape as the Facility card
                    above (cardChrome + cardHeader + rowBase/rowGold pill rows).
                    Anything visually marked «مكرر» means the same field already
@@ -7729,6 +7996,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
 
                 return (
                   <>
+                    <div className="msec" data-msec="cr">
                     {/* GOSI Details and HRSD Details cards were removed — all
                         their fields were either duplicates of the existing
                         GOSI/HRSD cards above or have been migrated into them
@@ -7943,6 +8211,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                       </div>
                     </CollapsibleCard>
 
+                    </div><div className="msec" data-msec="gosi">
                     {/* Thin white separator between SBC cards and the GOSI
                         establishment card below — visual cue that the source
                         changes. */}
@@ -7959,6 +8228,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                       </>
                     )}
 
+                    </div><div className="msec" data-msec="qiwa">
                     {/* ── Qiwa cards (populated by qiwaSyncBookmarklet.js).
                         Only render when qiwa_companies has a row matching
                         this facility's cr_number. Split into 4 logical cards
@@ -8516,6 +8786,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                       )
                     })()}
 
+                    </div><div className="msec" data-msec="muqeem">
                     {/* ── Muqeem cards (populated by muqeemSyncBookmarklet.js).
                         Match on moi_number = facility's gosi_unified_national_number.
                         Same orange accent as the Muqeem sync bookmarklet so the
@@ -8750,29 +9021,36 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                       )
                     })()}
 
+                    </div>
                     {/* (Contact info card was moved up — now sits right
                          after the Facility card per user request) */}
                   </>
                 )
               })()}
 
+              <div className="msec" data-msec="overview">
               {/* مطابقة المصادر — الحقول المنطقية عبر المنصات مع كشف الفروقات */}
               <SourceCompareCard detail={detail} gosiEst={gosiEstablishment} qiwa={qiwaCompany} muqeem={muqeemCompany} ajeerEst={ajeerEst} hrsdLaborers={detail?.hrsd_total_laborers} T={T} lang={lang} />
+              {isMobile && <div className="msd-danger"><BlockFacilityAction sb={sb} facility={detail} T={T} lang={lang} onBlocked={() => { setDetail(null); load() }} /></div>}
 
+              </div><div className="msec" data-msec="workers">
               {/* العمالة الموحدة — دمج كل عامل من قوى+مقيم+تأمينات+أجير */}
               <UnifiedWorkersCard sb={sb} companyId={qiwaCompany?.company_id} muqeemResidents={muqeemResidents} gosiContributors={gosiContributors} ajeerNotices={ajeerNotices} T={T} lang={lang} />
 
+              </div><div className="msec" data-msec="ajeer">
               {/* أجير — التصاريح والعقود والمدفوعات والمؤشرات */}
               <AjeerCards est={ajeerEst} notices={ajeerNotices} contracts={ajeerContracts} payments={ajeerPayments} indicators={ajeerIndicators} T={T} lang={lang} />
               <MudadCards est={mudadEst} months={mudadMonths} T={T} lang={lang} />
 
+              </div><div className="msec" data-msec="history">
               {/* سجل التغييرات بين المزامنات + إصدارات الملفات المؤرشفة */}
               <SyncHistoryCard history={rowHistory} fileVersions={fileVersions} T={T} lang={lang} />
+              </div>
 
             </div>
 
             {/* Sidebar */}
-            <div style={{ position: 'sticky', top: 14, display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div className="msd-side" data-msec="overview" style={{ position: 'sticky', top: 14, display: 'flex', flexDirection: 'column', gap: 14 }}>
               {/* Status summary — gated on hasSbcData since the CR issue/confirm
                   dates that drive the status come from the SBC payload. */}
               {hasSbcData && (

@@ -26,6 +26,7 @@ import {
   validatePricingLines, pricingLineError, effectivePricingLines, PRICING_REASONS, r2,
 } from '../lib/invoicePricingModel.js'
 import { savePricingEdit } from '../lib/invoicePricingSave.js'
+import '../styles/m-wizard.css'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const GOLD = '#B07D00'
@@ -38,7 +39,7 @@ const DeltaRow = ({ label, from, to, color, money = true, T }) => {
   const changed = money ? r2(from) !== r2(to) : String(from) !== String(to)
   const fmt = v => money ? num(v) : v
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, minHeight: 24 }}>
+    <div className="ipe-delta" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, minHeight: 24 }}>
       <span style={{ fontSize: 12, color: 'var(--tx4)', fontWeight: 600 }}>{label}</span>
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>
         {changed && <span style={{ fontSize: 11.5, color: 'var(--tx5)', textDecoration: 'line-through' }}>{fmt(from)}</span>}
@@ -148,13 +149,13 @@ export default function InvoicePricingEditor({
 
   /* ─────────────────────────── صفّ بند ─────────────────────────── */
   const lineRow = l => (
-    <div key={l.key} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-      <div style={{ flex: 1, minWidth: 0 }}>
+    <div key={l.key} className="ipe-line" style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+      <div className="ipe-label" style={{ flex: 1, minWidth: 0 }}>
         <TextField value={l.label} onChange={v => setLine(l.key, { label: v })}
           placeholder={T('اسم البند', 'Item label')} disabled={!canEditStructure || l.labelLocked} />
         {l.hint && <div style={{ fontSize: 10, color: 'var(--tx5)', fontWeight: 600, marginTop: 3, paddingInlineStart: 2 }}>{l.hint}</div>}
       </div>
-      <div style={{ width: 132, flexShrink: 0 }}>
+      <div className="ipe-amt" style={{ width: 132, flexShrink: 0 }}>
         <CurrencyField value={l.amount} onChange={v => setLine(l.key, { amount: v })} unit={T('ريال', 'SAR')} disabled={!canEditAmounts} />
       </div>
       {(l.removable && canEditStructure) ? (
@@ -174,7 +175,7 @@ export default function InvoicePricingEditor({
   )
 
   const totalStrip = (
-    <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6, padding: '11px 14px', background: 'var(--inputBg)', borderRadius: 11, border: '1px solid var(--bd)', flexShrink: 0 }}>
+    <div className="ipe-total" style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6, padding: '11px 14px', background: 'var(--inputBg)', borderRadius: 11, border: '1px solid var(--bd)', flexShrink: 0 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
         <span style={{ fontSize: 12, color: 'var(--tx4)', fontWeight: 600 }}>{T('الإجمالي الابتدائي', 'Subtotal')}</span>
         <span style={{ fontSize: 12.5, color: 'var(--tx2)', fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(totals.subtotal)}</span>

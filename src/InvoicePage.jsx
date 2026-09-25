@@ -15,6 +15,8 @@ import { buildInvoiceWaMessage, buildDaySummaryWaMessage, fetchInvoicePrintData 
 import { DONE_INPUTS, SALARY_RETURN_INPUTS, SELF_PARTY_DONE_SVCS, DONE_FILE_NOTES, doneInputsFor } from './lib/doneInputs.js'
 import { swrGet, swrSet, useLiveRefresh, emitDataChanged } from './lib/liveData.js'
 import InvoicePricingEditor from './components/InvoicePricingEditor.jsx'
+import { useIsMobile, MStatStrip, MCard, MCardList, MFab, MChips, MSearch, MBadge } from './components/mobile/MobileKit.jsx'
+import './styles/m-invoices.css'
 import { reasonLabel as pricingReasonLabel, visaLineQty } from './lib/invoicePricingModel.js'
 
 const F = "'Cairo','Tajawal',sans-serif"
@@ -834,6 +836,7 @@ const SC_CARD = {
 }
 
 function StatsCards({ T, periodStats, svcToday, mode = 'real' }) {
+  const isMobile = useIsMobile()
   if (mode === 'hidden') return null   // GM hid the stat strip for this user
   const z = mode === 'zero'            // show the cards but always zeroed
   const ps = periodStats
@@ -857,6 +860,19 @@ function StatsCards({ T, periodStats, svcToday, mode = 'real' }) {
      و«أخرى» بأصفارها — فالشكل واحدٌ للجميع والأرقام وحدها تختلف. */
   const svcs = buildTodaySvcs(z ? [] : svcToday)
   const svcTotal = svcs.reduce((a, b) => a + b.cnt, 0)
+
+  // الجوال: شريط أرقام أفقي مدمج بدل الكروت الثلاثة الكبيرة — نفس الأرقام تماماً.
+  if (isMobile) {
+    const topSvc = svcs.filter(s => s.cnt > 0).sort((a, b) => b.cnt - a.cnt)[0]
+    return (
+      <MStatStrip items={[
+        { key: 'cash', label: T('نقدًا', 'Cash'), value: num(cashSum), unit: T('ريال', 'SAR'), tone: 'gold', sub: `${T('الصافي', 'Net')} ${num(netCash)} · ${num(cashCnt)} ${T('عملية', 'receipts')}` },
+        { key: 'bank', label: T('تحويلات بنكية', 'Bank Transfers'), value: num(bankSum), unit: T('ريال', 'SAR'), tone: 'blue', sub: `${num(bankCnt)} ${T('عملية', 'receipts')}` },
+        { key: 'ref', label: T('مرتجعة أو ملغاة', 'Refunded / Cancelled'), value: num(refSum), unit: T('ريال', 'SAR'), tone: 'red', sub: `${num(refCnt)} ${T('عملية', 'items')}` },
+        { key: 'svc', label: T('الخدمات', 'Services'), value: num(svcTotal), tone: 'purple', sub: topSvc ? `${T('الأكثر', 'Top')}: ${T(statsSvcTheme(topSvc.code).label_ar, statsSvcTheme(topSvc.code).label_en).replace('وإقامة ', '')}` : T('لا خدمات بعد', 'None yet') },
+      ]} />
+    )
+  }
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr 1.7fr', gap: 14, marginBottom: 24 }}>
@@ -941,9 +957,69 @@ function StatsCards({ T, periodStats, svcToday, mode = 'real' }) {
   )
 }
 
+// ═══ الجوال: شعار واتساب (نفس مسار أيقونة الحاسب) ═══
+const WaGlyph = ({ size = 18 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.71.306 1.263.489 1.694.625.712.227 1.36.195 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.885-9.885 9.885M20.52 3.449C18.24 1.245 15.24 0 12.045 0 5.463 0 .104 5.358.101 11.892c0 2.096.549 4.142 1.595 5.945L0 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.582 0 11.943-5.358 11.945-11.893a11.821 11.821 0 00-3.418-8.45"/></svg>
+
+// حالة المعاملة للكرت — نفس اشتقاق InvCard (reqStage) لكن كنص + لون.
+const mTxnStage = (d, T) => {
+  const reqDone = d.reqStatusCode === 'done' || d.permIqamaDone
+  const st = d.reqStatusCode === 'cancelled' ? 'cancelled'
+    : reqDone ? 'done'
+    : needsAcctApproval(d.svcCode) ? (d.acctStatus === 'rejected' ? 'acct_rejected' : d.acctStatus === 'approved' ? 'acct_approved' : 'awaiting_acct')
+    : (d.permVisaIssued ? 'progress' : 'new')
+  return ({
+    done: { text: T('منجز', 'Done'), tone: 'green' },
+    progress: { text: T('قيد التنفيذ', 'In progress'), tone: 'orange' },
+    new: { text: T('جديد', 'New'), tone: 'blue' },
+    cancelled: { text: T('معاملة ملغاة', 'Txn cancelled'), tone: 'red' },
+    acct_rejected: { text: T('مرفوض', 'Rejected'), tone: 'red' },
+    acct_approved: { text: T('موافَق', 'Approved'), tone: 'gold' },
+    awaiting_acct: { text: T('بانتظار المحاسب', 'Awaiting acct.'), tone: 'blue' },
+  })[st]
+}
+// حالة السداد للكرت/الترويسة.
+const mPayState = (d, T) => d.cancelled ? { text: T('ملغاة', 'Cancelled'), tone: 'gray' }
+  : d.pay === 'paid' ? { text: T('مسدّدة', 'Paid'), tone: 'green' }
+  : d.pay === 'partial' ? { text: T('جزئي', 'Partial'), tone: 'gold' }
+  : { text: T('غير مسدّدة', 'Unpaid'), tone: 'red' }
+const mTime = (iso) => { try { const x = new Date(iso); return String(x.getHours()).padStart(2, '0') + ':' + String(x.getMinutes()).padStart(2, '0') } catch { return '' } }
+
+// كرت فاتورة للجوال — بديل InvCard (يستهلك نفس كائن العرض d). الضغط يفتح نفس صفحة التفاصيل.
+function MInvCard({ d, row, T, isAr, onClick }) {
+  const zero = isZeroSvc(d.svcCode, d.total)
+  const pay = mPayState(d, T)
+  const stage = mTxnStage(d, T)
+  const svcLabel = d.fullLabel + (d.showQty ? ` ×${d.qty}` : '') + (d.durLabel ? ` · ${d.durLabel}` : '')
+  return (
+    <MCard
+      title={d.name}
+      subtitle={[svcLabel, d.branchCode].filter(Boolean).join(' · ')}
+      leading={<span className="minv-lead" style={{ '--c': d.svc.c }}>{d.svcIcon}</span>}
+      amount={zero ? null : { value: num(d.total), unit: T('ر.س', 'SAR'), tone: d.cancelled ? 'gray' : (d.pay === 'paid' ? 'green' : 'gold') }}
+      onClick={onClick}
+    >
+      <div className="minv-foot">
+        <div className="minv-foot-tags">
+          {!zero && <MBadge {...pay} />}
+          {!d.cancelled && stage && <MBadge {...stage} />}
+          {d.refundedAmt > 0 && <MBadge text={T('مسترد', 'Refund') + ' ' + num(d.refundedAmt)} tone="orange" />}
+        </div>
+        <span className="minv-foot-meta" dir="ltr">{noDash(d.invoiceNo)} · {mTime(row.created_at)}</span>
+      </div>
+      {!zero && !d.cancelled && d.pay === 'partial' && (
+        <div className="minv-prog">
+          <span className="minv-prog-bar"><i style={{ width: d.pct + '%' }} /></span>
+          <span className="minv-prog-txt">{T('متبقٍ', 'Due')} <b>{num(d.remaining)}</b></span>
+        </div>
+      )}
+    </MCard>
+  )
+}
+
 export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvoice, emptyIcon }) {
   const isAr = lang !== 'en'
   const T = (a, e) => (isAr ? a : e)
+  const isMobile = useIsMobile()
 
   // مكاتب المستخدم لتبويب الفواتير: null = بلا قيد (المدير العام / صلاحية «كل المكاتب»)؛
   // غير ذلك = قائمة معرّفات الفروع المسموح للمستخدم رؤية فواتيرها فقط.
@@ -1436,9 +1512,94 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
 
   if (detail) return <InvoiceDetailPage sb={sb} inv={detail} onBack={() => { setDetail(null); setRefreshTick(t => t + 1) }} isAr={isAr} T={T} toast={toast} user={user} />
 
+  // ── الجوال: فلاتر سريعة (شرائح) فوق نفس حالة التصفية — لا منطق جديد ──
+  const mHasFilters = !!(branchSel.length || serviceType.length || payFilter.length || from || to || amountMin !== '' || amountMax !== '' || paymentPlan || reqStage.length || accStatus || agentFilter || natFilter || overdue || slipQ)
+  const mFilterCount = [branchSel.length, serviceType.length, payFilter.length, from || to, amountMin !== '' || amountMax !== '', paymentPlan, reqStage.length, accStatus, agentFilter, natFilter, overdue, slipQ].filter(Boolean).length
+  const mClearAll = () => { setBranchSel([]); setFrom(''); setTo(''); setServiceType([]); setPayFilter([]); setAmountMin(''); setAmountMax(''); setPaymentPlan(''); setReqStage([]); setAccStatus(''); setAgentFilter(''); setNatFilter(''); setOverdue(''); setSlipQ(''); setPage(0) }
+  const M_PAY = { all: [], unpaid: ['unpaid_active'], partial: ['partial_active'], paid: ['paid_active'], cancelled: ['paid_cancelled', 'partial_cancelled', 'unpaid_cancelled'] }
+  const mPayVal = Object.keys(M_PAY).find(k => M_PAY[k].length === payFilter.length && M_PAY[k].every(v => payFilter.includes(v))) || ''
+  const mDShift = (key, n) => { const d = new Date(key + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10) }
+  const mPeriods = [
+    { v: 'all', l: T('كل الأيام', 'All dates'), f: '', t: '' },
+    { v: 'today', l: T('اليوم', 'Today'), f: todayStr, t: todayStr },
+    { v: 'yday', l: T('أمس', 'Yesterday'), f: mDShift(todayStr, -1), t: mDShift(todayStr, -1) },
+    { v: 'week', l: T('هذا الأسبوع', 'This week'), f: mDShift(todayStr, -((new Date(todayStr + 'T12:00:00Z').getUTCDay() + 2) % 7)), t: todayStr },
+    { v: 'month', l: T('هذا الشهر', 'This month'), f: todayStr.slice(0, 8) + '01', t: todayStr },
+  ]
+
+  // حقول التصفية المتقدمة — نفس الحقول للحاسب (لوحة) وللجوال (ورقة سفلية).
+  const advGrid = (fLbl) => (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 14 }}>
+              <div>
+                <div style={fLbl}>{T('المكتب','Branch')}</div>
+                <FKDropdown multi selectedKeys={branchSel} onChange={arr => { setBranchSel(arr); setPage(0) }} placeholder={T('كل المكاتب','All branches')} getKey={o => o.v} getLabel={o => o.l} options={branches.map(b => ({ v: b.id, l: branchLabel(b) }))} />
+              </div>
+              <div>
+                <div style={fLbl}>{T('تاريخ من','Date From')}</div>
+                <DateField value={from} onChange={v => { setFrom(v); setPage(0) }} lang={lang} />
+              </div>
+              <div>
+                <div style={fLbl}>{T('تاريخ إلى','Date To')}</div>
+                <DateField value={to} onChange={v => { setTo(v); setPage(0) }} lang={lang} />
+              </div>
+              <div>
+                <div style={fLbl}>{T('نوع الخدمة','Service Type')}</div>
+                <FKDropdown multi selectedKeys={serviceType} onChange={arr => { setServiceType(arr); setPage(0) }} placeholder={T('الكل','All')} getKey={o => o.v} getLabel={o => o.l} options={serviceTypeOptions} />
+              </div>
+              <div>
+                <div style={fLbl}>{T('حالة المعاملة','Transaction Status')}</div>
+                <FKDropdown multi selectedKeys={reqStage} onChange={arr => { setReqStage(arr); setPage(0) }} placeholder={T('الكل','All')} getKey={o => o.v} getLabel={o => o.l} options={stageOptions} />
+              </div>
+              <div>
+                <div style={fLbl}>{T('حالة السداد','Pay Status')}</div>
+                <FKDropdown multi selectedKeys={payFilter} onChange={arr => { setPayFilter(arr); setPage(0) }} placeholder={T('الكل','All')} getKey={o => o.v} getLabel={o => o.l} options={[
+                  { v: 'not_cancelled',     l: T('غير ملغاة','Not Cancelled') },
+                  { v: 'paid_active',       l: T('مدفوعة بالكامل — غير ملغاة','Fully Paid — Active') },
+                  { v: 'partial_active',    l: T('مدفوعة جزئياً — غير ملغاة','Partially Paid — Active') },
+                  { v: 'unpaid_active',     l: T('غير مدفوعة — غير ملغاة','Unpaid — Active') },
+                  { v: 'paid_cancelled',    l: T('ملغاة — مدفوعة بالكامل','Cancelled — Fully Paid') },
+                  { v: 'partial_cancelled', l: T('ملغاة — مدفوعة جزئياً','Cancelled — Partially Paid') },
+                  { v: 'unpaid_cancelled',  l: T('ملغاة — غير مدفوعة','Cancelled — Unpaid') },
+                  { v: 'refunded_active',   l: T('مستردة — غير ملغاة','Refunded — Active') },
+                  { v: 'refunded_cancelled', l: T('مستردة — ملغاة','Refunded — Cancelled') },
+                ]} />
+              </div>
+              <div>
+                <div style={fLbl}>{T('الترتيب','Sort')}</div>
+                <FKDropdown value={sortMode} onChange={v => { setSortMode(v || 'activity_desc'); setPage(0) }} placeholder={T('الأحدث نشاطاً','Latest activity')} getKey={o => o.v} getLabel={o => o.l} options={[
+                  { v: 'activity_desc', l: T('الأحدث نشاطاً','Latest activity') },
+                  { v: 'activity_asc',  l: T('الأقدم نشاطاً','Oldest activity') },
+                  { v: 'created_desc',  l: T('تاريخ الإصدار — الأحدث أولاً','Issue date — Newest first') },
+                  { v: 'created_asc',   l: T('تاريخ الإصدار — الأقدم أولاً','Issue date — Oldest first') },
+                ]} />
+              </div>
+              {/* فلتر الوسيط — يظهر للمدير العام فقط */}
+              {isGM(user) && (
+              <div>
+                <div style={fLbl}>{T('الوسيط','Agent')}</div>
+                <FKDropdown value={agentFilter} onChange={v => { setAgentFilter(v); setPage(0) }} placeholder={T('الكل','All')} getKey={o => o.v} getLabel={o => o.l} options={[{ v: '', l: T('الكل','All') }, ...agents.map(a => ({ v: a.id, l: isAr ? (a.name_ar || a.name_en) : (a.name_en || a.name_ar) }))]} />
+              </div>
+              )}
+            </div>
+  )
+
   return (
     <div style={{ fontFamily: F, paddingTop: 0 }}>
-      {/* Hero */}
+      {isMobile ? (
+        <div className="minv-head">
+          <div className="minv-head-txt">
+            <h1>{T('الفواتير','Invoices')}</h1>
+            <span className={statFilters.active ? 'on' : ''}>{statFilters.active ? T('الأرقام تعكس التصفية الحالية', 'Figures reflect the active filter') : T('حركة اليوم منذ 5:00 فجراً', 'Today since 5:00 AM')}</span>
+          </div>
+          {canPerm(user, 'invoices.wa_summary') && (
+            <button className={'minv-wa' + (waSumCopied ? ' ok' : '')} onClick={copyDaySummary} disabled={waSumBusy} aria-label={T('نسخ ملخص اليوم (واتساب)', 'Copy day summary (WhatsApp)')}>
+              {waSumCopied
+                ? <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                : <WaGlyph size={20} />}
+            </button>
+          )}
+        </div>
+      ) : (
       <div style={{ marginBottom: 22 }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -1468,12 +1629,14 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
           </div>
         </div>
       </div>
+      )}
 
-      {initialLoading ? <InvoiceSkeleton listRows={8} /> : (<>
+      {initialLoading ? (isMobile ? <div className="minv-skel"><MCardList loading rows={[]} /></div> : <InvoiceSkeleton listRows={8} />) : (<>
 
       {/* Stats + Services — مبدّل تخطيطات حيّ (5 توزيعات؛ اختر الأنسب) */}
       <StatsCards T={T} periodStats={periodStats} svcToday={svcToday} mode={statsMode(user, 'invoices')} />
 
+      {!isMobile && (<>
       {/* Filter row — بحث ذكي شامل + اختيار حقل محدد */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 18, alignItems: 'center', flexWrap: 'wrap' }}>
         {/* الظل على الحاوية (لا على الحقل) كي لا يُلغيه :focus عبر قاعدة input:focus{box-shadow:none} العامة */}
@@ -1546,61 +1709,52 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
                 <button type="button" onClick={() => { setFrom(''); setTo(''); setPage(0) }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: F, fontSize: 12.5, fontWeight: 600, color: C.red, padding: '4px 10px 8px', marginInlineStart: 'auto' }}>{T('مسح التاريخ','Clear dates')}</button>
               )}
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 14 }}>
-              <div>
-                <div style={fLbl}>{T('المكتب','Branch')}</div>
-                <FKDropdown multi selectedKeys={branchSel} onChange={arr => { setBranchSel(arr); setPage(0) }} placeholder={T('كل المكاتب','All branches')} getKey={o => o.v} getLabel={o => o.l} options={branches.map(b => ({ v: b.id, l: branchLabel(b) }))} />
-              </div>
-              <div>
-                <div style={fLbl}>{T('تاريخ من','Date From')}</div>
-                <DateField value={from} onChange={v => { setFrom(v); setPage(0) }} lang={lang} />
-              </div>
-              <div>
-                <div style={fLbl}>{T('تاريخ إلى','Date To')}</div>
-                <DateField value={to} onChange={v => { setTo(v); setPage(0) }} lang={lang} />
-              </div>
-              <div>
-                <div style={fLbl}>{T('نوع الخدمة','Service Type')}</div>
-                <FKDropdown multi selectedKeys={serviceType} onChange={arr => { setServiceType(arr); setPage(0) }} placeholder={T('الكل','All')} getKey={o => o.v} getLabel={o => o.l} options={serviceTypeOptions} />
-              </div>
-              <div>
-                <div style={fLbl}>{T('حالة المعاملة','Transaction Status')}</div>
-                <FKDropdown multi selectedKeys={reqStage} onChange={arr => { setReqStage(arr); setPage(0) }} placeholder={T('الكل','All')} getKey={o => o.v} getLabel={o => o.l} options={stageOptions} />
-              </div>
-              <div>
-                <div style={fLbl}>{T('حالة السداد','Pay Status')}</div>
-                <FKDropdown multi selectedKeys={payFilter} onChange={arr => { setPayFilter(arr); setPage(0) }} placeholder={T('الكل','All')} getKey={o => o.v} getLabel={o => o.l} options={[
-                  { v: 'not_cancelled',     l: T('غير ملغاة','Not Cancelled') },
-                  { v: 'paid_active',       l: T('مدفوعة بالكامل — غير ملغاة','Fully Paid — Active') },
-                  { v: 'partial_active',    l: T('مدفوعة جزئياً — غير ملغاة','Partially Paid — Active') },
-                  { v: 'unpaid_active',     l: T('غير مدفوعة — غير ملغاة','Unpaid — Active') },
-                  { v: 'paid_cancelled',    l: T('ملغاة — مدفوعة بالكامل','Cancelled — Fully Paid') },
-                  { v: 'partial_cancelled', l: T('ملغاة — مدفوعة جزئياً','Cancelled — Partially Paid') },
-                  { v: 'unpaid_cancelled',  l: T('ملغاة — غير مدفوعة','Cancelled — Unpaid') },
-                  { v: 'refunded_active',   l: T('مستردة — غير ملغاة','Refunded — Active') },
-                  { v: 'refunded_cancelled', l: T('مستردة — ملغاة','Refunded — Cancelled') },
-                ]} />
-              </div>
-              <div>
-                <div style={fLbl}>{T('الترتيب','Sort')}</div>
-                <FKDropdown value={sortMode} onChange={v => { setSortMode(v || 'activity_desc'); setPage(0) }} placeholder={T('الأحدث نشاطاً','Latest activity')} getKey={o => o.v} getLabel={o => o.l} options={[
-                  { v: 'activity_desc', l: T('الأحدث نشاطاً','Latest activity') },
-                  { v: 'activity_asc',  l: T('الأقدم نشاطاً','Oldest activity') },
-                  { v: 'created_desc',  l: T('تاريخ الإصدار — الأحدث أولاً','Issue date — Newest first') },
-                  { v: 'created_asc',   l: T('تاريخ الإصدار — الأقدم أولاً','Issue date — Oldest first') },
-                ]} />
-              </div>
-              {/* فلتر الوسيط — يظهر للمدير العام فقط */}
-              {isGM(user) && (
-              <div>
-                <div style={fLbl}>{T('الوسيط','Agent')}</div>
-                <FKDropdown value={agentFilter} onChange={v => { setAgentFilter(v); setPage(0) }} placeholder={T('الكل','All')} getKey={o => o.v} getLabel={o => o.l} options={[{ v: '', l: T('الكل','All') }, ...agents.map(a => ({ v: a.id, l: isAr ? (a.name_ar || a.name_en) : (a.name_en || a.name_ar) }))]} />
-              </div>
-              )}
-            </div>
+            {advGrid(fLbl)}
           </div>
         )
       })()}
+      </>)}
+      {isMobile && (
+        <div className="minv-filters">
+          <div className="minv-searchrow">
+            <MSearch value={q} onChange={v => { setQ(v); setPage(0) }} placeholder={T('ابحث بالاسم، رقم الفاتورة، الجوال…', 'Search name, invoice no, phone…')} />
+            <button className={'minv-filter-btn' + (mHasFilters ? ' on' : '')} onClick={() => setAdvOpen(true)} aria-label={T('تصفية', 'Filter')}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="6" x2="14" y2="6"/><line x1="18" y1="6" x2="20" y2="6"/><circle cx="16" cy="6" r="2"/><line x1="4" y1="12" x2="8" y2="12"/><line x1="12" y1="12" x2="20" y2="12"/><circle cx="10" cy="12" r="2"/><line x1="4" y1="18" x2="16" y2="18"/><circle cx="18" cy="18" r="2"/></svg>
+              {mFilterCount > 0 && <span className="minv-filter-n">{mFilterCount}</span>}
+            </button>
+          </div>
+          <MChips value={mPayVal} onChange={v => { setPayFilter(M_PAY[v] || []); setPage(0) }} options={[
+            { value: 'all', label: T('الكل', 'All') },
+            { value: 'unpaid', label: T('غير مسدّدة', 'Unpaid') },
+            { value: 'partial', label: T('مسدّدة جزئياً', 'Partly paid') },
+            { value: 'paid', label: T('مسدّدة', 'Paid') },
+            { value: 'cancelled', label: T('ملغاة', 'Cancelled') },
+          ]} />
+          <div className="mk-chips minv-chips2">
+            {mPeriods.map(p => {
+              const on = from === p.f && to === p.t
+              return <button key={p.v} className={'mk-chip' + (on ? ' on' : '')} onClick={() => { setFrom(p.f); setTo(p.t); setPage(0) }}>{p.l}</button>
+            })}
+            {branches.length > 1 && <span className="minv-chipdiv" />}
+            {branches.length > 1 && (
+              <button className={'mk-chip' + (!branchSel.length ? ' on' : '')} onClick={() => { setBranchSel([]); setPage(0) }}>{T('كل المكاتب', 'All offices')}</button>
+            )}
+            {branches.length > 1 && branches.map(b => {
+              const on = branchSel.length === 1 && branchSel[0] === b.id
+              return <button key={b.id} className={'mk-chip' + (on ? ' on' : '')} onClick={() => { setBranchSel(on ? [] : [b.id]); setPage(0) }}>{b.branch_code || branchNick(b)}</button>
+            })}
+          </div>
+          <Modal open={advOpen} onClose={() => setAdvOpen(false)} title={T('تصفية الفواتير', 'Filter invoices')} Icon={Search} width={560} scroll
+            footerStart={<button className="minv-sheet-btn ghost" onClick={mClearAll} disabled={!mHasFilters}>{T('مسح الكل', 'Clear all')}</button>}
+            footer={<button className="minv-sheet-btn" onClick={() => setAdvOpen(false)}>{loading ? T('جاري البحث…', 'Searching…') : `${T('عرض', 'Show')} ${num(total)} ${T('فاتورة', 'invoices')}`}</button>}>
+            <div className="minv-adv">
+              <div className="minv-adv-lbl">{T('سند القبض الورقي', 'Paper receipt no.')}</div>
+              <input className="minv-adv-input" type="text" inputMode="numeric" value={slipQ} onChange={e => { setSlipQ(e.target.value); setPage(0) }} placeholder={T('رقم السند', 'Receipt no.')} />
+              {advGrid({ fontSize: 13, fontWeight: 600, color: 'var(--tx3)', paddingInlineStart: 2, marginBottom: 7 })}
+            </div>
+          </Modal>
+        </div>
+      )}
 
 
       {/* List */}
@@ -1632,7 +1786,18 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
         // الصافي اليومي = المُحصّل − المُعاد للعميل (المرتجع + الملغى). قد يكون سالباً في يوم كثُرت فيه الإلغاءات.
         const dayNet = dayPaid - dayVoid
         return (
-          <div key={dayKey} style={{ marginBottom: 28 }}>
+          <div key={dayKey} style={isMobile ? undefined : { marginBottom: 28 }} className={isMobile ? 'minv-day' : undefined}>
+            {isMobile ? (
+              <div className="minv-day-head">
+                <span className={'minv-day-t' + (dayKey === todayStr ? ' today' : '')}>{dayLabel(dayKey)}</span>
+                <span className="minv-day-d">{dayFull(dayKey)}</span>
+                <span className="minv-day-sum">
+                  <span>{num(newRows.length)} {T('فاتورة','inv.')}</span>
+                  <b className="in">+{num(dayPaid)}</b>
+                  {dayVoid > 0 && <b className="out">−{num(dayVoid)}</b>}
+                </span>
+              </div>
+            ) : (
             <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12, paddingBottom: 10, borderBottom: '1px solid var(--bd)' }}>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
                 <span style={{ fontSize: 14, fontWeight: 600, color: dayKey === todayStr ? C.gold : 'var(--tx2)' }}>{dayLabel(dayKey)}</span>
@@ -1647,6 +1812,7 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
                 <span title={T('الصافي اليومي','Daily net')} style={{ color: dayNet >= 0 ? C.ok : C.red, fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>= <span style={{ direction: 'ltr', unicodeBidi: 'isolate' }}>{dayNet < 0 ? '− ' : ''}{num(Math.abs(dayNet))}</span></span>
               </div>
             </div>
+            )}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {dayRows.map((r, idx) => {
                 const svc = svcThemeFor(r.service_type)
@@ -1813,6 +1979,7 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
                     ? ((Array.isArray(sr?.other_applications) ? sr.other_applications[0] : sr?.other_applications)?.details?.salary_phase || null)
                     : null,
                 }
+                if (isMobile) return <MInvCard key={r.id} d={d} row={r} T={T} isAr={isAr} onClick={() => setDetail(r)} />
                 return <InvCard key={r.id} d={d} row={r} sb={sb} T={T} isAr={isAr} toast={toast} onClick={() => setDetail(r)} user={user} />
               })}
             </div>
@@ -1821,7 +1988,17 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
       })}</div>}
 
       {/* Pagination — Slim split with divider lines */}
-      {!loading && total > PAGE && (() => {
+      {isMobile && !loading && total > PAGE && (() => {
+        const go = n => { setPage(Math.max(0, Math.min(totalPages - 1, n))); document.querySelector('.dash-content')?.scrollTo({ top: 0, behavior: 'smooth' }); window.scrollTo({ top: 0, behavior: 'smooth' }) }
+        return (
+          <div className="minv-pager">
+            <button disabled={page === 0} onClick={() => go(page - 1)}>{T('السابق','Prev')}</button>
+            <span><b>{num(page * PAGE + 1)}–{num(Math.min(total, (page + 1) * PAGE))}</b> {T('من','of')} {num(total)}</span>
+            <button disabled={page + 1 >= totalPages} onClick={() => go(page + 1)}>{T('التالي','Next')}</button>
+          </div>
+        )
+      })()}
+      {!isMobile && !loading && total > PAGE && (() => {
         const goPrev = () => { setPage(p => Math.max(0, p - 1)); document.querySelector('.dash-content')?.scrollTo({ top: 0, behavior: 'smooth' }) }
         const goNext = () => { setPage(p => p + 1); document.querySelector('.dash-content')?.scrollTo({ top: 0, behavior: 'smooth' }) }
         const goTo = n => { setPage(Math.max(0, Math.min(totalPages - 1, n))); document.querySelector('.dash-content')?.scrollTo({ top: 0, behavior: 'smooth' }) }
@@ -1853,6 +2030,8 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
 
       </>)}
 
+      {isMobile && <div className="minv-list-pad" />}
+      {isMobile && onNewInvoice && canPerm(user, 'invoices.create') && <MFab label={T('فاتورة جديدة','New Invoice')} onClick={onNewInvoice} />}
     </div>
   )
 }
@@ -1894,6 +2073,8 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user }) {
   // payment/refund/cancel without leaving the detail page. invProp is the
   // original row from the list; once we re-fetch, `inv` becomes the fresh one.
   const [inv, setInv] = useState(invProp)
+  const isMobile = useIsMobile()
+  const [mPrintOpen, setMPrintOpen] = useState(false)
   // نُعيد ضبط النسخة المحلية فقط عند تغيّر الفاتورة نفسها (الانتقال لفاتورة أخرى) — لا على كل إعادة تصيير
   // للأب (كتحديث ساعة الهيدر كل ثانية)، وإلا يُستبدل صفّ الفاتورة المُحدَّث (remaining=0) بصفّ القائمة القديم
   // (remaining>0) فيومض زر «تسجيل دفعة» ظهوراً واختفاءً رغم أن الفاتورة مدفوعة بالكامل.
@@ -2416,9 +2597,76 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user }) {
     }
   }
 
+  // ── الجوال: ترويسة أصلية (العميل + الإجمالي + الحالة) وشريط إجراءات سفلي ثابت — نفس المعالجات ──
+  const mobileTop = isMobile ? (() => {
+    const sr = inv.service_request
+    const pickW = rel => Array.isArray(rel) ? rel[0]?.worker : rel?.worker
+    const workerFromApp = pickW(sr?.transfer_applications) || pickW(sr?.ajeer_applications) || pickW(sr?.iqama_renewal_applications) || pickW(sr?.supplier_payroll_applications) || pickW(sr?.other_applications) || null
+    const namedClient = (sr?.client && (sr.client.name_ar || sr.client.name_en)) ? sr.client : null
+    const party = namedClient || workerFromApp || sr?.client || null
+    const partyName = (isAr ? (party?.name_ar || party?.name_en) : (party?.name_en || party?.name_ar)) || T('— بدون عميل —', '— no client —')
+    const isVisa = VISA_SVC_CODES.has(inv.service_type?.code)
+    const visaApps = Array.isArray(sr?.visa_applications) ? sr.visa_applications : []
+    const qty = isVisa ? ((data?.det || []).length || visaApps.length || Number(sr?.quantity || 0)) : 0
+    const durLabel = baseSvcCode(inv.service_type?.code) === 'iqama_renewal' ? monthsLabel(renewalMonthsOf(data?.tc || renewalCalcOf(inv), sr), isAr) : ''
+    const svcLabel = (isAr ? (svc.label_ar_full || svc.label_ar) : (svc.label_en_full || svc.label_en)) + (qty > 0 ? ` ×${qty}` : '') + (durLabel ? ` · ${durLabel}` : '')
+    const cancelled = inv.status?.code === 'cancelled'
+    const zero = isZeroSvc(inv.service_type?.code, total)
+    const payState = mPayState({ cancelled, pay }, T)
+    const showMoney = !zero && cardVisible(user, 'invoices', 'financial_summary')
+    const d = inv.created_at ? new Date(inv.created_at) : null
+    const p2 = n => String(n).padStart(2, '0')
+    const dateStr = d && !isNaN(d) ? `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())} · ${p2(d.getHours())}:${p2(d.getMinutes())}` : ''
+    return (
+      <>
+        <div className="minv-dnav">
+          <BackButton onBack={onBack} label={T('الفواتير','Invoices')} navKind="invoice" navId={inv.id} isAr={isAr} />
+          <span className="minv-dnav-no" dir="ltr">{noDash(inv.invoice_no)}<CopyBtn text={noDash(inv.invoice_no)} /></span>
+        </div>
+        <div className={'minv-hero' + (cancelled ? ' void' : '')}>
+          <div className="minv-hero-top">
+            <span className="minv-hero-svc" style={{ '--c': svc.c }}>{SVC_ICON[baseSvcCode(inv.service_type?.code)] || SVC_ICON.general}<span>{svcLabel}</span></span>
+            {!zero && <MBadge {...payState} />}
+          </div>
+          <div className="minv-hero-name">{partyName}</div>
+          <div className="minv-hero-meta">
+            <span>{branchNick(inv.branch) || inv.branch?.branch_code}</span>
+            {dateStr && <span dir="ltr">{dateStr}</span>}
+          </div>
+          {showMoney && (<>
+            <div className="minv-hero-amt">
+              <span>{T('الإجمالي','Total')}</span>
+              <b>{num(total)}<small>{T('ريال','SAR')}</small></b>
+            </div>
+            <div className="minv-hero-bar"><i style={{ width: pct + '%' }} /></div>
+            <div className="minv-hero-split">
+              <div><span>{T('المدفوع','Paid')}</span><b className="g">{num(paid)}</b></div>
+              <div><span>{T('المتبقي','Remaining')}</span><b className={remaining > 0.005 && !cancelled ? 'r' : ''}>{num(remaining)}</b></div>
+              <div><span>{T('نسبة السداد','Paid %')}</span><b>{pct}%</b></div>
+            </div>
+          </>)}
+          {overdueCount > 0 && (
+            <div className="minv-hero-warn">{overdueCount} {T(overdueCount === 1 ? 'دفعة متأخرة' : 'دفعات متأخرة', overdueCount === 1 ? 'overdue payment' : 'overdue payments')}</div>
+          )}
+        </div>
+        {stageActions.length > 0 && (
+          <div className="minv-stage">
+            <div className="minv-stage-lbl">{T('الخطوة التالية في المعاملة','Next transaction step')}</div>
+            <div className="minv-stage-row">{stageActions}</div>
+          </div>
+        )}
+      </>
+    )
+  })() : null
+  const mFlags = isMobile ? invActionFlags({ inv, user, total, remaining, canPayPerm: canPerm(user, 'invoices.record_payment'), canCancelPerm: canPerm(user, 'invoices.cancel') && !gmLock }) : {}
+  const mCanPrint = isMobile && !data.loading && canPerm(user, 'invoices.print') && modalAllowed(user, 'invoices', 'inv_action_print')
+  const mShowBar = isMobile && !data.loading && (mFlags.canPay || mFlags.canCancel || mCanPrint)
+
   return (
-    <div style={{ fontFamily: F, paddingTop: 0, paddingBottom: 80, color: 'var(--tx2)' }}>
+    <div className={isMobile ? 'minv-detail' + (mShowBar ? ' has-bar' : '') : undefined} style={{ fontFamily: F, paddingTop: 0, paddingBottom: 80, color: 'var(--tx2)' }}>
+      {mobileTop}
       {/* Top bar: back */}
+      {!isMobile && (<>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, gap: 12, flexWrap: 'wrap' }}>
         <BackButton onBack={onBack} label={T('رجوع','Back')} navKind="invoice" navId={inv.id} isAr={isAr} />
       </div>
@@ -2481,6 +2729,7 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user }) {
           )
         })()}
       </div>
+      </>)}
 
       {/* شريط الإلغاء — ختم «ملغاة» مائل + سبب الإلغاء ومَن ألغى ومتى (من cancel_log). */}
       {inv.status?.code === 'cancelled' && (() => {
@@ -2516,6 +2765,39 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user }) {
 
       {data.loading ? <InvoiceDetailSkeleton /> : (
       <InvoiceDetailLayout user={user} inv={inv} data={data} isAr={isAr} T={T} svc={svc} payT={payT} total={total} paid={paid} remaining={remaining} pct={pct} stageStatus={[]} sb={sb} toast={toast} onRecordPayment={onRecordPayment} onCancelInv={onCancelInv} onPrint={onPrint} onEditWorker={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_worker_pick') ? undefined : () => setWorkerModal(true)} onEditService={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_service_edit') ? undefined : () => setSvcModal(true)} onEditOffice={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_service_edit') ? undefined : () => setOfficeModal(true)} onEditVisa={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_permanent_visa_edit') ? undefined : () => setVisaEditModal(true)} onEditBorders={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_border_numbers') ? undefined : () => setBorderModal(true)} onEditClient={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_client_edit') ? undefined : () => setClientModal(true)} onEditAgent={cancelledRO || !modalAllowed(user, 'invoices', 'inv_agent_edit') || (!canPerm(user, 'invoices.edit') && !isCreator) ? undefined : () => setAgentModal(true)} onEditNote={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_note_edit') ? undefined : () => setNoteModal(true)} onEditPricing={cancelledRO || !canPerm(user, 'invoices.edit') || !modalAllowed(user, 'invoices', 'inv_pricing_edit') ? undefined : () => setPricingModal(true)} onEditPayment={cancelledRO || !canPerm(user, 'invoices.record_payment') || !modalAllowed(user, 'invoices', 'inv_payment_edit') ? undefined : setPayEdit} onEditStage={cancelledRO ? undefined : openTransferStage} canPayPerm={canPerm(user, 'invoices.record_payment')} canCancelPerm={canPerm(user, 'invoices.cancel') && !gmLock} gmLock={gmLock} />
+      )}
+
+      {mShowBar && (
+        <div className="minv-bar">
+          {mCanPrint && (
+            <button className="minv-bar-btn sec" onClick={() => setMPrintOpen(true)}>
+              <Printer size={19} strokeWidth={2} /><span>{T('طباعة','Print')}</span>
+            </button>
+          )}
+          {mFlags.canPay && (
+            <button className="minv-bar-btn pri" onClick={onRecordPayment}>
+              <Plus size={19} strokeWidth={2.4} /><span>{T('تسجيل دفعة','Record Payment')}</span>
+            </button>
+          )}
+          {mFlags.canCancel && (
+            <button className="minv-bar-btn dng" onClick={onCancelInv} aria-label={T('إلغاء الفاتورة','Cancel invoice')}>
+              <Ban size={19} strokeWidth={2} />{!mFlags.canPay && <span>{T('إلغاء','Cancel')}</span>}
+            </button>
+          )}
+        </div>
+      )}
+      {isMobile && (
+        <Modal open={mPrintOpen} onClose={() => setMPrintOpen(false)} title={T('طباعة الفاتورة','Print invoice')} subtitle={T('اختر لغة الطباعة','Choose print language')} Icon={Printer} width={420}>
+          <div className="minv-printlist">
+            {PRINT_LANGS.map(o => (
+              <button key={o.k} className="minv-printrow" onClick={() => { setMPrintOpen(false); printInvoice(inv, data, o.k) }}>
+                <img src={`https://flagcdn.com/w40/${o.cc}.png`} alt="" width="26" height="19" />
+                <span>{o.l}</span>
+                <ChevronLeft size={18} />
+              </button>
+            ))}
+          </div>
+        </Modal>
       )}
 
       {actionModal && <ActionModal type={actionModal} stage={doneStage} onClose={() => { setActionModal(null); setDoneStage(null) }} sb={sb} T={T} isAr={isAr} inv={inv} total={total} paid={paid} remaining={remaining} toast={toast} user={user} onSaved={() => setRefreshTick(t => t + 1)} visaDet={data?.det || []} svcCode={data?.code} insts={data?.insts || []} />}
@@ -9206,6 +9488,21 @@ function InvoiceCommentModal({ sb, T, toast, srId, user, onClose, onSaved }) {
   )
 }
 
+// أزرار إجراءات الفاتورة (تسجيل دفعة / إلغاء) — شرط واحد يستهلكه كرت الإجراءات وشريط الجوال السفلي.
+// Action buttons depend on invoice state: a cancelled invoice exposes none, a fully-paid one hides "record payment".
+const invActionFlags = ({ inv, user, total, remaining, canPayPerm = true, canCancelPerm = true }) => {
+  const cancelled = inv.status?.code === 'cancelled'
+  // Same branch-scope gate used in InvoiceDetailPage: the user may act on this
+  // invoice only when its office is within their permitted branches.
+  const invBranchCan = canTabBranch(user, 'invoices', inv.branch_id || inv.branch?.id || null)
+  const canPay = !cancelled && invBranchCan && remaining > 0.005 && canPayPerm && modalAllowed(user, 'invoices', 'inv_action_payment')
+  // رواتب سبلاير: لا يُعرض زر إلغاء الفاتورة (تُدار حالة الطلب من زر «تأكيد الإنجاز» فقط).
+  const canCancel = !cancelled && invBranchCan && canCancelPerm && !isZeroSvc(inv.service_type?.code, total) && modalAllowed(user, 'invoices', 'inv_action_cancel')
+  return { canPay, canCancel }
+}
+// لغات الطباعة (مكتب الفاتورة ثنائي اللغة + لغة العامل: هندي/أردو/بنغالي)
+const PRINT_LANGS = [{ k: 'ar', l: 'عربي', cc: 'sa' }, { k: 'en', l: 'English', cc: 'gb' }, { k: 'hi', l: 'हिन्दी', cc: 'in' }, { k: 'ur', l: 'اردو', cc: 'pk' }, { k: 'bn', l: 'বাংলা', cc: 'bd' }]
+
 const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid, remaining, pct, stageStatus, sb, toast, onRecordPayment, onCancelInv, onPrint, onEditWorker, onEditService, onEditOffice, onEditVisa, onEditBorders, onEditClient, onEditAgent, onEditNote, onEditPricing, onEditPayment, onEditStage, canPayPerm = true, canCancelPerm = true, gmLock = false }) => {
   // المدير العام يرى كل الكروت حتى الفارغة منها — ليتمكّن من الإضافة/التعديل من داخل الفاتورة.
   const showEmpty = isGM(user)
@@ -9232,8 +9529,8 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
     return logDisc > 0.005 ? logDisc : lineDisc
   })()
   return (
-  <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 14, alignItems: 'flex-start' }}>
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+  <div className="minv-layout" style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 14, alignItems: 'flex-start' }}>
+    <div className="minv-lcol" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       {/* كرت العميل يظهر فقط للخدمات التي تتطلب عميلاً (تأشيرات العمل، نقل الكفالة، تجديد الإقامة،
           والخدمة العامة). بقية الخدمات «على طول العامل» — يُختار العامل مباشرةً بلا عميل — فلا كرت عميل.
           ويُخفى أيضاً للخدمات المُتطلِّبة عميلاً متى كان «العامل هو العميل» (الطرف نفسه يظهر في كرت العامل). */}
@@ -9603,10 +9900,10 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
       {/* كرت التعليقات — آخر كرت في العمود الرئيسي (نفس تصميم/وظيفة كرت تعليقات المعاملات). */}
       {cardVisible(user, 'invoices', 'comments') && <InvoiceCommentsCard sb={sb} T={T} isAr={isAr} toast={toast} inv={inv} user={user} />}
     </div>
-    <div style={{ position: 'sticky', top: 14, display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <div className="minv-rcol" style={{ position: 'sticky', top: 14, display: 'flex', flexDirection: 'column', gap: 14 }}>
       {(total > 0 || showEmpty) && cardVisible(user, 'invoices', 'financial_summary') && (
-      <FinancialSummaryCard inv={inv} data={data} isAr={isAr} T={T} total={total} paid={paid} remaining={remaining} pct={pct} payT={payT} user={user}
-        stageStatus={(cardVisible(user, 'invoices', 'service_transaction') && ['work_visa', 'other', 'ajeer'].includes(baseSvcCode(data?.code || inv.service_type?.code))) ? undefined : stageStatus} />
+      <div className="minv-fsum" style={{ display: 'contents' }}><FinancialSummaryCard inv={inv} data={data} isAr={isAr} T={T} total={total} paid={paid} remaining={remaining} pct={pct} payT={payT} user={user}
+        stageStatus={(cardVisible(user, 'invoices', 'service_transaction') && ['work_visa', 'other', 'ajeer'].includes(baseSvcCode(data?.code || inv.service_type?.code))) ? undefined : stageStatus} /></div>
       )}
       {/* كرت «حالة المعاملة» — أعلى قسم الطباعة؛ بخلفية كرت الوسيط (cardChrome). يظهر في كل الفواتير:
           صفّ لكل تأشيرة في خدمات التأشيرات، وصفّ حالة عام (منجزة/قيد التنفيذ/ملغاة) لبقية الخدمات. */}
@@ -10402,16 +10699,10 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
         // «استرجاع» و«خصم» أُزيلا من هذه الشبكة (قرار المستخدم): الخصم زرُّه داخل كرت التسعير،
         // وإعادة المبلغ صارت جزءاً من «إلغاء» (إلغاء تأشيرات محدّدة يُعيد حصّتها المدفوعة) ومن
         // «تعديل التسعير» حين يهبط الإجمالي دون المدفوع.
-        const cancelled = inv.status?.code === 'cancelled'
-        // Same branch-scope gate used in InvoiceDetailPage: the user may act on this
-        // invoice only when its office is within their permitted branches.
-        const invBranchCan = canTabBranch(user, 'invoices', inv.branch_id || inv.branch?.id || null)
-        const canPay = !cancelled && invBranchCan && remaining > 0.005 && canPayPerm && modalAllowed(user, 'invoices', 'inv_action_payment')
-        // رواتب سبلاير: لا يُعرض زر إلغاء الفاتورة (تُدار حالة الطلب من زر «تأكيد الإنجاز» فقط).
-        const canCancel = !cancelled && invBranchCan && canCancelPerm && !isZeroSvc(inv.service_type?.code, total) && modalAllowed(user, 'invoices', 'inv_action_cancel')
+        const { canPay, canCancel } = invActionFlags({ inv, user, total, remaining, canPayPerm, canCancelPerm })
         if (!canPay && !canCancel) return null
         return (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          <div className="minv-actgrid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             {canPay && (
               <div style={{ gridColumn: 'span 2', display: 'grid' }}>
                 <ActionGridButton onClick={onRecordPayment} color={C.ok} label={T('تسجيل دفعة','Record Payment')}>
@@ -10430,14 +10721,14 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
         )
       })()}
       {canPerm(user, 'invoices.print') && modalAllowed(user, 'invoices', 'inv_action_print') && (<>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+      <div className="minv-print" style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: C.gold }}><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
         <span style={{ fontSize: 11, fontWeight: 600, color: C.gold, letterSpacing: '.3px' }}>{T('طباعة','Print')}</span>
         <span style={{ flex: 1, height: 1, background: 'rgba(255,255,255,.05)' }} />
       </div>
       {/* كل لغات الطباعة معاً — اثنتان في كل صف، والأخيرة منفردة. (مكتب الفاتورة ثنائي اللغة + لغة العامل: هندي/أردو/بنغالي) */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-        {[{ k: 'ar', l: 'عربي', cc: 'sa' }, { k: 'en', l: 'English', cc: 'gb' }, { k: 'hi', l: 'हिन्दी', cc: 'in' }, { k: 'ur', l: 'اردو', cc: 'pk' }, { k: 'bn', l: 'বাংলা', cc: 'bd' }].map(o => (
+      <div className="minv-print" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+        {PRINT_LANGS.map(o => (
           <PrintLangButton key={o.k} o={o} T={T} onPrint={() => printInvoice(inv, data, o.k)} />
         ))}
       </div>

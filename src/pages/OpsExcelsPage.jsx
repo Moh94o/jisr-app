@@ -10,6 +10,9 @@ import { useBackHandler } from '../lib/mobileBack.js'
 import { quoteFeeFields, isFlatRenewal, isDiscountLine } from '../lib/invoicePricingModel.js'
 import { TXN_SERVICES } from './txnServices.js'
 import { Modal, ModalSection, ActionButton, ConfirmDialog, Dropdown, Select, CalendarPopup, TextField, TextArea, DateField, FileField, CurrencyField, ScrollBox, GRID } from '../components/ui/FormKit.jsx'
+import { useIsMobile, MBadge } from '../components/mobile/MobileKit.jsx'
+import { MSheetList, MSheetDetail, buildSpec, toneOfBg, stageState, StageDots, fmtMoney, rangeLabel } from '../components/mobile/sheets/MSheet.jsx'
+import '../styles/m-sheets.css'
 import { Save, Trash2, Search, RefreshCw, HeartPulse, ShieldOff, X as XIcon, HandCoins, BadgeCheck, ArrowUpDown, Zap, SlidersHorizontal, ListChecks, Pencil, ArrowUpNarrowWide, ArrowDownWideNarrow, Filter, Sigma, Pin, PinOff, Palette, Type, KeyRound, Eye, MoveHorizontal, SeparatorVertical, ClipboardCopy, Check, History, Plus, FileInput, Columns3, TableProperties } from 'lucide-react'
 
 /* سقوطُ الجلسة يُرجع 401 / 42501 من PostgREST، فيبدو للمستخدم «فشل الحفظ» بلا
@@ -14414,6 +14417,24 @@ const VIEW_STATS = {
   ],
 }
 
+/* ── بطاقات الجوال: ما يعلو المواصفة العامّة لكل جدول (انظر buildSpec) ─────
+   title/sub: مفاتيح يُؤخذ منها أوّل غير فارغ · badge: عمود الحالة (false = بلا شارة)
+   · amount: عمود المبلغ · fields: حقول البطاقة (٢–٤) بترتيبها. ما لا يُذكر يُشتقّ. */
+const M_CARDS = {
+  transfer_txn: { title: ['worker_name', 'client_name'], sub: ['facility_ar', 'invoice_no'], badge: false,
+    fields: ['iqama_number', 'invoice_at'] },
+  iqama_renewal: { title: ['worker_name', 'client_name'], sub: ['facility_ar', 'invoice_no'], badge: false,
+    fields: ['iqama_number', 'iqama_expiry_gregorian'] },
+  iqama_issuance: { title: ['worker_name', 'client_name'], sub: ['facility_ar', 'invoice_no'], badge: false },
+  iqama_dispatch: { title: ['worker_name', 'client_name'], sub: ['facility_ar', 'invoice_no'], badge: false },
+  companies: { title: ['entity_full_name_ar'], sub: ['headquarter_city_ar'], badge: false,
+    fields: ['cr_national_number', 'gosi_registration_number', 'hrsd_number', 'last_synced_at'] },
+  persons: { title: ['name_ar'], sub: ['id_number'], badge: false, fields: ['facilities', 'birth_date', 'absher_phone'] },
+  offices: { title: ['nickname'], sub: ['city_ar', 'district_ar', 'branch_code'], badge: false, fields: [] },
+  work_visas: { title: ['worker_name', 'client_name', 'facility_ar'], sub: ['facility_ar', 'invoice_no'] },
+  collections: { title: ['client_name', 'worker_name'], sub: ['invoice_no', 'facility_ar'] },
+}
+
 export default function OpsExcelsPageBoundary(props) {
   return <OxErrorBoundary lang={props.lang}><OpsExcelsPage {...props} /></OxErrorBoundary>
 }
@@ -17519,6 +17540,326 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
     toast && toast(T(`صُدِّر ${enNum(filtered.length)} صف`, `Exported ${enNum(filtered.length)} rows`))
   }, [COLS, filtered, fmtDisp, isAr, view, toast, T])
 
+  /* ═══ الجوال (≤ 768px): قائمةٌ أصلية بدل الشبكة ═══════════════════════════
+     عرضٌ فقط فوق حالة المحرّك نفسها: الصفوف `filtered` (البحث والتبويب والفترة
+     والفلاتر المحفوظة كما هي)، والكتابة `writeCells` (فيسري الحفظ التلقائي
+     والختم والترحيل)، والصلاحيات `isEditable`/`canAddRow`/`canDelRow` بعينها.
+     الشبكة وأدواتها المكتبية (أعمدة · تسمية · تصدير · مزامنة) لا تُرسم هنا. */
+  const isMobile = useIsMobile()
+  const mob = isMobile && !isEmptyView
+  const [mRowId, setMRowId] = useState(null)
+  useEffect(() => { setMRowId(null) }, [viewKey])
+  const mCols = useMemo(() => (mob ? COLS.filter((c) => c.kind !== 'rownum' && c.kind !== 'bmk') : []), [mob, COLS])
+  /* مراحل البطاقة: من كرت «المراحل» في VIEW_STATS نفسه — تعريفٌ واحد للمرحلة
+     ولما لا يسري منها على الصفّ (`na`)، فلا تفترق البطاقة عن الكرت. */
+  const mStages = useMemo(() => {
+    const g = (VIEW_STATS[view.key] || []).find((d) => d.type === 'group' && d.ofRows)
+    if (!g) return null
+    const list = g.items.filter((it) => it.need && it.need[0] && colDefs.has(it.need[0]))
+      .map((it) => ({ st: it.need[0], ar: it.ar, en: it.en, na: typeof it.na === 'function' ? it.na : null }))
+    return list.length ? list : null
+  }, [view.key, colDefs])
+  const mSpec = useMemo(() => {
+    if (!mob) return null
+    const sample = []
+    for (const r of allRows) { if (!r._blank) sample.push(r); if (sample.length >= 150) break }
+    return buildSpec({ cols: mCols, sample, fmt: fmtDisp, override: M_CARDS[view.key], stages: mStages })
+  }, [mob, mCols, allRows, fmtDisp, view.key, mStages])
+  const mCardOf = useMemo(() => {
+    if (!mSpec) return null
+    const col = (k) => colDefs.get(k)
+    const txt = (r, k) => { const c = col(k); return c ? String(fmtDisp(r, c) ?? '').split('\n')[0].trim() : '' }
+    // العنوان والفرعي بالقيمة نفسها لا بتزيين عرضها (خليّة العامل تُعرض برقم إقامته وبطاقتُه خلفه)
+    const rawTxt = (r, k) => { const c = col(k); return c ? String(dispOf(r, c) ?? '').split('\n')[0].trim() : '' }
+    const isLtr = (c) => !!c && (c.kind === 'mono' || c.kind === 'num' || c.kind === 'date')
+    const badgeOf = (r) => {
+      const c = mSpec.badge && col(mSpec.badge); if (!c) return null
+      const raw = String(dispOf(r, c) ?? '').split('\n')[0].trim(); if (!raw) return null
+      const bg = c.bg ? c.bg(raw, r) : null
+      const text = String(fmtDisp(r, c) ?? '').split('\n')[0].trim()
+      const guess = /ملغ|مشكلة|رفض|متعثّر|غير مدفوعة/.test(text) ? 'red' : /منجز|^تم|مدفوعة$|وافق/.test(text) ? 'green' : /انتظار|قيد|جديد/.test(text) ? 'orange' : 'gray'
+      return { text, tone: toneOfBg(bg) || guess }
+    }
+    const stagesOf = (r) => (mSpec.stages || []).map((g) => {
+      const c = col(g.st)
+      const na = !!(g.na && g.na(r)) || !!(c && view.cellNA && view.cellNA(r, c))
+      const raw = c ? String(dispOf(r, c) ?? '') : ''
+      return { st: g.st, label: isAr ? g.ar : g.en, value: c ? String(fmtDisp(r, c) ?? '').split('\n')[0].trim() : '', state: na ? 'na' : stageState(raw) }
+    })
+    const amountOf = (r) => {
+      const pc = mSpec.pay && col(mSpec.pay)
+      if (pc && pc.pay) {
+        const p = pc.pay(r) || {}
+        const tot = Number(p.total) || 0
+        if (tot) {
+          const rem = Math.max(0, Math.min(tot, Number(p.remaining) || 0))
+          return { value: fmtMoney(tot), unit: T('ريال', 'SAR'), tone: rem <= 0 ? 'green' : rem < tot ? 'orange' : 'red',
+            note: rem <= 0 ? T('مدفوعة بالكامل', 'Fully paid') : T(`المتبقّي ${fmtMoney(rem)}`, `Due ${fmtMoney(rem)}`) }
+        }
+      }
+      const ac = mSpec.amount && col(mSpec.amount)
+      if (!ac) return null
+      const n = cfNum(dispOf(r, ac))
+      return n == null ? null : { value: fmtMoney(n), unit: T('ريال', 'SAR'), tone: 'gold' }
+    }
+    const card = (r) => {
+      let title = ''
+      for (const k of mSpec.title) { title = rawTxt(r, k); if (title) break }
+      const subs = []
+      for (const k of mSpec.sub) { const t = rawTxt(r, k); if (t && t !== title && !subs.includes(t)) subs.push(t); if (subs.length >= 3) break }
+      // صفٌّ بلا اسمٍ يُعرَف بأوّل ما يُعرَف به (رقمه الموحّد مثلاً) لا بـ«بلا اسم»
+      if (!title && subs.length) title = subs.shift()
+      subs.length = Math.min(subs.length, 2)
+      const stg = stagesOf(r)
+      const tone = view.rowBg ? toneOfBg(view.rowBg(r, { block: 1 })) : null
+      const amt = amountOf(r)
+      const badge = badgeOf(r)
+      const subTxt = subs.join(' · ')
+      return {
+        title: title || (r._blank ? T('صف جديد', 'New row') : T('بلا اسم', 'Untitled')),
+        /* الشارة في سطر الفرعي لا في سطر العنوان: العنوانُ والمبلغ يتّسعان، والحالة تُقرأ مع سياقها */
+        subtitle: (badge && amt) ? <span className="msh-sub"><MBadge {...badge} /><span>{subTxt}</span></span> : subTxt,
+        subText: subTxt,
+        badge: (badge && !amt) ? badge : null,
+        badgeObj: badge,
+        amount: amt,
+        accent: r._hidden ? 'gray' : (tone && tone !== 'gray' ? tone : null),
+        leading: (title || '؟').trim().charAt(0),
+        fields: mSpec.fields.map((k) => { const c = col(k); const v = txt(r, k); return v ? { label: isAr ? c.ar : (c.en || c.ar), value: v, ltr: isLtr(c) } : null }).filter(Boolean),
+        children: stg.length ? <StageDots items={stg} isAr={isAr} /> : null,
+      }
+    }
+    return { card, badgeOf, stagesOf }
+  }, [mSpec, colDefs, fmtDisp, dispOf, isAr, T, view])
+  const mStats = useMemo(() => {
+    if (!mob) return []
+    const tn = (t) => (t === 'ok' ? 'green' : t === 'warn' ? 'orange' : t === 'bad' ? 'red' : 'gold')
+    const out = []
+    for (const s of stats) {
+      if (s.type === 'group') {
+        for (const it of s.items) {
+          const den = s.ofRows ? Number(it.den ?? s.rowsTotal ?? 0) : 0
+          out.push({ label: isAr ? it.ar : it.en, value: it.money ? fmtMoney(it.val) : enNum(it.val),
+            sub: den ? T(`متبقٍّ من ${enNum(den)}`, `left of ${enNum(den)}`) : (isAr ? s.ar : s.en),
+            tone: den ? (it.val / den >= 0.5 ? 'red' : it.val ? 'orange' : 'green') : tn(it.tone) })
+        }
+      } else {
+        out.push({ label: isAr ? s.ar : s.en, value: s.money ? fmtMoney(s.val) : enNum(s.val), unit: s.money ? T('ريال', 'SAR') : undefined, tone: tn(s.tone) })
+      }
+    }
+    return out
+  }, [mob, stats, isAr, T])
+  /* مجموعات صفحة الصفّ: كتل العرض (`view.bands`) إن عرّفها، وإلا حدود الأقسام (`sectionStart`) */
+  const mGroups = useMemo(() => {
+    if (!mob) return []
+    if (view.bands) {
+      const bandOf = new Map()
+      view.bands.forEach((b, bi) => (b.keys || []).forEach((k) => bandOf.set(k, bi)))
+      const idx = (k) => (bandOf.has(k) ? bandOf.get(k) : view.bands.findIndex((b) => (b.prefixes || []).some((p) => k.startsWith(p))))
+      const m = new Map()
+      for (const c of mCols) {
+        const bi = idx(c.key)
+        const key = bi < 0 ? 'other' : 'b' + bi
+        if (!m.has(key)) m.set(key, { key, title: bi < 0 ? T('أخرى', 'Other') : (isAr ? view.bands[bi].ar : view.bands[bi].en), cols: [] })
+        m.get(key).cols.push(c)
+      }
+      // بترتيب الكتل كما عرّفها العرض (الفاتورة ← الخدمة ← المنشأة ← العامل ← المراحل)، و«أخرى» آخراً
+      const rank = (g) => (g.key === 'other' ? 1e9 : Number(g.key.slice(1)))
+      return [...m.values()].sort((x, y) => rank(x) - rank(y))
+    }
+    const out = []
+    for (const c of mCols) {
+      if (!out.length || (c.sectionStart && out[out.length - 1].cols.length)) out.push({ key: 'g' + out.length, title: '', cols: [] })
+      out[out.length - 1].cols.push(c)
+    }
+    return out
+  }, [mob, view, mCols, isAr, T])
+  /* القيمة المرسومة (مكوّنات خلايا المحرّك نفسها) لما ليس نصّاً يُكتب */
+  const mWidget = useCallback((row, col, editable) => {
+    const raw = dispOf(row, col)
+    if (col.render && !editable) return col.render(row, raw, isAr)
+    switch (col.kind) {
+      case 'photo': return <PhotoCell path={raw} name={row.name_ar || row.name_en} size={44} onOpen={setFileView} />
+      case 'link': return raw ? (
+        <a className="msh-pill blue" href={raw} target="_blank" rel="noopener noreferrer"
+          onClick={(e) => (col.doc ? fvOpen(e, setFileView, raw, isAr ? (col.linkLabel || col.ar) : (col.linkLabelEn || col.en), 'application/pdf') : e.stopPropagation())}>
+          {(isAr ? col.linkLabel : (col.linkLabelEn || col.linkLabel)) || T('فتح', 'Open')} {col.doc ? '📎' : '↗'}
+        </a>) : <span className="msh-empty-v">—</span>
+      case 'open': return raw ? <button type="button" className="msh-pill blue mono" onClick={() => col.open && col.open(row)}>{raw}</button> : <span className="msh-empty-v">—</span>
+      case 'msg': return (col.msgNA && col.msgNA(row)) ? <span className="msh-na">{T('لا ينطبق', 'N/A')}</span>
+        : <MsgCell label={(isAr ? col.msgAr : col.msgEn) || T('رسالة السداد', 'Payment message')} onOpen={() => setMsgView({ row, col, vals: {} })} />
+      case 'yesno': return (
+        <YesNoCell value={raw} isAr={isAr} canEdit={editable} busy={fetchBusy === `${row._id}|${col.key}`}
+          tipYes={col.tipYes ? (isAr ? col.tipYes.ar : col.tipYes.en) : T('نعم', 'Yes')}
+          tipNo={col.tipNo ? (isAr ? col.tipNo.ar : col.tipNo.en) : T('لا', 'No')}
+          onYes={() => {
+            if (!col.form) { runColFetch(row, col, { __yes: true }); return }
+            const spec = col.form(row, isAr, { rows: allRows }) || {}
+            const vals = { __yes: true }
+            for (const f of (spec.fields || [])) vals[f.key] = String(f.value ?? '')
+            setRunForm({ row, col, spec, vals })
+          }}
+          onNo={() => runColFetch(row, col, { __no: true })} />)
+      case 'fetch': {
+        const fg = (raw !== '' && col.fg) ? col.fg(raw, row) : null
+        return (
+          <FetchCell value={raw} icon={col.fetchIcon} glyph={col.fetchGlyph} valTone={fg}
+            canEdit={editable && !(col.fetchHide && col.fetchHide(row))}
+            blocked={col.fetchBlock ? col.fetchBlock(row, isAr) : null}
+            label={col.fetchLabel ? col.fetchLabel(row, isAr) : null}
+            tone={col.fetchTone ? col.fetchTone(row) : null}
+            sub={col.fetchSub ? col.fetchSub(row, isAr) : null}
+            busy={fetchBusy === `${row._id}|${col.key}`}
+            tip={col.fetchTip ? (isAr ? col.fetchTip.ar : col.fetchTip.en) : T('جلب', 'Fetch')}
+            onFetch={() => {
+              if (col.form) {
+                const spec = col.form(row, isAr, { rows: allRows }) || {}
+                const vals = {}
+                for (const f of (spec.fields || [])) vals[f.key] = (f.kind === 'workers') ? (f.value || {}) : String(f.value ?? '')
+                setRunForm({ row, col, spec, vals })
+              } else if (col.confirm) setRunConfirm({ row, col })
+              else runColFetch(row, col)
+            }} />)
+      }
+      case 'pay': return <PayCell {...(col.pay ? col.pay(row) : {})} isAr={isAr} />
+      case 'files': return <FilesCell files={col.files ? col.files(row) : row.bank_files} isAr={isAr} onView={setFileView} label={isAr ? col.ar : col.en} />
+      case 'filepair': return (
+        <FilePairCell slots={col.slots} value={raw} fixed={col.fixed ? col.fixed(row) : null}
+          busySlot={(fileBusy || '').startsWith(`${row._id}|${col.key}|`) ? fileBusy.split('|').pop() : null}
+          canEdit={editable} ownsFile={ownsFile} isAr={isAr} onView={setFileView}
+          onPick={(k, f) => uploadCellFile(row, col, f, k)}
+          onRemove={(k) => {
+            const v = fpParse(raw)
+            if (!ownsFile(v[k])) { toast && toast(T(`رفع هذا المرفق ${(v[k] && v[k].b) || 'موظّف آخر'} — لا تملك حذفه`, `Uploaded by ${(v[k] && v[k].b) || 'another user'} — you cannot remove it`), 'error'); return }
+            delete v[k]
+            writeCells([{ row, col, text: Object.keys(v).length ? JSON.stringify(v) : '' }])
+          }} />)
+      case 'multifile': return (
+        <MultiFileCell value={raw} isAr={isAr} canEdit={editable} ownsFile={ownsFile} onView={setFileView} tip={cellStamp(row, col, isAr)}
+          busy={fileBusy === `${row._id}|${col.key}`}
+          onPick={(f) => uploadCellFile(row, col, f)}
+          onRemove={(i) => {
+            const a = mfParse(raw)
+            if (!ownsFile(a[i])) { toast && toast(T(`رفع هذا المرفق ${(a[i] && a[i].b) || 'موظّف آخر'} — لا تملك حذفه`, `Uploaded by ${(a[i] && a[i].b) || 'another user'} — you cannot remove it`), 'error'); return }
+            a.splice(i, 1); writeCells([{ row, col, text: a.length ? JSON.stringify(a) : '' }])
+          }} />)
+      case 'file': return (
+        <FileCell url={raw} isAr={isAr} canEdit={editable} onView={setFileView} label={isAr ? col.ar : col.en}
+          tip={cellStamp(row, col, isAr)} busy={fileBusy === `${row._id}|${col.key}`}
+          onPick={(f) => uploadCellFile(row, col, f)}
+          onClear={async () => {
+            if (!col.clear) { writeCells([{ row, col, text: '' }]); return }
+            try { await col.clear(row, { sb, user }); await stampFileCell(row, col, true); setSeq((s) => s + 1); toast && toast(T('حُذف الملف', 'File removed')) }
+            catch (e) { toast && toast((e && e.message) || String(e)) }
+          }} />)
+      default: return null
+    }
+  }, [dispOf, isAr, T, fetchBusy, runColFetch, allRows, fileBusy, ownsFile, uploadCellFile, writeCells, toast, sb, user, stampFileCell])
+  // أوّل صفٍّ فارغٍ جاهز لم يُكتب فيه — بابُ «صف جديد» في شيتات الإدخال
+  const blankFree = useMemo(() => (mob ? filtered.find((r) => r._blank && !edits[r._id]) || null : null), [mob, filtered, edits])
+  const mApi = useMemo(() => {
+    if (!mob || !mSpec) return null
+    const n = effName(isEmptyView ? (VIEWS.find((v) => v.key === forceView) || view) : view)
+    const selOpts = (row, col) => ((col.select || colTypeMap[col.key] === 'select')
+      ? (col.options ? col.options(row) : (colOptsMap[col.key] || [])) : null)
+    const period = weekOnTab ? {
+      name: T(weekFilter.ar || 'الأسبوع', weekFilter.en || 'Week'),
+      label: (weekFSel === 'all' || weekFSel === 'nodate') ? '' : (rangeLabel({ from: weekFrom, sel: weekFSel, unit: weekUnit }, isAr) || perLabel(weekFrom, isAr, weekSpan, weekUnit)),
+      canPrev: !(weekFSel === 'all' || weekFSel === 'nodate' || (weekBounds && weekFSel <= weekBounds.min)),
+      canNext: !(weekFSel === 'all' || weekFSel === 'nodate' || (weekBounds && weekFSel >= weekBounds.max)),
+      prev: () => setWeekFSel(perShift(weekFSel, -(weekUnit === 'day' ? weekSpan : 1), weekUnit)),
+      next: () => setWeekFSel(perShift(weekFSel, (weekUnit === 'day' ? weekSpan : 1), weekUnit)),
+      isCurrent: weekFSel === perStartOf(undefined, weekUnit),
+      current: () => setWeekFSel(perStartOf(undefined, weekUnit)),
+      currentLabel: weekSpan > 1
+        ? (weekUnit === 'month' ? T(weekSpan === 2 ? 'آخر شهرين' : `آخر ${enNum(weekSpan)} أشهر`, `Last ${weekSpan} months`)
+          : weekUnit === 'day' ? T(`آخر ${enNum(weekSpan)} يوم`, `Last ${weekSpan} days`)
+            : T(weekSpan === 2 ? 'آخر أسبوعين' : `آخر ${enNum(weekSpan)} أسابيع`, `Last ${weekSpan} weeks`))
+        : (weekUnit === 'month' ? T('هذا الشهر', 'This month') : weekUnit === 'day' ? T('اليوم', 'Today') : T('هذا الأسبوع', 'This week')),
+      isAll: weekFSel === 'all', all: () => setWeekFSel('all'),
+      allLabel: (weekFilter && weekFilter.allAr) ? T(weekFilter.allAr, weekFilter.allEn || weekFilter.allAr)
+        : (weekUnit === 'month' ? T('كل الشهور', 'All months') : weekUnit === 'day' ? T('كل الفترات', 'All periods') : T('كل الأسابيع', 'All weeks')),
+      noDate: noDateN, isNoDate: weekFSel === 'nodate',
+      toggleNoDate: () => setWeekFSel(weekFSel === 'nodate' ? perStartOf(undefined, weekUnit) : 'nodate'),
+      missed: weekMissed,
+    } : null
+    const day = dayField ? {
+      value: daySel, isAll: daySel === 'all', isToday: daySel === todayYmd(),
+      prev: () => setDaySel(dayShift(daySel, -1)), next: () => setDaySel(dayShift(daySel, 1)),
+      set: (v) => setDaySel(v || todayYmd()), today: () => setDaySel(todayYmd()), all: () => setDaySel('all'),
+    } : null
+    const cell = {
+      info: (row, c) => {
+        const raw = String(dispOf(row, c) ?? '')
+        const text = String(fmtDisp(row, c) ?? '')
+        const na = !!((c.strike && c.strike(raw, row)) || (view.cellNA && view.cellNA(row, c)))
+        const ed = isEditable(row, c)
+        const widget = mWidget(row, c, ed)
+        const typed = !widget && ed
+        const lockWhy = (!ed && canEdit && colWritable(c) && srcOf(c) !== 'fetched')
+          ? (cellLockWhy(row, c) || (isRowLocked(row) ? T('الصف مقفول بعد إنجاز معاملته', 'Row is locked after its transaction was completed') : null)) : null
+        const statusish = !!c.bg && (c.select || c.options || /status|state|stage|_st$|^tr_s_/.test(c.key))
+        const bg = statusish && text ? c.bg((isAr === false && text !== raw) ? raw : text, row) : null
+        const fam = familyOf(c)
+        return {
+          raw, text: text.trim(), empty: !text.trim(), na, editable: typed, widget, lockWhy,
+          badge: bg ? (toneOfBg(bg) || 'gray') : null,
+          fg: (!bg && text && c.fg) ? c.fg(raw, row) : null,
+          mono: c.kind === 'mono' || c.kind === 'num' || c.kind === 'date' || fam !== 'text',
+          family: fam, tapCard: !!c.tap && !!text.trim(), longtext: c.kind === 'longtext',
+          drill: !!(view.drillLoad && c.drill && c.drill(row)),
+          dirty: isDirty(row, c),
+        }
+      },
+      options: (row, c) => { const o = selOpts(row, c); return o && o.length ? o : null },
+      optLabel: (row, c, o) => (c.optLabel ? c.optLabel(o, row, isAr) : optText(o, isAr)),
+      optTone: (row, c, o) => (c.bg ? toneOfBg(c.bg(o, row)) : null),
+      write: (row, c, v) => writeCells([{ row, col: c, text: v }]),
+      history: (row, c) => setCellInfo({ rowId: row._id, colKey: c.key }),
+      tapCard: (row, c) => (c.drill && c.drill(row) ? openDrill(row, c) : openTapCard(c, row)),
+      longText: (row, c) => setLongEdit({ row, col: c, text: String(baseVal(row, c) ?? ''), ro: !isEditable(row, c) }),
+      copy: (t) => { writeClipboard(String(t).split('\n')[0]).then((ok) => toast && toast(ok ? T(`نُسخ ${String(t).split('\n')[0]}`, `Copied ${t}`) : T('تعذّر النسخ', 'Copy failed'), ok ? undefined : 'error')) },
+      toast: (m, k) => toast && toast(m, k),
+    }
+    const actions = (row) => {
+      const out = []
+      if (view.repostable && view.repostable(row)) {
+        out.push({ key: 'post', icon: '⇪', label: view.postLabel ? (isAr ? view.postLabel.ar : view.postLabel.en) : T('رحّل للدفتر الآن', 'Post to ledger now'), disabled: busy, onClick: () => repostRow(row) })
+      }
+      if (isRowLocked(row) && isGM) out.push({ key: 'unlock', icon: '🔓', label: T('فتح الصف للتعديل (هذه الجلسة)', 'Unlock row (this session)'), onClick: () => setUnlockedRows((p) => new Set([...p, row._id])) })
+      if (canDelRow && !row._blank) {
+        if (row._hidden) out.push({ key: 'restore', icon: '↺', label: T('استعادة الصف', 'Restore row'), disabled: busy, onClick: () => restoreRow(row._id) })
+        else if (row._manual) out.push({ key: 'del', icon: '🗑', danger: true, label: T('حذف الصف', 'Delete row'), disabled: busy,
+          onClick: () => setConfirmAsk({ message: T('حذف هذا الصف نهائياً؟', 'Delete this row permanently?'), danger: true, onYes: () => { deleteRow(row._id); setMRowId(null) } }) })
+        else out.push({ key: 'hide', icon: '🚫', danger: true, label: T('إخفاء الصف (يمكن استعادته)', 'Hide row (restorable)'), disabled: busy,
+          onClick: () => setConfirmAsk({ message: T('إخفاء هذا الصف من الجدول؟ يمكن استعادته لاحقاً.', 'Hide this row? It can be restored later.'), onYes: () => { deleteRow(row._id); setMRowId(null) } }) })
+      }
+      return out
+    }
+    return {
+      isAr, T, viewKey: view.key, title: isAr ? n.ar : (n.en || n.ar), hint: isAr ? view.hintAr : (view.hintEn || view.hintAr),
+      /* الصفوف الفارغة الجاهزة (`view.blankRows`) خاناتُ إدخالٍ على طريقة إكسل —
+         لا بطائق: زرّ الإضافة يفتح أوّلها صفحةً تُملأ فتصير صفّاً بالحفظ التلقائي. */
+      rows: filtered.filter((r) => !r._blank), loading, loadErr, cols: mCols, spec: mSpec, cardOf: mCardOf, stats: mStats,
+      summary: (!loading && !loadErr && view.summary && allRows.length) ? view.summary(filtered, isAr) : null,
+      search, setSearch, tabs: tabDefs, tabSel, setTabSel, tabCounts, period, day,
+      canAdd: canAddRow || (!!blankFree && canEdit), addLabel: view.addLabel ? T(view.addLabel.ar, view.addLabel.en) : T('صف جديد', 'New row'),
+      onAdd: () => { if (blankFree && (!canAddRow || !(view.addFields || []).length)) { setMRowId(blankFree._id); return } setAddForm({}); setAddOpen(true) },
+      onOpen: setMRowId,
+      // فلاتر/فرزٌ شخصيّ محفوظ (من الحاسب) يسري هنا أيضاً — فيُقال ويُمسح بضغطة
+      filters: (activeFilterKeys.length || sortCfg) ? { count: activeFilterKeys.length, sort: !!sortCfg, clear: () => persistPrefs({ ...prefs, filters: {}, sort: null }) } : null,
+      hidden: (hiddenCount > 0 && canEdit) ? { count: hiddenCount, on: showHidden, toggle: () => setShowHidden((v) => !v) } : null,
+      resetKey: filterKey + '|' + tabSel + '|' + weekFSel + '|' + daySel,
+      rowOf: (id) => allRows.find((r) => r._id === id) || null,
+      groups: mGroups, cell, actions, locked: (row) => isRowLocked(row),
+      statusOf: (row) => (rowErr[row._id] ? 'error' : edits[row._id] ? 'saving' : null),
+    }
+  }, [mob, mSpec, effName, isEmptyView, forceView, view, colTypeMap, colOptsMap, weekOnTab, weekFilter, weekFSel, weekFrom, isAr, weekSpan, weekUnit,
+    weekBounds, setWeekFSel, noDateN, weekMissed, dayField, daySel, setDaySel, dispOf, fmtDisp, isEditable, mWidget, canEdit, colWritable, srcOf,
+    cellLockWhy, isRowLocked, familyOf, isDirty, writeCells, openDrill, openTapCard, baseVal, writeClipboard, toast, T, busy, repostRow, isGM,
+    canDelRow, restoreRow, deleteRow, filtered, loading, loadErr, mCols, mCardOf, mStats, allRows, search, tabDefs, tabSel, setTabSel, tabCounts,
+    canAddRow, filterKey, hiddenCount, showHidden, mGroups, rowErr, edits, blankFree, activeFilterKeys, sortCfg, persistPrefs, prefs])
+
   return (
     <div style={{ fontFamily: F }}>
       <style>{`
@@ -17694,6 +18035,10 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
         textarea.ox-fld{height:auto;text-align:start;padding:10px 14px;line-height:1.75}
       `}</style>
 
+      {/* ── الجوال: قائمةٌ أصلية بدل العنوان والأدوات والكروت والشبكة ── */}
+      {mob && mApi && <MSheetList api={mApi} />}
+      {mob && mApi && mRowId && <MSheetDetail api={mApi} rowId={mRowId} onClose={() => setMRowId(null)} />}
+      {!mob && (<>
       {/* العرض المقفول فقد منتقيَه الذي كان يسمّيه — فيحمل عنوانه بنفسه،
           كأي صفحة في التطبيق: الاسم ثم سطر تعريفه. */}
       {forceView && (
@@ -18883,6 +19228,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
           </div>
         </div>
       )}
+      </>)}
 
       {/* ── لوحةٌ يرسمها العرض بنفسه (`view.panel`) — **أسفل الجدول** ─────────
           حين لا تكفي شرائحُ الملخّص: شيت العمولات يحتاج **خانات إدخال** (تسعيرة

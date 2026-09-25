@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { can as canPerm, canCardBtn } from '../../lib/permissions.js'
 import { Modal as FKModal, ModalSection as FKSection, TextField, DateField, SuccessView } from '../../components/ui/FormKit.jsx'
+import { useIsMobile } from '../../components/mobile/MobileKit.jsx'
+import { MGroup, MKV, MLink, MItem } from '../admin/MAdminKit.jsx'
 import { FileText, Plus } from 'lucide-react'
 
 // Branch license/certificate card (رخصة بلدي, شهادة السلامة). One record per branch +
@@ -25,6 +27,7 @@ export default function BranchLicenseCard({ sb, branch, user, cardKey = 'municip
   const [lic, setLic] = useState(null)
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(false)
+  const isMobile = useIsMobile()
   const canEdit = canPerm(user, 'admin_offices.edit') || canPerm(user, 'admin_offices.create')
   // Per-card action gates (catalog: license cards → edit/create).
   const canCardEdit = canCardBtn(user, 'admin_offices', cardKey, 'edit')
@@ -41,6 +44,27 @@ export default function BranchLicenseCard({ sb, branch, user, cardKey = 'municip
   useEffect(() => { load() }, [load])
 
   const st = expiryState(lic?.expiry_date)
+  if (isMobile) {
+    return (
+      <>
+        <MGroup title={<span className="ma-hdr-badge">{title}{st && <span style={{ color: st.c, background: st.c + '1a' }}>{st.l}</span>}</span>}
+          action={canEdit && lic && canCardEdit ? <MLink onClick={() => setModal(true)}>تعديل</MLink> : null}>
+          {loading ? <div className="ma-empty">جارٍ التحميل…</div> : !lic ? (canEdit && canCardCreate
+            ? <MItem onClick={() => setModal(true)} tone={accent} leading={<Plus size={20} />} title={addLabel} sub="لا توجد بيانات بعد" />
+            : <div className="ma-empty">لا توجد بيانات.</div>) : (<>
+            <MKV label="رقم الرخصة" value={lic.license_number} ltr copy />
+            <MKV label="تاريخ الإصدار" value={fmtD(lic.issue_date)} ltr />
+            <MKV label="تاريخ الانتهاء" value={fmtD(lic.expiry_date)} ltr tone={st?.c} />
+            {lic.document_url && <MKV label="الملف" value="عرض" tone="blue" onClick={() => window.open(lic.document_url, '_blank', 'noopener')} />}
+          </>)}
+        </MGroup>
+        {modal && (
+          <LicenseModal sb={sb} branch={branch} licenseType={licenseType} title={title} accent={accent} existing={lic}
+            onClose={() => setModal(false)} onSaved={() => { setModal(false); load(); toast?.(lic ? 'تم حفظ التعديل' : 'تمت الإضافة') }} />
+        )}
+      </>
+    )
+  }
   return (
     <div className="brd-section">
       <div className="brd-section-head">

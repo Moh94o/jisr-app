@@ -5,6 +5,8 @@ import { noDash, clientEditChanges, branchLabel } from '../../lib/utils.js'
 import { navSetHere } from '../../lib/navStack.js'
 import { Modal as FKModal, ModalSection, GRID, TextField, IdField, PhoneField, Select, MultiSelect, Dropdown as FKDropdown, SuccessView, EmptyState } from '../../components/ui/FormKit.jsx'
 import { SkeletonCards, SkeletonList } from '../../components/ui/Skeleton.jsx'
+import { useIsMobile, MStatStrip, MCardList, MSearch, MChips, MBadge } from '../../components/mobile/MobileKit.jsx'
+import { MPageHead, MBack, MHero, MGroup, MKV, MItem, MLink, MTiles, MProgress, MAvatar } from './MAdminKit.jsx'
 import {
   Users, Phone, Wallet, Search,
   Calendar, Building2, User, Copy, Check,
@@ -188,6 +190,7 @@ const AmountBox = ({ label, value, color }) => (
 export default function ClientsPage({ sb, lang, user, toast, emptyIcon }) {
   const isAr = lang !== 'en'
   const T = (a, e) => isAr ? a : e
+  const isMobile = useIsMobile()
 
   // مكاتب المستخدم لتبويب العملاء: null = بلا قيد (المدير العام / «كل المكاتب»)؛
   // غير ذلك = قائمة الفروع المسموح للمستخدم رؤية عملائها فقط.
@@ -387,6 +390,63 @@ export default function ClientsPage({ sb, lang, user, toast, emptyIcon }) {
     )
   }
 
+  if (isMobile) {
+    const topNat = stats?.topNats?.[0]
+    const scrollTop = () => document.querySelector('.dash-content')?.scrollTo({ top: 0, behavior: 'smooth' })
+    return (
+      <div style={{ fontFamily: F, color: 'var(--tx2)' }}>
+        <MPageHead title={T('العملاء', 'Clients')} sub={T(`${num(stats?.total || 0)} عميل · ${num(stats?.newThisMonth || 0)} جديد هذا الشهر`, `${num(stats?.total || 0)} clients · ${num(stats?.newThisMonth || 0)} new this month`)} />
+        <MStatStrip items={[
+          { label: T('العملاء', 'Clients'), value: num(stats?.total || 0), tone: 'gold', sub: T(`${num(stats?.newThisMonth || 0)} هذا الشهر`, `${num(stats?.newThisMonth || 0)} this month`) },
+          { label: T('إجمالي الفوترة', 'Invoiced'), value: num(Math.round(stats?.totalInvoiced || 0)), unit: T('ريال', 'SAR'), tone: 'blue' },
+          { label: T('المتبقي', 'Remaining'), value: num(Math.round(stats?.totalRemaining || 0)), unit: T('ريال', 'SAR'), tone: (stats?.totalRemaining || 0) > 0 ? 'red' : 'green' },
+          topNat && { label: T('أكثر جنسية', 'Top nationality'), value: num(topNat[1]), tone: 'purple', sub: topNat[0] },
+        ]} />
+        <MSearch value={q} onChange={v => { setQ(v); setPage(0) }} placeholder={T('ابحث بالاسم أو الهوية أو الجوال', 'Search name, ID or phone')} />
+        {branches.length > 1 && (
+          <MChips value={filters.branch_id} onChange={v => { setFilters(f => ({ ...f, branch_id: v })); setPage(0) }}
+            options={[{ value: '', label: T('كل المكاتب', 'All offices') }, ...branches.map(b => ({ value: b.id, label: b.branch_code || b.name_ar }))]} />
+        )}
+        {nationalities.length > 1 && (stats?.topNats || []).length > 1 && (
+          <MChips value={filters.nationality_id} onChange={v => { setFilters(f => ({ ...f, nationality_id: v })); setPage(0) }}
+            options={[{ value: '', label: T('كل الجنسيات', 'All nationalities') }, ...nationalities
+              .filter(n => (stats?.topNats || []).some(([nm]) => nm === (isAr ? n.name_ar : (n.name_en || n.name_ar))) || n.id === filters.nationality_id)
+              .map(n => ({ value: n.id, label: isAr ? n.name_ar : (n.name_en || n.name_ar) }))]} />
+        )}
+        <MCardList loading={initialLoading} rows={sortedRows.map(r => {
+          const cs = perClientStats[r.id] || {}
+          const inv = Number(cs.invoiced || 0), due = Math.max(0, inv - Number(cs.paid || 0))
+          const name = (isAr ? r.name_ar : (r.name_en || r.name_ar)) || r.name_ar || r.name_en || '—'
+          const acc = colorFor(r.id)
+          return {
+            key: r.id, title: name,
+            subtitle: [r.branch?.branch_code, isAr ? r.nationality?.name_ar : (r.nationality?.name_en || r.nationality?.name_ar)].filter(Boolean).join(' · '),
+            leading: <MAvatar img={r.nationality?.flag_url} text={initial(name)} tone={acc} size={42} />,
+            amount: inv > 0 ? { value: num(Math.round(inv)), unit: T('ريال', 'SAR'), tone: 'gold' } : null,
+            fields: [
+              { label: T('رقم الهوية', 'ID'), value: r.id_number || '—', ltr: true },
+              { label: T('الجوال', 'Phone'), value: fmtPhone(r.phone) || '—', ltr: true },
+              { label: T('الفواتير', 'Invoices'), value: num(cs.invCount || 0) },
+              { label: T('المتبقي', 'Remaining'), value: inv <= 0 ? '—' : due > 0 ? num(Math.round(due)) : T('مسدّد ✓', 'Paid ✓'), tone: inv <= 0 ? undefined : due > 0 ? 'red' : 'green' },
+            ],
+            onClick: () => setSelectedId(r.id),
+          }
+        })} empty={
+          <EmptyState icon={emptyIcon}
+            title={q || hasFilters ? T('لا توجد نتائج مطابقة', 'No matches') : T('لا يوجد عملاء بعد', 'No clients yet')}
+            desc={q || hasFilters ? T('جرّب تعديل التصفية أو كلمة البحث', 'Try adjusting the filter or search') : T('أضِف أول عميل لتسجيل طلباته وفواتيره', 'Add your first client to log requests and invoices')} />
+        } />
+        {!loading && total > PAGE && (
+          <div className="ma-pager">
+            <button disabled={page === 0} onClick={() => { setPage(p => Math.max(0, p - 1)); scrollTop() }}>{T('السابق', 'Prev')}</button>
+            <span>{T('صفحة', 'Page')} {page + 1} {T('من', 'of')} {totalPages}</span>
+            <button disabled={page + 1 >= totalPages} onClick={() => { setPage(p => p + 1); scrollTop() }}>{T('التالي', 'Next')}</button>
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div style={{ fontFamily: F, paddingTop: 0, color: 'var(--tx2)' }}>
       <style>{`
@@ -563,6 +623,7 @@ function ClientRow({ client, clientStats, onClick, T, isAr }) {
    ═══════════════════════════════════════════════════════════════ */
 function ClientDetailPage({ sb, client, clientStats, user, toast, onBack, T, isAr, branches = [], nationalities = [], onReload, canEdit = true }) {
   const dir = isAr ? 'rtl' : 'ltr'
+  const isMobile = useIsMobile()
   const [requests, setRequests] = useState(null)
   const [editing, setEditing] = useState(false)
 
@@ -610,6 +671,78 @@ function ClientDetailPage({ sb, client, clientStats, user, toast, onBack, T, isA
     { fk: 'ci_branch', label: T('المكتب', 'Branch'), value: ((client.branch_ids && client.branch_ids.length) ? client.branch_ids.map(id => branches.find(b => b.id === id)?.branch_code).filter(Boolean).join(T('، ', ', ')) : '') || client.branch?.branch_code, mono: true, wrap: true },
     { fk: 'ci_joined', label: T('تاريخ الإضافة', 'Joined'), value: fmtGreg(client.created_at), mono: true },
   ].filter(Boolean).filter(it => fVis(it.fk)).map(f => ({ ...f, toast }))
+
+  if (isMobile) {
+    const canEditInfo = canCardBtn(user, 'admin_clients', 'client_info', 'edit') && modalAllowed(user, 'admin_clients', 'client_edit')
+    const natName = isAr ? client.nationality?.name_ar : (client.nationality?.name_en || client.nationality?.name_ar)
+    const statRows = [
+      { fk: 'st_workers', label: T('عدد العمال', 'Workers'), value: requests === null ? '…' : num(workerCount) },
+      { fk: 'st_visas', label: T('عدد التأشيرات', 'Visas'), value: requests === null ? '…' : num(visaCount) },
+      { fk: 'st_kafala', label: T('نقل الكفالة', 'Kafala transfers'), value: requests === null ? '…' : num(kafalaCount) },
+      { fk: 'st_invoices', label: T('عدد الفواتير', 'Invoices'), value: num(invCount) },
+      { fk: 'st_last_invoice', label: T('آخر فاتورة', 'Last invoice'), value: lastInvoiceIso ? daysAgoLabel(lastInvoiceIso, isAr) : '—', tone: 'gold' },
+    ].filter(r => fVis(r.fk))
+    return (
+      <div style={{ fontFamily: F, color: 'var(--tx2)', direction: dir }}>
+        <MBack onBack={onBack} label={T('العملاء', 'Clients')} />
+        <MHero img={client.nationality?.flag_url} avatar={initial(name)} tone={colorFor(client.id)} title={name}
+          sub={client.id_number} subLtr
+          badges={<>
+            {client.branch?.branch_code && <MBadge text={client.branch.branch_code} tone="gold" />}
+            {natName && <MBadge text={natName} tone="blue" />}
+            {totalAmt > 0 && <MBadge text={due > 0 ? T('عليه متبقٍ', 'Has balance') : T('مسدّد بالكامل', 'Fully paid')} tone={due > 0 ? 'red' : 'green'} />}
+          </>} />
+
+        {cardVisible(user, 'admin_clients', 'financial_summary') && (
+          <MGroup title={T('الملخص المالي', 'Financial summary')}>
+            <MTiles items={[
+              fVis('fs_invoiced') && { label: T('الفوترة', 'Invoiced'), value: num(Math.round(totalAmt)), tone: 'gold' },
+              fVis('fs_paid') && { label: T('المدفوع', 'Paid'), value: num(Math.round(paidAmt)), tone: 'green' },
+              fVis('fs_remaining') && { label: T('المتبقي', 'Remaining'), value: num(Math.round(due)), tone: due > 0 ? 'red' : 'gray' },
+            ]} />
+            {fVis('fs_paid_pct') && <MProgress pct={pct} tone={ps.c} label={T('نسبة السداد', 'Paid')} right={`${pct}%`} />}
+          </MGroup>
+        )}
+
+        {cardVisible(user, 'admin_clients', 'client_info') && (
+          <MGroup title={T('بيانات العميل', 'Client')} action={canEditInfo ? <MLink onClick={() => setEditing(true)}>{T('تعديل', 'Edit')}</MLink> : null}>
+            {infoItems.map((f, i) => <MKV key={i} label={f.label} value={f.value} ltr={f.mono} copy={f.copy} wrap={f.wrap} toast={toast} />)}
+          </MGroup>
+        )}
+
+        {cardVisible(user, 'admin_clients', 'stats') && statRows.length > 0 && (
+          <MGroup title={T('إحصاءات', 'Stats')}>
+            {statRows.map((r, i) => <MKV key={i} label={r.label} value={r.value} tone={r.tone} />)}
+          </MGroup>
+        )}
+
+        {cardVisible(user, 'admin_clients', 'invoices_log') && (
+          <MGroup title={`${T('سجل الفواتير', 'Invoices')} · ${invoiceRows.length}`}>
+            {requests === null && <div className="ma-empty">{T('جاري التحميل…', 'Loading…')}</div>}
+            {requests !== null && invoiceRows.length === 0 && <div className="ma-empty">{T('لا توجد فواتير بعد', 'No invoices yet')}</div>}
+            {invoiceRows.map(inv => {
+              const t = Number(inv.total_amount || 0), p = Number(inv.paid_amount || 0), rem = Number(inv.remaining_amount || 0)
+              const st = inv.cancelled ? { t: T('ملغية', 'Cancelled'), c: 'red' } : rem > 0 ? (p > 0 ? { t: T('جزئي', 'Partial'), c: 'orange' } : { t: T('غير مدفوعة', 'Unpaid'), c: 'red' }) : { t: T('مدفوعة', 'Paid'), c: 'green' }
+              const svcName = isAr ? inv.service_type?.value_ar : (inv.service_type?.value_en || inv.service_type?.value_ar)
+              return (
+                <MItem key={inv.id} dim={inv.cancelled} onClick={() => openInvoice(inv.id)}
+                  leading={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6M8 13h8M8 17h5" /></svg>}
+                  tone={st.c}
+                  title={fVis('il_invoice_no') ? (noDash(inv.invoice_no) || `#${String(inv.id).slice(0, 8)}`) : svcName}
+                  sub={[fVis('il_service') && svcName, fVis('il_branch') && inv.branch?.branch_code].filter(Boolean).join(' · ')}
+                  value={fVis('il_total') ? <span className="ma-inv-val"><b>{num(t)}</b><small data-tone={st.c}>{rem > 0 && !inv.cancelled && fVis('il_remaining') ? `${T('متبقٍ', 'Due')} ${num(rem)}` : st.t}</small></span> : null} />
+              )
+            })}
+          </MGroup>
+        )}
+
+        {editing && (
+          <ClientEditModal sb={sb} client={client} branches={branches} nationalities={nationalities} toast={toast} user={user} T={T} isAr={isAr}
+            onClose={() => setEditing(false)} onSaved={() => { setEditing(false); onReload?.() }} />
+        )}
+      </div>
+    )
+  }
 
   return (
     <div style={{ fontFamily: F, paddingTop: 0, paddingBottom: 48, color: 'var(--tx2)', direction: dir }}>

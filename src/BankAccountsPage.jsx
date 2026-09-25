@@ -9,6 +9,8 @@ import BackButton from './components/BackButton'
 import { SkeletonCards, SkeletonList } from './components/ui/Skeleton.jsx'
 import { can, cardVisible, canCardBtn } from './lib/permissions.js'
 import { branchLabel } from './lib/utils.js'
+import { useIsMobile, MStatStrip, MSearch, MChips, MFab, MBadge } from './components/mobile/MobileKit.jsx'
+import { MPageHead, MBack, MGroup, MKV, MItem, MLink, MSwitchRow } from './pages/admin/MAdminKit.jsx'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const MONO_F = "'JetBrains Mono','Cairo',sans-serif"
@@ -151,6 +153,7 @@ function BankAccountDetailPage({ sb, user, account, branches, toast, onBack, onE
   const [reveal, setReveal] = useState({})
   const [cardModal, setCardModal] = useState({ open: false, card: null })
   const [accBusy, setAccBusy] = useState(false)
+  const isMobile = useIsMobile()
 
   const loadLinks = useCallback(async () => {
     const { data } = await sb.from('bank_account_branches').select('id, account_purpose, is_active, branches(branch_code)').eq('bank_account_id', account.id).eq('is_active', true).is('deleted_at', null)
@@ -184,6 +187,82 @@ function BankAccountDetailPage({ sb, user, account, branches, toast, onBack, onE
     { l: 'إيداعات نقدية', v: bal.in_cash_deposits, Icon: Banknote, hue: C.ok, sign: '+' },
     { l: 'المدفوعات', v: bal.out_fees, Icon: Receipt, hue: C.purple, sign: '−' },
   ]
+
+  if (isMobile) {
+    const fields = accFields(account).filter(f => !['البنك', 'اسم الحساب', 'حساب رئيسي'].includes(f.k))
+    return (
+      <div style={{ fontFamily: F, color: 'var(--tx2)' }}>
+        <MBack onBack={onBack} label="الحسابات البنكية" />
+        <div className="ma-bank-hero" style={{ '--tone': balColor }}>
+          <div className="ma-bank-hero-top">
+            <span className="ma-bank-ico"><Landmark size={22} /></span>
+            <span className="ma-bank-names"><b>{account.bank_name}</b>{account.account_name && <small>{account.account_name}</small>}</span>
+            {account.is_primary && <MBadge text="رئيسي" tone="gold" />}
+          </div>
+          {cardVisible(user, 'admin_bank_accounts', 'overview') && (<>
+            <div className="ma-bank-bal"><span dir="ltr">{nm(account.current_balance || 0)}</span><small>ريال</small></div>
+          </>)}
+          <div className="ma-bank-foot">
+            <span className="ma-bank-sub">{!cardVisible(user, 'admin_bank_accounts', 'overview') ? '' : lowBal ? <span className="ma-bank-warn"><AlertCircle size={13} /> الرصيد عند الحد الأدنى</span> : 'الرصيد الحالي'}</span>
+            <span className="ma-bank-no" dir="ltr">{maskNum(account.account_number || account.iban)}</span>
+          </div>
+        </div>
+
+        {cardVisible(user, 'admin_bank_accounts', 'overview') && (
+          <MGroup title="حركة الرصيد">
+            {canCardBtn(user, 'admin_bank_accounts', 'overview', 'toggle') && <MSwitchRow title="الحساب نشط" on={accActive} busy={accBusy} onChange={toggleAccount} />}
+            {breakdown.map(b => <MItem key={b.l} leading={<b.Icon size={20} />} tone={b.hue} title={b.l} value={<span dir="ltr">{b.sign} {nm(b.v)}</span>} valueTone={b.hue} />)}
+          </MGroup>
+        )}
+
+        {cardVisible(user, 'admin_bank_accounts', 'account_data') && (
+          <MGroup title="بيانات الحساب" action={canCardBtn(user, 'admin_bank_accounts', 'account_data', 'edit') ? <MLink onClick={() => onEdit?.(account)}>تعديل</MLink> : null}>
+            {fields.map((f, i) => <MKV key={i} label={f.k} value={f.v} ltr={f.mono} copy={f.copy} toast={toast} />)}
+          </MGroup>
+        )}
+
+        {cardVisible(user, 'admin_bank_accounts', 'linked_offices') && (
+          <MGroup title={`المكاتب المرتبطة · ${links.length}`}>
+            {links.length === 0 ? <div className="ma-empty">غير مرتبط بأي مكتب</div> : links.map(l => {
+              const meta = PURPOSE_META[l.account_purpose] || { Icon: Building2, hue: C.blue }
+              return <MItem key={l.id} leading={<meta.Icon size={20} />} tone={meta.hue} title={<span dir="ltr">{l.branches?.branch_code}</span>} sub={l.account_purpose || '—'} />
+            })}
+          </MGroup>
+        )}
+
+        {cardVisible(user, 'admin_bank_accounts', 'bank_cards') && (
+          <MGroup title={`البطاقات البنكية · ${cards.length}`} flush
+            action={canCardBtn(user, 'admin_bank_accounts', 'bank_cards', 'create') ? <MLink onClick={() => setCardModal({ open: true, card: null })}>+ بطاقة</MLink> : null}>
+            {cards.length === 0 ? <div className="ma-list"><div className="ma-empty">لا توجد بطاقات</div></div> : (
+              <div className="ma-bank-cards">
+                {cards.map(card => (
+                  <CardChip key={card.id} card={card} bankName={account.bank_name}
+                    canEdit={canCardBtn(user, 'admin_bank_accounts', 'bank_cards', 'edit')}
+                    canToggle={canCardBtn(user, 'admin_bank_accounts', 'bank_cards', 'toggle')}
+                    shown={!!reveal[card.id]} onReveal={() => setReveal(p => ({ ...p, [card.id]: !p[card.id] }))}
+                    onEdit={() => setCardModal({ open: true, card })} onToggle={() => toggleCard(card)} />
+                ))}
+              </div>
+            )}
+          </MGroup>
+        )}
+
+        {cardVisible(user, 'admin_bank_accounts', 'attachments') && (
+          <MGroup title={`المرفقات · ${atts.length}`}>
+            {atts.length === 0 ? <div className="ma-empty">لا توجد مرفقات</div> : atts.map(a => (
+              <MItem key={a.id} leading={<FileText size={20} />} tone="gold" title={a.file_name || 'ملف'} sub={a.notes} onClick={() => window.open(a.file_url, '_blank', 'noopener')} />
+            ))}
+          </MGroup>
+        )}
+
+        {cardModal.open && (
+          <BankCardModal sb={sb} accountId={account.id} bankName={account.bank_name} card={cardModal.card} toast={toast}
+            onClose={() => setCardModal({ open: false, card: null })}
+            onSaved={() => { setCardModal({ open: false, card: null }); loadCards() }} />
+        )}
+      </div>
+    )
+  }
 
   return (
     <div style={{ fontFamily: F, paddingTop: 0, color: 'var(--tx2)' }}>
@@ -435,6 +514,7 @@ export default function BankAccountsPage({ sb, user, toast, lang }) {
   const [branchFilter, setBranchFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [advOpen, setAdvOpen] = useState(false)
+  const isMobile = useIsMobile()
 
   const [bankPop, setBankPop] = useState(false)
   const [bankForm, setBankForm] = useState({})
@@ -612,6 +692,50 @@ export default function BankAccountsPage({ sb, user, toast, lang }) {
 
   // LIST
   const initialLoading = loading && accounts.length === 0
+
+  if (isMobile) {
+    const lowN = accounts.filter(a => a.is_active !== false && a.min_balance_alert != null && Number(a.current_balance || 0) <= Number(a.min_balance_alert)).length
+    const chipVal = statusFilter === 'inactive' ? '__off' : bankFilter
+    return (
+      <div style={{ fontFamily: F, color: 'var(--tx2)' }}>
+        <MPageHead title="الحسابات البنكية" sub={`${nm(accounts.length)} حساب · ${nm(totalCards)} بطاقة`} />
+        <MStatStrip items={[
+          { label: 'إجمالي الرصيد', value: nm(Math.round(totalBalance)), unit: 'ريال', tone: 'gold' },
+          { label: 'الحسابات النشطة', value: nm(activeCount), tone: 'green', sub: activeCount === accounts.length ? 'جميعها نشطة' : `${nm(accounts.length - activeCount)} معطّل` },
+          { label: 'البطاقات', value: nm(totalCards), tone: 'blue' },
+          lowN > 0 && { label: 'رصيد منخفض', value: nm(lowN), tone: 'orange' },
+        ]} />
+        <MSearch value={searchQ} onChange={setSearchQ} placeholder="ابحث بالبنك أو رقم الحساب أو الآيبان" />
+        {(bankOptions.length > 1 || accounts.some(a => a.is_active === false)) && (
+          <MChips value={chipVal} onChange={v => { if (v === '__off') { setBankFilter(''); setStatusFilter('inactive') } else { setBankFilter(v); setStatusFilter('') } }}
+            options={[{ value: '', label: 'الكل', count: accounts.length }, ...bankOptions.map(b => ({ value: b, label: shortBank(b), count: accounts.filter(a => a.bank_name === b).length })),
+              ...(accounts.some(a => a.is_active === false) ? [{ value: '__off', label: 'معطّلة' }] : [])]} />
+        )}
+        {initialLoading ? (
+          <div className="mk-cards">{[0, 1, 2, 3].map(i => <div key={i} className="mk-card mk-skel"><span /><span /><span /></div>)}</div>
+        ) : filtered.length === 0 ? (
+          <EmptyState icon={<Landmark size={22} color="#B07D00" strokeWidth={1.7} />}
+            title={accounts.length === 0 ? 'لا توجد حسابات بنكية بعد' : 'لا توجد نتائج مطابقة'}
+            desc={accounts.length === 0 ? 'أضِف أول حساب بنكي لإدارة الأرصدة والبطاقات' : 'جرّب تعديل كلمة البحث'} />
+        ) : bankGroups.map((g, gi) => (
+          <MGroup key={g.id} title={g.name} action={<span className="ma-group-meta">{g.active}/{g.items.length} نشط</span>}>
+            {g.items.map(a => {
+              const on = a.is_active !== false
+              const low = a.min_balance_alert != null && Number(a.current_balance || 0) <= Number(a.min_balance_alert)
+              return (
+                <MItem key={a.id} dim={!on} onClick={() => setSelectedId(a.id)} leading={<Landmark size={20} />} tone={PALETTE[gi % PALETTE.length]}
+                  title={a.account_name || a.bank_name}
+                  sub={<>{a.is_primary && <b className="ma-sub-gold">رئيسي · </b>}<span dir="ltr">{maskNum(a.account_number || a.iban)}</span>{(a._officeCodes || []).length ? ' · ' + a._officeCodes.join('، ') : ''}</>}
+                  value={<span className="ma-inv-val"><b style={{ color: low ? C.warn : C.ok }}>{nm(a.current_balance || 0)}</b><small data-tone={low ? 'orange' : undefined}>{!on ? 'معطّل' : low ? 'رصيد منخفض' : 'ريال'}</small></span>} />
+              )
+            })}
+          </MGroup>
+        ))}
+        {can(user, 'admin_bank_accounts.create') && <><div className="ma-fab-pad" /><MFab label="حساب جديد" onClick={openAdd} /></>}
+        {modal}
+      </div>
+    )
+  }
   return (
     <div style={{ fontFamily: F, paddingTop: 0, color: 'var(--tx2)' }}>
       <style>{`

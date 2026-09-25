@@ -1,0 +1,246 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   معالج «فاتورة جديدة» (ServiceRequestPage) — تصميم تطبيق أصلي على الجوال.
+   كل القواعد داخل ≤ 768px فقط؛ الحاسب لا يتأثّر بشيء هنا.
+   الكروم (الترويسة · شريط التقدّم · أزرار السابق/التالي) من FormKit Modal.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 768px) {
+  /* ── تمرير واحد للنافذة كلها: لا مناطق تمرير متداخلة داخل الخطوات ────────
+     عناصر flex ذات min-height:0 تنضغط لتلائم ارتفاع النافذة ثم تمرّر داخلها؛
+     على الجوال نعيدها لطولها الطبيعي فيمرّر جسم النافذة (fk-body) وحده. */
+  .fk-body > .sr-body { flex: 1 0 auto !important; }
+  .sr-body, .sr-body [style*="min-height: 0"] { min-height: auto !important; }
+  .sr-body .sr-modal-scroll, .sr-body .sr-scroll { overflow: visible !important; flex: 0 0 auto !important; padding-left: 0 !important; }
+  .sr-body .fk-section { min-width: 0; }
+
+  /* ── خطوات الاختيار (المكتب/الخدمة/العميل/العامل): بلا إطار — عنوان قسم ثم المحتوى ── */
+  .sr-body .sr-flat > .fk-section, .sr-body .fk-section.sr-flat-sec {
+    border: 0 !important; padding: 0 !important; margin-top: 6px !important; border-radius: 0 !important; flex: 0 0 auto !important;
+  }
+  .sr-body .sr-flat > .fk-section > div:first-child, .sr-body .fk-section.sr-flat-sec > div:first-child {
+    position: static !important; background: none !important; padding: 0 2px 12px !important;
+    display: flex !important; flex-direction: column; align-items: flex-start !important; gap: 2px !important;
+    font-size: 20px !important; font-weight: 800 !important; color: var(--tx) !important; letter-spacing: -.2px;
+  }
+  .sr-body .sr-flat > .fk-section > div:first-child > svg, .sr-body .fk-section.sr-flat-sec > div:first-child > svg { display: none; }
+  .sr-body .sr-flat > .fk-section > div:first-child > span + span, .sr-body .fk-section.sr-flat-sec > div:first-child > span + span {
+    font-size: 13px !important; font-weight: 500 !important; color: var(--tx4) !important; margin: 0 !important; letter-spacing: 0;
+  }
+
+  /* ── بلاطات الاختيار (مكتب/خدمة): عمودان، بطاقات كبيرة بنمط m-tile ───────── */
+  .sr-body div.branch-grid.branch-grid,
+  .sr-body .svc-grid.svc-grid {
+    display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    grid-template-rows: none !important; grid-auto-rows: auto !important; height: auto !important;
+    gap: 10px !important; overflow: visible !important; align-content: start; flex: 0 0 auto !important;
+  }
+  .sr-body .branch-grid > .bento-card,
+  .sr-body .svc-grid > .bento-card {
+    min-height: 100px !important; padding: 12px 14px !important; gap: 8px !important; border-radius: 18px !important;
+    align-items: flex-start !important; justify-content: flex-start !important; text-align: start;
+    background: var(--m-surface, #fbf9f4) !important; border: .5px solid var(--m-line, rgba(90,70,30,.1)) !important;
+    box-shadow: 0 1px 2px rgba(90,70,30,.05) !important; transition: transform .12s ease, background-color .15s, border-color .15s !important;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .sr-body .branch-grid > .bento-card:active, .sr-body .svc-grid > .bento-card:active { transform: scale(.975); }
+  .sr-body .branch-grid > .bento-card.selected,
+  .sr-body .svc-grid > .bento-card.selected {
+    background: rgba(176,125,0,.1) !important; border-color: rgba(176,125,0,.55) !important;
+    box-shadow: 0 0 0 1.5px rgba(176,125,0,.45) inset !important;
+  }
+  .sr-body .branch-grid .bento-icon, .sr-body .svc-grid .bento-icon { width: 46px !important; height: 46px !important; border-radius: 14px !important; flex-shrink: 0; }
+  .sr-body .branch-grid .bento-icon svg, .sr-body .svc-grid .bento-icon svg { width: 25px; height: 25px; }
+  .sr-body .branch-grid .bento-label, .sr-body .svc-grid .bento-label {
+    font-size: 15.5px !important; font-weight: 700 !important; line-height: 1.35 !important; text-align: start !important;
+    margin-top: auto; color: var(--tx) !important;
+  }
+  .sr-body .branch-grid .bento-sub { font-size: 12px !important; font-weight: 600; color: var(--tx4) !important; margin-top: -6px; }
+  .sr-body .branch-grid .bento-check, .sr-body .svc-grid .bento-check {
+    top: 12px !important; left: auto !important; inset-inline-end: 12px; right: auto; width: 24px !important; height: 24px !important;
+  }
+  [dir=rtl] .sr-body .branch-grid .bento-check, [dir=rtl] .sr-body .svc-grid .bento-check { left: 12px !important; right: auto !important; }
+  .sr-body .svc-grid .bill-dot { top: 12px !important; left: 12px !important; font-size: 11px !important; padding: 2px 8px !important; }
+
+  /* الخدمة: عرض واحد نشط (بدل طبقتين متراكبتين) */
+  .sr-body .sr-step-svc .fk-section > div:last-child > div { flex: 0 0 auto !important; }
+  .sr-body .sr-svc-view { position: static !important; inset: auto !important; transform: none !important; opacity: 1 !important; }
+  .sr-body .sr-svc-view.off { display: none !important; }
+  .sr-body .sr-svc-view > .svc-grid { flex: 0 0 auto !important; }
+
+  /* «خدمات أخرى» و«الرئيسية»: صفّ كامل أفقي */
+  .sr-body .svc-grid > .bento-card.bento-nav {
+    grid-column: 1 / -1 !important; min-height: 60px !important; flex-direction: row !important; align-items: center !important;
+    padding: 10px 14px !important; background: transparent !important; border: 1.5px dashed rgba(176,125,0,.4) !important; box-shadow: none !important;
+  }
+  .sr-body .svc-grid > .bento-card.bento-nav .bento-icon { width: 40px !important; height: 40px !important; border-radius: 12px !important; }
+  .sr-body .svc-grid > .bento-card.bento-nav .bento-label { margin-top: 0; color: var(--accent, #B07D00) !important; flex: 1; }
+  .sr-body .svc-grid > .bento-card.bento-nav > div:last-child:not(.bento-label) { font-size: 12.5px !important; font-weight: 600; color: var(--tx4) !important; }
+  .sr-body .sr-svc-view:not(:first-child) .svc-grid > .bento-card.bento-nav { order: -1; }
+}
+
+@media (max-width: 768px) {
+  /* ── البحث (عميل/عامل): حقل بنمط iOS + زر «عميل جديد» مدمج ──────────── */
+  .sr-body .wz-search-row { gap: 10px !important; margin-bottom: 14px !important; }
+  .sr-body .wz-search-row input {
+    height: 48px !important; border-radius: 14px !important; background: rgba(90,70,30,.07) !important;
+    border: 0 !important; padding-inline: 42px 14px !important;
+  }
+  [dir=rtl] .sr-body .wz-search-row input { padding: 0 14px 0 42px !important; }
+  .sr-body .wz-search-row > button {
+    height: 48px !important; border-radius: 14px !important; padding: 0 14px !important; font-size: 14px !important; font-weight: 700 !important;
+    border: 0 !important; background: rgba(176,125,0,.12) !important; color: #8a6200 !important;
+  }
+
+  /* ── صفّ القائمة (عميل/عامل/وسيط) ─────────────────────────────────── */
+  .wz-row {
+    display: flex; align-items: center; gap: 12px; min-height: 72px; padding: 12px 14px; border-radius: 18px; flex-shrink: 0;
+    background: var(--m-surface, #fbf9f4); border: .5px solid var(--m-line, rgba(90,70,30,.1)); box-shadow: 0 1px 2px rgba(90,70,30,.05);
+    font-family: 'Cairo', 'Tajawal', sans-serif; text-align: start; -webkit-tap-highlight-color: transparent;
+  }
+  .wz-row.tap { cursor: pointer; transition: transform .12s ease, background-color .15s; }
+  .wz-row.tap:active { transform: scale(.985); background-color: #f4efe3; }
+  .wz-row.on { background: rgba(176,125,0,.09); border-color: rgba(176,125,0,.5); box-shadow: 0 0 0 1px rgba(176,125,0,.3) inset; }
+  .wz-row-lead { flex-shrink: 0; display: flex; }
+  .wz-flag {
+    display: flex; align-items: center; justify-content: center; border-radius: 14px; overflow: hidden; flex-shrink: 0;
+    background: rgba(176,125,0,.1); color: #B07D00; box-shadow: 0 0 0 .5px rgba(90,70,30,.14) inset;
+  }
+  .wz-flag img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .wz-row-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .wz-row-title { display: flex; align-items: center; gap: 6px; min-width: 0; }
+  .wz-row-name { font-size: 16px; font-weight: 700; color: var(--tx); line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .wz-row.on .wz-row-name { color: #8a6200; }
+  .wz-row-sub { font-size: 12.5px; font-weight: 600; color: var(--tx4); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; direction: ltr; text-align: end; }
+  [dir=ltr] .wz-row-sub { text-align: start; }
+  .wz-row-meta { display: flex; flex-wrap: wrap; gap: 3px 12px; margin-top: 2px; }
+  .wz-meta { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 600; color: var(--tx3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .wz-meta svg { color: #B07D00; opacity: .85; flex-shrink: 0; }
+  .wz-meta[style] svg { color: currentColor; }
+  .wz-tag { flex-shrink: 0; font-size: 11px; font-weight: 700; color: #2f7cb3; background: rgba(47,124,179,.12); border-radius: 999px; padding: 1px 8px; }
+  .wz-row-chev { flex-shrink: 0; color: var(--tx5, #b3a98f); }
+  [dir=ltr] .wz-row-chev { transform: scaleX(-1); }
+  .wz-change {
+    flex-shrink: 0; height: 34px; padding: 0 14px; border-radius: 999px; border: 0; cursor: pointer;
+    background: rgba(90,70,30,.08); color: var(--tx2); font-family: inherit; font-size: 13.5px; font-weight: 700;
+  }
+  .wz-check { flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%; background: #B07D00; color: #fff; display: flex; align-items: center; justify-content: center; }
+
+  /* ── خيارات «نفس الشخص / شخص مختلف»: صفوف كبيرة قابلة للّمس ─────────── */
+  .sr-body .wz-opt-grid { grid-template-columns: 1fr !important; gap: 10px !important; }
+  .sr-body .wz-opt { min-height: 64px; padding: 12px 14px !important; border-radius: 16px !important; gap: 12px !important; }
+  .sr-body .wz-opt > div:first-child { width: 40px !important; height: 40px !important; border-radius: 12px !important; }
+  .sr-body .wz-opt > div:first-child svg { width: 20px; height: 20px; }
+  .sr-body .wz-opt > div:nth-child(2) > span:first-child { font-size: 15px !important; font-weight: 700 !important; }
+  .sr-body .wz-opt > div:nth-child(2) > span:last-child { font-size: 12.5px !important; font-weight: 500 !important; color: var(--tx4) !important; white-space: normal !important; }
+  .sr-body .wz-opt > div:last-child:not(:nth-child(2)) { width: 24px !important; height: 24px !important; }
+  .sr-body .wz-opt-grid + div { font-size: 12.5px !important; }
+  .sr-body div:has(> .wz-opt-grid) > span:first-child { font-size: 14px !important; font-weight: 700 !important; }
+
+  /* ── تفاصيل العامل/المنشأة المختار: شبكة عمودين ──────────────────────── */
+  .sr-body .wz-pill-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px !important; }
+  .sr-body .wz-pill-grid > div { min-width: 0; padding: 10px 11px !important; border-radius: 12px !important; }
+  .sr-body .wz-pill-grid span { font-size: 11.5px; }
+  .sr-body .wz-pill-grid > div > div > span:last-child { font-size: 14px !important; }
+
+  /* ── ملخص حسبة التنازل المختارة: عمودان ─────────────────────────────── */
+  .sr-body .wz-kv2 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 12px 14px !important; }
+  .sr-body .wz-kv2 > div > div:first-child { font-size: 12px !important; }
+  .sr-body .wz-kv2 > div > div:last-child { font-size: 15px !important; }
+
+  /* ── الملخص الأخير: عمود واحد — كل قسم بطاقة مجمّعة (label يمين · قيمة يسار) ── */
+  .sr-body .wz-sum-wrap { border: 0 !important; padding: 0 !important; border-radius: 0 !important; }
+  .sr-body .sr-sum-col { columns: 1 !important; }
+  .sr-body .sr-sum-col > div {
+    background: var(--m-surface, #fbf9f4); border: .5px solid var(--m-line, rgba(90,70,30,.1)); border-radius: 18px;
+    padding: 12px 16px 8px; margin-bottom: 12px !important; box-shadow: 0 1px 2px rgba(90,70,30,.05);
+  }
+  .sr-body .wz-sum-title { font-size: 13.5px !important; font-weight: 700 !important; padding-bottom: 8px !important; margin-bottom: 4px !important; border-bottom-color: var(--m-line, rgba(90,70,30,.1)) !important; }
+  .sr-body .wz-sum-row { padding: 7px 0 !important; min-height: 34px; align-items: center !important; border-bottom: .5px solid rgba(90,70,30,.07); }
+  .sr-body .wz-sum-row:last-child { border-bottom: 0; }
+  .sr-body .wz-sum-row > span:first-child { font-size: 13.5px !important; color: var(--tx3) !important; flex-shrink: 0; }
+  .sr-body .wz-sum-row > span:last-child { font-size: 14.5px !important; color: var(--tx) ; font-variant-numeric: tabular-nums; min-width: 0; text-align: end !important; }
+}
+@media (max-width: 768px) {
+  .wz-flag.ini { font-size: 18px; font-weight: 800; color: #8a6200; background: linear-gradient(145deg, rgba(176,125,0,.2), rgba(176,125,0,.07)); }
+}
+
+@media (max-width: 768px) {
+  /* قوائم ذات ارتفاع ثابت (الوسيط) تتمدّد على الجوال — التمرير للنافذة كلها */
+  .sr-body .sr-scroll { height: auto !important; max-height: none !important; }
+  /* وصف الخدمة/الملاحظات: لا تمتدّ لتملأ الشاشة */
+  .sr-body textarea { max-height: 38vh; min-height: 120px; }
+
+  /* الوسيط: ترويسة صفّ واضحة وزرّ + كبير */
+  .sr-body .wz-broker { padding: 14px 16px !important; border-radius: 16px !important; }
+  .sr-body .wz-broker-head > span:first-child { font-size: 15px !important; font-weight: 700 !important; }
+  .sr-body .wz-broker-head > span:nth-child(2) { font-size: 12.5px !important; }
+  .sr-body .wz-broker-head > button { width: 36px !important; height: 36px !important; border-radius: 12px !important; margin-inline-start: auto; }
+  .sr-body .wz-broker-head > button svg { width: 16px; height: 16px; }
+  .sr-body .wz-broker-hint { font-size: 13px !important; text-align: start !important; color: var(--tx4) !important; }
+
+  /* أزرار الأيقونة الصغيرة (إضافة/إلغاء بند) → أهداف لمس 44px */
+  .sr-body .wz-icbtn { width: 44px !important; height: 44px !important; min-width: 44px; border-radius: 12px !important; background: rgba(90,70,30,.07) !important; flex-shrink: 0; }
+  .sr-body .wz-icbtn[title]:first-of-type { color: #1f8a4c !important; }
+
+  /* الملخص: وحدة «ريال» على خط الأساس بجانب الرقم */
+  .sr-body .wz-sum-row > span:last-child span { align-items: baseline !important; }
+  .sr-body .wz-sum-row > span:last-child bdi + bdi, .sr-body .wz-sum-row > span:last-child span > span:last-child { font-size: 11.5px; }
+
+  /* أزرار الاختيار المقسّمة (FormKit Segmented) داخل المعالج: سطر فرعي مقروء */
+
+}
+
+@media (max-width: 768px) {
+  /* الإطارات لا تتمدّد عمودياً لملء الشاشة (نمط الحاسب) — تأخذ ارتفاع محتواها */
+  .sr-body [style*="flex-direction: column"] > [style*="flex: 1"] { flex-grow: 0 !important; }
+  /* نصوص صغيرة جداً (9–10.5px) في جداول التسعير والتنبيهات → ≥ 12px */
+  .sr-body button > span[style*="flex-direction: column"] > span + span { font-size: 11.5px !important; }
+}
+
+/* ═══ محرّر تسعير الفاتورة (InvoicePricingEditor) — الجوال ═══════════════ */
+@media (max-width: 768px) {
+  .ipe-line { flex-wrap: wrap; row-gap: 8px !important; padding-bottom: 12px; border-bottom: .5px solid var(--m-line, rgba(90,70,30,.1)); }
+  .ipe-line:last-child { border-bottom: 0; padding-bottom: 0; }
+  .ipe-line > .ipe-label { flex: 1 1 100% !important; }
+  .ipe-line > .ipe-amt { flex: 1 1 0 !important; width: auto !important; min-width: 0; }
+  .ipe-line > button, .ipe-line > div:last-child:not(.ipe-amt):not(.ipe-label) { width: 48px !important; height: 48px !important; border-radius: 12px !important; }
+  .ipe-line > div:last-child:empty { display: none; }
+  .ipe-total { padding: 14px 16px !important; border-radius: 16px !important; }
+  .ipe-total span { font-size: 13.5px !important; }
+  .ipe-total > div:last-child > span:first-child { font-size: 15px !important; }
+  .ipe-total > div:last-child > span:last-child > span:last-child { font-size: 20px !important; }
+}
+
+/* ═══ كرت الإيصال (InvoiceReceiptCard) — الجوال: نصوص مقروءة وأهداف لمس ═══ */
+@media (max-width: 768px) {
+  .irc-head { padding: 12px 14px 10px !important; }
+  .irc-head > div:first-child { font-size: 15px !important; }
+  .irc-head > div + div { font-size: 12px !important; margin-top: 3px !important; }
+  .irc-row { font-size: 13.5px !important; padding: 5px 0 !important; }
+  .irc-row > span:last-child { font-variant-numeric: tabular-nums; }
+  .irc-foot { font-size: 14.5px !important; padding: 9px 0 11px !important; }
+  .irc:active > div:first-child { background: #f4efe3 !important; }
+}
+
+@media (max-width: 768px) {
+  /* خطوة الخدمة: بلا سطر وصف تحت العنوان — كل البلاطات و«خدمات أخرى» في شاشة واحدة */
+  .sr-body .sr-step-svc > .fk-section > div:first-child > span + span { display: none; }
+
+  /* مبلغ في طرف الصفّ (الحسبات) */
+  .wz-amt { flex-shrink: 0; display: inline-flex; align-items: baseline; gap: 3px; font-size: 16px; font-weight: 800; color: #B07D00; font-variant-numeric: tabular-nums; direction: ltr; }
+  .wz-amt small { font-size: 11px; font-weight: 600; color: var(--tx4); }
+  .sr-body div:has(> .wz-row) { gap: 10px !important; }
+
+  /* قراءة مريحة: لا نصوص أصغر من ~11.5px داخل المعالج */
+  .sr-body [style*="font-size: 9px"], .sr-body [style*="font-size: 9.5px"],
+  .sr-body [style*="font-size: 10px"], .sr-body [style*="font-size: 10.5px"] { font-size: 11.5px !important; }
+  .sr-body [style*="font-size: 11px"], .sr-body [style*="font-size: 11.5px"] { font-size: 12.5px !important; }
+  .sr-body [style*="font-size: 12.5px"] { font-size: 13.5px !important; }
+}
+@media (max-width: 768px) {
+  .ipe-delta { min-height: 40px !important; border-bottom: .5px solid var(--m-line, rgba(90,70,30,.1)); }
+  .ipe-delta:last-child { border-bottom: 0; }
+  .ipe-delta > span:first-child { font-size: 14px !important; }
+  .ipe-delta > span:last-child span { font-size: 13px !important; }
+  .ipe-delta > span:last-child span:last-child { font-size: 15px !important; }
+}

@@ -3,6 +3,7 @@
 // v_worker_invoices كما هو: الخدمة + المكتب + العامل + المبالغ + رقم الفاتورة.
 import React from 'react'
 import { C } from './FormKit'
+import '../../styles/m-wizard.css'
 
 const F = 'Cairo, Tajawal, sans-serif'
 const num = (v) => Math.round(Number(v) || 0).toLocaleString('en-US')
@@ -10,7 +11,7 @@ const num = (v) => Math.round(Number(v) || 0).toLocaleString('en-US')
 const ZIGZAG = 'M0 0 L0 3 ' + Array.from({ length: 20 }, (_, i) => `L${i * 5 + 2.5} 7 L${(i + 1) * 5} 3`).join(' ') + ' L100 0 Z'
 
 const Row = ({ label, value, color, mono, icon }) => (
-  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '3px 0', fontSize: 11 }}>
+  <div className="irc-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '3px 0', fontSize: 11 }}>
     <span style={{ color: 'var(--tx4)', flexShrink: 0 }}>{label}</span>
     <span style={{ fontWeight: 600, color: color || 'var(--tx1)', fontFamily: mono ? 'ui-monospace, monospace' : undefined, direction: mono ? 'ltr' : undefined, display: 'inline-flex', alignItems: 'center', gap: 5, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
       {value}
@@ -34,7 +35,7 @@ export default function InvoiceReceiptCard({ r, workerName, onOpen, T }) {
         ? { l: T('المتبقي', 'Due'), v: num(rem), c: C.red, mono: true }
         : null
   return (
-    <div onClick={clickable ? () => onOpen(r.invoice_id) : undefined}
+    <div className="irc" onClick={clickable ? () => onOpen(r.invoice_id) : undefined}
       title={clickable ? T('عرض تفاصيل الفاتورة', 'View invoice') : ''}
       style={{ position: 'relative', cursor: clickable ? 'pointer' : 'default', opacity: cancelled ? .75 : 1, fontFamily: F }}
       onMouseEnter={e => { if (clickable) e.currentTarget.firstElementChild.style.borderColor = 'rgba(176,125,0,.5)' }}
@@ -44,7 +45,7 @@ export default function InvoiceReceiptCard({ r, workerName, onOpen, T }) {
           <div aria-hidden="true" style={{ position: 'absolute', top: '50%', insetInlineStart: '50%', transform: 'translate(-50%, -50%) rotate(-16deg)', fontSize: 26, fontWeight: 600, letterSpacing: 2, color: 'rgba(192,57,43,.14)', border: '3px solid rgba(192,57,43,.18)', borderRadius: 10, padding: '2px 22px', pointerEvents: 'none', whiteSpace: 'nowrap', zIndex: 1 }}>{T('ملغاة', 'Cancelled')}</div>
         )}
         {/* رأس الإيصال: الخدمة ثم المكتب والتاريخ */}
-        <div style={{ textAlign: 'center', padding: '9px 12px 7px', borderBottom: '1px dashed rgba(176,125,0,.4)' }}>
+        <div className="irc-head" style={{ textAlign: 'center', padding: '9px 12px 7px', borderBottom: '1px dashed rgba(176,125,0,.4)' }}>
           <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.service_ar || T('خدمة', 'Service')}</div>
           {(r.branch_code || date) && (
             <div style={{ fontSize: 9.5, color: 'var(--tx4)', fontFamily: 'ui-monospace, monospace', direction: 'ltr', marginTop: 2 }}>
@@ -63,7 +64,7 @@ export default function InvoiceReceiptCard({ r, workerName, onOpen, T }) {
         </div>
         {/* سطر المتبقي/الحالة المؤكّد */}
         {bottom ? (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, margin: '4px 14px 0', padding: '6px 0 8px', borderTop: '1px dashed rgba(176,125,0,.4)', fontSize: 12 }}>
+          <div className="irc-foot" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, margin: '4px 14px 0', padding: '6px 0 8px', borderTop: '1px dashed rgba(176,125,0,.4)', fontSize: 12 }}>
             <span style={{ fontWeight: 600, color: 'var(--tx1)' }}>{bottom.l}</span>
             <span style={{ fontWeight: 600, color: bottom.c, fontFamily: bottom.mono ? 'ui-monospace, monospace' : undefined, direction: bottom.mono ? 'ltr' : undefined }}>{bottom.v}</span>
           </div>

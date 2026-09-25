@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useState } from 'react'
 import { Receipt, FileText, Plus, Copy, Check, Zap, Wifi, Droplets, CalendarClock } from 'lucide-react'
 import { can as canPerm, canCardBtn } from '../../lib/permissions.js'
 import { Modal as FKModal, ModalSection as FKSection, TextField, CurrencyField, DateField, Select as FKSelect, SuccessView } from '../../components/ui/FormKit.jsx'
+import { useIsMobile } from '../../components/mobile/MobileKit.jsx'
+import { MGroup, MItem, MLink } from '../admin/MAdminKit.jsx'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const GOLD = '#B07D00'
@@ -44,6 +46,7 @@ export default function BranchObligationsCard({ sb, branch, user, cardKey = 'ele
   const [expanded, setExpanded] = useState(() => new Set())
   const [copiedId, setCopiedId] = useState(null)   // account number just copied (shows a green check)
   const [modal, setModal] = useState(null)         // obligation being added/edited (or {} for new)
+  const isMobile = useIsMobile()
 
   const load = useCallback(async () => {
     if (!sb || !branch?.id) return
@@ -79,6 +82,58 @@ export default function BranchObligationsCard({ sb, branch, user, cardKey = 'ele
       {copiedId === o.id ? <Check size={13} strokeWidth={2.8} /> : <Copy size={13} strokeWidth={2} />}
     </button>
   ) : null
+
+  if (isMobile) {
+    const existing = items[0]
+    const act = canEdit && existing && canCardEdit ? <MLink onClick={() => setModal(existing)}>تعديل</MLink> : null
+    return (
+      <>
+        <MGroup title={title} action={act}>
+          {loading ? <div className="ma-empty">جارٍ التحميل…</div> : items.length === 0 ? (canEdit && canCardCreate
+            ? <MItem onClick={() => setModal({})} tone={accent} leading={<Plus size={20} />} title={addLabel} sub="لا توجد بنود بعد" />
+            : <div className="ma-empty">لا توجد بنود.</div>) : items.map(o => {
+            const pays = paysByOb[o.id] || []
+            const isOpen = expanded.has(o.id)
+            const Icon = iconFor(o.obligation_type)
+            const next = pays.find(p => p.status !== 'paid')
+            const nst = next ? payState(next) : null
+            return (
+              <React.Fragment key={o.id}>
+                <MItem onClick={() => toggle(o.id)} tone={accent} chevron={false}
+                  leading={<Icon size={20} strokeWidth={2} />}
+                  title={<span dir="ltr" className="ma-mono">{o.account_no || typeMap[o.obligation_type]}</span>}
+                  sub={dueText(o)}
+                  value={Number(o.amount) > 0 ? fmtAmt(o.amount) : (nst ? <span style={{ color: nst.c, fontSize: 12.5 }}>{nst.l}</span> : null)} valueTone="gold"
+                  trailing={<>{copyBtn(o)}<svg className="ma-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ transform: isOpen ? 'rotate(180deg)' : 'none', transition: '.2s' }}><polyline points="6 9 12 15 18 9" /></svg></>} />
+                {isOpen && (
+                  <div className="ma-sub-list">
+                    {o.document_url && <a className="ma-sub-link" href={o.document_url} target="_blank" rel="noreferrer">عرض الملف</a>}
+                    {pays.length === 0 ? <div className="ma-empty">لا توجد دفعات.</div> : pays.map(p => {
+                      const st = payState(p)
+                      return (
+                        <div key={p.id} className="ma-sub-row">
+                          <span className="ma-dot" style={{ '--tone': st.c }} />
+                          <span dir="ltr">{p.due_date}</span>
+                          <b dir="ltr">{fmtAmt(p.amount)}</b>
+                          <span className="ma-sub-st" style={{ color: st.c, background: st.c + '1a' }}>{st.l}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </React.Fragment>
+            )
+          })}
+        </MGroup>
+        {modal && (
+          <ObligationModal sb={sb} branch={branch} toast={toast} obligation={modal.id ? modal : null}
+            typeOptions={typeOptions} vendorLabel={vendorLabel} accountLabel={accountLabel} addLabel={addLabel} editLabel={editLabel}
+            fixedMonthly={fixedMonthly} withAmount={withAmount}
+            onClose={() => setModal(null)} onSaved={() => { setModal(null); load() }} />
+        )}
+      </>
+    )
+  }
 
   return (
     <div className="brd-section">

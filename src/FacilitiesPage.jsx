@@ -7,6 +7,9 @@ import { navSetHere } from './lib/navStack.js'
 import { Building2, Hash, Plus, Ban, Trash2, Pencil, X, AlertCircle, Landmark } from 'lucide-react'
 import { Modal as FKModal, ModalSection, ActionButton, SuccessView, GRID, TextField, Segmented, Select, Dropdown as FKDropdown, DateField, Switch, EmptyState } from './components/ui/FormKit.jsx'
 import InvoiceReceiptCard from './components/ui/InvoiceReceiptCard.jsx'
+import { useIsMobile, MStatStrip, MCardList, MFab, MChips, MSearch } from './components/mobile/MobileKit.jsx'
+import { MSheet, MFilterIcon, mTabScroll } from './WorkforcePage.jsx'
+import './styles/m-workforce.css'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = {
@@ -698,7 +701,7 @@ function FacilityRegistryCards({ facility: f, sb, T, lang, user, toast, onEdit, 
     const empty = v == null || v === ''
     const srcKey = !empty && src && typeof f?.field_sources?.[src] === 'string' ? f.field_sources[src] : null
     return (
-      <div style={{ gridColumn: full ? '1 / -1' : undefined, background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+      <div className={'mw-f' + (full ? ' full' : '')} style={{ gridColumn: full ? '1 / -1' : undefined, background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
         <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ fontSize: 9.5, color: 'var(--tx3)', fontWeight: 600, whiteSpace: 'nowrap' }}>{k}</span>
           {srcKey && <FacSrcPill src={srcKey} isAr={lang === 'ar'} />}
@@ -740,7 +743,7 @@ function FacilityRegistryCards({ facility: f, sb, T, lang, user, toast, onEdit, 
       {cardVisible(user, 'facilities', 'facility_data') && (
         <CollapsibleCard title={T('بيانات المنشأة', 'Facility Data')} color={C.gold} collapsible={false} action={<EditBtn section="data" cardKey="facility_data" />}>
           <div style={{ padding: 14 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div className="mw-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <Field k={T('الاسم بالعربي', 'Arabic Name')} v={nameAr} />
               <Field k={T('الاسم بالإنجليزي', 'English Name')} v={nameEn} />
               <Field k={T('نوع المنشأة', 'Type')} v={typeLabel} />
@@ -755,7 +758,7 @@ function FacilityRegistryCards({ facility: f, sb, T, lang, user, toast, onEdit, 
       {cardVisible(user, 'facilities', 'facility_numbers') && (
         <CollapsibleCard title={T('أرقام المنشأة', 'Facility Numbers')} color={C.gold} collapsible={false} action={<EditBtn section="numbers" cardKey="facility_numbers" />}>
           <div style={{ padding: 14 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div className="mw-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <Field k={T('الرقم الموحد', 'Unified No.')} v={f.unified_number} mono color={C.gold} src="unified_number" />
               <Field k={T('رقم التأمينات', 'GOSI No.')} v={f.gosi_number} mono color={C.ok} src="gosi_number" />
               <Field k={T('رقم الموارد البشرية', 'HRSD No.')} v={f.hrsd_number} mono color={C.blue} src="hrsd_number" />
@@ -795,7 +798,7 @@ function FacilityRegistryCards({ facility: f, sb, T, lang, user, toast, onEdit, 
           <CollapsibleCard title={T('البيانات المدمجة من المصادر', 'Merged Multi-Source Data')} color={C.gold} defaultExpanded
             badge={T(`${rows.length} حقل`, `${rows.length} fields`)}>
             <div style={{ padding: 14 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <div className="mw-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 {rows.map((r, i) => <Field key={i} k={r.k} v={r.v} mono={r.mono} color={r.color} src={r.src} full={r.full} />)}
               </div>
             </div>
@@ -978,7 +981,7 @@ function FacilityRegistryActions({ facility: f, T, lang, user, onStrikeToggle, o
   if (!(canPerm(user, 'facilities.edit') || canPerm(user, 'facilities.delete'))) return null
   return (
     <>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, flexWrap: 'wrap' }}>
+      <div className="mw-fra" style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, flexWrap: 'wrap' }}>
         {canPerm(user, 'facilities.edit') && (
           <HeaderBtn onClick={() => setConfirm('strike')} color={isStruck ? C.ok : AMBER}
             label={isStruck ? T('إلغاء الشطب', 'Un-strike') : T('شطب المنشأة', 'Strike off')}>
@@ -3332,6 +3335,9 @@ const saMobile = (v) => {
 
 export default function FacilitiesPage({ sb, toast, user, lang, personFilter, onTriggerSync, syncPersonId, onBack, onTabChange }) {
   const T = (ar, en) => (lang || 'ar') !== 'en' ? ar : en
+  const isMobile = useIsMobile()
+  const [mCount, setMCount] = useState(30)   // الجوال: عدد البطاقات المعروضة (تمرير لا نهائي)
+  const [mTab, setMTab] = useState('main')   // الجوال: تبويب قسم تفاصيل المنشأة
 
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(false)
@@ -4785,11 +4791,242 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
   const isInitiallyEmpty = !loading && rows.length === 0
   // First fetch (no rows yet) — show the full skeleton instead of zero-valued cards.
   const initialLoading = loading && rows.length === 0
+  // ═══ الجوال: قائمة المنشآت كبطاقات + ترويسة التفاصيل (عرض فقط — نفس الحالة والمعالجات) ═══
+  useEffect(() => { setMCount(30) }, [search, adv])
+  useEffect(() => { setMTab('main') }, [viewId])
+  const ADV0 = { entity: [], status: [], branch: [], manager: [], nitaq: [], workforce: [], saudis: [], sortBy: '' }
+  const facIcon = (sz = 22) => (
+    <svg width={sz} height={sz} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/><path d="M9 9v.01M9 12v.01M9 15v.01M9 18v.01"/></svg>
+  )
+  const facOffice = (id) => {
+    const all = branchCodesByFacility[id] || (branchByFacility[id] ? [branchByFacility[id]] : [])
+    if (!all.length) return { code: null, city: null }
+    const c = all[0].city
+    return { code: all.map(b => b.branch_code).filter(Boolean).join(' + '), city: c ? T(c.name_ar, c.name_en || c.name_ar) : null }
+  }
+  const renderMobileList = () => {
+    const sc = { active: 0, confirm: 0, suspended: 0, cancelled: 0, undetermined: 0 }
+    for (const r of normalized) sc[r._basicCode || 'undetermined'] += 1
+    const st = Array.isArray(adv.status) ? adv.status : []
+    const cur = st.length === 0 ? 'all' : st.length === 1 ? st[0] : null
+    const showN = (n) => statsVisible ? n : undefined
+    const chips = [
+      { value: 'all', label: T('الكل', 'All'), count: showN(normalized.length) },
+      { value: 'active', label: T('نشط', 'Active'), count: showN(sc.active) },
+      { value: 'confirm', label: T('فترة التأكيد', 'In confirm'), count: showN(sc.confirm) },
+      { value: 'suspended', label: T('معلّق', 'Suspended'), count: showN(sc.suspended) },
+      { value: 'cancelled', label: T('مشطوب', 'Struck off'), count: showN(sc.cancelled) },
+    ]
+    const setSt = (arr) => setAdv(a => ({ ...a, status: arr }))
+    const otherAdv = ['entity', 'branch', 'manager', 'nitaq', 'workforce', 'saudis'].filter(k => (adv[k] || []).length).length + (adv.sortBy ? 1 : 0)
+    const rows = displayRows.slice(0, mCount).map(r => {
+      const code = r._basicCode
+      const stColor = code ? BASIC_STATUS_COLOR[code] : C.gray
+      const nq = r.hrsd_nitaq_name
+      const off = facOffice(r.id)
+      const wn = nonSaudiByFacility[r.id] || 0
+      const cd = crNextCountdown(code, r._confirmDateRaw)
+      return {
+        key: r.id + (r._isBranch ? '_b' : ''),
+        title: r.entity_full_name_ar || r.entity_full_name_en || '—',
+        subtitle: [entityForm(r) || r._entity, r._isBranch ? T('فرع', 'Branch') : null].filter(Boolean).join(' · ') || null,
+        leading: facIcon(22),
+        badge: nq ? { text: nq.split('(')[0].trim(), tone: nitaqBandColor(nq) || 'gray' } : { text: T('بدون نطاق', 'No Nitaq'), tone: 'gray' },
+        accent: code === 'cancelled' || code === 'suspended' ? stColor : undefined,
+        fields: [
+          { label: T('الرقم الموحد', 'Unified No.'), value: r.cr_national_number || '—', ltr: true },
+          { label: T('العمالة', 'Workers'), value: `${num(wn)} ${T(arCount(wn, 'عامل', 'عمال'), 'workers')}`, tone: wn > 0 ? 'gold' : undefined },
+          { label: T('حالة السجل', 'CR status'), value: code ? T(BASIC_STATUS_AR[code], BASIC_STATUS_EN[code]) + (cd ? T(` · ${cd.daysToNext} يوم`, ` · ${cd.daysToNext}d`) : '') : T('غير محدد', 'Undetermined'), tone: stColor },
+          { label: T('المكتب', 'Office'), value: off.code ? (off.city ? `${off.code} · ${off.city}` : off.code) : '—' },
+        ],
+        onClick: () => setViewId(r.id),
+      }
+    })
+    return (
+      <div className="mw-page">
+        <div className="mw-head">
+          <div>
+            <h1 className="mw-title">{T('المنشآت', 'Facilities')}</h1>
+            <div className="mw-sub">{initialLoading ? T('جارٍ التحميل…', 'Loading…') : `${num(displayRows.length)} ${T(arCount(displayRows.length, 'منشأة', 'منشآت'), 'facilities')}`}</div>
+          </div>
+          {(canPerm(user, 'facilities.sync') || isGM(user)) && (
+            <div className="mw-head-act">
+              <button type="button" className="mw-icon-btn" onClick={refreshFromSync} disabled={syncing} aria-label={T('تحديث من المزامنة', 'Refresh from sync')}>
+                <svg className={syncing ? 'mw-spin' : undefined} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+              </button>
+            </div>
+          )}
+        </div>
+        {err && <div className="mw-empty" style={{ color: C.red, padding: '10px 4px' }}>{err}</div>}
+        {statsVisible && !initialLoading && rows.length > 0 && (
+          <MStatStrip items={[
+            { label: T('إجمالي المنشآت', 'Facilities'), value: num(counts.total), tone: 'gold', onClick: () => setSt([]) },
+            { label: T('شركات', 'Companies'), value: num(counts.company), tone: 'blue' },
+            { label: T('مؤسسات', 'Establishments'), value: num(counts.establishment), tone: 'purple' },
+            { label: T('ضمن فترة التأكيد', 'In confirm window'), value: num(crStatus.confirm), tone: 'orange', onClick: () => setSt(['confirm']) },
+            { label: T('سجلات معلّقة', 'Suspended CRs'), value: num(crStatus.suspended), tone: 'red', onClick: () => setSt(['suspended']) },
+          ]} />
+        )}
+        <div className="mw-toolbar">
+          <MSearch value={search} onChange={setSearch} placeholder={T('اسم، رقم موحد، موارد، تأمينات…', 'Name, unified, HRSD, GOSI…')} />
+          <button type="button" className={'mw-filter-btn' + (otherAdv > 0 ? ' on' : '')} onClick={() => setAdvOpen(true)} aria-label={T('تصفية وترتيب', 'Filter & sort')}>
+            <MFilterIcon />{otherAdv > 0 && <i>{otherAdv}</i>}
+          </button>
+        </div>
+        <MChips options={chips} value={cur} onChange={v => setSt(v === 'all' ? [] : [v])} />
+        <div className="mw-list mw-fac-list">
+          <MCardList loading={initialLoading || (loading && !rows.length)} rows={rows}
+            onEndReached={displayRows.length > mCount ? () => setMCount(n => n + 30) : undefined}
+            empty={<div className="mw-empty"><b>{rows.length || !isInitiallyEmpty ? T('لا توجد نتائج مطابقة', 'No matching results') : T('لا توجد منشآت بعد', 'No facilities yet')}</b>{isInitiallyEmpty ? T('اضغط «منشأة جديدة» لإضافة أول منشأة', 'Tap “New facility” to add one') : T('جرّب تعديل البحث أو التصفية', 'Try adjusting search or filters')}</div>} />
+        </div>
+        {advOpen && (
+          <MSheet title={T('تصفية وترتيب', 'Filter & sort')} onClose={() => setAdvOpen(false)}
+            onReset={advCount > 0 ? () => setAdv(ADV0) : null} resetLabel={T('مسح الكل', 'Clear all')}
+            footer={<button type="button" className="mw-btn pri" onClick={() => setAdvOpen(false)}>{T(`عرض ${num(displayRows.length)} نتيجة`, `Show ${num(displayRows.length)} results`)}</button>}>
+            {renderAdvFields()}
+          </MSheet>
+        )}
+        {canPerm(user, 'facilities.create') && !advOpen && (
+          <MFab label={T('منشأة جديدة', 'New facility')} onClick={() => { setAddErr(null); setAddDone(false); setShowAdd(true) }} />
+        )}
+      </div>
+    )
+  }
+  const renderMobileFacHero = (d) => {
+    const code = d._basicCode
+    const stColor = code ? BASIC_STATUS_COLOR[code] : C.gray
+    const cd = crNextCountdown(code, d.confirmation_date || d._confirmDateRaw)
+    const nq = d.hrsd_nitaq_name
+    const off = facOffice(d.id)
+    const wn = nonSaudiByFacility[d.id] || 0
+    const form = entityForm(d) || d._entity
+    return (<>
+      <div className="mw-hero">
+        <div className="mw-hero-top">
+          <span className="mw-hero-av">{facIcon(30)}</span>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div className="mw-hero-name">{d.entity_full_name_ar || T('منشأة', 'Facility')}</div>
+            {d.entity_full_name_en && <div className="mw-hero-en">{d.entity_full_name_en}</div>}
+            <div className="mw-hero-tags">
+              <span className="mw-tag" style={{ '--tone': code === 'active' ? '#6fdc9c' : code === 'confirm' ? '#f3c35a' : code ? '#ff8a7a' : '#cfc6b4' }}>{code ? T(BASIC_STATUS_AR[code], BASIC_STATUS_EN[code]) : T('غير محدد', 'Undetermined')}</span>
+              {nq && <span className="mw-tag mw-nitaq" style={{ '--tone': nq.includes('بلاتيني') ? '#d9dde4' : (nitaqBandColor(nq) || '#cfc6b4') }}>{nq.split('(')[0].trim()}</span>}
+              {form && <span className="mw-tag plain">{form}</span>}
+            </div>
+          </div>
+        </div>
+        <div className="mw-hero-stats">
+          <div><span>{T('الرقم الموحد', 'Unified No.')}</span><b className="ltr">{d.cr_national_number || d.unified_number || '—'}</b></div>
+          <div><span>{T('العمالة', 'Workers')}</span><b style={{ color: wn > 0 ? '#f3d98a' : undefined }}>{num(wn)}</b></div>
+          <div><span>{cd ? T('للحالة التالية', 'Next status') : T('المكتب', 'Office')}</span><b style={cd ? { color: cd.nextColor === C.gold ? '#f3c35a' : '#ff8a7a' } : undefined}>{cd ? T(`${cd.daysToNext} يوم`, `${cd.daysToNext}d`) : (off.code || '—')}</b></div>
+        </div>
+      </div>
+      <div className="mwd-tabs">
+        <MChips value={mTab} onChange={v => { setMTab(v); mTabScroll() }} style={{ margin: 0, padding: 0 }} options={[
+          { value: 'main', label: T('البيانات', 'Details') },
+          { value: 'files', label: T('العمالة والفواتير', 'Workers & invoices') },
+          { value: 'gosi', label: T('التأمينات', 'GOSI') },
+          { value: 'labor', label: T('الموارد والمنصات', 'HRSD & platforms') },
+          { value: 'src', label: T('المصادر والسجل', 'Sources & log') },
+        ]} />
+      </div>
+    </>)
+  }
+  // حقول لوحة التصفية المتقدمة — مشتركة بين لوحة الحاسب وورقة الجوال السفلية.
+  const renderAdvFields = () => (<>
+            <div>
+              <div style={advLbl}>{T('المكتب', 'Office')}</div>
+              <FKDropdown multi selectedKeys={adv.branch} onChange={arr => setAdv(a => ({ ...a, branch: arr }))}
+                placeholder={T('الكل', 'All')} getKey={o => o.v} getLabel={o => o.l}
+                options={branchFilterOpts}
+                renderCell={o => (
+                  <span style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                    <span style={{ minWidth: 0 }}>
+                      <span style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--tx)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'start' }}>{o.name}</span>
+                      {o.city && <span style={{ display: 'block', fontSize: 10.5, color: 'var(--tx4)', marginTop: 1, textAlign: 'start' }}>{o.city}</span>}
+                    </span>
+                    {o.code && <span style={{ fontSize: 10, fontWeight: 600, color: C.gold, fontFamily: 'ui-monospace, monospace', direction: 'ltr', background: 'rgba(176,125,0,.1)', border: '1px solid rgba(176,125,0,.3)', borderRadius: 6, padding: '1px 7px', flexShrink: 0 }}>{o.code}</span>}
+                  </span>
+                )}/>
+            </div>
+            <div>
+              <div style={advLbl}>{T('الكيان', 'Entity')}</div>
+              <FKDropdown multi selectedKeys={adv.entity} onChange={arr => setAdv(a => ({ ...a, entity: arr }))}
+                placeholder={T('الكل', 'All')} getKey={o => o.v} getLabel={o => o.l}
+                options={entityFilterOpts}/>
+            </div>
+            <div>
+              <div style={advLbl}>{T('حالة السجل', 'CR Status')}</div>
+              <FKDropdown multi selectedKeys={adv.status} onChange={arr => setAdv(a => ({ ...a, status: arr }))}
+                placeholder={T('الكل', 'All')} getKey={o => o.v} getLabel={o => o.l}
+                options={[
+                  { v: 'active', l: T('نشط', 'Active') },
+                  { v: 'confirm', l: T('ضمن فترة التأكيد', 'In annual confirm') },
+                  { v: 'suspended', l: T('معلّق', 'Suspended') },
+                  { v: 'cancelled', l: T('مشطوب', 'Struck off') },
+                  { v: 'undetermined', l: T('غير محدد', 'Undetermined') },
+                ]}/>
+            </div>
+            <div>
+              <div style={advLbl}>{T('المدير', 'Manager')}</div>
+              <FKDropdown multi selectedKeys={adv.manager} onChange={arr => setAdv(a => ({ ...a, manager: arr }))}
+                placeholder={T('الكل', 'All')} getKey={o => o.v} getLabel={o => o.l}
+                options={managerOptions.map(m => ({ v: m.id || m.name, name: m.name, idno: m.id, l: m.id ? `${m.name} ${m.id}` : m.name }))}
+                renderCell={o => (
+                  <span style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, textAlign: 'start' }}>{o.name}</span>
+                    {o.idno && <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--tx4)', fontFamily: 'ui-monospace, monospace', direction: 'ltr', flexShrink: 0 }}>{o.idno}</span>}
+                  </span>
+                )}/>
+            </div>
+            <div>
+              <div style={advLbl}>{T('النطاق', 'Nitaq band')}</div>
+              <FKDropdown multi selectedKeys={adv.nitaq} onChange={arr => setAdv(a => ({ ...a, nitaq: arr }))}
+                placeholder={T('الكل', 'All')} getKey={o => o.v} getLabel={o => o.l}
+                options={[
+                  ...nitaqOptions.map(n => ({ v: n, l: n })),
+                  { v: '__none', l: T('بدون نطاق', 'No band') },
+                ]}/>
+            </div>
+            <div>
+              <div style={advLbl}>{T('عدد العمالة', 'Workforce count')}</div>
+              <FKDropdown multi selectedKeys={adv.workforce} onChange={arr => setAdv(a => ({ ...a, workforce: arr }))}
+                placeholder={T('الكل', 'All')} getKey={o => o.v} getLabel={o => o.l}
+                options={[
+                  ...Array.from({ length: 11 }, (_, i) => ({ v: String(i), l: num(i) })),
+                  { v: '10+', l: T(`أكثر من ${num(10)}`, 'More than 10') },
+                ]}/>
+            </div>
+            <div>
+              <div style={advLbl}>{T('عدد السعوديين', 'Saudi count')}</div>
+              <FKDropdown multi selectedKeys={adv.saudis} onChange={arr => setAdv(a => ({ ...a, saudis: arr }))}
+                placeholder={T('الكل', 'All')} getKey={o => o.v} getLabel={o => o.l}
+                options={[
+                  ...Array.from({ length: 11 }, (_, i) => ({ v: String(i), l: num(i) })),
+                  { v: '10+', l: T(`أكثر من ${num(10)}`, 'More than 10') },
+                ]}/>
+            </div>
+            <div>
+              <div style={advLbl}>
+                {T('الترتيب حسب', 'Sort by')}
+              </div>
+              <FKDropdown value={adv.sortBy} onChange={v => setAdv(a => ({ ...a, sortBy: v || '' }))}
+                placeholder={T('بدون ترتيب', 'No sort')} getKey={o => o.v} getLabel={o => o.l}
+                options={[
+                  { v: 'confirm_asc', l: T('تاريخ التأكيد السنوي · تصاعدي', 'Annual confirm date · ascending') },
+                  { v: 'confirm_desc', l: T('تاريخ التأكيد السنوي · تنازلي', 'Annual confirm date · descending') },
+                  { v: 'saudis_asc', l: T('عدد السعوديين · تصاعدي', 'Saudi count · ascending') },
+                  { v: 'saudis_desc', l: T('عدد السعوديين · تنازلي', 'Saudi count · descending') },
+                  { v: 'nonsaudis_asc', l: T('عدد غير السعوديين · تصاعدي', 'Non-Saudi count · ascending') },
+                  { v: 'nonsaudis_desc', l: T('عدد غير السعوديين · تنازلي', 'Non-Saudi count · descending') },
+                ]}/>
+            </div>
+  </>)
 
   return (
     <div style={{ fontFamily: F }}>
       <style>{`.sbc-tbl-scroll::-webkit-scrollbar{display:none}@keyframes fac-shimmer{0%{background-position:100% 0}100%{background-position:-100% 0}}@keyframes fac-spin{to{transform:rotate(360deg)}}`}</style>
-      {!viewFacility && (<>
+      {!viewFacility && isMobile && renderMobileList()}
+      {!viewFacility && !isMobile && (<>
       {/* Page title + description + sync anchor */}
       <div style={{ position: 'relative', marginBottom: 22, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 14, flexWrap: 'wrap' }}>
         {/* Title + description in a single column, with the add button beside it —
@@ -5029,93 +5266,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
       {advOpen && (
         <div style={{ marginBottom: 22, padding: '16px 18px', background: 'var(--card-grad2)', border: '1px solid var(--bd)', borderRadius: 14, boxShadow: 'var(--shadow-md)' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
-            <div>
-              <div style={advLbl}>{T('المكتب', 'Office')}</div>
-              <FKDropdown multi selectedKeys={adv.branch} onChange={arr => setAdv(a => ({ ...a, branch: arr }))}
-                placeholder={T('الكل', 'All')} getKey={o => o.v} getLabel={o => o.l}
-                options={branchFilterOpts}
-                renderCell={o => (
-                  <span style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-                    <span style={{ minWidth: 0 }}>
-                      <span style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--tx)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'start' }}>{o.name}</span>
-                      {o.city && <span style={{ display: 'block', fontSize: 10.5, color: 'var(--tx4)', marginTop: 1, textAlign: 'start' }}>{o.city}</span>}
-                    </span>
-                    {o.code && <span style={{ fontSize: 10, fontWeight: 600, color: C.gold, fontFamily: 'ui-monospace, monospace', direction: 'ltr', background: 'rgba(176,125,0,.1)', border: '1px solid rgba(176,125,0,.3)', borderRadius: 6, padding: '1px 7px', flexShrink: 0 }}>{o.code}</span>}
-                  </span>
-                )}/>
-            </div>
-            <div>
-              <div style={advLbl}>{T('الكيان', 'Entity')}</div>
-              <FKDropdown multi selectedKeys={adv.entity} onChange={arr => setAdv(a => ({ ...a, entity: arr }))}
-                placeholder={T('الكل', 'All')} getKey={o => o.v} getLabel={o => o.l}
-                options={entityFilterOpts}/>
-            </div>
-            <div>
-              <div style={advLbl}>{T('حالة السجل', 'CR Status')}</div>
-              <FKDropdown multi selectedKeys={adv.status} onChange={arr => setAdv(a => ({ ...a, status: arr }))}
-                placeholder={T('الكل', 'All')} getKey={o => o.v} getLabel={o => o.l}
-                options={[
-                  { v: 'active', l: T('نشط', 'Active') },
-                  { v: 'confirm', l: T('ضمن فترة التأكيد', 'In annual confirm') },
-                  { v: 'suspended', l: T('معلّق', 'Suspended') },
-                  { v: 'cancelled', l: T('مشطوب', 'Struck off') },
-                  { v: 'undetermined', l: T('غير محدد', 'Undetermined') },
-                ]}/>
-            </div>
-            <div>
-              <div style={advLbl}>{T('المدير', 'Manager')}</div>
-              <FKDropdown multi selectedKeys={adv.manager} onChange={arr => setAdv(a => ({ ...a, manager: arr }))}
-                placeholder={T('الكل', 'All')} getKey={o => o.v} getLabel={o => o.l}
-                options={managerOptions.map(m => ({ v: m.id || m.name, name: m.name, idno: m.id, l: m.id ? `${m.name} ${m.id}` : m.name }))}
-                renderCell={o => (
-                  <span style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, textAlign: 'start' }}>{o.name}</span>
-                    {o.idno && <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--tx4)', fontFamily: 'ui-monospace, monospace', direction: 'ltr', flexShrink: 0 }}>{o.idno}</span>}
-                  </span>
-                )}/>
-            </div>
-            <div>
-              <div style={advLbl}>{T('النطاق', 'Nitaq band')}</div>
-              <FKDropdown multi selectedKeys={adv.nitaq} onChange={arr => setAdv(a => ({ ...a, nitaq: arr }))}
-                placeholder={T('الكل', 'All')} getKey={o => o.v} getLabel={o => o.l}
-                options={[
-                  ...nitaqOptions.map(n => ({ v: n, l: n })),
-                  { v: '__none', l: T('بدون نطاق', 'No band') },
-                ]}/>
-            </div>
-            <div>
-              <div style={advLbl}>{T('عدد العمالة', 'Workforce count')}</div>
-              <FKDropdown multi selectedKeys={adv.workforce} onChange={arr => setAdv(a => ({ ...a, workforce: arr }))}
-                placeholder={T('الكل', 'All')} getKey={o => o.v} getLabel={o => o.l}
-                options={[
-                  ...Array.from({ length: 11 }, (_, i) => ({ v: String(i), l: num(i) })),
-                  { v: '10+', l: T(`أكثر من ${num(10)}`, 'More than 10') },
-                ]}/>
-            </div>
-            <div>
-              <div style={advLbl}>{T('عدد السعوديين', 'Saudi count')}</div>
-              <FKDropdown multi selectedKeys={adv.saudis} onChange={arr => setAdv(a => ({ ...a, saudis: arr }))}
-                placeholder={T('الكل', 'All')} getKey={o => o.v} getLabel={o => o.l}
-                options={[
-                  ...Array.from({ length: 11 }, (_, i) => ({ v: String(i), l: num(i) })),
-                  { v: '10+', l: T(`أكثر من ${num(10)}`, 'More than 10') },
-                ]}/>
-            </div>
-            <div>
-              <div style={advLbl}>
-                {T('الترتيب حسب', 'Sort by')}
-              </div>
-              <FKDropdown value={adv.sortBy} onChange={v => setAdv(a => ({ ...a, sortBy: v || '' }))}
-                placeholder={T('بدون ترتيب', 'No sort')} getKey={o => o.v} getLabel={o => o.l}
-                options={[
-                  { v: 'confirm_asc', l: T('تاريخ التأكيد السنوي · تصاعدي', 'Annual confirm date · ascending') },
-                  { v: 'confirm_desc', l: T('تاريخ التأكيد السنوي · تنازلي', 'Annual confirm date · descending') },
-                  { v: 'saudis_asc', l: T('عدد السعوديين · تصاعدي', 'Saudi count · ascending') },
-                  { v: 'saudis_desc', l: T('عدد السعوديين · تنازلي', 'Saudi count · descending') },
-                  { v: 'nonsaudis_asc', l: T('عدد غير السعوديين · تصاعدي', 'Non-Saudi count · ascending') },
-                  { v: 'nonsaudis_desc', l: T('عدد غير السعوديين · تنازلي', 'Non-Saudi count · descending') },
-                ]}/>
-            </div>
+            {renderAdvFields()}
           </div>
         </div>
       )}
@@ -5603,6 +5754,8 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
       {/* Full-page detail */}
       {detail && (() => {
         const theme = statusTheme(detail._status)
+        // الجوال: أقسام التفاصيل كتبويبات — fsec(k) يخفي ما لا ينتمي للتبويب الحالي.
+        const fsec = (k) => (isMobile && mTab !== k ? 'mw-sec-off' : undefined)
 
         // ─── Provenance plumbing ───
         // Every field on this detail page carries a visual marker showing
@@ -5864,10 +6017,10 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
         // data the user never synced from SBC.
         const hasSbcData = !!(detail?.raw_cr_data || detail?._raw) || prov.some(p => p.source_id === 'sbc')
         return (
-        <div className="synchub-detail" style={{ fontFamily: F, paddingTop: 0, paddingBottom: 80, color: 'var(--tx2)' }}>
+        <div className={'synchub-detail' + (isMobile ? ' mwd mfd' : '')} style={{ fontFamily: F, paddingTop: 0, paddingBottom: 80, color: 'var(--tx2)' }}>
           <style>{FAC_DETAIL_TYPE_SCALE}</style>
           {/* Top bar — Back + إجراءات المنشأة (شطب/حذف) */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, gap: 12, flexWrap: 'wrap' }}>
+          <div className="mwd-back" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, gap: 12, flexWrap: 'wrap' }}>
             <BackButton onBack={() => setDetail(null)} label={T('رجوع','Back')} />
             <FacilityRegistryActions
               facility={detail}
@@ -5877,8 +6030,9 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
               onDeleted={() => { setViewId(null); load() }} />
           </div>
 
+          {isMobile && renderMobileFacHero(detail)}
           {/* Hero header — facility name + main/partner tag only */}
-          <div style={{ marginBottom: 18, marginTop: 6 }}>
+          <div className="m-hide" style={{ marginBottom: 18, marginTop: 6 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
                 <path d="M3 21h18"/>
@@ -5905,19 +6059,22 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
           </div>
 
           {/* 2-column layout — main content + sidebar */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 14, alignItems: 'flex-start' }}>
+          <div className="mw-cols" style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 14, alignItems: 'flex-start' }}>
             {/* Main column */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
               {/* كروت السجل الأساسي — تظهر دائماً (حتى للمنشآت غير المزامَنة أو المسجّلة
                   في المركز السعودي فقط دون التأمينات) فتبقى الصفحة متناسقة لكل الحالات. */}
+              <div className={fsec('main')} style={{ display: 'contents' }}>
               <FacilityRegistryCards
                 part="top"
                 facility={detail}
                 sb={sb} T={T} lang={lang} user={user} toast={toast}
                 onEdit={(section) => openEdit(detail, section)} />
+              </div>
 
               {/* الملاك والشركاء (من السجل التجاري) — الأشخاص أولاً ثم المنشآت */}
+              <div className={fsec('main')} style={{ display: 'contents' }}>
               {Array.isArray(detail.partners) && detail.partners.length > 0 && (
                 <CollapsibleCard title={T('الملاك والشركاء', 'Partners')} color={C.blue} badge={num(detail.partners.length)} defaultExpanded showSbcIcon>
                   <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -5934,8 +6091,10 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                   </div>
                 </CollapsibleCard>
               )}
+              </div>
 
               {/* Managers */}
+              <div className={fsec('main')} style={{ display: 'contents' }}>
               {managers.length > 0 && (
                 <CollapsibleCard title={T('المدراء', 'Managers')} color={C.gold} showSbcIcon badge={num(managers.length)}>
                   <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -5943,10 +6102,12 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                   </div>
                 </CollapsibleCard>
               )}
+              </div>
 
               {/* كروت التأمينات الكاملة (نفس صفحة مركز المزامنة) — المنشأة/الحساب/
                   المشتركون سعودي وغير سعودي/الملاك/المشرفون/الشهادات. تظهر عند توفر
                   صف التأمينات الأساسي (raw_main). */}
+              <div className={fsec('gosi')} style={{ display: 'contents' }}>
               {gosiEstablishment && gosiEstablishment.raw_main ? (
                 <>
                   <GosiEstablishmentCard data={gosiEstablishment} T={T} lang={lang} />
@@ -5964,11 +6125,13 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                   {gosiContributors?.length > 0 && <GosiContributorsCard contributors={gosiContributors} est={gosiEstablishment} T={T} lang={lang} />}
                 </>
               )}
+              </div>
 
 
               {/* Contact info — collapsible card, sits right under the
                   Commercial Register. Uses CollapsibleCard so it matches the
                   ActivitiesCard / WPS chevron pattern. */}
+              <div className={fsec('main')} style={{ display: 'contents' }}>
               {(() => {
                 const contact = (detail.raw_cr_data || detail._raw || {}).contactInformation || {}
                 if (!contact.phoneNo && !contact.mobileNo && !contact.email && !contact.websiteURL) return null
@@ -6021,8 +6184,10 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                   </CollapsibleCard>
                 )
               })()}
+              </div>
 
               {/* GOSI — social insurance */}
+              <div className={fsec('gosi')} style={{ display: 'contents' }}>
               {hasGosi && (
                 <div style={cardChrome}>
                   <div style={cardHeader}>
@@ -6109,8 +6274,10 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                   </div>
                 </div>
               )}
+              </div>
 
               {/* HRSD / Qiwa — labor office */}
+              <div className={fsec('labor')} style={{ display: 'contents' }}>
               {hasHrsd && (
                 <div style={cardChrome}>
                   <div style={cardHeader}>
@@ -6292,14 +6459,18 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                   </div>
                 </div>
               )}
+              </div>
 
               {/* Activities */}
+              <div className={fsec('main')} style={{ display: 'contents' }}>
               <ActivitiesCard activities={activities} lang={lang} T={T} />
+              </div>
 
               {/* ─── New cards — built in the same shape as the Facility card
                    above (cardChrome + cardHeader + rowBase/rowGold pill rows).
                    Anything visually marked «مكرر» means the same field already
                    exists in another panel on this page; the tooltip names it. */}
+              <div className={fsec('labor')} style={{ display: 'contents' }}>
               {(() => {
                 const ext = extDetail || {}
                 const gosiComp = ext['gosi/establishment-compliance']?.response_body || null
@@ -7192,35 +7363,49 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                   </>
                 )
               })()}
+              </div>
 
               {/* مطابقة المصادر — مقارنة نفس الحقل المنطقي عبر المنصات وإبراز الفروقات */}
+              <div className={fsec('src')} style={{ display: 'contents' }}>
               <SourceCompareCard detail={detail} gosiEst={gosiEstablishment} qiwa={qiwaCompany} muqeem={muqeemCompany} ajeerEst={ajeerEst} hrsdLaborers={detail?.hrsd_total_laborers} T={T} lang={lang} />
+              </div>
 
               {/* العمالة الموحدة — دمج كل عامل من قوى+مقيم+تأمينات+أجير */}
+              <div className={fsec('labor')} style={{ display: 'contents' }}>
               <UnifiedWorkersCard sb={sb} companyId={qiwaCompany?.company_id} muqeemResidents={muqeemResidents} gosiContributors={gosiContributors} ajeerNotices={ajeerNotices} T={T} lang={lang} />
+              </div>
 
               {/* أجير — التصاريح والعقود والمدفوعات والمؤشرات */}
+              <div className={fsec('labor')} style={{ display: 'contents' }}>
               <AjeerCards est={ajeerEst} notices={ajeerNotices} contracts={ajeerContracts} payments={ajeerPayments} indicators={ajeerIndicators} T={T} lang={lang} />
+              </div>
 
               {/* مدد — الالتزام وملفات حماية الأجور */}
+              <div className={fsec('labor')} style={{ display: 'contents' }}>
               <MudadCards est={mudadEst} months={mudadMonths} T={T} lang={lang} />
+              </div>
 
               {/* سجل التغييرات بين المزامنات + إصدارات الملفات المؤرشفة */}
+              <div className={fsec('src')} style={{ display: 'contents' }}>
               <SyncHistoryCard history={rowHistory} fileVersions={fileVersions} T={T} lang={lang} />
+              </div>
 
               {/* كروت العمالة والفواتير وسجل التعديلات — آخر العمود بعد كروت المزامنة. */}
+              <div className={fsec('files')} style={{ display: 'contents' }}>
               <FacilityRegistryCards
                 part="bottom"
                 facility={detail}
                 sb={sb} T={T} lang={lang} user={user} toast={toast}
                 onEdit={(section) => openEdit(detail, section)} />
+              </div>
 
             </div>
 
             {/* Sidebar */}
-            <div style={{ position: 'sticky', top: 14, display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div className="mw-side2" style={{ position: 'sticky', top: 14, display: 'flex', flexDirection: 'column', gap: 14 }}>
               {/* حالة المنشأة — حالة السجل الأساسي (تظهر دائماً)، أعلى الشريط الجانبي
                   فوق «مصادر البيانات» و«حالة السجل التجاري». */}
+              <div className="m-hide" style={{ display: 'contents' }}>
               {cardVisible(user, 'facilities', 'facility_status') && (() => {
                 const _sc = detail._basicCode
                 const _statusColor = _sc ? BASIC_STATUS_COLOR[_sc] : C.gray
@@ -7246,8 +7431,10 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                   </CollapsibleCard>
                 )
               })()}
+              </div>
               {/* Status summary — gated on hasSbcData since the CR issue/confirm
                   dates that drive the status come from the SBC payload. */}
+              <div className={fsec('src')} style={{ display: 'contents' }}>
               {hasSbcData && (
               <div style={cardChrome}>
                 <div style={cardHeader}>
@@ -7297,11 +7484,13 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                 </div>
               </div>
               )}
+              </div>
 
               {/* Data sources — moved from the inline chip strip above the
                   2-column layout. Each row is one source we have synced data
                   from, colored by brand, with a check on the end to confirm
                   we actually have data from it (vs. just "supported"). */}
+              <div className={fsec('src')} style={{ display: 'contents' }}>
               <div style={cardChrome}>
                 <div style={cardHeader}><span style={{ width: 6, height: 6, borderRadius: '50%', background: C.cyan }} /><span style={cardTitle}>{T('مصادر البيانات','Data sources')}</span></div>
                 <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -7349,6 +7538,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                     })
                   })()}
                 </div>
+              </div>
               </div>
             </div>
           </div>

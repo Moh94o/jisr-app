@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { can as canPerm } from '../lib/permissions.js'
 import { Modal as FKModal, ModalSection, ActionButton, SuccessView, GRID } from '../components/ui/FormKit.jsx'
+import { useIsMobile, MCardList, MChips, MSearch } from '../components/mobile/MobileKit.jsx'
+import '../styles/m-synchub.css'
 
 /* ═══════════════════════════════════════════════════════════════════════════
    جدول إصدار التأشيرات — طوابير مراحل، لا جدول واحد عريض.
@@ -146,6 +148,8 @@ export default function VisaGridPage({ sb, user, toast, lang, onTabChange }) {
   const isAr = lang !== 'en'
   const T = (a, e) => (isAr ? a : e)
   const canEdit = canPerm(user, 'work_visas.edit')
+  const isMobile = useIsMobile()
+  const [mLimit, setMLimit] = useState(40)
 
   const [rows, setRows] = useState([])
   const [facilities, setFacilities] = useState([])
@@ -794,6 +798,77 @@ export default function VisaGridPage({ sb, user, toast, lang, onTabChange }) {
   }, [isAr, applyFillDrag])
 
   /* ═══ العرض ═══ */
+  const feeModal = feeTarget && (() => {
+        const fac = facById.get(fieldOf(feeTarget, 'main_facility_id'))
+        return (
+          <FKModal open onClose={closeFee} width={480} variant="create"
+            title={T('طلب سداد رسوم التأشيرة', 'Request visa fee payment')}
+            errorMsg={feeErr}
+            success={feeDone ? <SuccessView title={T('أُرسل الطلب إلى السدادات', 'Sent to payments')} /> : undefined}
+            footer={<ActionButton disabled={feeBusy} onClick={requestFee}>
+              {feeBusy ? T('جارٍ الإرسال…', 'Sending…') : T('إرسال للسدادات', 'Send to payments')}
+            </ActionButton>}>
+            <ModalSection label={T('تفاصيل الطلب', 'Request details')}>
+              <div style={{ ...GRID, paddingBlock: 8 }}>
+                <InfoRow l={T('رقم المرجع', 'Ref no.')} v={feeTarget.sr?.request_ref_no || '—'} mono />
+                <InfoRow l={T('المنشأة', 'Facility')} v={fac ? (fac.name_ar || fac.name_en) : T('لم تُحدَّد', 'not set')} />
+                <InfoRow l={T('الرقم الموحد', 'Unified no.')} v={fieldOf(feeTarget, 'unified_number') || '—'} mono />
+                <InfoRow l={T('رقم الموارد البشرية', 'HRSD no.')} v={fac?.hrsd_number || '—'} mono />
+                <InfoRow l={T('المبلغ', 'Amount')} v={`${enNum(VISA_FEE_AMOUNT)} ${T('ريال', 'SAR')}`} strong />
+              </div>
+              <div style={{ fontSize: 11.5, color: 'var(--tx4)', lineHeight: 1.7, marginTop: 6 }}>
+                {T('يُنشأ طلب سداد معلّق يظهر في «سدادات الخدمات»، ويُستكمل هناك برقم السداد بعد الدفع.',
+                   'Creates a pending fee that appears in Service Payments, completed there with the SADAD number.')}
+              </div>
+            </ModalSection>
+          </FKModal>
+        )
+      })()
+
+  /* ═══ الجوال: بطاقات بدل الشبكة — عرض وطلب سداد فقط، والتحرير من الكمبيوتر ═══ */
+  if (isMobile) {
+    const fileOf = (r) => fileAtt[r.id] || r.visa_file_path
+    const mVal = (r, col) => {
+      if (col.kind === 'fee') { const f = fees[r.id]; return f ? (f.status === 'paid' ? T('مدفوعة', 'Paid') : T('بانتظار السداد', 'Awaiting')) : T('لم تُطلب', 'Not requested') }
+      if (col.kind === 'file') return fileOf(r) ? T('مرفوع ✓', 'Uploaded ✓') : T('لا يوجد', 'None')
+      return dispOf(r, col) || '—'
+    }
+    const cards = filtered.slice(0, mLimit).map((r) => {
+      const fac = facOf(r)
+      const cols = COLS.filter((c) => c.key !== '_row' && c.key !== '_facility')
+      const fee = fees[r.id]
+      return {
+        key: r.id,
+        leading: <span className="mvg-lead" style={{ '--c': fileColor(r.file_number) }}><small>{T('ملف', 'File')}</small>{r.file_number ?? '–'}</span>,
+        title: fac?.name_ar || fac?.name_en || T('منشأة غير محدّدة', 'Facility not set'),
+        subtitle: [r.sr?.request_ref_no, r.sr?.client?.name_ar, r.sr?.branch?.branch_code].filter(Boolean).join(' · '),
+        badge: { text: isAr ? stageDef.ar : stageDef.en, tone: stageDef.c },
+        fields: [
+          ...cols.map((c) => ({ label: isAr ? c.ar : c.en, value: mVal(r, c), ltr: !!c.mono, tone: c.kind === 'fee' ? (fee ? (fee.status === 'paid' ? 'green' : 'orange') : 'gray') : undefined })),
+          { label: T('الجنسية', 'Nationality'), value: (isAr ? r.nationality?.name_ar : (r.nationality?.name_en || r.nationality?.name_ar)) || '—' },
+          { label: T('المهنة', 'Occupation'), value: (isAr ? r.occupation?.name_ar : (r.occupation?.name_en || r.occupation?.name_ar)) || '—' },
+        ],
+        children: (stage === 'request' && canEdit && !fee) ? (
+          <button type="button" className="mvg-act" onClick={() => { setFeeErr(null); setFeeDone(false); setFeeTarget(r) }}>
+            {T(`طلب سداد ${enNum(VISA_FEE_AMOUNT)} ريال`, `Request ${enNum(VISA_FEE_AMOUNT)} SAR`)}
+          </button>
+        ) : null,
+      }
+    })
+    return (
+      <div style={{ fontFamily: F }}>
+        <MobileStageList T={T} title={T('إصدار التأشيرات', 'Visa issuance')} total={rows.length} unit={T('تأشيرة', 'visas')}
+          stages={STAGES.map((s) => ({ value: s.key, label: isAr ? s.ar : s.en, count: stageCounts[s.key] }))} stage={stage} setStage={(v) => { setStage(v); setMLimit(40) }}
+          search={search} setSearch={setSearch} searchPh={T('تأشيرة، حدود، موحد، مرجع، عميل، منشأة…', 'Visa, border, unified, ref, client…')}
+          branchOpts={branchOpts} fBranch={fBranch} setFBranch={setFBranch}
+          cards={cards} loading={loading} count={filtered.length}
+          onMore={filtered.length > mLimit ? () => setMLimit((n) => n + 40) : undefined}
+          emptyText={T('لا توجد تأشيرات في هذه المرحلة', 'No visas in this stage')} />
+        {feeModal}
+      </div>
+    )
+  }
+
   if (loading) return <div style={{ fontFamily: F }}><GridSkeleton /></div>
 
   const cellBase = {
@@ -1133,32 +1208,7 @@ export default function VisaGridPage({ sb, user, toast, lang, onTabChange }) {
       )}
 
       {/* ── نافذة طلب السداد ── */}
-      {feeTarget && (() => {
-        const fac = facById.get(fieldOf(feeTarget, 'main_facility_id'))
-        return (
-          <FKModal open onClose={closeFee} width={480} variant="create"
-            title={T('طلب سداد رسوم التأشيرة', 'Request visa fee payment')}
-            errorMsg={feeErr}
-            success={feeDone ? <SuccessView title={T('أُرسل الطلب إلى السدادات', 'Sent to payments')} /> : undefined}
-            footer={<ActionButton disabled={feeBusy} onClick={requestFee}>
-              {feeBusy ? T('جارٍ الإرسال…', 'Sending…') : T('إرسال للسدادات', 'Send to payments')}
-            </ActionButton>}>
-            <ModalSection label={T('تفاصيل الطلب', 'Request details')}>
-              <div style={{ ...GRID, paddingBlock: 8 }}>
-                <InfoRow l={T('رقم المرجع', 'Ref no.')} v={feeTarget.sr?.request_ref_no || '—'} mono />
-                <InfoRow l={T('المنشأة', 'Facility')} v={fac ? (fac.name_ar || fac.name_en) : T('لم تُحدَّد', 'not set')} />
-                <InfoRow l={T('الرقم الموحد', 'Unified no.')} v={fieldOf(feeTarget, 'unified_number') || '—'} mono />
-                <InfoRow l={T('رقم الموارد البشرية', 'HRSD no.')} v={fac?.hrsd_number || '—'} mono />
-                <InfoRow l={T('المبلغ', 'Amount')} v={`${enNum(VISA_FEE_AMOUNT)} ${T('ريال', 'SAR')}`} strong />
-              </div>
-              <div style={{ fontSize: 11.5, color: 'var(--tx4)', lineHeight: 1.7, marginTop: 6 }}>
-                {T('يُنشأ طلب سداد معلّق يظهر في «سدادات الخدمات»، ويُستكمل هناك برقم السداد بعد الدفع.',
-                   'Creates a pending fee that appears in Service Payments, completed there with the SADAD number.')}
-              </div>
-            </ModalSection>
-          </FKModal>
-        )
-      })()}
+      {feeModal}
     </div>
   )
 }
@@ -1246,4 +1296,25 @@ const selCss = {
   height: 36, padding: '0 10px', borderRadius: 9, background: 'var(--search-bg)',
   border: '1px solid transparent', color: 'var(--tx2)', fontSize: 12.5, fontFamily: F,
   outline: 'none', cursor: 'pointer', boxSizing: 'border-box', maxWidth: 175, flexShrink: 0,
+}
+
+/* ═══ الجوال — قائمة مراحل مشتركة بين جداول التأشيرات والإقامات ═══════════════
+   رأس مختصر · شرائح المراحل (بأعدادها) · بحث · مكاتب · بطاقات. عرض فقط. */
+export function MobileStageList({ T, title, total, unit, stages, stage, setStage, search, setSearch, searchPh, branchOpts, fBranch, setFBranch, cards, loading, count, onMore, emptyText }) {
+  return (
+    <div className="mvg">
+      <div className="msync-head">
+        <h1>{title}</h1>
+        <p>{enNum(total)} {unit} · {T('التحرير الجماعي متاح من الكمبيوتر', 'Bulk editing on a computer')}</p>
+      </div>
+      <MChips options={stages} value={stage} onChange={setStage} />
+      <MSearch value={search} onChange={setSearch} placeholder={searchPh} />
+      {branchOpts.length > 1 && (
+        <MChips options={[{ value: '', label: T('كل المكاتب', 'All offices') }, ...branchOpts.map((b) => ({ value: b, label: b }))]} value={fBranch} onChange={setFBranch} />
+      )}
+      <div className="msync-count">{enNum(count)} {unit}</div>
+      <MCardList rows={cards} loading={loading} onEndReached={onMore}
+        empty={<div className="msync-empty small"><b>{emptyText}</b><span>{T('جرّب مرحلة أخرى أو عدّل البحث', 'Try another stage or search')}</span></div>} />
+    </div>
+  )
 }

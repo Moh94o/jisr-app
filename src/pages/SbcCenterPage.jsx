@@ -3,6 +3,8 @@ import BackButton from '../components/BackButton'
 import { Modal as FKModal, ModalSection, Select, TextField, IdField, PhoneField, CurrencyField, DateField, Segmented, Switch, SuccessView, ScrollBox, InfoRow, InfoGrid, GRID, FULL, C as FKC } from '../components/ui/FormKit.jsx'
 import { FileText, User, Users, CreditCard, Pencil, Info } from 'lucide-react'
 import { SkeletonCards, SkeletonTable } from '../components/ui/Skeleton.jsx'
+import { useIsMobile, MStatStrip, MCardList, MChips, MSearch, MFab } from '../components/mobile/MobileKit.jsx'
+import '../styles/m-synchub.css'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = { gold: '#B07D00', red: '#c0392b', blue: '#3483b4', ok: '#27a046', purple: '#bb8fce', orange: '#f39c12', cyan: '#16a085', gray: '#95a5a6', warn: '#eab308' }
@@ -107,6 +109,8 @@ export default function SbcCenterPage({ sb, user, toast, lang = 'ar', branchId }
   const [q, setQ] = useState('')
   const [showAdd, setShowAdd] = useState(false)
   const [selectedId, setSelectedId] = useState(null)
+  const isMobile = useIsMobile()
+  const [mType, setMType] = useState('')
 
   const typeByCode = useMemo(() => Object.fromEntries(types.map(t => [t.code, t])), [types])
   const typeById = useMemo(() => Object.fromEntries(types.map(t => [t.id, t])), [types])
@@ -161,6 +165,49 @@ export default function SbcCenterPage({ sb, user, toast, lang = 'ar', branchId }
   }
 
   const initialLoading = loading && rows.length === 0
+  /* ═══ الجوال: رأس مختصر + أرقام + شرائح الخدمة + بطاقات + زر عائم ═══ */
+  if (isMobile) {
+    const byType = (r) => typeById[r.service_type_id]?.code
+    const list = mType ? filtered.filter(r => byType(r) === mType) : filtered
+    const inProg = rows.filter(r => r.status?.code && r.status.code !== 'done' && r.status.code !== 'cancelled').length
+    return (
+      <div className="mvg" style={{ fontFamily: F }}>
+        <div className="msync-head">
+          <h1>المركز السعودي للأعمال</h1>
+          <p>{nm(rows.length)} معاملة{doneCount > 0 ? ` · ${nm(doneCount)} منجزة` : ''}</p>
+        </div>
+        <MStatStrip items={[
+          { label: 'المعاملات', value: nm(rows.length), tone: 'gold' },
+          { label: 'قيد العمل', value: nm(inProg), tone: 'orange' },
+          { label: 'منجزة', value: nm(doneCount), tone: 'green' },
+        ]} />
+        <MSearch value={q} onChange={setQ} placeholder="المرجع، الاسم التجاري، رقم السجل…" />
+        {dist.length > 1 && (
+          <MChips value={mType} onChange={setMType} options={[{ value: '', label: 'الكل', count: filtered.length }, ...dist.map(d => ({ value: d.code, label: d.meta.ar, count: filtered.filter(r => byType(r) === d.code).length }))]} />
+        )}
+        <MCardList rows={list.map(r => {
+          const m = sbcMeta(byType(r))
+          const st = STATUS_THEME[r.status?.code] || { c: C.gray, ar: r.status?.value_ar || '—' }
+          return {
+            key: r.id,
+            leading: <span className="mvg-lead" style={{ '--c': m.c }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M4 3h11l5 5v13H4z" /><path d="M15 3v5h5" /><path d="M8 13h8M8 17h6" /></svg></span>,
+            title: r.trade_name || r.cr_number || m.ar,
+            subtitle: m.ar,
+            badge: { text: st.ar, tone: st.c },
+            fields: [
+              { label: 'المرجع', value: '#' + (r.request_ref_no ?? '—'), ltr: true, tone: 'gold' },
+              { label: 'التاريخ', value: fmtGreg(r.request_date), ltr: true },
+            ],
+            onClick: () => setSelectedId(r.id),
+          }
+        })} loading={initialLoading}
+          empty={<div className="msync-empty small"><b>{q ? 'لا نتائج مطابقة' : 'لا توجد معاملات بعد'}</b><span>{q ? 'جرّب كلمة بحث أخرى' : 'اضغط «معاملة جديدة» لإضافة أول معاملة'}</span></div>} />
+        <MFab label="معاملة جديدة" onClick={() => setShowAdd(true)} />
+        {showAdd && <AddModal lang={lang} sb={sb} user={user} toast={toast} typeByCode={typeByCode} newStatusId={newStatusId} userBranchId={userBranchId} onClose={() => setShowAdd(false)} onSaved={() => { setShowAdd(false); reload() }} />}
+      </div>
+    )
+  }
+
   return (
     <div style={{ fontFamily: F, paddingTop: 0 }}>
       <style>{`
@@ -468,7 +515,7 @@ function SbcDetailPage({ sb, user, toast, lang, row, type, statuses, onBack, onC
   ]
 
   return (
-    <div style={{ fontFamily: F, paddingTop: 0, paddingBottom: 48, color: 'var(--tx2)', direction: 'rtl' }}>
+    <div className="m-crd" style={{ fontFamily: F, paddingTop: 0, paddingBottom: 48, color: 'var(--tx2)', direction: 'rtl' }}>
       <div style={{ marginBottom: 16 }}><BackButton onBack={onBack} /></div>
 
       {/* Header */}

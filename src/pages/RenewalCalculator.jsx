@@ -6,6 +6,8 @@ import { computeRenewalExpiryYMD } from '../lib/expiryDuration.js'
 import { noDash } from '../lib/utils.js'
 import { computeRenewalDerived } from '../lib/renewalDerived.js'
 import { stageVisible, fieldVisible, fieldEditable } from '../lib/permissions.js'
+import { useIsMobile } from '../components/mobile/MobileKit.jsx'
+import '../styles/m-calc.css'
 
 // حدود الرسوم الحكومية المشمولة في «رسوم المكتب» — ما يتجاوزها يُضاف. (تُنقل للإعدادات لاحقًا)
 const COVER = { iqama: 650, workPermit: 100, medical: 1000 }
@@ -490,6 +492,7 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
   const absherCap = calc ? Math.max(0, (calc.renewalBase || 0) + (calc.fine || 0)) : 0
   const absher = f.absher_on ? Math.min(parseFloat(f.absher) || 0, absherCap) : 0
   const grandTotal = Math.max(0, (calc?.subtotal || 0) - absher)
+  const isMob = useIsMobile()
   // رقم الجوال إلزامي: 9 أرقام يبدأ بـ 5
   const phoneValid = /^5\d{8}$/.test(phone)
 
@@ -685,7 +688,7 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
 
   // ══════════ محتوى التبويبات ══════════
   const body = (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, flex: 1, minHeight: 0 }}>
+    <div className="mc-calc" style={{ display: 'flex', flexDirection: 'column', gap: 12, flex: 1, minHeight: 0 }}>
       {/* ── تبويب 0: العامل ── */}
       {tab === 0 && (
         <KCard Icon={User} label={T('بيانات العامل', 'Worker')} span={2}
@@ -922,8 +925,8 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
             {/* مدة التجديد — قاعدة قوى: تُعطَّل المدد الأقصر من فترة تأخّر رخصة العمل المستحقة */}
             {stShow('rw_renewal_options') && fShow('rw_period') && (
             <KCard Icon={Calendar} label={T('مدة التجديد', 'Renewal Period')} span={2}>
-              <ToggleGroup value={f.renewalMonths} onChange={v => set('renewalMonths', v)} height={60}
-                options={['3', '6', '9', '12'].map(m => ({ v: m, l: m, sub: T('شهر', 'mo'), disabled: blockedPeriods.includes(parseInt(m)) }))} />
+              <div className="mc-tiles"><ToggleGroup value={f.renewalMonths} onChange={v => set('renewalMonths', v)} height={60}
+                options={['3', '6', '9', '12'].map(m => ({ v: m, l: m, sub: T('شهر', 'mo'), disabled: blockedPeriods.includes(parseInt(m)) }))} /></div>
               {policyDisabled.length > 0 && (
                 <div style={{ marginTop: 9, display: 'flex', alignItems: 'flex-start', gap: 7, fontSize: 10.5, fontWeight: 600, color: 'var(--tx3)', background: 'var(--bd2)', border: '1px solid var(--bd)', borderRadius: 8, padding: '8px 10px', lineHeight: 1.6 }}>
                   <AlertCircle size={13} style={{ flexShrink: 0, marginTop: 1 }} />
@@ -990,6 +993,14 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
             </div>
           </div>
           {stShow('rw_pricing') && fShow('rw_fees') && govFeesDetail}
+        </div>
+      )}
+
+      {/* الجوال: بطاقة الإجمالي الجاري أثناء خطوات الاختيار (عرض فقط — نفس grandTotal) */}
+      {isMob && calc && tab >= 1 && tab <= 3 && (
+        <div className="mc-running">
+          <span className="mc-running-l"><b>{T('الإجمالي الحالي', 'Running total')}</b><small>{f.renewalMonths ? T(`تجديد ${f.renewalMonths} شهر`, `${f.renewalMonths}-month renewal`) : T('اختر مدة التجديد', 'Pick a period')}</small></span>
+          <span className="mc-running-v">{Number(grandTotal || 0).toLocaleString('en-US')}<small>{T('ريال', 'SAR')}</small></span>
         </div>
       )}
 
