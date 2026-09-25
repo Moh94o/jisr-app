@@ -17,6 +17,10 @@
   }
   html.ios-gap { --m-safe-b: 0px; }
 
+  /* صفحة الدخول: النموذج أعلى قليلاً من المنتصف على الجوال فقط */
+  .login-sp { min-height: 24px; }
+  .login-sp-b { flex-grow: 1.5 !important; }
+
   /* ── إخفاء عناصر الحاسب ─────────────────────────────────────────── */
   .dash-header, .dash-side, .mob-bottom-nav, .mob-overlay, .mob-hamburger { display: none !important; }
   .m-only { display: block; }
