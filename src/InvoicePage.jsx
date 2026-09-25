@@ -778,11 +778,11 @@ const INVOICE_SELECT = `
           status:status_id(code,value_ar,value_en),
           client:client_id(id,name_ar,name_en,phone,id_number,nationality_id,edit_log,nationality:nationality_id(code,name_ar,flag_url)),
           visa_applications(id,border_number,visa_type:visa_type_id(code,value_ar,value_en),iqama_issuance_applications(id,deleted_at,iqama_number,stage_data,medical_status,insurance_status,work_permit_status,iqama_print_status,iqama_delivery_status,iqama_delivery_date)),
-          transfer_applications(worker:worker_id(id,name_ar,name_en,phone,iqama_number,nationality:nationality_id(code,name_ar,flag_url),current_facility:current_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),facility:main_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),
-          ajeer_applications(worker:worker_id(id,name_ar,name_en,phone,iqama_number,nationality:nationality_id(code,name_ar,flag_url),current_facility:current_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),facility:main_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),
-          iqama_renewal_applications(duration_months,deleted_at,worker:worker_id(id,name_ar,name_en,phone,iqama_number,nationality:nationality_id(code,name_ar,flag_url),current_facility:current_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),facility:worker_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),
-          other_applications(worker_phone,details,worker:worker_id(id,name_ar,name_en,phone,iqama_number,birth_date,nationality:nationality_id(code,name_ar,flag_url),current_facility:current_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),facility:worker_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),
-          supplier_payroll_applications(worker_phone,total_amount,unpaid_salaries_count,worker:worker_id(id,name_ar,name_en,phone,iqama_number,nationality:nationality_id(code,name_ar,flag_url),current_facility:current_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),facility:worker_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),
+          transfer_applications(worker:worker_id(id,name_ar,name_en,phone,iqama_number,photo_path,iqama_expiry_date,nationality_ar,nationality:nationality_id(code,name_ar,flag_url),current_facility:current_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),facility:main_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),
+          ajeer_applications(worker:worker_id(id,name_ar,name_en,phone,iqama_number,photo_path,iqama_expiry_date,nationality_ar,nationality:nationality_id(code,name_ar,flag_url),current_facility:current_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),facility:main_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),
+          iqama_renewal_applications(duration_months,deleted_at,worker:worker_id(id,name_ar,name_en,phone,iqama_number,photo_path,iqama_expiry_date,nationality_ar,nationality:nationality_id(code,name_ar,flag_url),current_facility:current_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),facility:worker_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),
+          other_applications(worker_phone,details,worker:worker_id(id,name_ar,name_en,phone,iqama_number,photo_path,iqama_expiry_date,nationality_ar,birth_date,nationality:nationality_id(code,name_ar,flag_url),current_facility:current_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),facility:worker_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),
+          supplier_payroll_applications(worker_phone,total_amount,unpaid_salaries_count,worker:worker_id(id,name_ar,name_en,phone,iqama_number,photo_path,iqama_expiry_date,nationality_ar,nationality:nationality_id(code,name_ar,flag_url),current_facility:current_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),facility:worker_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),
           service_request_agents(agent:agent_id(id,name_ar,name_en,id_number,phone,nationality_id,edit_log,nationality:nationality_id(code,name_ar,flag_url)))
         )
       `
@@ -2358,7 +2358,7 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user }) {
         const _hasW = [_sr?.transfer_applications, _sr?.ajeer_applications, _sr?.iqama_renewal_applications, _sr?.supplier_payroll_applications, _sr?.other_applications].some(_pickW)
         const _cliId = String(_sr?.client?.id_number || '').replace(/\D/g, '')
         if (!_hasW && _cliId.length === 10 && ['transfer', 'iqama_renewal'].includes(baseSvcCode(code))) {
-          const WSEL = 'id,name_ar,name_en,phone,iqama_number,iqama_expiry_date,nationality:nationality_id(code,name_ar,flag_url),current_facility:current_facility_id(id,name_ar,name_en,unified_number,hrsd_number,gosi_number)'
+          const WSEL = 'id,name_ar,name_en,phone,iqama_number,photo_path,iqama_expiry_date,nationality_ar,nationality:nationality_id(code,name_ar,flag_url),current_facility:current_facility_id(id,name_ar,name_en,unified_number,hrsd_number,gosi_number)'
           const [wp, wt] = await Promise.all([
             sb.from('workers').select(WSEL).eq('iqama_number', _cliId).is('deleted_at', null).limit(1),
             sb.from('temproryworkers').select(WSEL).eq('iqama_number', _cliId).is('deleted_at', null).limit(1),
@@ -5586,7 +5586,7 @@ const EntityHero = ({ icon, primary, secondary, latin, cells, onOpen, openTitle 
             <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{c.label}</span>
             <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, direction: 'ltr' }}>
               <CopyBtn text={c.value} />
-              <span style={{ minWidth: 0, fontSize: 13, color: c.value ? 'var(--tx2)' : 'var(--tx4)', fontWeight: 600, direction: c.value ? 'ltr' : 'rtl', fontFamily: c.value ? 'monospace' : undefined, fontVariantNumeric: 'tabular-nums', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.value || '—'}</span>
+              <span style={{ minWidth: 0, fontSize: 13, color: c.value ? 'var(--tx2)' : 'var(--tx4)', fontWeight: 600, direction: c.value && !c.text ? 'ltr' : 'rtl', fontFamily: c.value && !c.text ? 'monospace' : undefined, fontVariantNumeric: 'tabular-nums', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.value || '—'}</span>
             </span>
           </div>
         ))}
@@ -5594,6 +5594,15 @@ const EntityHero = ({ icon, primary, secondary, latin, cells, onOpen, openTitle 
     )}
   </div>
 )
+
+// صورة العامل تأتي من مزامنة مقيم (bucket عام muqeem-pdfs) عبر workers.photo_path.
+const WORKER_PHOTO_BASE = 'https://gcvshzutdslmdkwqwteh.supabase.co/storage/v1/object/public/muqeem-pdfs/'
+const WorkerPhotoBadge = ({ path, alt, fallback }) => {
+  const [failed, setFailed] = useState(false)
+  if (!path || failed) return fallback
+  const src = WORKER_PHOTO_BASE + String(path).split('/').map(encodeURIComponent).join('/')
+  return <img src={src} alt={alt} title={alt} onError={() => setFailed(true)} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top', borderRadius: 11, flexShrink: 0 }} />
+}
 
 // Worker + facility rows — worker and his facility each render as an EntityHero gold card
 // (mirrors the transaction facility card): icon badge + name + the official numbers.
@@ -5606,6 +5615,8 @@ const WorkerRows = ({ worker, facility, T, user }) => {
   const isLatinName = /[A-Za-z]/.test(wPrimary || '')
   const wCells = [
     { label: T('الإقامة','Iqama'), value: w.iqama_number, vis: fieldVisible(user, 'invoices', 'worker_iqama_number') },
+    { label: T('انتهاء الإقامة','Iqama expiry'), value: w.iqama_expiry_date ? String(w.iqama_expiry_date).slice(0, 10) : null, vis: fieldVisible(user, 'invoices', 'worker_iqama_expiry') },
+    { label: T('الجنسية','Nationality'), value: w.nationality?.name_ar || w.nationality_ar || null, text: true, vis: fieldVisible(user, 'invoices', 'worker_nationality') },
     { label: T('الجوال','Phone'), value: fmtPhone(w.phone), vis: fieldVisible(user, 'invoices', 'worker_phone') },
   ].filter(f => f.value && f.vis !== false)
   const f = facility
@@ -5618,11 +5629,13 @@ const WorkerRows = ({ worker, facility, T, user }) => {
     { label: T('رقم الموارد البشرية','HRSD No'), value: f.hrsd_number, vis: fieldVisible(user, 'invoices', 'facility_hrsd_number') },
     { label: T('رقم التأمينات','GOSI No'), value: f.gosi_number, vis: fieldVisible(user, 'invoices', 'facility_gosi_number') },
   ].filter(c => c.vis !== false) : []
-  // Worker badge shows his nationality flag (falls back to a generic person icon when missing).
-  const wNat = fieldVisible(user, 'invoices', 'worker_nationality') ? w.nationality : null
-  const wIcon = wNat?.flag_url
-    ? <img src={wNat.flag_url} alt={wNat.name_ar || ''} title={wNat.name_ar || ''} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 11, flexShrink: 0 }} />
-    : (flagEmoji(wNat?.code) ? <span title={wNat?.name_ar || ''} style={{ fontSize: 30, lineHeight: 1 }}>{flagEmoji(wNat?.code)}</span> : <User size={24} color={C.gold} strokeWidth={1.8} />)
+  // Worker badge: his Muqeem photo; without one (or if it fails to load) the first letter of his
+  // name, then a generic person icon.
+  const wInitial = String(wPrimary || '').trim().charAt(0).toUpperCase()
+  const wFallback = wInitial
+    ? <span style={{ fontSize: 22, fontWeight: 600, color: C.gold, lineHeight: 1 }}>{wInitial}</span>
+    : <User size={24} color={C.gold} strokeWidth={1.8} />
+  const wIcon = <WorkerPhotoBadge key={w.photo_path || ''} path={w.photo_path} alt={wPrimary || ''} fallback={wFallback} />
   // Clicking a card opens that worker/facility's detail page (only when a real DB id exists —
   // the "worker is the client" case has no worker row, so it stays non-clickable).
   const openWorker = w.id ? () => { try { window.dispatchEvent(new CustomEvent('app-navigate-worker', { detail: { id: w.id } })) } catch {} } : undefined

@@ -284,7 +284,11 @@ export const Dropdown = ({ value, onChange, options, placeholder, getKey, getLab
       const above = r.top - 16
       const flipUp = below < 120 && above > below + 40
       const maxH = Math.max(120, Math.min(260, flipUp ? above : below))
-      setPos({ top: flipUp ? r.top - maxH - 4 : r.bottom + 4, left: r.left, width: r.width, maxH })
+      /* الفتح لأعلى يُرسى بحافّة القائمة **السفلى** على الحقل: كان يُحسب من
+         السقف `maxH` فتطفو القائمة القصيرة (خياران) بعيداً فوق حقلها. */
+      setPos(flipUp
+        ? { top: 'auto', bottom: window.innerHeight - r.top + 4, left: r.left, width: r.width, maxH }
+        : { top: r.bottom + 4, bottom: 'auto', left: r.left, width: r.width, maxH })
     }
     setQ('')
     setOpen(o => !o)
@@ -355,7 +359,7 @@ export const Dropdown = ({ value, onChange, options, placeholder, getKey, getLab
         </div>, document.body
       )}
       {open && !mob && ReactDOM.createPortal(
-        <div ref={portalRef} style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, background: C.modal2, border: '1px solid var(--bd)', borderRadius: 10, maxHeight: pos.maxH, display: 'flex', flexDirection: 'column', zIndex: 3000, boxShadow: '0 12px 40px var(--shadowClr)', overflow: 'hidden', direction: dir, fontFamily: F }}>
+        <div ref={portalRef} style={{ position: 'fixed', top: pos.top, bottom: pos.bottom, left: pos.left, width: pos.width, background: C.modal2, border: '1px solid var(--bd)', borderRadius: 10, maxHeight: pos.maxH, display: 'flex', flexDirection: 'column', zIndex: 3000, boxShadow: '0 12px 40px var(--shadowClr)', overflow: 'hidden', direction: dir, fontFamily: F }}>
           <style>{`.fk-dd-scroll::-webkit-scrollbar{width:0;display:none}.fk-dd-scroll{scrollbar-width:none;-ms-overflow-style:none}
             .fk-dd-search{border:1px solid ${ac}73!important}
             .fk-dd-search:focus{border:1px solid ${ac}!important;box-shadow:0 0 0 1px ${ac}33!important}`}</style>

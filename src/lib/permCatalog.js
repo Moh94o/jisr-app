@@ -262,7 +262,7 @@ const OPS_SHEETS = [
   ['final_exit', 'خروج نهائي', 'العمالة'],
   ['saudization', 'السعودة — مزامنة', 'السعودة'],
   // ⬇ مساران: التأشيرة بإقامة = إصدار التأشيرات ← الوكالة ← الإقامات ← الطباعة والاستلام ← التوصيل
-  ['saudization_entry', 'السعودة — إدخال', 'السعودة'],
+  ['saudization_entry', 'السعودة', 'السعودة'],
   ['work_visas', 'إصدار التأشيرات', 'الخدمات'],
   ['visa_wakalas', 'وكالة التأشيرات', 'الخدمات'],
   ['iqama_issuance', 'إصدار الإقامات', 'الخدمات'],
@@ -600,6 +600,7 @@ export const TAB_FIELDS = {
     F('client_name', 'اسم العميل', 'client'), F('client_id_number', 'رقم هوية العميل', 'client'),
     F('client_phone', 'جوال العميل', 'client'), F('client_nationality', 'جنسية العميل', 'client'),
     F('worker_name', 'اسم العامل', 'worker_facility'), F('worker_iqama_number', 'رقم الإقامة', 'worker_facility'),
+    F('worker_iqama_expiry', 'انتهاء الإقامة', 'worker_facility'),
     F('worker_phone', 'جوال العامل', 'worker_facility'), F('worker_nationality', 'جنسية العامل', 'worker_facility'),
     F('worker_occupation', 'المهنة', 'worker_facility'), F('facility_name', 'المنشأة', 'worker_facility'),
     F('facility_unified_number', 'الرقم الموحد', 'worker_facility'), F('facility_hrsd_number', 'رقم مكتب العمل', 'worker_facility'),
