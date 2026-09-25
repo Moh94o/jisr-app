@@ -273,3 +273,8 @@
   .msh-foot { flex-direction: column; align-items: center; gap: 8px; }
   .msh-hidden-btn { height: 36px; padding: 0 14px; border: 0; border-radius: 10px; background: transparent; color: var(--tx3); font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
 }
+
+/* سطر المكتب (الرمز + الاسم المستعار) تحت عنوان البطاقة */
+@media (max-width: 768px) {
+  .msh-office { display: block; margin-top: 2px; font-size: 12px; font-weight: 600; color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+}

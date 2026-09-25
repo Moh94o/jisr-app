@@ -17617,6 +17617,10 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
       // صفٌّ بلا اسمٍ يُعرَف بأوّل ما يُعرَف به (رقمه الموحّد مثلاً) لا بـ«بلا اسم»
       if (!title && subs.length) title = subs.shift()
       subs.length = Math.min(subs.length, 2)
+      // المكتب يُعرض برمزه واسمه المستعار معاً ليُعرف مكتب الصفّ من البطاقة
+      const bc = String(r.branch_code || '').trim()
+      const office = bc ? (srBranchName(bc) ? `${bc} · ${srBranchName(bc)}` : bc) : ''
+      if (bc) { const i = subs.findIndex((t) => t.split('\n')[0].trim() === bc); if (i >= 0) subs.splice(i, 1) }
       const stg = stagesOf(r)
       const tone = view.rowBg ? toneOfBg(view.rowBg(r, { block: 1 })) : null
       const amt = amountOf(r)
@@ -17625,8 +17629,11 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
       return {
         title: title || (r._blank ? T('صف جديد', 'New row') : T('بلا اسم', 'Untitled')),
         /* الشارة في سطر الفرعي لا في سطر العنوان: العنوانُ والمبلغ يتّسعان، والحالة تُقرأ مع سياقها */
-        subtitle: (badge && amt) ? <span className="msh-sub"><MBadge {...badge} /><span>{subTxt}</span></span> : subTxt,
-        subText: subTxt,
+        subtitle: <>
+          {(badge && amt) ? <span className="msh-sub"><MBadge {...badge} /><span>{subTxt}</span></span> : subTxt}
+          {office && <span className="msh-office">{office}</span>}
+        </>,
+        subText: [subTxt, office].filter(Boolean).join(' · '),
         badge: (badge && !amt) ? badge : null,
         badgeObj: badge,
         amount: amt,
