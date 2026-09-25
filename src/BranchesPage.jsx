@@ -12,6 +12,8 @@ import {
 } from 'lucide-react'
 import { Modal as FKModal, ModalSection as FKSection, ActionButton as FKAction, Select as FKSelect, MultiSelect as FKMulti, TextField as FKText, PhoneField as FKPhone, FileField as FKFile, DateField as FKDateField, Field as FKField, EmptyState, SuccessView, ConfirmDialog, ScrollBox, GRID, C, sF } from './components/ui/FormKit.jsx'
 import { SkeletonCards, SkeletonList } from './components/ui/Skeleton.jsx'
+import { useIsMobile, MStatStrip, MSearch, MChips, MFab, MBadge } from './components/mobile/MobileKit.jsx'
+import { MPageHead, MBack, MHero, MGroup, MKV, MItem, MLink, MSwitchRow, MSwitch, MAvatar } from './pages/admin/MAdminKit.jsx'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const GOLD = C.gold
@@ -60,6 +62,7 @@ export default function BranchesPage({ sb, toast, user, lang }) {
   const [searchQ, setSearchQ] = useState('')
   const [filters, setFilters] = useState({ region_id: '', city_id: '', is_active: '' })
   const [advOpen, setAdvOpen] = useState(false)
+  const isMobile = useIsMobile()
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -348,6 +351,64 @@ export default function BranchesPage({ sb, toast, user, lang }) {
   }
 
   const initialLoading = loading && branches.length === 0
+
+  if (isMobile) {
+    const bldg = <Building2 size={20} strokeWidth={2} />
+    const cityOpts = (() => { const m = new Map(); branches.forEach(b => { if (b.city_id) m.set(b.city_id, { id: b.city_id, name: b.city_name, n: (m.get(b.city_id)?.n || 0) + 1 }) }); return [...m.values()].sort((a, b) => b.n - a.n) })()
+    const inactiveN = branches.filter(b => b.is_active !== true).length
+    const chipVal = filters.is_active === 'false' ? '__off' : (filters.city_id || '')
+    const inactiveStaff = users.filter(u => !u.is_active && u.role_name !== 'المدير العام').length
+    return (
+      <div style={{ fontFamily: F, color: 'var(--tx2)' }}>
+        <MPageHead title="المكاتب" sub={topStats.total === 0 ? 'لا توجد مكاتب' : `${nm(topStats.total)} مكتب · ${nm(topStats.totalStaff)} مستخدم نشط`} />
+        <MStatStrip items={[
+          { label: 'المكاتب النشطة', value: nm(topStats.active), tone: 'green', sub: topStats.active === topStats.total ? 'جميعها نشطة' : `${nm(topStats.total - topStats.active)} معطّل` },
+          { label: 'المستخدمون', value: nm(topStats.totalStaff), tone: 'blue', sub: inactiveStaff > 0 ? `${nm(inactiveStaff)} معطّل` : 'جميعهم نشطون' },
+          { label: 'الأرصدة البنكية', value: nm(Math.round(topStats.totalBalance)), unit: 'ريال', tone: 'gold' },
+          topStats.lowAlerts > 0 && { label: 'تنبيهات رصيد', value: nm(topStats.lowAlerts), tone: 'red', sub: 'رصيد منخفض' },
+        ]} />
+        <MSearch value={searchQ} onChange={setSearchQ} placeholder="ابحث بالكود أو المدينة أو المدير" />
+        {(cityOpts.length > 1 || inactiveN > 0) && (
+          <MChips value={chipVal} onChange={v => setFilters(v === '__off' ? { region_id: '', city_id: '', is_active: 'false' } : { region_id: '', city_id: v, is_active: '' })}
+            options={[{ value: '', label: 'الكل', count: branches.length }, ...cityOpts.map(c => ({ value: c.id, label: c.name, count: c.n })), ...(inactiveN > 0 ? [{ value: '__off', label: 'معطّلة', count: inactiveN }] : [])]} />
+        )}
+        {initialLoading ? (
+          <div className="mk-cards">{[0, 1, 2, 3].map(i => <div key={i} className="mk-card mk-skel"><span /><span /><span /></div>)}</div>
+        ) : filteredBranches.length === 0 ? (
+          <EmptyState
+            icon={<Building2 size={22} color="#B07D00" strokeWidth={1.7} />}
+            title={branches.length === 0 ? 'لا توجد مكاتب بعد' : 'لا توجد نتائج مطابقة'}
+            desc={branches.length === 0 ? 'ابدأ بإضافة أول مكتب لإدارته ومتابعة نشاطه' : 'جرّب تعديل التصفية أو كلمة البحث'} />
+        ) : cityGroups.map(g => (
+          <MGroup key={g.id} title={g.name} action={<span className="ma-group-meta">{g.active}/{g.items.length} نشط</span>}>
+            {g.items.map(b => {
+              const d = dashboards[b.id]
+              const staff = Number(d?.staff_total ?? b.workers_count ?? 0)
+              const alerts = Number(d?.bank_low_alerts || 0)
+              const on = b.is_active === true
+              return (
+                <MItem key={b.id} dim={!on} tone={on ? 'green' : 'gray'} leading={bldg}
+                  onClick={() => setSelectedBranchId(b.id)}
+                  title={b.name_ar || b.branch_code}
+                  sub={[b.branch_code, b.manager_user_name || 'بدون مدير'].filter(Boolean).join(' · ')}
+                  badge={alerts > 0 ? <MBadge text={`${alerts} تنبيه`} tone="red" /> : !on ? <MBadge text="معطّل" tone="gray" /> : null}
+                  value={<span className="ma-staff"><b>{nm(staff)}</b><small>مستخدم</small></span>} />
+              )
+            })}
+          </MGroup>
+        ))}
+        {canPerm(user, 'admin_offices.create') && <><div className="ma-fab-pad" /><MFab label="مكتب جديد" onClick={openAdd} /></>}
+        {pop && (
+          <BranchFormModal
+            open={pop} onClose={() => { setPop(false); setSuccess(false) }}
+            form={form} setForm={setForm} saving={saving} success={success}
+            onSave={saveBranch} updateCode={updateCode}
+            regions={regions} cities={cities} districtsList={districtsList} branchManagers={branchManagers} />
+        )}
+        {delConfirmEl}
+      </div>
+    )
+  }
   return (
     <div style={{ fontFamily: F, paddingTop: 0, color: 'var(--tx2)' }}>
       {sharedStyle}
@@ -830,6 +891,7 @@ function BranchDetailPage({ sb, branch, dashboard, users, banks: propsBanks, doc
       .then(({ data }) => setInvoices14(data || []))
   }, [sb, branch?.id])
 
+  const isMobile = useIsMobile()
   // Activate / deactivate the office from the overview card header.
   const [activeBusy, setActiveBusy] = useState(false)
   const toggleBranchActive = async () => {
@@ -840,6 +902,92 @@ function BranchDetailPage({ sb, branch, dashboard, users, banks: propsBanks, doc
     if (error) { toast?.('تعذّر تحديث الحالة: ' + (error.message || '').slice(0, 60), 'error'); return }
     toast?.(next ? 'تم تفعيل المكتب' : 'تم تعطيل المكتب')
     onReload?.()
+  }
+
+  if (isMobile) {
+    const phoneLocal = branch.phone ? String(branch.phone).replace(/^\+?966/, '0') : null
+    const upd = (() => { if (!branch.updated_at) return null; const d = new Date(branch.updated_at); const q = n => String(n).padStart(2, '0'); return `${q(d.getDate())}-${q(d.getMonth() + 1)}-${d.getFullYear()} ${q(d.getHours())}:${q(d.getMinutes())}` })()
+    const map = new Map(); invoices14.forEach(inv => { const k = String(inv.created_at).slice(0, 10); map.set(k, (map.get(k) || 0) + 1) })
+    const days14 = Array.from({ length: 14 }, (_, i) => { const d = new Date(); d.setDate(d.getDate() - (13 - i)); const key = d.toISOString().slice(0, 10); return { key, count: map.get(key) || 0 } })
+    const inv14 = days14.reduce((s, d) => s + d.count, 0), max14 = Math.max(1, ...days14.map(d => d.count))
+    const canToggle = canCardBtn(user, 'admin_offices', 'overview_stats', 'toggle')
+    return (
+      <div style={{ fontFamily: F, color: 'var(--tx2)' }}>
+        <MBack onBack={onBack} label="المكاتب" />
+        <MHero avatar={<Building2 strokeWidth={1.8} />} square tone={isActive ? 'gold' : 'gray'} title={branch.name_ar || branch.branch_code} sub={branch.name_ar ? branch.branch_code : null} subLtr
+          badges={<>
+            <MBadge text={isActive ? 'نشط' : 'معطّل'} tone={isActive ? 'green' : 'gray'} />
+            {branch.city_name && <MBadge text={branch.city_name} tone="gold" />}
+            {alerts > 0 && <MBadge text={`${alerts} تنبيه رصيد`} tone="red" />}
+          </>} />
+        {(phoneLocal || (onEdit && canCardBtn(user, 'admin_offices', 'location_and_address', 'edit'))) && (
+          <div className="ma-actions">
+            {phoneLocal && <a className="ma-act" href={`tel:${branch.phone}`}><Phone />اتصال</a>}
+            {onEdit && canCardBtn(user, 'admin_offices', 'location_and_address', 'edit') && <button className="ma-act" onClick={onEdit}><Edit2 />تعديل</button>}
+          </div>
+        )}
+
+        {cardVisible(user, 'admin_offices', 'overview_stats') && (
+          <MGroup title="نظرة عامة">
+            {canToggle && <MSwitchRow title="المكتب نشط" sub={isActive ? 'يظهر في القوائم ويستقبل العمليات' : 'موقوف مؤقتاً'} on={isActive} busy={activeBusy} onChange={toggleBranchActive} />}
+            <MKV label="كود المكتب" value={branch.branch_code} ltr />
+            <MKV label="المستخدمون" value={users.length > activeStaff ? `${nm(users.length)} / ${nm(activeStaff)}` : nm(activeStaff)} ltr tone="blue" />
+            {phoneLocal && <MKV label="الجوال" value={phoneLocal} ltr copy toast={toast} />}
+            {lastActivity && <MKV label="آخر نشاط" value={lastActivity} />}
+            {upd && <MKV label="آخر تحديث" value={upd} ltr />}
+            <div className="ma-spark">
+              <div className="ma-spark-top"><span>نشاط الفواتير — آخر 14 يوم</span><b>{nm(inv14)} <small>فاتورة</small></b></div>
+              <div className="ma-spark-bars">{days14.map(d => <span key={d.key} className={d.count ? 'on' : ''} style={{ height: `${Math.max(d.count ? 8 : 4, (d.count / max14) * 100)}%` }} />)}</div>
+            </div>
+          </MGroup>
+        )}
+
+        {cardVisible(user, 'admin_offices', 'location_and_address') && (
+          <MGroup title="العنوان والموقع" action={onEdit && canCardBtn(user, 'admin_offices', 'location_and_address', 'edit') ? <MLink onClick={onEdit}>تعديل</MLink> : null}>
+            <MKV label="النك نيم" value={branch.name_ar} tone="gold" />
+            <MKV label="المنطقة" value={branch.region_name} />
+            <MKV label="المدينة" value={branch.city_name} />
+            <MKV label="الحي" value={branch.district_name} />
+          </MGroup>
+        )}
+
+        {cardVisible(user, 'admin_offices', 'rent_contract') && <BranchRentCard sb={sb} branch={branch} user={user} cardKey="rent_contract" lang={lang} toast={toast} />}
+        {cardVisible(user, 'admin_offices', 'municipal_license') && <BranchLicenseCard sb={sb} branch={branch} user={user} cardKey="municipal_license" toast={toast} title="رخصة بلدي" licenseType="balady" accent="#5dade2" addLabel="إضافة رخصة بلدي جديدة" />}
+        {cardVisible(user, 'admin_offices', 'safety_certificate') && <BranchLicenseCard sb={sb} branch={branch} user={user} cardKey="safety_certificate" toast={toast} title="شهادة السلامة" licenseType="safety" accent="#e67e22" addLabel="إضافة شهادة سلامة جديدة" />}
+        {cardVisible(user, 'admin_offices', 'electricity_bills') && (
+          <BranchObligationsCard sb={sb} branch={branch} user={user} cardKey="electricity_bills" toast={toast}
+            title="الكهرباء" accent="#eab308" addLabel="فاتورة كهرباء جديدة" editLabel="تعديل فاتورة الكهرباء"
+            vendorLabel="مزود الخدمة" accountLabel="رقم الحساب/العداد" fixedMonthly typeOptions={[{ k: 'utility_electricity', l: 'كهرباء' }]} />
+        )}
+        {cardVisible(user, 'admin_offices', 'internet_bills') && (
+          <BranchObligationsCard sb={sb} branch={branch} user={user} cardKey="internet_bills" toast={toast}
+            title="الإنترنت" accent="#5dade2" addLabel="فاتورة إنترنت جديدة" editLabel="تعديل فاتورة الإنترنت"
+            vendorLabel="مزود الخدمة" accountLabel="رقم الحساب/العداد" fixedMonthly withAmount typeOptions={[{ k: 'utility_internet', l: 'إنترنت' }]} />
+        )}
+        {cardVisible(user, 'admin_offices', 'water_bills') && (
+          <BranchObligationsCard sb={sb} branch={branch} user={user} cardKey="water_bills" toast={toast}
+            title="الماء" accent="#27ae60" addLabel="فاتورة ماء جديدة" editLabel="تعديل فاتورة الماء"
+            vendorLabel="مزود الخدمة" accountLabel="رقم الحساب/العداد" fixedMonthly typeOptions={[{ k: 'utility_water', l: 'ماء' }]} />
+        )}
+
+        {cardVisible(user, 'admin_offices', 'users_and_staff') && (
+          users.length === 0
+            ? <MGroup title="المستخدمون"><div className="ma-empty">لا يوجد موظفون في هذا المكتب</div></MGroup>
+            : <UsersSpotlight users={users} branch={branch} sb={sb} toast={toast} onReload={onReload} />
+        )}
+
+        {cardVisible(user, 'admin_offices', 'documents') && docs.length > 0 && (
+          <MGroup title="المستندات">
+            {docs.map(d => {
+              const isExpired = d.expiry_date && new Date(d.expiry_date) < new Date()
+              const expSoon = d.expiry_date && !isExpired && (new Date(d.expiry_date) - new Date()) / 86400000 < 30
+              return <MItem key={d.id} leading={<FileText />} tone={isExpired ? 'red' : expSoon ? 'orange' : 'green'} title={d.document_name || d.file_name}
+                sub={d.expiry_date ? `${isExpired ? 'منتهي' : expSoon ? 'ينتهي قريباً' : 'ساري'} · ${d.expiry_date}` : d.notes} />
+            })}
+          </MGroup>
+        )}
+      </div>
+    )
   }
 
   return (
@@ -1734,6 +1882,7 @@ export function BankCardModal({ sb, accountId, bankName, card, toast, onClose, o
 function UsersSpotlight({ users, branch, sb, toast, onReload }) {
   const managers = users.filter(u => branch.manager_user_id === u.id)
   const employees = users.filter(u => branch.manager_user_id !== u.id)
+  const isMobile = useIsMobile()
 
   const toggleActive = async (u, e) => {
     e?.stopPropagation()
@@ -1791,6 +1940,24 @@ function UsersSpotlight({ users, branch, sb, toast, onReload }) {
       <span style={{ flex: 1, height: 1, background: 'var(--bd)' }} />
     </div>
   )
+
+  if (isMobile) {
+    const row = (u, mgr) => (
+      <MItem key={u.id} dim={!u.is_active}
+        leading={<MAvatar img={u.nationality_flag} text={initialOf(u)} tone={mgr ? GOLD : C.blue} size={40} round />}
+        title={<>{u.name_ar || u.email || '—'}{mgr && <span className="ma-pill" style={{ marginInlineStart: 6 }}>المدير</span>}</>}
+        sub={[u.role_name, phoneOf(u)].filter(Boolean).join(' · ')}
+        trailing={<MSwitch on={!!u.is_active} onChange={() => toggleActive(u)} />} />
+    )
+    const activeN = users.filter(u => u.is_active).length
+    return (
+      <MGroup title={`المستخدمون · ${nm(activeN)} نشط${users.length > activeN ? ` · ${nm(users.length - activeN)} معطّل` : ''}`}
+        footer={managers.length === 0 ? 'لم يتم تحديد مدير لهذا المكتب بعد.' : null}>
+        {managers.map(u => row(u, true))}
+        {employees.map(u => row(u, false))}
+      </MGroup>
+    )
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>

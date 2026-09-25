@@ -6,6 +6,8 @@ import { UserPlus, Building2, Search, X, Hash, FileText, ShieldCheck, Users, Map
 import { Modal as FKModal, ModalSection, ActionButton, SuccessView, GRID, TextField, IdField, DateField, Select, Dropdown as FKDropdown, FileField, PhoneField, PhoneListField, EmptyState } from './components/ui/FormKit.jsx'
 import InvoiceReceiptCard from './components/ui/InvoiceReceiptCard.jsx'
 import { buildMuqeemRenewBookmarklet } from './pages/muqeemRenewBookmarklet.js'
+import { useIsMobile, MStatStrip, MCardList, MFab, MChips, MSearch } from './components/mobile/MobileKit.jsx'
+import './styles/m-workforce.css'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = {
@@ -64,6 +66,65 @@ const WorkerAvatar = ({ w, size = 34, radius }) => {
 }
 
 const num = (v) => Number(v || 0).toLocaleString('en-US')
+
+/* ═══ أدوات عرض الجوال (تُرسم فقط حين useIsMobile) ═══ */
+// شارة انتهاء الإقامة بلون الإلحاح: منتهية أحمر، ≤30 برتقالي، ≤90 ذهبي، وإلا أخضر.
+const mDays = (n) => `${n} ${(n >= 3 && n <= 10) ? 'أيام' : 'يوم'}`
+export const mIqBadge = (iso, T) => {
+  if (!iso) return { text: T('بدون تاريخ', 'No date'), tone: 'gray' }
+  const d = Math.ceil((new Date(iso).getTime() - Date.now()) / 86400000)
+  if (isNaN(d)) return { text: T('بدون تاريخ', 'No date'), tone: 'gray' }
+  if (d < 0) return { text: T(`منتهية منذ ${mDays(-d)}`, `Expired ${-d}d ago`), tone: 'red' }
+  if (d === 0) return { text: T('تنتهي اليوم', 'Expires today'), tone: 'red' }
+  if (d <= 30) return { text: T(`باقي ${mDays(d)}`, `${d}d left`), tone: 'orange' }
+  if (d <= 90) return { text: T(`باقي ${mDays(d)}`, `${d}d left`), tone: 'gold' }
+  return { text: T('سارية', 'Valid'), tone: 'green' }
+}
+// ورقة سفلية بنمط iOS (تصفية/ترتيب) — فوق الشريط السفلي.
+export function MSheet({ title, onClose, onReset, resetLabel, footer, children }) {
+  useEffect(() => {
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = prev }
+  }, [])
+  return (
+    <>
+      <div className="mw-sheet-bg" onClick={onClose} />
+      <div className="mw-sheet" role="dialog" aria-modal="true">
+        <div className="mw-sheet-grab" />
+        <div className="mw-sheet-head">
+          <h3>{title}</h3>
+          {onReset && <button type="button" className="mw-link" onClick={onReset}>{resetLabel}</button>}
+        </div>
+        <div className="mw-sheet-body">{children}</div>
+        {footer && <div className="mw-sheet-foot">{footer}</div>}
+      </div>
+    </>
+  )
+}
+// عند تبديل تبويب التفاصيل وهو ملتصق أعلى الشاشة: نعيد التمرير لبداية المحتوى (مثل التطبيقات الأصلية).
+export const mTabScroll = () => requestAnimationFrame(() => {
+  const hero = document.querySelector('.mwd .mw-hero'), sc = document.querySelector('.dash-content')
+  if (!hero || !sc) return
+  const d = hero.getBoundingClientRect().bottom - sc.getBoundingClientRect().top
+  if (d < 0) sc.scrollTop += d
+})
+export const MFilterIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 6h10"/><path d="M18 6h2"/><circle cx="16" cy="6" r="2"/><path d="M4 12h4"/><path d="M12 12h8"/><circle cx="10" cy="12" r="2"/><path d="M4 18h12"/><circle cx="18" cy="18" r="2"/></svg>
+)
+// صفّ وثيقة (ملف مرفق) بنمط قائمة الجوال.
+export const MDocRow = ({ label, att, T }) => {
+  const Tag = att ? 'a' : 'div'
+  return (
+    <Tag className={'mw-doc ' + (att ? 'on' : 'off')} {...(att ? { href: att.file_url, target: '_blank', rel: 'noopener noreferrer' } : {})}>
+      <span className="mw-doc-ico">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>{att ? <path d="m9 15 2 2 4-4"/> : <path d="M9 15h6"/>}</svg>
+      </span>
+      <span className="mw-doc-t"><b>{label}</b><span>{att ? T('مرفق — اضغط للعرض', 'Attached — tap to view') : T('لا يوجد ملف', 'No file')}</span></span>
+      {att && <svg className="mw-doc-go" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>}
+    </Tag>
+  )
+}
 // صيغة العدد العربية: 3–10 تأخذ الجمع، وغيرها المفرد (نفس منطق صفحة المنشآت).
 const arCount = (n, one, few) => (Number(n) >= 3 && Number(n) <= 10) ? few : one
 const fmtDate = (s) => { if (!s) return '—'; try { return new Date(s).toISOString().slice(0,10) } catch { return '—' } }
@@ -624,6 +685,8 @@ function WorkforceSkeleton() {
 export default function WorkforcePage({ sb, toast, lang, user, onTabChange }) {
   const isAr = lang !== 'en'
   const T = (a, e) => isAr ? a : e
+  const isMobile = useIsMobile()
+  const [mCount, setMCount] = useState(30)   // الجوال: عدد البطاقات المعروضة (تمرير لا نهائي)
 
   const [workers, setWorkers] = useState([])
   const [facilities, setFacilities] = useState([])
@@ -756,6 +819,7 @@ export default function WorkforcePage({ sb, toast, lang, user, onTabChange }) {
   }, [sb, addForm.iqama_number, checkingDup, T])
 
   useEffect(() => { onTabChange && onTabChange({ tab: 'workers' }) }, [])
+  useEffect(() => { setMCount(30) }, [search, adv, sort])
 
   const load = useCallback(async () => {
     if (!sb) return
@@ -1910,9 +1974,158 @@ export default function WorkforcePage({ sb, toast, lang, user, onTabChange }) {
   // أول جلب (لا توجد بيانات بعد) — نعرض هيكل التحميل كاملاً بدل البطاقات الصفرية،
   // تماماً كصفحة المنشآت.
   const initialLoading = loading && workers.length === 0
+  // ═══ الجوال: قائمة العمالة كبطاقات أصلية (نفس الحالة/الفلاتر/الترتيب — عرض فقط) ═══
+  const renderMobileList = () => {
+    const chipDefs = [
+      { v: 'all', b: [], l: T('الكل', 'All') },
+      { v: 'expired', b: ['expired'], l: T('منتهية', 'Expired') },
+      { v: 'soon', b: ['10d', '30d'], l: T('خلال 30 يوم', '≤ 30 days') },
+      { v: 'd90', b: ['60d', '90d'], l: T('31 – 90 يوم', '31–90 days') },
+      { v: 'valid', b: ['6m', 'valid'], l: T('سارية', 'Valid') },
+      { v: 'none', b: ['none'], l: T('بدون تاريخ', 'No date') },
+    ]
+    const bc = {}
+    for (const w of scopedRows) { const k = expBucket(w.iqama_expiry_date); bc[k] = (bc[k] || 0) + 1 }
+    const cnt = (b) => b.length ? b.reduce((a, k) => a + (bc[k] || 0), 0) : scopedRows.length
+    const iq = adv.iqama || []
+    const cur = (chipDefs.find(c => c.b.length ? sameKeys(iq, c.b) : !iq.length) || {}).v ?? null
+    const setIq = (b) => { setAdv(a => ({ ...a, iqama: b })); setPage(0) }
+    const otherAdv = advCount - (iq.length ? 1 : 0)
+    const rows = sorted.slice(0, mCount).map(w => {
+      const f = facById[w.current_facility_id]
+      const bdg = mIqBadge(w.iqama_expiry_date, T)
+      return {
+        key: w.id,
+        title: w.name_ar || w.name_en || '—',
+        subtitle: [canonNat(w.nationality_ar), w.occupation_ar].filter(Boolean).join(' · ') || null,
+        leading: <WorkerAvatar w={w} size={42} radius={13} />,
+        badge: bdg,
+        accent: bdg.tone === 'red' ? 'red' : undefined,
+        fields: [
+          { label: T('رقم الإقامة', 'Iqama No.'), value: w.iqama_number || '—', ltr: true },
+          { label: T('انتهاء الإقامة', 'Iqama Expiry'), value: w.iqama_expiry_date ? fmtDate(w.iqama_expiry_date) : '—', ltr: true, tone: bdg.tone === 'gray' || bdg.tone === 'green' ? undefined : bdg.tone },
+        ],
+        children: f ? <div className="mw-card-foot"><Building2 size={15} /><span>{f.name_ar || f.name_en}</span></div> : null,
+        onClick: () => setDetail(w),
+      }
+    })
+    return (
+      <div className="mw-page">
+        <div className="mw-head">
+          <div>
+            <h1 className="mw-title">{T('العمالة الدائمة', 'Permanent Workforce')}</h1>
+            <div className="mw-sub">{initialLoading ? T('جارٍ التحميل…', 'Loading…') : `${num(filtered.length)} ${T(arCount(filtered.length, 'عامل', 'عمال'), 'workers')}`}</div>
+          </div>
+        </div>
+        {statsVisible && !initialLoading && (
+          <MStatStrip items={[
+            { label: T('إجمالي العمالة', 'Total workers'), value: num(stats.total), tone: 'gold', onClick: () => setIq([]) },
+            { label: T('إقامات منتهية', 'Expired iqamas'), value: num(stats.expired), tone: 'red', onClick: () => setIq(['expired']) },
+            { label: T('تنتهي خلال 30 يوم', 'Expiring ≤ 30d'), value: num(stats.exp30), tone: 'orange', onClick: () => setIq(['10d', '30d']) },
+            { label: T('إقامات سارية', 'Valid iqamas'), value: num(stats.valid), tone: 'green', sub: `${validPct}% ${T('من الإجمالي', 'of total')}` },
+            { label: T('الجنسيات', 'Nationalities'), value: num(natTop.length), tone: 'purple', sub: natTop[0] ? `${T('الأكثر', 'Top')}: ${natTop[0][0]}` : null },
+          ]} />
+        )}
+        <div className="mw-toolbar">
+          <MSearch value={search} onChange={v => { setSearch(v); setPage(0) }} placeholder={T('اسم، إقامة، جواز، جوال، منشأة…', 'Name, iqama, passport, mobile…')} />
+          <button type="button" className={'mw-filter-btn' + (otherAdv > 0 ? ' on' : '')} onClick={() => setAdvOpen(true)} aria-label={T('تصفية وترتيب', 'Filter & sort')}>
+            <MFilterIcon />{otherAdv > 0 && <i>{otherAdv}</i>}
+          </button>
+        </div>
+        <MChips options={chipDefs.map(c => ({ value: c.v, label: c.l, count: statsVisible ? cnt(c.b) : undefined }))} value={cur}
+          onChange={v => setIq((chipDefs.find(x => x.v === v) || chipDefs[0]).b)} />
+        <div className="mw-list">
+          <MCardList loading={initialLoading} rows={rows}
+            onEndReached={sorted.length > mCount ? () => setMCount(n => n + 30) : undefined}
+            empty={<div className="mw-empty"><b>{workers.length ? T('لا توجد نتائج مطابقة', 'No matching workers') : T('لا يوجد عمال بعد', 'No workers yet')}</b>{workers.length ? T('جرّب تعديل البحث أو التصفية', 'Try adjusting search or filters') : ''}</div>} />
+        </div>
+        {advOpen && (
+          <MSheet title={T('تصفية وترتيب', 'Filter & sort')} onClose={() => setAdvOpen(false)}
+            onReset={advCount > 0 ? () => { setAdv(ADV_EMPTY); setPage(0) } : null} resetLabel={T('مسح الكل', 'Clear all')}
+            footer={<button type="button" className="mw-btn pri" onClick={() => setAdvOpen(false)}>{T(`عرض ${num(filtered.length)} نتيجة`, `Show ${num(filtered.length)} results`)}</button>}>
+            {renderAdvFields()}
+          </MSheet>
+        )}
+        {canPerm(user, 'workers.create') && !advOpen && (
+          <MFab label={T('عامل جديد', 'New worker')} onClick={() => { setAddErr(null); setAddPage(0); setShowAdd(true) }} />
+        )}
+      </div>
+    )
+  }
+  // حقول لوحة التصفية المتقدمة — مشتركة بين لوحة الحاسب وورقة الجوال السفلية.
+  const renderAdvFields = () => {
+        // مُولّد موحّد لحقل تصفية متعدّد الاختيار. يُستدعى كدالة (لا كعنصر <MF/>) عمداً:
+        // فلو عُرّف كمكوّن لأُعيد إنشاء هويته كل تصيير فيُعاد تركيب القائمة وتُغلَق مع كل
+        // اختيار — والاستدعاء الدالّي يبقيها بموضع ثابت في الشجرة فتظل مفتوحة للاختيار المتعدد.
+        const mf = ({ label, k, options, searchable = true, renderCell }) => (
+          options && options.length === 0 ? null : (
+            <FilterField key={k} label={label}>
+              <FKDropdown multi selectedKeys={adv[k]} onChange={arr => { setAdv(a => ({ ...a, [k]: arr })); setPage(0) }}
+                placeholder={T('الكل','All')} searchable={searchable} getKey={o => o.v} getLabel={o => o.l}
+                options={options} renderCell={renderCell} />
+            </FilterField>
+          )
+        )
+        return (<>
+            {mf({ label: T('المكتب','Office'), k: 'branch', searchable: false, options: filterOpts.br })}
+            {mf({ label: T('الجنسية','Nationality'), k: 'nationality', options: filterOpts.nat })}
+            {mf({ label: T('المنشأة','Facility'), k: 'facility', options: filterOpts.fac,
+              renderCell: (o, sel, q) => {
+                // الرقم المعروض = الموحّد افتراضياً، ويتحوّل لرقم التأمينات/الموارد/السجل إذا طابق البحث
+                // (فيدرك المستخدم أنها نفس المنشأة رغم اختلاف الرقم الذي بحث به).
+                const digits = String(q || '').replace(/\D/g, '')
+                const dig = (n) => String(n || '').replace(/\D/g, '')   // مقارنة بلا شرطة/رموز
+                let numShown = o.unified
+                if (digits.length >= 3) {
+                  if (o.gosi && dig(o.gosi).includes(digits)) numShown = o.gosi
+                  else if (o.hrsd && dig(o.hrsd).includes(digits)) numShown = o.hrsd
+                  else if (o.cr && dig(o.cr).includes(digits)) numShown = o.cr
+                }
+                return (
+                <span style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                  <span title={o.name || ''} style={{ minWidth: 0, fontSize: 13, fontWeight: 600, color: 'var(--tx)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'start' }}>{o.short || o.name || o.l}{o.c != null ? ` (${num(o.c)})` : ''}</span>
+                  {numShown && <span style={{ fontSize: 10, fontWeight: 600, color: C.gold, fontFamily: 'ui-monospace, monospace', direction: 'ltr', background: 'rgba(176,125,0,.1)', border: '1px solid rgba(176,125,0,.3)', borderRadius: 2, padding: '1px 7px', flexShrink: 0 }}>{numShown}</span>}
+                </span>
+                )
+              } })}
+            {mf({ label: T('المدينة','City'), k: 'city', options: filterOpts.city })}
+            {mf({ label: T('المهنة الرسمية','Official Occupation'), k: 'occupation', options: filterOpts.occ })}
+            {mf({ label: T('المهنة الفعلية','Actual Occupation'), k: 'actualOcc', options: filterOpts.aocc })}
+            {mf({ label: T('انتهاء الإقامة','Iqama Expiry'), k: 'iqama', searchable: false, options: filterOpts.iqama })}
+            {mf({ label: T('انتهاء رخصة العمل','Work Permit Expiry'), k: 'workPermit', searchable: false, options: filterOpts.workPermit })}
+            {mf({ label: T('انتهاء الجواز','Passport Expiry'), k: 'passport', searchable: false, options: filterOpts.passport })}
+            {mf({ label: T('انتهاء التأمين','Insurance Expiry'), k: 'insurance', searchable: false, options: filterOpts.insurance })}
+            {mf({ label: T('الراتب','Salary'), k: 'wage', searchable: false, options: filterOpts.wage })}
+            {mf({ label: T('العمر','Age'), k: 'age', searchable: false, options: filterOpts.age })}
+            {mf({ label: T('الموقع','Location'), k: 'location', searchable: false, options: filterOpts.location })}
+            {mf({ label: T('الخروج النهائي','Final Exit'), k: 'finalExit', searchable: false, options: filterOpts.finalExit })}
+            {mf({ label: T('خروج وعودة','Exit & Re-entry'), k: 'exitReturn', searchable: false, options: filterOpts.exitReturn })}
+            {mf({ label: T('حالة عقد قوى','Qiwa Contract Status'), k: 'employment', options: filterOpts.emp })}
+            {mf({ label: T('المركبات','Vehicles'), k: 'vehicles', searchable: false, options: filterOpts.vehicles })}
+            {mf({ label: T('رصيد الجوازات','Jawazat Balance'), k: 'balance', searchable: false, options: filterOpts.balance })}
+            {mf({ label: T('المتبقي للفواتير','Invoice Remaining'), k: 'invoiceRemaining', searchable: false, options: filterOpts.invoiceRemaining })}
+            {/* الترتيب: آخر حقل — معيار الترتيب + زر عكس الاتجاه (تصاعدي/تنازلي) */}
+            <FilterField label={T('الترتيب حسب','Sort by')}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <FKDropdown value={sort.key} onChange={k => { setSort(s => ({ ...s, key: k })); setPage(0) }}
+                    options={SORT_OPTS} getKey={o => o.v} getLabel={o => o.l} searchable={false} placeholder={T('الترتيب حسب','Sort by')} />
+                </div>
+                <button type="button" title={sort.dir === 'asc' ? T('تصاعدي','Ascending') : T('تنازلي','Descending')}
+                  onClick={() => { setSort(s => ({ ...s, dir: s.dir === 'asc' ? 'desc' : 'asc' })); setPage(0) }}
+                  style={{ height: 42, width: 42, borderRadius: 9, background: 'var(--fk-input-bg)', border: '1px solid var(--bd)', color: C.gold, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: '.15s' }}>
+                  {sort.dir === 'asc'
+                    ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 8 4-4 4 4"/><path d="M7 4v16"/><path d="M11 12h4"/><path d="M11 16h7"/><path d="M11 20h10"/></svg>
+                    : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="M11 4h10"/><path d="M11 8h7"/><path d="M11 12h4"/></svg>}
+                </button>
+              </div>
+            </FilterField>
+        </>)
+  }
 
   return (
     <div style={{ fontFamily: F, paddingTop: 0 }}>
+      {isMobile ? renderMobileList() : (<>
       {/* Hero — title + description column with the add button beside it,
           mirroring the Facilities page header exactly (font, size, weight, gap,
           dashed button, hover behaviour). */}
@@ -2101,80 +2314,13 @@ export default function WorkforcePage({ sb, toast, lang, user, onTabChange }) {
       </div>
 
       {/* Advanced filter panel — كل حقل اختيار متعدّد؛ يمكن دمج عدّة حقول وقيم معاً */}
-      {advOpen && (() => {
-        // مُولّد موحّد لحقل تصفية متعدّد الاختيار. يُستدعى كدالة (لا كعنصر <MF/>) عمداً:
-        // فلو عُرّف كمكوّن لأُعيد إنشاء هويته كل تصيير فيُعاد تركيب القائمة وتُغلَق مع كل
-        // اختيار — والاستدعاء الدالّي يبقيها بموضع ثابت في الشجرة فتظل مفتوحة للاختيار المتعدد.
-        const mf = ({ label, k, options, searchable = true, renderCell }) => (
-          options && options.length === 0 ? null : (
-            <FilterField key={k} label={label}>
-              <FKDropdown multi selectedKeys={adv[k]} onChange={arr => { setAdv(a => ({ ...a, [k]: arr })); setPage(0) }}
-                placeholder={T('الكل','All')} searchable={searchable} getKey={o => o.v} getLabel={o => o.l}
-                options={options} renderCell={renderCell} />
-            </FilterField>
-          )
-        )
-        return (
+      {advOpen && (
         <div style={{ marginBottom: 22, padding: '16px 18px', background: 'var(--card-grad2)', border: '1px solid var(--bd)', borderRadius: 14 }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
-            {mf({ label: T('المكتب','Office'), k: 'branch', searchable: false, options: filterOpts.br })}
-            {mf({ label: T('الجنسية','Nationality'), k: 'nationality', options: filterOpts.nat })}
-            {mf({ label: T('المنشأة','Facility'), k: 'facility', options: filterOpts.fac,
-              renderCell: (o, sel, q) => {
-                // الرقم المعروض = الموحّد افتراضياً، ويتحوّل لرقم التأمينات/الموارد/السجل إذا طابق البحث
-                // (فيدرك المستخدم أنها نفس المنشأة رغم اختلاف الرقم الذي بحث به).
-                const digits = String(q || '').replace(/\D/g, '')
-                const dig = (n) => String(n || '').replace(/\D/g, '')   // مقارنة بلا شرطة/رموز
-                let numShown = o.unified
-                if (digits.length >= 3) {
-                  if (o.gosi && dig(o.gosi).includes(digits)) numShown = o.gosi
-                  else if (o.hrsd && dig(o.hrsd).includes(digits)) numShown = o.hrsd
-                  else if (o.cr && dig(o.cr).includes(digits)) numShown = o.cr
-                }
-                return (
-                <span style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-                  <span title={o.name || ''} style={{ minWidth: 0, fontSize: 13, fontWeight: 600, color: 'var(--tx)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'start' }}>{o.short || o.name || o.l}{o.c != null ? ` (${num(o.c)})` : ''}</span>
-                  {numShown && <span style={{ fontSize: 10, fontWeight: 600, color: C.gold, fontFamily: 'ui-monospace, monospace', direction: 'ltr', background: 'rgba(176,125,0,.1)', border: '1px solid rgba(176,125,0,.3)', borderRadius: 2, padding: '1px 7px', flexShrink: 0 }}>{numShown}</span>}
-                </span>
-                )
-              } })}
-            {mf({ label: T('المدينة','City'), k: 'city', options: filterOpts.city })}
-            {mf({ label: T('المهنة الرسمية','Official Occupation'), k: 'occupation', options: filterOpts.occ })}
-            {mf({ label: T('المهنة الفعلية','Actual Occupation'), k: 'actualOcc', options: filterOpts.aocc })}
-            {mf({ label: T('انتهاء الإقامة','Iqama Expiry'), k: 'iqama', searchable: false, options: filterOpts.iqama })}
-            {mf({ label: T('انتهاء رخصة العمل','Work Permit Expiry'), k: 'workPermit', searchable: false, options: filterOpts.workPermit })}
-            {mf({ label: T('انتهاء الجواز','Passport Expiry'), k: 'passport', searchable: false, options: filterOpts.passport })}
-            {mf({ label: T('انتهاء التأمين','Insurance Expiry'), k: 'insurance', searchable: false, options: filterOpts.insurance })}
-            {mf({ label: T('الراتب','Salary'), k: 'wage', searchable: false, options: filterOpts.wage })}
-            {mf({ label: T('العمر','Age'), k: 'age', searchable: false, options: filterOpts.age })}
-            {mf({ label: T('الموقع','Location'), k: 'location', searchable: false, options: filterOpts.location })}
-            {mf({ label: T('الخروج النهائي','Final Exit'), k: 'finalExit', searchable: false, options: filterOpts.finalExit })}
-            {mf({ label: T('خروج وعودة','Exit & Re-entry'), k: 'exitReturn', searchable: false, options: filterOpts.exitReturn })}
-            {mf({ label: T('حالة عقد قوى','Qiwa Contract Status'), k: 'employment', options: filterOpts.emp })}
-            {mf({ label: T('المركبات','Vehicles'), k: 'vehicles', searchable: false, options: filterOpts.vehicles })}
-            {mf({ label: T('رصيد الجوازات','Jawazat Balance'), k: 'balance', searchable: false, options: filterOpts.balance })}
-            {mf({ label: T('المتبقي للفواتير','Invoice Remaining'), k: 'invoiceRemaining', searchable: false, options: filterOpts.invoiceRemaining })}
-            {/* الترتيب: آخر حقل — معيار الترتيب + زر عكس الاتجاه (تصاعدي/تنازلي) */}
-            <FilterField label={T('الترتيب حسب','Sort by')}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <FKDropdown value={sort.key} onChange={k => { setSort(s => ({ ...s, key: k })); setPage(0) }}
-                    options={SORT_OPTS} getKey={o => o.v} getLabel={o => o.l} searchable={false} placeholder={T('الترتيب حسب','Sort by')} />
-                </div>
-                <button type="button" title={sort.dir === 'asc' ? T('تصاعدي','Ascending') : T('تنازلي','Descending')}
-                  onClick={() => { setSort(s => ({ ...s, dir: s.dir === 'asc' ? 'desc' : 'asc' })); setPage(0) }}
-                  style={{ height: 42, width: 42, borderRadius: 9, background: 'var(--fk-input-bg)', border: '1px solid var(--bd)', color: C.gold, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: '.15s' }}>
-                  {sort.dir === 'asc'
-                    ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 8 4-4 4 4"/><path d="M7 4v16"/><path d="M11 12h4"/><path d="M11 16h7"/><path d="M11 20h10"/></svg>
-                    : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="M11 4h10"/><path d="M11 8h7"/><path d="M11 12h4"/></svg>}
-                </button>
-              </div>
-            </FilterField>
+            {renderAdvFields()}
           </div>
         </div>
-        )
-      })()}
-
+      )}
       {/* Table */}
       {loading ? (
         <div style={{ padding: 48, textAlign: 'center', color: 'var(--tx4)', fontSize: 13 }}>{T('جاري التحميل...','Loading...')}</div>
@@ -2262,6 +2408,8 @@ export default function WorkforcePage({ sb, toast, lang, user, onTabChange }) {
           })()}
         </>
       )}
+      </>)}
+
       </>)}
 
       {/* ═══ Add Worker Modal — FormKit wizard: ١ بيانات العامل · ٢ منشأة العامل ═══ */}
@@ -2692,6 +2840,11 @@ function RenewalCard({ w, f, sb, T, isAr, toast }) {
 /* ═══════════════════════ Worker Detail (mirrors Facility detail) ═══════════════════════ */
 function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEdit, onSaved, onDelete, onTransfer, canEdit, canDelete, user, attKey }) {
   const iqamaDays = daysUntil(w.iqama_expiry_date)
+  // الجوال: التفاصيل مقسّمة لتبويبات (شرائح) — sec(k) يخفي ما لا ينتمي للتبويب الحالي.
+  const isMobile = useIsMobile()
+  const [mTab, setMTab] = useState('info')
+  useEffect(() => { setMTab('info') }, [w.id])
+  const sec = (k) => (isMobile && mTab !== k ? 'mw-sec-off' : undefined)
 
   // الفرع التابع للعامل: افتراضياً يتبع فرع منشأته تلقائياً؛ ويمكن تخصيصه يدوياً (workers.branch_id)
   // لحالة كون المنشأة لفرع والعامل لفرع آخر. المصدر الفعّال = فرع العامل الخاص إن حُدِّد، وإلا فرع المنشأة.
@@ -3050,7 +3203,7 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
     const empty = v == null || v === ''
     const srcKey = !empty ? (src ? srcOf(src) : (srcName || null)) : null
     return (
-      <div onClick={link && !empty ? () => goFacility(link) : undefined}
+      <div className={'mw-f' + (full || wrap ? ' full' : '')} onClick={link && !empty ? () => goFacility(link) : undefined}
         style={{ gridColumn: full ? '1 / -1' : undefined, background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5, cursor: link && !empty ? 'pointer' : 'default', transition: 'border-color .15s', minWidth: 0 }}
         onMouseEnter={link && !empty ? (e => { e.currentTarget.style.borderColor = 'rgba(176,125,0,.5)' }) : undefined}
         onMouseLeave={link && !empty ? (e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,.05)' }) : undefined}>
@@ -3081,7 +3234,7 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
   }
   // بطاقة ملف وثيقة (تصميم مربّع) — عرض الملف إن وُجد، وإلا «لا يوجد» (الرفع يتم من نافذة التعديل).
   const FileTile = ({ label, att }) => (
-    <div style={{ background: 'var(--inputBg)', border: att ? '1px solid rgba(176,125,0,.25)' : '1px dashed var(--bd)', borderRadius: 12, padding: '14px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, textAlign: 'center', minWidth: 0 }}>
+    <div className="mw-hide-m" style={{ background: 'var(--inputBg)', border: att ? '1px solid rgba(176,125,0,.25)' : '1px dashed var(--bd)', borderRadius: 12, padding: '14px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, textAlign: 'center', minWidth: 0 }}>
       {att ? (
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="m9 15 2 2 4-4"/></svg>
       ) : (
@@ -3107,7 +3260,7 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
     </button>
   ) : null
   const CardHead = ({ children, onEdit: onEditCard, action, allowEdit }) => (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '13px 18px', borderBottom: '1px solid var(--bd)' }}>
+    <div className="mw-ch" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '13px 18px', borderBottom: '1px solid var(--bd)' }}>
       <span style={{ fontSize: 16, fontWeight: 600, letterSpacing: '.2px', color: C.gold, display: 'inline-flex', alignItems: 'center', gap: 8 }}>
         <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />{children}
       </span>
@@ -3129,13 +3282,62 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
   const iqColor = iqamaDays == null ? C.gray : iqamaDays <= 0 ? C.red : iqamaDays <= 30 ? C.gold : C.ok
   const iqShort = iqamaDays == null ? T('غير محدد', '—') : iqamaDays <= 0 ? T('منتهية', 'Expired') : iqamaDays <= 30 ? T('قريبة الانتهاء', 'Expiring') : T('سارية', 'Valid')
 
+  // ═══ الجوال: بطاقة الترويسة + شرائح الأقسام + شريط الإجراءات ═══
+  const renderMobileHero = () => {
+    const stLabel = w.worker_status === 'active' ? T('نشط في التأمينات', 'GOSI active') : w.worker_status === 'suspended' ? T('غير نشط', 'Inactive') : null
+    const docsN = [muqeemAtt, docFiles.work_visa_file, docFiles.work_permit_file, docFiles.exit_visa_file].filter(Boolean).length
+    return (<>
+      <div className="mw-hero">
+        <div className="mw-hero-top">
+          <span className="mw-hero-av"><WorkerAvatar w={w} size={64} radius={20} /></span>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div className="mw-hero-name">{w.name_ar || w.name_en || '—'}</div>
+            {w.name_ar && w.name_en && <div className="mw-hero-en">{w.name_en}</div>}
+            <div className="mw-hero-tags">
+              {w.nationality_ar && <span className="mw-tag plain"><NatFlag nationality={canonNat(w.nationality_ar)} size={14} />{canonNat(w.nationality_ar)}</span>}
+              {w.occupation_ar && <span className="mw-tag plain">{w.occupation_ar}</span>}
+              {stLabel && <span className="mw-tag" style={{ '--tone': w.worker_status === 'active' ? '#5fd08f' : '#f0a35a' }}>{stLabel}</span>}
+              {w.is_outside_kingdom && <span className="mw-tag" style={{ '--tone': '#f0a35a' }}>{T('خارج المملكة', 'Outside KSA')}</span>}
+            </div>
+          </div>
+        </div>
+        <div className="mw-hero-stats" style={{ '--tone': iqamaDays == null ? '#fff' : iqamaDays <= 0 ? '#ff8a7a' : iqamaDays <= 30 ? '#f3c35a' : '#6fdc9c' }}>
+          <div><span>{T('الإقامة', 'Iqama')}</span><b>{iqShort}</b></div>
+          <div><span>{T('تنتهي في', 'Expires')}</span><b className="ltr" style={{ color: '#fff' }}>{w.iqama_expiry_date ? fmtDate(w.iqama_expiry_date) : '—'}</b></div>
+          <div><span>{iqamaDays != null && iqamaDays < 0 ? T('منذ', 'Since') : T('متبقٍ', 'Left')}</span><b>{iqamaDays != null ? mDays(Math.abs(iqamaDays)) : '—'}</b></div>
+        </div>
+      </div>
+      <div className="mwd-tabs">
+        <MChips value={mTab} onChange={v => { setMTab(v); mTabScroll() }} style={{ margin: 0, padding: 0 }} options={[
+          { value: 'info', label: T('البيانات', 'Details') },
+          { value: 'work', label: T('العمل والتأمين', 'Work & insurance') },
+          { value: 'docs', label: T('الوثائق', 'Documents'), count: docsN },
+          { value: 'bill', label: T('الفواتير', 'Invoices'), count: facRows ? facListRows.length : undefined },
+          { value: 'log', label: T('السجل والتجديد', 'Log & renewal') },
+        ]} />
+      </div>
+    </>)
+  }
+  const renderMobileActions = () => {
+    const canExit = canEdit && onEdit, canMove = canEdit && onTransfer, canDel = canDelete && onDelete
+    if (!canExit && !canMove && !canDel) return null
+    return (
+      <div className="mw-actbar">
+        {canExit && <button type="button" className="mw-act pri" onClick={() => onEdit('exit_visa')}><LogOut size={17} />{T('تأشيرة خروج', 'Exit visa')}</button>}
+        {canMove && <button type="button" className="mw-act blue" onClick={() => setConfirm('transfer')}><Users size={17} />{T('نقل للمؤقتة', 'Move to temp')}</button>}
+        {canDel && <button type="button" className="mw-act red" onClick={() => setConfirm('delete')} aria-label={T('حذف العامل', 'Delete worker')}><Trash2 size={18} /></button>}
+      </div>
+    )
+  }
+
   return (
-    <div style={{ fontFamily: F, paddingTop: 0, paddingBottom: 80, color: 'var(--tx2)' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, gap: 12, flexWrap: 'wrap' }}>
+    <div className={isMobile ? 'mwd' : undefined} style={{ fontFamily: F, paddingTop: 0, paddingBottom: 80, color: 'var(--tx2)' }}>
+      <div className="mwd-back" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, gap: 12, flexWrap: 'wrap' }}>
         <BackButton onBack={onBack} label={T('رجوع','Back')} navKind="worker" navId={w.id} isAr={isAr} />
       </div>
+      {isMobile && renderMobileHero()}
       {/* الترويسة — صورة العامل + الاسم على جهة، وأزرار الإجراءات على الجهة الأخرى، ثم الوصف */}
-      <div style={{ marginTop: 6, marginBottom: 16 }}>
+      <div className="m-hide" style={{ marginTop: 6, marginBottom: 16 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
           <div style={{ flex: '1 1 300px', minWidth: 240, display: 'flex', alignItems: 'center', gap: 16 }}>
             <WorkerAvatar w={w} size={72} radius={16} />
@@ -3181,17 +3383,17 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
       </div>
 
       {/* عمودان: كروت البيانات (يمين) + هيرو الحالة (يسار) — مثل تفاصيل المنشأة */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr minmax(280px, 340px)', gap: 16, alignItems: 'start' }}>
+      <div className="mw-cols" style={{ display: 'grid', gridTemplateColumns: '1fr minmax(280px, 340px)', gap: 16, alignItems: 'start' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
           {/* بيانات العامل */}
           {cardVisible(user, 'workers', 'personal_data') && (
-          <div style={cardChrome}>
+          <div className={'mw-card ' + (sec('info') || '')} style={cardChrome}>
             <CardHead onEdit={onEdit ? () => onEdit('data') : undefined} allowEdit={canCardBtn(user, 'workers', 'personal_data', 'edit')}>{T('البيانات الشخصية','Personal Data')}</CardHead>
-            <div style={{ padding: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div className="mw-grid" style={{ padding: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <Field full k={T('اسم العامل','Worker Name')} v={w.name_ar || w.name_en} src="name_ar" />
               <Field k={T('الجنسية','Nationality')} v={w.nationality_ar} src="nationality_ar" />
               {/* تاريخ الميلاد — العمر كتاق بأيقونة كيكة بجانب التاريخ */}
-              <div style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+              <div className="mw-f" style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span style={{ fontSize: 9.5, color: 'var(--tx3)', fontWeight: 600, whiteSpace: 'nowrap' }}>{T('تاريخ الميلاد','Date of Birth')}</span>
                   {w.birth_date && srcOf('birth_date') && <SrcPill src={srcOf('birth_date')} isAr={isAr} />}
@@ -3215,7 +3417,7 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
               يحمل زر التعديل الذي كان في «البيانات المهنية» (يفتح محرّر الوثائق:
               الإقامة/الحدود/المهنة + رفع ملفات مقيم/تأشيرة/رخصة العمل). فوق كرت الجواز. */}
           {cardVisible(user, 'workers', 'residency_data') && (w.iqama_number || w.border_number || w.occupation_ar || w.residency_status_ar || w.iqama_issue_date || w.iqama_expiry_date || w.is_outside_kingdom != null) && (
-          <div style={cardChrome}>
+          <div className={'mw-card ' + (sec('info') || '')} style={cardChrome}>
             <CardHead action={
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
                 <SrcHead src="muqeem" />
@@ -3232,7 +3434,7 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
                 {onEdit && <EditBtn onClick={() => onEdit('docs')} allow={canCardBtn(user, 'workers', 'professional_data', 'edit')} />}
               </span>
             }>{T('بيانات الإقامة','Residency Data')}</CardHead>
-            <div style={{ padding: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div className="mw-grid" style={{ padding: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <Field k={T('رقم الإقامة','Iqama No.')} v={w.iqama_number} mono color={C.gold} src="iqama_number" />
               <Field k={T('رقم الحدود','Border No.')} v={w.border_number} mono color={C.blue} src="border_number" />
               <Field k={T('حالة الإقامة في مقيم','Muqeem Residency Status')} v={w.residency_status_ar}
@@ -3253,7 +3455,7 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
               )}
               {/* عدد مرات النقل + رصيد الجوازات في صف واحد (شبكة فرعية بعرض كامل تضمن بقاءهما جنباً لجنب) */}
               {(w.sponsor_changes != null || (muqeemData?.hasDetail && muqeemData.jawazatBalance != null)) && (
-                <div style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div className="mw-grid" style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   {/* عدد مرات النقل — من مقيم (numberOfSponsorChanges)، يُخزَّن على العامل عبر «جلب من مقيم» */}
                   {w.sponsor_changes != null && (
                     <Field k={T('عدد مرات النقل','Sponsor Transfers')} v={String(w.sponsor_changes)} mono
@@ -3267,7 +3469,7 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
                 </div>
               )}
               {/* ملف مقيم — المرفوع يدوياً وإلا تقرير مقيم PDF المزامَن تلقائياً */}
-              <div style={{ gridColumn: '1 / -1' }}>
+              <div className="mw-hide-m" style={{ gridColumn: '1 / -1' }}>
                 <FileTile label={T('ملف مقيم','Muqeem file')} att={muqeemAtt} />
               </div>
             </div>
@@ -3281,12 +3483,12 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
             // فرع مكتب العامل الفعّال (تخصيص يدوي وإلا فرع المنشأة).
             const workerBranchObj = ownBranch || branchById[f?.branch_id] || f?.branch
             return (
-            <div style={cardChrome}>
+            <div className={'mw-card ' + (sec('info') || '')} style={cardChrome}>
               <CardHead onEdit={openBranchEdit} allowEdit={canCardBtn(user, 'workers', 'facility_branch', 'edit')}>{T('المنشأة والفرع','Facility & Branch')}</CardHead>
-              <div style={{ padding: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <div className="mw-grid" style={{ padding: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 <Field full k={T('المنشأة','Facility')} v={f?.name_ar || f?.name_en} link={f?.id} />
                 {/* أرقام المنشأة الثلاثة في صندوق واحد (ثلاثة أعمدة بفواصل) */}
-                <div style={{ gridColumn: '1 / -1', background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 0 }}>
+                <div className="mw-box" style={{ gridColumn: '1 / -1', background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 0 }}>
                   {[
                     { k: T('الرقم الموحد','Unified No.'), v: f?.unified_number, c: C.gold },
                     { k: T('رقم الموارد البشرية','HRSD No.'), v: f?.hrsd_number, c: C.blue },
@@ -3310,7 +3512,7 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
                   title={facBranches.length ? facBranches.map(brTipOf).filter(Boolean).join('، ') : null} />
                 <Field k={T('فرع مكتب العامل','Worker Office Branch')}
                   v={brCodeOf(workerBranchObj)} color={C.gold} title={brTipOf(workerBranchObj)} />
-                <div style={{ gridColumn: '1 / -1', fontSize: 10.5, fontWeight: 600, color: branchIsOverride ? C.gold : 'var(--tx4)', display: 'flex', alignItems: 'center', gap: 6, paddingInlineStart: 2 }}>
+                <div className="mw-note" style={{ gridColumn: '1 / -1', fontSize: 10.5, fontWeight: 600, color: branchIsOverride ? C.gold : 'var(--tx4)', display: 'flex', alignItems: 'center', gap: 6, paddingInlineStart: 2 }}>
                   <span style={{ width: 5, height: 5, borderRadius: '50%', background: branchIsOverride ? C.gold : 'var(--tx4)', flexShrink: 0 }} />
                   {branchIsOverride
                     ? T('فرع العامل مخصّص يدويًا (مختلف عن فرع المنشأة)', 'Worker branch set manually (differs from facility branch)')
@@ -3322,9 +3524,9 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
           })()}
           {/* جواز السفر — وثيقة سفر مستقلة عن الإقامة السعودية */}
           {cardVisible(user, 'workers', 'passport_data') && (
-          <div style={cardChrome}>
+          <div className={'mw-card ' + (sec('info') || '')} style={cardChrome}>
             <CardHead onEdit={onEdit ? () => onEdit('passport') : undefined} allowEdit={canCardBtn(user, 'workers', 'passport_data', 'edit')}>{T('بيانات الجواز','Passport Data')}</CardHead>
-            <div style={{ padding: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div className="mw-grid" style={{ padding: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <Field k={T('رقم الجواز','Passport No.')} v={w.passport_number} mono color={C.purple} src="passport_number" />
               <Field k={T('تاريخ انتهاء الجواز','Passport Expiry')} v={w.passport_expiry ? fmtDate(w.passport_expiry) : null} mono src="passport_expiry" />
             </div>
@@ -3343,14 +3545,14 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
             const ctDays = daysUntil(w.contract_expiry_date)
             const ctClr = ctDays == null ? undefined : ctDays <= 0 ? C.red : ctDays <= 30 ? C.gold : C.ok
             return (
-              <div style={cardChrome}>
+              <div className={'mw-card ' + (sec('work') || '')} style={cardChrome}>
                 <CardHead action={
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
                     <SrcHead src="qiwa" />
                     {onEdit && <EditBtn onClick={() => onEdit('work_permit')} />}
                   </span>
                 }>{T('رخصة العمل والعقد','Work Permit & Contract')}</CardHead>
-                <div style={{ padding: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div className="mw-grid" style={{ padding: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   <Field k={T('رقم رخصة العمل','Work Permit No.')} v={w.work_permit_number} mono color={C.blue} src="work_permit_number" />
                   <Field k={T('حالة الرخصة','Permit Status')} v={wpStatusLabel} color={wpClr} src="work_permit_status" />
                   <Field k={T('تاريخ إصدار الرخصة','Permit Start')} v={w.work_permit_start ? fmtDate(w.work_permit_start) : null} mono src="work_permit_start" />
@@ -3361,7 +3563,7 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
                   <Field k={T('نهاية العقد','Contract Expiry')} v={w.contract_expiry_date ? fmtDate(w.contract_expiry_date) : null} mono color={ctClr} src="contract_expiry_date" />
                   <Field full k={T('الحالة الوظيفية','Employment Status')} v={w.employment_status_ar} src="employment_status_ar" />
                   {/* ملفات العمل — تأشيرة العمل + رخصة العمل (تُرفع من محرّر الوثائق) */}
-                  <div style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <div className="mw-hide-m" style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                     <FileTile label={T('ملف تأشيرة العمل','Work visa file')} att={docFiles.work_visa_file || null} />
                     <FileTile label={T('ملف رخصة العمل','Work permit file')} att={docFiles.work_permit_file || null} />
                   </div>
@@ -3377,14 +3579,14 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
               : w.worker_status || null
             const stClr = w.worker_status === 'active' ? C.ok : w.worker_status === 'suspended' ? C.orange : undefined
             return (
-            <div style={cardChrome}>
+            <div className={'mw-card ' + (sec('work') || '')} style={cardChrome}>
               <CardHead action={
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
                   <SrcHead src="gosi" />
                   {onEdit && <EditBtn onClick={() => onEdit('wage')} />}
                 </span>
               }>{T('الأجر والاشتراك','Wage & Subscription')}</CardHead>
-              <div style={{ padding: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <div className="mw-grid" style={{ padding: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 <Field k={T('الأجر الأساسي','Basic Wage')} v={w.wage_basic != null ? num(w.wage_basic) : null} mono src="wage_basic" suffix={T('ريال','SAR')} />
                 <Field k={T('الأجر الإجمالي','Total Wage')} v={w.wage_total != null ? num(w.wage_total) : null} mono color={C.gold} src="wage_total" suffix={T('ريال','SAR')} />
                 <Field k={T('تاريخ الالتحاق','Joining Date')} v={w.joining_date ? fmtDate(w.joining_date) : null} mono src="joining_date" />
@@ -3406,7 +3608,7 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
             const insD = daysUntil(insExpiry)
             const insClr = insD == null ? C.gray : insD <= 0 ? C.red : insD <= 30 ? C.gold : C.ok
             return (
-              <div style={cardChrome}>
+              <div className={'mw-card ' + (sec('work') || '')} style={cardChrome}>
                 <CardHead action={
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                     {fromMuqeem && <SrcPill src="muqeem" isAr={isAr} />}
@@ -3422,7 +3624,7 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
                     {onEdit && <EditBtn onClick={() => onEdit('insurance')} />}
                   </span>
                 }>{T('بيانات التأمين الطبي','Medical Insurance Data')}</CardHead>
-                <div style={{ padding: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div className="mw-grid" style={{ padding: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   <Field k={T('تاريخ بداية التأمين','Insurance Start')} v={insStart ? fmtDate(insStart) : null} mono />
                   <Field k={T('تاريخ انتهاء التأمين','Insurance Expiry')} v={insExpiry ? fmtDate(insExpiry) : null} mono color={insClr} />
                   <Field k={T('رقم البوليصة','Policy No.')} v={insPolicy} mono color={C.purple} />
@@ -3445,7 +3647,7 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
             const p = (n) => String(n).padStart(2, '0')
             const retStr = `${retDate.getFullYear()}-${p(retDate.getMonth() + 1)}-${p(retDate.getDate())}`
             return (
-              <div style={cardChrome}>
+              <div className={'mw-card ' + (sec('work') || '')} style={cardChrome}>
                 <CardHead action={
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                     <SrcHead src="muqeem" />
@@ -3453,7 +3655,7 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
                     {onEdit && <EditBtn onClick={() => onEdit('exit_visa')} />}
                   </span>
                 }>{T('تأشيرة الخروج والعودة','Exit & Return Visa')}</CardHead>
-                <div style={{ padding: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div className="mw-grid" style={{ padding: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   <Field k={T('رقم التأشيرة','Visa No.')} v={v.visaNumber} mono color={C.blue} />
                   <Field k={T('نوع التأشيرة','Visa Type')} v={v.visaType?.ar} color={C.gold} />
                   <Field k={T('تاريخ الإصدار','Issue Date')} v={fmtMDate(v.visaIssueDateg || v.visaIssueDateG)} mono />
@@ -3469,14 +3671,14 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
             const depDays = daysUntil(fmtMDate(v.visaFinalDepartureDateG))
             const depClr = depDays == null ? undefined : depDays <= 0 ? C.red : depDays <= 30 ? C.gold : C.ok
             return (
-              <div style={cardChrome}>
+              <div className={'mw-card ' + (sec('work') || '')} style={cardChrome}>
                 <CardHead action={
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
                     <SrcHead src="muqeem" />
                     {onEdit && <EditBtn onClick={() => onEdit('exit_visa')} />}
                   </span>
                 }>{T('الخروج النهائي','Final Exit')}</CardHead>
-                <div style={{ padding: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div className="mw-grid" style={{ padding: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   <Field k={T('رقم التأشيرة','Visa No.')} v={v.visaNumber} mono color={C.red} />
                   <Field k={T('تاريخ الإصدار','Issue Date')} v={fmtMDate(v.visaIssueDateG || v.visaIssueDateg)} mono />
                   <Field full k={T('تاريخ المغادرة النهائية','Final Departure Date')} v={fmtMDate(v.visaFinalDepartureDateG)} mono color={depClr}
@@ -3488,14 +3690,14 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
           {/* كرت «بيانات التواصل الفاتورية» أُزيل — أرقام جوال الفواتير انتقلت إلى «البيانات الفعلية». */}
           {/* البيانات الفعلية — رقم الجوال الرسمي + المهنة الفعلية + مدينة المقر + أرقام جوال الفواتير */}
           {cardVisible(user, 'workers', 'actual_data') && (
-          <div style={cardChrome}>
+          <div className={'mw-card ' + (sec('info') || '')} style={cardChrome}>
             <CardHead onEdit={onEdit ? () => onEdit('actual') : undefined} allowEdit={canCardBtn(user, 'workers', 'actual_data', 'edit')}>{T('البيانات الفعلية','Actual Data')}</CardHead>
-            <div style={{ padding: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div className="mw-grid" style={{ padding: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <Field k={T('رقم جوال ابشر','Absher Mobile')} v={fmtMobile(w.official_mobile) || null} mono color={C.ok} />
               <Field k={T('مدينة المقر','HQ City')} v={w.hq_city_ar} />
               <Field full k={T('المهنة الفعلية','Actual Occupation')} v={w.official_occupation_ar} />
               {/* أرقام جوال الفواتير — مصفوفة قابلة للنسخ */}
-              <div style={{ gridColumn: '1 / -1', background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div className="mw-box" style={{ gridColumn: '1 / -1', background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <span style={{ fontSize: 9.5, color: 'var(--tx3)', fontWeight: 600, whiteSpace: 'nowrap' }}>{T('أرقام جوال الفواتير','Billing Mobiles')}</span>
                 {billingList.length ? (
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
@@ -3515,8 +3717,8 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
           )}
           {/* كرت الفواتير والخدمات — إجماليات + قائمة (نقرة على الفاتورة → تفاصيل الفاتورة). نفس صفحة المنشأة. */}
           {cardVisible(user, 'workers', 'invoices_services') && (
-          <div style={cardChrome}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '13px 18px', borderBottom: '1px solid var(--bd)' }}>
+          <div className={'mw-card ' + (sec('bill') || '')} style={cardChrome}>
+            <div className="mw-ch2" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '13px 18px', borderBottom: '1px solid var(--bd)' }}>
               <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.blue }} />
               <span style={{ fontSize: 16, fontWeight: 600, letterSpacing: '.2px', color: C.blue }}>{T('الفواتير والخدمات', 'Invoices & Services')}</span>
               <span style={{ marginInlineStart: 'auto', fontSize: 11.5, fontWeight: 600, color: 'var(--tx4)' }}>{facRows ? `${num(facListRows.length)} ${T('طلب', 'requests')}` : '—'}</span>
@@ -3550,8 +3752,8 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
           {/* عميل ووسيط الفاتورة — لكل فاتورة (نقل كفالة / تأشيرة بإقامة …) العميل
               الأصلي للفاتورة والوسيط. الفاتورة قد تكون على عميل مختلف عن العامل. */}
           {cardVisible(user, 'workers', 'invoice_parties') && invParties.length > 0 && (
-          <div style={cardChrome}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '13px 18px', borderBottom: '1px solid var(--bd)' }}>
+          <div className={'mw-card ' + (sec('bill') || '')} style={cardChrome}>
+            <div className="mw-ch2" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '13px 18px', borderBottom: '1px solid var(--bd)' }}>
               <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
               <span style={{ fontSize: 16, fontWeight: 600, letterSpacing: '.2px', color: C.gold }}>{T('عميل ووسيط الفاتورة', 'Invoice Client & Agent')}</span>
               <span style={{ marginInlineStart: 'auto', fontSize: 11.5, fontWeight: 600, color: 'var(--tx4)' }}>{`${num(invParties.length)} ${T('فاتورة', 'invoices')}`}</span>
@@ -3589,12 +3791,15 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
 
           {/* سجل التعديلات — يظهر فقط عند وجود تعديلات (نفس صفحة المنشأة). */}
           {cardVisible(user, 'workers', 'activity_log') && (
+          <div className={sec('log')} style={{ display: 'contents' }}>
           <WorkerEditLog entries={[...(Array.isArray(w.edit_log) ? w.edit_log : []), ...logExtra]} created={w.created_at ? { at: w.created_at, by_name: creatorName, label: wName } : null} fileUrls={attUrls} T={T} />
+          </div>
           )}
 
           {/* التجديد — بوكماركت مقيم لتجديد إقامة العامل (آخر كرت). محاط بحاجز
               أخطاء حتى لا يبيّض رد غير متوقع من مقيم صفحة العامل. */}
           {cardVisible(user, 'workers', 'residency_data') && (
+          <div className={sec('log')} style={{ display: 'contents' }}>
           <CardBoundary fallback={
             <div style={{ ...cardChrome, padding: 16, fontSize: 12.5, fontWeight: 600, color: 'var(--tx4)', textAlign: 'center' }}>
               {T('تعذّر عرض كرت التجديد', 'Could not render the renewal card')}
@@ -3602,13 +3807,24 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
           }>
             <RenewalCard w={w} f={f} sb={sb} T={T} isAr={isAr} toast={toast} />
           </CardBoundary>
+          </div>
+          )}
+          {/* الجوال: تبويب «الوثائق» — ملفات العامل كصفوف قائمة */}
+          {isMobile && mTab === 'docs' && (
+            <div className="mw-docs">
+              <div className="mw-docs-h">{T('وثائق العامل', 'Worker documents')}</div>
+              <MDocRow label={T('ملف مقيم', 'Muqeem file')} att={muqeemAtt} T={T} />
+              <MDocRow label={T('ملف تأشيرة العمل', 'Work visa file')} att={docFiles.work_visa_file || null} T={T} />
+              <MDocRow label={T('ملف رخصة العمل', 'Work permit file')} att={docFiles.work_permit_file || null} T={T} />
+              <MDocRow label={T('ملف تأشيرة الخروج', 'Exit visa file')} att={docFiles.exit_visa_file || null} T={T} />
+            </div>
           )}
         </div>
 
         {/* هيرو الحالة — حالة الإقامة (تصميم «حالة كبيرة») + تاق تأشيرة الخروج أسفله */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div className={isMobile ? ('mw-side ' + (sec('info') || '')) : undefined} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {cardVisible(user, 'workers', 'iqama_status') && (
-          <div style={cardChrome}>
+          <div className="m-hide" style={cardChrome}>
             <div style={{ padding: 20, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
               <span style={{ fontSize: 11.5, fontWeight: 500, color: 'var(--tx4)', letterSpacing: '.5px' }}>{T('حالة الإقامة','Iqama Status')}</span>
               <div style={{ margin: '10px 0 2px', fontSize: 28, fontWeight: 600, color: iqColor, lineHeight: 1.1 }}>{iqShort}</div>
@@ -3679,6 +3895,8 @@ function WorkerDetail({ worker: w, facility: f, sb, toast, T, isAr, onBack, onEd
           })()}
         </div>
       </div>
+
+      {isMobile && renderMobileActions()}
 
       {/* تأكيد حذف العامل (حذف ناعم — deleted_at) — نفس صفحة المنشأة. */}
       {confirm === 'delete' && (

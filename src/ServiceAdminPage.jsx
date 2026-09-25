@@ -7,6 +7,8 @@ import {hydrateSvcAdminFromDb,saveSvcAdminSetting} from './lib/serviceAdminSync.
 import {EmptyState,Modal,SuccessView,ActionButton,ModalSection,CurrencyField,NumberField,Select,ScrollBox,DateField} from './components/ui/FormKit.jsx'
 import {cardVisible,canCardBtn} from './lib/permissions.js'
 import ExpiryDurationCard from './components/ExpiryDurationCard.jsx'
+import {useIsMobile,MStatStrip,MChips,MBadge} from './components/mobile/MobileKit.jsx'
+import {MPageHead,MBack,MHero,MGroup,MItem,MLink,MSwitchRow} from './pages/admin/MAdminKit.jsx'
 
 // Shared Kafala pricing config — drives both the service-request kafala modal AND the Kafala Calculator modal
 export const KAFALA_DEFAULTS={
@@ -502,6 +504,8 @@ const [branches,setBranches]=useState([])
 // {svcId, branchId|null, draft:{active?,billable?,pricing:{...}}} or null
 const [overrideEditor,setOverrideEditor]=useState(null)
 const [searchQ]=useState('')
+const isMobile=useIsMobile()
+const [mFilter,setMFilter]=useState('all')// mobile-only status chips (all|active|free|off)
 const [isPriceEditable,setIsPriceEditable]=useState(false)
 const [priceSnapshot,setPriceSnapshot]=useState(null)
 // When non-null, the pricing editor edits a per-branch override (applied to these branchIds) instead of the global default.
@@ -2256,6 +2260,124 @@ const SVC_LIST_STYLES=(<style>{`
 // ═══════════════════════════════════════════════════════════════
 // DETAIL VIEW — opens when a service is clicked from the list
 // ═══════════════════════════════════════════════════════════════
+if(selectedSvc&&isMobile){
+  const s=selectedSvc
+  const I=s.Icon
+  const st=getState(s.id)
+  const hasPrice=!!PRICING_SCHEMA[s.id]
+  const ovs=getOverridesForSvc(s.id)
+  const showDefault=cardVisible(user,'admin_services','default_pricing')&&hasPrice&&st.billable&&!(priceBranchCtx&&overrideEditor?.svcId===s.id)
+  if(showDefault&&expanded!==s.id&&!priceBranchCtx){setTimeout(()=>{setExpanded(s.id);setPriceState(getPricing(s.id)||{});setCollapsed(Object.fromEntries(ALL_KAFALA_SECTIONS.map(t=>[t,true])));setEditing({})},0)}
+  const canOvEdit=canCardBtn(user,'admin_services','branch_overrides','edit')
+  const sp=samplePrice(s.id)
+  return<div className="ma-svc" style={{direction:'rtl',fontFamily:F,color:'var(--tx2)'}}>
+    {SVC_LIST_STYLES}
+    <MBack onBack={()=>setSelectedSvcId(null)} label="الخدمات"/>
+    <MHero avatar={<I strokeWidth={1.8}/>} square tone={!st.active?'red':(!st.billable?'green':'gold')} title={(isAr?(s.name_ar||s.name_en):(s.name_en||s.name_ar))||T('تفاصيل الخدمة','Service details')}
+      sub={st.billable&&sp?`${Number(sp.value).toLocaleString('en-US')} ${sp.sfx||'ريال'}`:null}
+      badges={<>
+        <MBadge text={st.active?'فعّالة':'معطّلة'} tone={st.active?'green':'red'}/>
+        <MBadge text={st.billable?'مفوترة':'مجانية'} tone={st.billable?'gold':'green'}/>
+        {ovs.length>0&&<MBadge text={`${ovs.length} تخصيص`} tone="blue"/>}
+      </>}/>
+    {cardVisible(user,'admin_services','operations_and_billing')&&(
+      <MGroup title="التشغيل والفوترة">
+        <MSwitchRow title="الخدمة فعّالة" sub={st.active?'متاحة لكل المكاتب':'معطّلة لكل المكاتب'} on={st.active}
+          disabled={!canCardBtn(user,'admin_services','operations_and_billing','toggle_active')} onChange={()=>update(s.id,'active',!st.active)}/>
+        <MSwitchRow title="مفوترة" sub={st.billable?'تُضاف للفاتورة بسعر التسعير':'مجانية — لا تُحتسب على العميل'} on={st.billable}
+          disabled={!canCardBtn(user,'admin_services','operations_and_billing','toggle_billable')} onChange={()=>update(s.id,'billable',!st.billable)}/>
+      </MGroup>
+    )}
+    {showDefault&&(
+      <MGroup title="التسعير الافتراضي (لكل المكاتب)" className="ma-svc-price"
+        action={canCardBtn(user,'admin_services','default_pricing','edit')&&s.id!=='kafala_transfer'&&s.id!=='iqama_renewal'?<MLink onClick={openPriceModal}>تعديل</MLink>:null}>
+        <div className="ma-pad">
+          {s.id==='iqama_renewal'?renderIqamaInlineEditor(s,{canEdit:canCardBtn(user,'admin_services','default_pricing','edit')}):renderPriceEditor(s,{readOnly:true,canEdit:canCardBtn(user,'admin_services','default_pricing','edit')})}
+        </div>
+      </MGroup>
+    )}
+    {cardVisible(user,'admin_services','default_pricing')&&(s.id==='kafala_transfer'||s.id==='iqama_renewal')&&st.billable&&(
+      <div className="ma-svc-expiry"><ExpiryDurationCard pricing={getPricing(s.id)} canEdit={canCardBtn(user,'admin_services','default_pricing','edit')}
+        onSave={(patch)=>{setPricing(s.id,patch);setPriceState(p=>({...p,...patch}))}}/></div>
+    )}
+    {cardVisible(user,'admin_services','document_types')&&s.id==='documents'&&(
+      <MGroup title={`أنواع المستندات · ${docTypes.length}`} footer="الأنواع المضافة هنا تظهر في قائمة «نوع المستند» عند إنشاء طلب مستندات.">
+        {docTypes.map(d=>(
+          <div key={d.value} className="ma-kv">
+            <FileStack size={18} color={C.gold} strokeWidth={2} style={{flexShrink:0}}/>
+            <input className="ma-input ma-input-flat" value={d.label} onChange={e=>renameDocType(d.value,e.target.value)} readOnly={!canCardBtn(user,'admin_services','document_types','edit')}/>
+            {canCardBtn(user,'admin_services','document_types','delete')&&<button type="button" className="ma-mini del" onClick={()=>removeDocType(d.value)} aria-label="حذف"><X size={15} strokeWidth={2.6}/></button>}
+          </div>
+        ))}
+        {docTypes.length===0&&<div className="ma-empty">لا توجد أنواع بعد</div>}
+        {canCardBtn(user,'admin_services','document_types','create')&&(
+          <div className="ma-kv">
+            <input className="ma-input" value={newDocLabel} onChange={e=>setNewDocLabel(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();addDocType()}}} placeholder="نوع مستند جديد…"/>
+            <button type="button" className="ma-mini ok" onClick={addDocType} disabled={!newDocLabel.trim()} style={{height:44,padding:'0 16px'}}>إضافة</button>
+          </div>
+        )}
+      </MGroup>
+    )}
+    {cardVisible(user,'admin_services','branch_overrides')&&(
+      <MGroup title={`التخصيصات حسب المكتب · ${ovs.length}`}
+        footer={ovs.length===0?'كل المكاتب تستخدم الإعدادات الافتراضية.':null}>
+        {ovs.map(o=>{
+          const br=branches.find(b=>b.id===o.branchId)
+          const aOff=o.active===false
+          const nPrice=Object.keys(o.pricing||{}).length
+          return <MItem key={o.branchId} tone={aOff?'red':'gold'} leading={<Building2 size={20}/>}
+            onClick={canOvEdit?()=>{isSimplePricing(s.id)?openOvModal(s.id,o.branchId):openOverrideEditor(s.id,o.branchId)}:undefined}
+            title={<span dir="ltr">{br?.branch_code||'—'}</span>}
+            sub={[br?.name_ar,aOff?'معطّلة':null,typeof o.billable==='boolean'?(o.billable?'مفوترة':'مجانية'):null,nPrice?`${nPrice} سعر مخصّص`:'الأسعار افتراضية'].filter(Boolean).join(' · ')}
+            trailing={canCardBtn(user,'admin_services','branch_overrides','delete')?<button type="button" className="ma-mini del" aria-label="حذف التخصيص" onClick={e=>{e.stopPropagation();removeBranchOverride(o.branchId,s.id)}}><X size={15} strokeWidth={2.6}/></button>:null}/>
+        })}
+        {!isSimplePricing(s.id)&&overrideEditor&&overrideEditor.svcId===s.id&&<div className="ma-pad">{renderInlineOverrideEditor(s)}</div>}
+        {canCardBtn(user,'admin_services','branch_overrides','create')&&!(overrideEditor&&overrideEditor.svcId===s.id)&&(
+          <MItem tone="gold" leading={<Building2 size={20}/>} title={<span style={{color:C.gold}}>إضافة تخصيص لمكتب</span>} chevron={false}
+            onClick={()=>isSimplePricing(s.id)?openOvModal(s.id,null):openOverrideEditor(s.id,null)}/>
+        )}
+      </MGroup>
+    )}
+    <Modal
+      open={isPriceEditable && s.id!=='kafala_transfer' && s.id!=='iqama_renewal'}
+      onClose={closePriceModal}
+      title="تعديل التسعير الافتراضي"
+      subtitle={isAr?(s.name_ar||s.name_en):(s.name_en||s.name_ar)}
+      Icon={p=>{const Ic=s.Icon||Coins;return <Ic {...p} size={34}/>}}
+      accent={C.gold}
+      width={520}
+      success={priceSaved ? <SuccessView title="تم حفظ التسعيرة" /> : undefined}
+      {...(s.id==='ajeer_contract'
+        ? {submitLabel:'حفظ التسعيرة',onSubmit:()=>submitPriceModal(s.id),height:'min(470px, 92vh)',pages:[
+            {title:'الرسوم الأساسية',content:renderPriceModalBody(s)},
+            {title:'معامل السعودة',content:renderSaudSection()},
+          ]}
+        : {scroll:true,footer:!priceSaved && (
+            <ActionButton dir="back" color={C.gold} onClick={()=>submitPriceModal(s.id)}>حفظ التسعيرة</ActionButton>
+          )})}
+    >
+      {s.id!=='ajeer_contract' && s.id!=='iqama_renewal' && (isSimplePricing(s.id) ? renderPriceModalBody(s) : renderPriceEditor(s,{inModal:true}))}
+    </Modal>
+    <Modal
+      open={ovModal===s.id}
+      onClose={closeOvModal}
+      title="تخصيص حسب المكتب"
+      subtitle={isAr?(s.name_ar||s.name_en):(s.name_en||s.name_ar)}
+      Icon={p=>{const Ic=s.Icon||Coins;return <Ic {...p} size={34}/>}}
+      accent={C.gold}
+      width={520}
+      height="min(620px, 92vh)"
+      success={ovSaved ? <SuccessView title="تم حفظ التخصيص" /> : undefined}
+      submitLabel="حفظ التخصيص"
+      onSubmit={()=>submitOvModal(s.id)}
+      pages={[
+        {valid:ovBranchIds.length>0, content:renderOvBranchPicker(s.id)},
+        {content:renderOvPricingFields(s.id)},
+      ]}
+    />
+  </div>
+}
+
 if(selectedSvc){
   const s=selectedSvc
   const I=s.Icon
@@ -2565,6 +2687,36 @@ if(selectedSvc){
 // ═══════════════════════════════════════════════════════════════
 // LIST VIEW — InvoicePage-style hero + grouped row-cards
 // ═══════════════════════════════════════════════════════════════
+if(isMobile){
+  const pass=(sv)=>{const st=getState(sv.id);return mFilter==='all'||(mFilter==='active'&&st.active&&st.billable)||(mFilter==='free'&&st.active&&!st.billable)||(mFilter==='off'&&!st.active)}
+  const row=(sv)=>{
+    const st=getState(sv.id)
+    const I=sv.Icon
+    const ovs=getOverridesForSvc(sv.id)
+    const sp=samplePrice(sv.id)
+    return <MItem key={sv.id} dim={!st.active} onClick={()=>setSelectedSvcId(sv.id)} tone={!st.active?'red':(!st.billable?'green':'gold')} leading={<I size={20} strokeWidth={1.9}/>}
+      title={sv.name_ar} sub={[st.active?(st.billable?'مفوترة':'مجانية'):'معطّلة',ovs.length?`${ovs.length} تخصيص`:null].filter(Boolean).join(' · ')}
+      value={st.billable&&st.active?(sp?Number(sp.value).toLocaleString('en-US'):'—'):null} valueTone="gold"/>
+  }
+  const grp=(title,list)=>{const l=list.filter(pass);const act=list.filter(sv=>getState(sv.id).active).length;return l.length?<MGroup title={title} action={<span className="ma-group-meta">{act}/{list.length} فعّالة</span>}>{l.map(row)}</MGroup>:null}
+  const nOv=Object.keys(branchOverrides).length
+  return<div style={{direction:'rtl',fontFamily:F}}>
+    <MPageHead title="إدارة الخدمات" sub="الحالة والفوترة والتسعير لكل مكتب"/>
+    <MStatStrip items={[
+      {label:'الخدمات الفعّالة',value:activeCount,tone:'gold',sub:disabledCount===0?'كلها فعّالة':`${disabledCount} معطّلة`},
+      {label:'مفوترة',value:billableCount,tone:'blue'},
+      {label:'مجانية',value:freeCount,tone:'green'},
+      nOv>0&&{label:'مكاتب مخصّصة',value:nOv,tone:'purple'},
+    ]}/>
+    <MChips value={mFilter} onChange={setMFilter} options={[
+      {value:'all',label:'الكل',count:totalCount},{value:'active',label:'مفوترة',count:billableCount},{value:'free',label:'مجانية',count:freeCount},{value:'off',label:'معطّلة',count:disabledCount},
+    ]}/>
+    {grp('الخدمات الرئيسية',filteredMain)}
+    {grp('الخدمات الأخرى',filteredOther)}
+    {![...filteredMain,...filteredOther].some(pass)&&<EmptyState title="لا توجد خدمات" desc="لا خدمات بهذه الحالة"/>}
+  </div>
+}
+
 return<div style={{paddingTop:0,paddingBottom:80,display:'flex',flexDirection:'column',direction:'rtl',fontFamily:F}}>
 {SVC_LIST_STYLES}
 

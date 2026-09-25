@@ -4,6 +4,8 @@ import { Modal as FKModal, ConfirmDialog, ModalSection, ActionButton, GRID, Fiel
 import { Briefcase, Flag, Landmark, MapPin, Tag, Banknote, Globe, FileText } from 'lucide-react'
 import PageSkeleton from './components/ui/Skeleton.jsx'
 import { can } from './lib/permissions.js'
+import { useIsMobile, MChips } from './components/mobile/MobileKit.jsx'
+import './styles/m-admin.css'
 const F="'Cairo','Tajawal',sans-serif"
 const C={dk:'#171717',fm:'#1e1e1e',gold:'#B07D00',red:'#c0392b',blue:'#3483b4',ok:'#27a046'}
 const GLASS_CARD={background:'var(--card-grad)',backdropFilter:'blur(20px) saturate(160%)',WebkitBackdropFilter:'blur(20px) saturate(160%)',border:'1px solid var(--bd)',borderRadius:16,boxShadow:'0 8px 24px rgba(0,0,0,.32), 0 2px 6px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.06), inset 0 -1px 0 rgba(0,0,0,.2)'}
@@ -260,6 +262,7 @@ export default function SettingsPage({sb,toast,user,lang,onTabChange,defaultMain
 const isAr=lang!=='en'
 const[showFormKit,setShowFormKit]=useState(false)
 const[mainTab,setMainTab]=useState(defaultMainTab||'general_group')
+const isMobile=useIsMobile()
 const[tab,setTab]=useState(()=>{
 const g=(defaultMainTab==='fields_group')?{id:'fields_group',first:'categories'}:{id:'general_group',first:'general'}
 return g.first
@@ -398,7 +401,7 @@ occ:form._id?(isAr?'تعديل مهنة':'Edit Occupation'):(isAr?'إضافة م
 sa:form._id?(isAr?'تعديل صاحب حساب':'Edit Account Owner'):(isAr?'إضافة صاحب حساب':'Add Account Owner')
 }
 
-return<div>
+return<div className="ma-settings">
 <style>{`
 .jisr-icon-btn:hover{transform:translateY(-1px)}
 .jisr-edit-btn:hover{background:linear-gradient(145deg,rgba(176,125,0,.28),rgba(176,125,0,.14))!important;border-color:rgba(176,125,0,.5)!important;box-shadow:0 4px 12px rgba(176,125,0,.18)}
@@ -420,12 +423,12 @@ return<div>
 .jisr-key-copy.flash{color:${C.gold}!important}
 @media(max-width:640px){.jisr-meta-cluster{display:none!important}}
 `}</style>
-<div style={{marginBottom:24,display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:14,flexWrap:'wrap'}}>
+<div className="ma-set-head" style={{marginBottom:24,display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:14,flexWrap:'wrap'}}>
 <div style={{flex:1,minWidth:0}}>
 <div style={{fontSize:24,fontWeight:600,color:'var(--tx)',letterSpacing:'-.3px',lineHeight:1.2}}>{mainTab==='fields_group'?(isAr?'الحقول':'Fields'):(isAr?'الإعدادات والتصنيفات':'Settings & Categories')}</div>
 <div style={{fontSize:13,fontWeight:500,color:'var(--tx4)',marginTop:12,lineHeight:1.6}}>{mainTab==='fields_group'?(isAr?'إدارة الخانات والمهن والجنسيات والمناطق':'Manage categories, occupations, nationalities & regions'):(isAr?'إدارة البيانات الأساسية والتصنيفات':'Manage core data & categories')}</div>
 </div>
-<button onClick={()=>setShowFormKit(true)} title={isAr?'معرض الفورمات — كل أشكال الحقول والنوافذ الموحّدة':'FormKit gallery'} className="btn-primary-modal"
+<button onClick={()=>setShowFormKit(true)} title={isAr?'معرض الفورمات — كل أشكال الحقول والنوافذ الموحّدة':'FormKit gallery'} className="btn-primary-modal m-hide"
 style={{height:42,padding:'0 18px',borderRadius:11,fontFamily:F,fontSize:13,fontWeight:600,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:8,whiteSpace:'nowrap',flexShrink:0,transition:'background .15s ease, border-color .15s ease, box-shadow .15s ease'}}>
 {isAr?'معرض الفورمات':'FormKit'}
 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
@@ -433,12 +436,14 @@ style={{height:42,padding:'0 18px',borderRadius:11,fontFamily:F,fontSize:13,font
 </div>
 <FormKitShowcase open={showFormKit} onClose={()=>setShowFormKit(false)}/>
 
-{!defaultMainTab&&<div style={{display:'flex',gap:0,borderBottom:'1px solid var(--bd)',marginBottom:14,overflowX:'auto',scrollbarWidth:'none'}}>
+{!defaultMainTab&&isMobile&&<MChips value={mainTab} onChange={v=>{const g=tabGroups.find(x=>x.id===v);setMainTab(v);setTab(g.tabs[0].id);setQ('');setListFilter('')}} options={tabGroups.map(g=>({value:g.id,label:isAr?g.l:g.le}))}/>}
+{!defaultMainTab&&!isMobile&&<div style={{display:'flex',gap:0,borderBottom:'1px solid var(--bd)',marginBottom:14,overflowX:'auto',scrollbarWidth:'none'}}>
 {tabGroups.map(g=>{const sel=mainTab===g.id;return<div key={g.id} onClick={()=>{setMainTab(g.id);setTab(g.tabs[0].id);setQ('');setListFilter('')}} style={{padding:'10px 22px 9px',cursor:'pointer',color:sel?C.gold:'var(--tx4)',fontFamily:F,fontSize:13,fontWeight:sel?600:500,borderBottom:sel?'2px solid '+C.gold:'2px solid transparent',marginBottom:-1,transition:'.2s',letterSpacing:'-.2px',whiteSpace:'nowrap'}}>{isAr?g.l:g.le}</div>})}
 </div>}
-<div style={{display:'flex',gap:0,borderBottom:'1px solid var(--bd)',marginBottom:18,overflowX:'auto',scrollbarWidth:'none'}}>
+{isMobile&&<div className="ma-set-seg"><MChips value={tab} onChange={v=>{setTab(v);setQ('');setListFilter('')}} options={currentGroup.tabs.filter(t=>t.id!=='formkit').map(t=>({value:t.id,label:isAr?t.l:t.le}))}/></div>}
+{!isMobile&&<div style={{display:'flex',gap:0,borderBottom:'1px solid var(--bd)',marginBottom:18,overflowX:'auto',scrollbarWidth:'none'}}>
 {currentGroup.tabs.map(t=>{const sel=tab===t.id;return<div key={t.id} onClick={()=>{setTab(t.id);setQ('');setListFilter('')}} style={{padding:'10px 22px 9px',cursor:'pointer',color:sel?C.gold:'var(--tx4)',fontFamily:F,fontSize:13,fontWeight:sel?600:500,borderBottom:sel?'2px solid '+C.gold:'2px solid transparent',marginBottom:-1,transition:'.2s',letterSpacing:'-.2px',whiteSpace:'nowrap'}}>{isAr?t.l:t.le}</div>})}
-</div>
+</div>}
 
 {tab==='formkit'&&<div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',textAlign:'center',padding:'48px 24px',gap:18}}>
 <div style={{width:64,height:64,borderRadius:16,background:'rgba(176,125,0,.08)',border:'1px solid rgba(176,125,0,.25)',display:'flex',alignItems:'center',justifyContent:'center',color:C.gold}}>

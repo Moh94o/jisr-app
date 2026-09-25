@@ -1,6 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import './index.css'
+import './mobile.css'
 import App from './App.jsx'
 import PortalApp from './pages/portal/PortalApp.jsx'
 

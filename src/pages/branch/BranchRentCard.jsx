@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { Building2, FileText, Wallet, CreditCard, Plus, Trash2 } from 'lucide-react'
 import { can as canPerm, canCardBtn } from '../../lib/permissions.js'
+import { useIsMobile } from '../../components/mobile/MobileKit.jsx'
+import { MGroup, MKV, MItem, MLink } from '../admin/MAdminKit.jsx'
 import { Modal as FKModal, ModalSection as FKSection, TextField, CurrencyField, DateField, Select as FKSelect, FileField, SuccessView, ScrollBox, ActionButton, GRID, ConfirmDialog } from '../../components/ui/FormKit.jsx'
 
 const F = "'Cairo','Tajawal',sans-serif"
@@ -60,6 +62,7 @@ export default function BranchRentCard({ sb, branch, user, cardKey = 'rent_contr
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(false)
   const [payModal, setPayModal] = useState(null) // { id?, due_date, amount } for add/mark
+  const isMobile = useIsMobile()
 
   const load = useCallback(async () => {
     if (!sb || !branch?.id) return
@@ -98,6 +101,78 @@ export default function BranchRentCard({ sb, branch, user, cardKey = 'rent_contr
   }
 
   const pendingTotal = payments.filter(p => p.status !== 'paid').reduce((s, p) => s + Number(p.amount || 0), 0)
+
+  const modals = (<>
+    {modal && (
+      <ContractModal sb={sb} branch={branch} user={user} toast={toast}
+        obligation={obligation} payments={payments}
+        onClose={() => setModal(false)} onSaved={() => { setModal(false); load() }} />
+    )}
+    {payModal && (
+      <PaymentModal sb={sb} obligation={obligation} branch={branch} toast={toast}
+        init={payModal} onClose={() => setPayModal(null)} onSaved={() => { setPayModal(null); load() }} />
+    )}
+    <ConfirmDialog
+      open={!!delPayTarget}
+      title="تأكيد الحذف"
+      message="هل أنت متأكد من حذف هذه الدفعة؟"
+      itemName={delPayTarget ? `${delPayTarget.due_date || ''} · ${Number(delPayTarget.amount || 0).toLocaleString('en-US')} ريال` : undefined}
+      onConfirm={() => { const p = delPayTarget; setDelPayTarget(null); delPayment(p) }}
+      onCancel={() => setDelPayTarget(null)}
+    />
+  </>)
+
+  if (isMobile) {
+    const TONE = { paid: 'green', overdue: 'red', soon: 'gold', upcoming: 'gray' }
+    const headAct = canEdit && obligation && canCardEdit ? <MLink onClick={() => setModal(true)}>تعديل</MLink> : null
+    return (
+      <>
+        <MGroup title="عقد الإيجار" action={headAct}>
+          {loading ? <div className="ma-empty">جارٍ التحميل…</div>
+            : !obligation ? (canEdit && canCardCreate
+              ? <MItem onClick={() => setModal(true)} tone="gold" leading={<Plus size={20} />} title="إضافة عقد إيجار" sub="لا يوجد عقد إيجار لهذا المكتب" />
+              : <div className="ma-empty">لا يوجد عقد إيجار لهذا المكتب</div>)
+            : (<>
+              <div className="ma-amount-hero">
+                <span>قيمة العقد</span>
+                <b><span dir="ltr">{obligation.amount ? fmtAmt(obligation.amount) : '—'}</span><small>ريال</small></b>
+                <em>{freqLabel(obligation.frequency)} · المتبقي غير المسدد <i>{fmtAmt(pendingTotal)}</i></em>
+              </div>
+              <MKV label="المؤجِّر" value={obligation.vendor} />
+              <MKV label="رقم العقد" value={obligation.account_no} ltr copy />
+              <MKV label="بداية العقد" value={obligation.start_date} ltr />
+              <MKV label="نهاية العقد" value={obligation.end_date} ltr />
+              {obligation.document_url && <MKV label="ملف العقد" value="عرض" tone="blue" onClick={() => window.open(obligation.document_url, '_blank', 'noopener')} />}
+            </>)}
+        </MGroup>
+        {obligation && !loading && (
+          <MGroup title={`جدول السداد · ${payments.length}`}
+            action={canEdit && canCardCreate ? <MLink onClick={() => setPayModal({ due_date: todayIso(), amount: '' })}>+ دفعة</MLink> : null}
+            footer="الدفعات المستحقة خلال 14 يوماً تظهر تلقائياً في صفحة «سدادات خارجية».">
+            {payments.length === 0 ? <div className="ma-empty">لا توجد دفعات مجدولة.</div> : payments.map(p => {
+              const st = payState(p)
+              return (
+                <MItem key={p.id} tone={TONE[st.k]}
+                  leading={st.k === 'paid'
+                    ? <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+                    : st.k === 'overdue'
+                      ? <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 7v6M12 16.5v.5" /></svg>
+                      : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>}
+                  title={<span dir="ltr" className="ma-mono">{fmtAmt(p.amount)}</span>}
+                  sub={<><span dir="ltr">{p.due_date}</span> · <span style={{ color: st.c, fontWeight: 700 }}>{st.l}</span></>}
+                  trailing={<span className="ma-row-btns">
+                    {canEdit && p.status !== 'paid' && <button className="ma-mini ok" onClick={() => markPaid(p)}>سداد</button>}
+                    {canEdit && p.status === 'paid' && <button className="ma-mini" onClick={() => unpay(p)}>تراجع</button>}
+                    {canDelete && canCardDelete && <button className="ma-mini del" aria-label="حذف" onClick={() => setDelPayTarget(p)}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg></button>}
+                  </span>} />
+              )
+            })}
+          </MGroup>
+        )}
+        {modals}
+      </>
+    )
+  }
 
   return (
     <div className="brd-section">

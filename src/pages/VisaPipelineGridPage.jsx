@@ -1,5 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { can as canPerm } from '../lib/permissions.js'
+import { useIsMobile } from '../components/mobile/MobileKit.jsx'
+import { MobileStageList } from './VisaGridPage.jsx'
+import '../styles/m-synchub.css'
 
 /* ═══════════════════════════════════════════════════════════════════════════
    جداول ما بعد إصدار التأشيرة — الوكالة · إصدار الإقامة · توصيل الإقامة.
@@ -336,6 +339,8 @@ export default function VisaPipelineGridPage({ sb, user, toast, lang, onTabChang
   const T = (a, e) => (isAr ? a : e)
   const canEdit = canPerm(user, 'work_visas.edit')
   const M = MODES[mode] || MODES.iqama
+  const isMobile = useIsMobile()
+  const [mLimit, setMLimit] = useState(40)
 
   const [rows, setRows] = useState([])
   const [facilities, setFacilities] = useState([])
@@ -942,6 +947,65 @@ export default function VisaPipelineGridPage({ sb, user, toast, lang, onTabChang
   }, [isAr, applyFillDrag])
 
   /* ═══ العرض ═══ */
+  /* ═══ الجوال: بطاقات بمرحلة وخطوات — عرض فقط، والتحرير من الكمبيوتر ═══ */
+  if (isMobile) {
+    const TITLES = { wakalah: T('الوكالات', 'Powers of attorney'), iqama: T('إصدار الإقامات', 'Iqama issuance'), delivery: T('توصيل الإقامات', 'Iqama delivery') }
+    const mVal = (r, col) => {
+      if (col.kind === 'pay') {
+        const pay = payOf(r, col.pay)
+        if (!pay) return { v: T('لا دفعة', 'No installment'), tone: 'gray' }
+        if (pay.state === 'paid') return { v: T('مدفوعة', 'Paid'), tone: 'green' }
+        return { v: pay.state === 'partial' ? T(`جزئية ${enNum(pay.paid)}/${enNum(pay.total)}`, `Partial ${enNum(pay.paid)}/${enNum(pay.total)}`) : T('غير مدفوعة', 'Unpaid'), tone: 'orange' }
+      }
+      if (col.kind === 'file') {
+        const url = (col.pathKey ? r[col.pathKey] : null) || fileAtt[col.note]?.[r.id] || ''
+        return { v: url ? T('مرفوع ✓', 'Uploaded ✓') : T('لا يوجد', 'None'), tone: url ? 'green' : 'gray' }
+      }
+      if (col.kind === 'select') {
+        const o = (col.opts || []).find((x) => String(x.v) === String(fieldOf(r, col.key)))
+        return { v: dispOf(r, col) || '—', tone: o ? (o.v === 'done' ? 'green' : o.v === 'pending' ? 'orange' : undefined) : undefined }
+      }
+      return { v: dispOf(r, col) || '—' }
+    }
+    const cards = filtered.slice(0, mLimit).map((r) => {
+      const fac = facOf(r)
+      const cols = COLS.filter((c) => c.key !== '_row' && c.key !== '_facility' && c.kind !== 'vstate')
+      const steps = stage === 'waiting' ? [] : M.steps(r, { stage })
+      const worker = r.worker_name
+      return {
+        key: r.id,
+        leading: <span className="mvg-lead" style={{ '--c': stageDef.c }}><small>{T('ملف', 'File')}</small>{r.file_number ?? '–'}</span>,
+        title: fac?.name_ar || fac?.name_en || T('منشأة غير محدّدة', 'Facility not set'),
+        subtitle: [worker, r.sr?.request_ref_no, r.sr?.branch?.branch_code].filter(Boolean).join(' · '),
+        badge: { text: isAr ? stageDef.ar : stageDef.en, tone: stageDef.c },
+        fields: [
+          r.visa_number && { label: T('رقم التأشيرة', 'Visa no.'), value: r.visa_number, ltr: true },
+          r.border_number && { label: T('رقم الحدود', 'Border no.'), value: r.border_number, ltr: true },
+          ...cols.filter((c) => !(c.key === 'worker_name' || c.key === '_worker')).map((c) => { const x = mVal(r, c); return { label: isAr ? c.ar : c.en, value: x.v, tone: x.tone, ltr: !!c.mono } }),
+          !cols.length && { label: T('الجنسية', 'Nationality'), value: (isAr ? r.nationality?.name_ar : (r.nationality?.name_en || r.nationality?.name_ar)) || '—' },
+        ].filter(Boolean),
+        children: stage === 'waiting'
+          ? <div className="mvg-note">{isAr ? M.waitAr : M.waitEn}</div>
+          : (steps.length > 0 && (
+            <div className="mvg-steps">
+              {steps.map((st, i) => <span key={i} className={'mvg-step' + (st.ok ? ' ok' : '')}>{st.ok ? '✓' : <i />}{isAr ? st.ar : st.en}</span>)}
+            </div>
+          )),
+      }
+    })
+    return (
+      <div style={{ fontFamily: F }}>
+        <MobileStageList T={T} title={TITLES[mode] || TITLES.iqama} total={rows.length} unit={mode === 'wakalah' ? T('تأشيرة', 'visas') : T('إقامة', 'iqamas')}
+          stages={M.stages.map((s) => ({ value: s.key, label: isAr ? s.ar : s.en, count: stageCounts[s.key] }))} stage={stage} setStage={(v) => { setStage(v); setMLimit(40) }}
+          search={search} setSearch={setSearch} searchPh={T('تأشيرة، حدود، إقامة، عامل، مرجع، منشأة…', 'Visa, border, iqama, worker, ref…')}
+          branchOpts={branchOpts} fBranch={fBranch} setFBranch={setFBranch}
+          cards={cards} loading={loading} count={filtered.length}
+          onMore={filtered.length > mLimit ? () => setMLimit((n) => n + 40) : undefined}
+          emptyText={isAr ? M.emptyAr : M.emptyEn} />
+      </div>
+    )
+  }
+
   if (loading) return <div style={{ fontFamily: F }}><GridSkeleton /></div>
 
   const cellBase = {

@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { CalendarClock, Edit3, Check, X } from 'lucide-react'
 import { DateField } from './ui/FormKit.jsx'
+import '../styles/m-workforce.css'
 import { EXPIRY_DURATIONS, EXPIRY_DAYS_DEFAULT, getExpiryDaysMap, computeRenewalExpiry, overdueQuarters } from '../lib/expiryDuration.js'
 
 const F = `'Cairo','Tajawal',sans-serif`
@@ -73,7 +74,7 @@ export default function ExpiryDurationCard({ pricing, canEdit, onSave }) {
         </span>
       </div>
 
-      <div className="svc-section-body" style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: '18px 22px' }}>
+      <div className="svc-section-body mw-exp" style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: '18px 22px' }}>
         {/* شرح القاعدة */}
         <div style={{ fontSize: 11.5, color: 'var(--tx3)', fontWeight: 600, lineHeight: 1.9, background: 'rgba(176,125,0,.05)', border: `1px solid ${C.gold}30`, borderRadius: 10, padding: '11px 14px' }}>
           القاعدة: <b style={{ color: C.gold }}>التاريخ الجديد = تاريخ الانتهاء + عدد أيام ثابت حسب المدة</b> (مطابقة قوى للإقامات السارية).

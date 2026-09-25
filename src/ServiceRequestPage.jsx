@@ -6,6 +6,8 @@ import {noDash} from './lib/utils.js'
 import {isGM,userOffices} from './lib/permissions.js'
 import {getKafalaPricingConfig} from './lib/kafalaPricing.js'
 import {Modal as FKModal, SuccessView, ModalSection, Field as FKField, IdField as FKId, PhoneField as FKPhone, Select as FKSelect, Segmented as FKSegmented, Stepper as FKStepper, CurrencyField as FKCurrency, TextArea as FKTextArea, TextField as FKText, NumberField as FKNumber, DateField as FKDate, Dropdown as FKDropdown, Lbl as FKLbl, GRID as FKGRID, sF as fkSF, validateSaudiId, validatePhone, useFKLang} from './components/ui/FormKit.jsx'
+import {useIsMobile} from './components/mobile/MobileKit.jsx'
+import './styles/m-wizard.css'
 const F="'Cairo','Tajawal',sans-serif"
 const C={gold:'#B07D00',red:'#c0392b',ok:'#27a046',blue:'#3483b4',bentoGold:'#B07D00'}
 // Unified loading spinner — shown during any search/wait inside the invoice modal.
@@ -23,6 +25,20 @@ const[done,setDone]=useState(false)
 if(!value)return null
 return<button type="button" title={done?T('تم النسخ','Copied'):T('نسخ','Copy')} onClick={e=>{e.stopPropagation();try{navigator.clipboard?.writeText(String(value))}catch(_){}setDone(true);setTimeout(()=>setDone(false),1300)}} style={{padding:3,background:'transparent',border:'none',cursor:'pointer',color:done?C.ok:'var(--tx5)',display:'flex',alignItems:'center',borderRadius:4,transition:'.15s',flexShrink:0}} onMouseEnter={e=>{if(!done)e.currentTarget.style.color=C.gold}} onMouseLeave={e=>{e.currentTarget.style.color=done?C.ok:'var(--tx5)'}}>{done?<Check size={size+2} strokeWidth={2.4}/>:<Copy size={size}/>}</button>
 }
+// صفّ قائمة بنمط iOS (الجوال فقط) — العميل/العامل/الوسيط/الحسبة: صورة/علم · الاسم · سطر فرعي (الهوية · الجوال)
+const WzRow=({lead,title,titleExtra,sub,meta,selected,onClick,trailing,chevron})=>(
+<div className={'wz-row'+(selected?' on':'')+(onClick?' tap':'')} onClick={onClick} role={onClick?'button':undefined}>
+{lead&&<span className="wz-row-lead">{lead}</span>}
+<span className="wz-row-text">
+<span className="wz-row-title"><span className="wz-row-name">{title}</span>{titleExtra}</span>
+{sub&&<span className="wz-row-sub">{sub}</span>}
+{meta&&meta.filter(Boolean).length>0&&<span className="wz-row-meta">{meta.filter(Boolean).map((m,i)=><span key={i} className="wz-meta" style={m.color?{color:m.color}:undefined}>{m.icon}<span dir={m.ltr?'ltr':undefined}>{m.text}</span></span>)}</span>}
+</span>
+{trailing}
+{chevron&&<svg className="wz-row-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>}
+</div>
+)
+const WzFlag=({url,label,name,size=44})=>{const ini=!url&&name?String(name).trim().charAt(0):'';return<span className={'wz-flag'+(ini?' ini':'')} title={label} style={{width:size,height:size}}>{url?<img src={url} alt={label||''} loading="lazy"/>:(ini||<Globe size={Math.round(size*.45)} strokeWidth={1.6}/>)}</span>}
 // Format Saudi phone: +966558908008 → 055 890 8008
 const fmtPhone=(p)=>{if(!p)return'';let n=String(p).replace(/[^0-9+]/g,'');if(n.startsWith('+966'))n='0'+n.slice(4);else if(n.startsWith('966'))n='0'+n.slice(3);if(n.length===10)return`${n.slice(0,3)} ${n.slice(3,6)} ${n.slice(6)}`;return n}
 // عدد الأشهر بصيغة عربية صحيحة: 1=شهر، 2=شهرين، 3–10=N أشهر، 11+=N شهراً
@@ -298,6 +314,7 @@ function NiceSelect({value,onChange,options,placeholder='اختر...',disabled=f
 
 export default function ServiceRequestPage({sb,toast,user,lang,branchId,onClose,preselectedService}){
 const isAr=lang!=='en';const T=(a,e)=>isAr?a:e;const dir=isAr?'rtl':'ltr'
+const isMob=useIsMobile()
 const[step,setStep]=useState(preselectedService?2:1)
 const[services,setServices]=useState([])
 const[regions,setRegions]=useState([])
@@ -2109,7 +2126,7 @@ input[type=number]{-moz-appearance:textfield}
 {/* الترويسة + شريط التقدّم + عنوان الخطوة + التذييل: كلها من FormKit Modal الآن */}
 
 {/* ═══ Step 0: Choose Office (before service) — GM / multi-office users ═══ */}
-{onBranchScreen&&<div style={{flex:1,display:'flex',flexDirection:'column',minHeight:0}}>
+{onBranchScreen&&<div className='sr-flat sr-step-office' style={{flex:1,display:'flex',flexDirection:'column',minHeight:0}}>
 <ModalSection flex Icon={Building2} label={T('اختر المكتب','Select office')} hint={T('المكتب الذي ستُصدر منه الفاتورة','The office this invoice is issued from')} style={{marginTop:0}}>
 {/* كل المكاتب في الإطار بلا شريط تمرير (طلب المستخدم): الصفوف تتقاسم الارتفاع المتاح
     (minmax(0,1fr)) بدل ارتفاعٍ أدنى ثابت للبطاقة، والأعمدة تزيد مع عدد المكاتب */}
@@ -2130,7 +2147,7 @@ input[type=number]{-moz-appearance:textfield}
 </div>}
 
 {/* ═══ Step 1: Choose Service (Bento Grid) ═══ */}
-{step===1&&!onBranchScreen&&<div style={{flex:1,display:'flex',flexDirection:'column',minHeight:0}}>
+{step===1&&!onBranchScreen&&<div className='sr-flat sr-step-svc' style={{flex:1,display:'flex',flexDirection:'column',minHeight:0}}>
 <style>{`
 .bento-card{padding:12px 10px;border-radius:12px;cursor:pointer;transition:all .2s;background:var(--card-grad2);border:1px solid var(--bd);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;position:relative;min-height:86px;box-shadow:var(--shadow-sm)}
 .bento-card:hover{background:rgba(176,125,0,.09);border-color:rgba(176,125,0,.3)}
@@ -2181,7 +2198,7 @@ input[type=number]{-moz-appearance:textfield}
 <div style={{position:'relative',flex:1,minHeight:0}}>
 
 {/* ─── Main Bento Grid View ─── */}
-<div style={{position:'absolute',inset:0,opacity:showOthers?0:1,transform:showOthers?'translateX(20px)':'translateX(0)',transition:'opacity .3s, transform .3s',pointerEvents:showOthers?'none':'auto'}}>
+<div className={'sr-svc-view'+(showOthers?' off':'')} style={{position:'absolute',inset:0,opacity:showOthers?0:1,transform:showOthers?'translateX(20px)':'translateX(0)',transition:'opacity .3s, transform .3s',pointerEvents:showOthers?'none':'auto'}}>
 <div className="svc-grid" style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,height:'100%',gridAutoRows:'minmax(0,1fr)'}}>
 {MAIN_SERVICES.map(s=>{const I=s.Icon;const sel=selSvc===s.id;const active=gm?true:isServiceActive(s.id)
 return<div key={s.id} className={`bento-card${sel?' selected':''}${!active?' disabled-card':''}`} onClick={()=>{if(active)setSelSvc(s.id)}} style={!active?{opacity:.45,cursor:'not-allowed',filter:'grayscale(.6)'}:{}}>
@@ -2199,7 +2216,7 @@ return<div key={s.id} className={`bento-card${sel?' selected':''}${!active?' dis
 
 {/* ─── Others View — الأعمدة بعدد الكروت: ١٢ كرتاً في ٣ أعمدة = ٤ صفوفٍ مضغوطة
      لا تتّسع للأيقونة والاسم (بلاغ المستخدم 2026-09-24)، فتصير ٤ أعمدة × ٣ صفوف ─── */}
-<div style={{position:'absolute',inset:0,opacity:showOthers?1:0,transform:showOthers?'translateX(0)':'translateX(-20px)',transition:'opacity .3s, transform .3s',pointerEvents:showOthers?'auto':'none',display:'flex',flexDirection:'column',gap:6}}>
+<div className={'sr-svc-view'+(showOthers?'':' off')} style={{position:'absolute',inset:0,opacity:showOthers?1:0,transform:showOthers?'translateX(0)':'translateX(-20px)',transition:'opacity .3s, transform .3s',pointerEvents:showOthers?'auto':'none',display:'flex',flexDirection:'column',gap:6}}>
 {(()=>{const n=OTHER_SERVICES.length+1,cols=n<=9?3:n<=16?4:5;return(
 <div className="svc-grid" style={{flex:1,minHeight:0,display:'grid','--svc-cols':cols,gridTemplateColumns:`repeat(${cols},1fr)`,gap:8,gridAutoRows:'minmax(0,1fr)'}}>
 {/* رجوع للخدمات الرئيسية — نفس حجم/مكان كرت الخدمة، بألوان خطوط وأيقونة خافتة مثل كرت "خدمات أخرى" */}
@@ -2222,7 +2239,7 @@ return<div key={s.id} className={`bento-card${sel?' selected':''}${!active?' dis
 </div>}
 
 {/* ═══ Step 2: Client & Worker ═══ */}
-{((step===2&&!QUOTE_SVCS.has(selSvc))||(step===3&&QUOTE_SVCS.has(selSvc)))&&<ModalSection flex Icon={User} label={step2Mode==='worker'?T('العامل','Worker'):T('العميل','Client')} style={{marginTop:8}}><div className="sr-modal-scroll" style={{display:'flex',flexDirection:'column',flex:1,minHeight:0,overflowY:'auto',overflowX:'hidden'}}>
+{((step===2&&!QUOTE_SVCS.has(selSvc))||(step===3&&QUOTE_SVCS.has(selSvc)))&&<div className='sr-flat sr-step-party' style={{flex:1,minHeight:0,display:'flex',flexDirection:'column'}}><ModalSection flex Icon={User} label={step2Mode==='worker'?(isMob?T('اختر العامل','Select worker'):T('العامل','Worker')):(isMob?T('اختر العميل','Select client'):T('العميل','Client'))} style={{marginTop:8}}><div className="sr-modal-scroll" style={{display:'flex',flexDirection:'column',flex:1,minHeight:0,overflowY:'auto',overflowX:'hidden'}}>
 {step2Mode==='client'&&<div style={{display:'flex',flexDirection:'column',flex:1,minHeight:0}}>
 
 {/* علاقة العميل↔العامل صارت لوحة ذكية أسفل العميل المختار (انظر أدناه) — لا تشيك بوكس علوي */}
@@ -2255,8 +2272,8 @@ setKafalaClientLoading(false)
 }
 return<div style={{display:'flex',flexDirection:'column',gap:8,marginBottom:10}}>
 <span style={{fontSize:11,fontWeight:600,color:'var(--tx2)',fontFamily:F}}>{T('هل العميل هو نفس العامل؟','Is the client the same as the worker?')}</span>
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-{[{v:true,t:T('العميل هو نفس العامل','Client is the worker'),sub:T('يُربط/يُنشأ تلقائياً من بيانات العامل','Linked/created automatically from worker data'),Icon:User},{v:false,t:T('عميل مختلف','Different client'),sub:T('حدّد أو سجّل العميل بالأسفل','Select or register the client below'),Icon:Users}].map(opt=>{const act=kafalaSameClient===opt.v;const I=opt.Icon;return<div key={String(opt.v)} onClick={()=>pick(opt.v)} style={{cursor:'pointer',padding:'11px 13px',borderRadius:11,display:'flex',alignItems:'center',gap:10,transition:'.18s',border:act?'1px solid rgba(176,125,0,.45)':'1px solid var(--bd)',background:act?'linear-gradient(135deg,rgba(176,125,0,.12),rgba(255,255,255,.02))':'var(--bd2)'}}>
+<div className='wz-opt-grid' style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+{[{v:true,t:T('العميل هو نفس العامل','Client is the worker'),sub:T('يُربط/يُنشأ تلقائياً من بيانات العامل','Linked/created automatically from worker data'),Icon:User},{v:false,t:T('عميل مختلف','Different client'),sub:T('حدّد أو سجّل العميل بالأسفل','Select or register the client below'),Icon:Users}].map(opt=>{const act=kafalaSameClient===opt.v;const I=opt.Icon;return<div className={'wz-opt'+(act?' on':'')} key={String(opt.v)} onClick={()=>pick(opt.v)} style={{cursor:'pointer',padding:'11px 13px',borderRadius:11,display:'flex',alignItems:'center',gap:10,transition:'.18s',border:act?'1px solid rgba(176,125,0,.45)':'1px solid var(--bd)',background:act?'linear-gradient(135deg,rgba(176,125,0,.12),rgba(255,255,255,.02))':'var(--bd2)'}}>
 <div style={{width:32,height:32,borderRadius:9,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,background:act?'rgba(176,125,0,.18)':'var(--bd2)',border:act?'1px solid rgba(176,125,0,.4)':'1px solid var(--bd)'}}><I size={16} strokeWidth={1.9} color={act?C.bentoGold:'var(--tx4)'}/></div>
 <div style={{display:'flex',flexDirection:'column',gap:2,minWidth:0,flex:1}}><span style={{fontSize:12,fontWeight:600,color:act?C.gold:'var(--tx2)'}}>{opt.t}</span><span style={{fontSize:9,fontWeight:600,color:'var(--tx5)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{opt.sub}</span></div>
 {act&&<div style={{width:18,height:18,borderRadius:'50%',background:C.bentoGold,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>}
@@ -2271,10 +2288,10 @@ return<div style={{display:'flex',flexDirection:'column',gap:8,marginBottom:10}}
 
 {/* Unified search — hidden once a client is selected or in new-client mode */}
 {(!QUOTE_SVCS.has(selSvc)||kafalaSameClient===false)&&!selClient&&clientMode!=='new'&&<>
-<div style={{display:'flex',alignItems:'stretch',gap:8,marginBottom:(clientQ&&filteredClients.length===0)?16:14}}>
+<div className="wz-search-row" style={{display:'flex',alignItems:'stretch',gap:8,marginBottom:(clientQ&&filteredClients.length===0)?16:14}}>
 <div style={{position:'relative',flex:1,minWidth:0}}>
 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--tx4)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{position:'absolute',top:'50%',left:14,transform:'translateY(-50%)',pointerEvents:'none',transition:'stroke .2s'}}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-<input value={clientQ} onChange={e=>{setClientQ(e.target.value);setClientMode('existing')}} placeholder={T('ابحث بالاسم (عربي/إنجليزي) أو الجوال أو رقم الهوية...','Search by name (Arabic/English), mobile or ID...')} onFocus={e=>{e.currentTarget.previousElementSibling.style.stroke=C.bentoGold}} onBlur={e=>{e.currentTarget.previousElementSibling.style.stroke='var(--tx4)'}} style={{...fkSF,padding:'0 14px 0 40px',textAlign:isAr?'right':'left',border:'1px solid transparent',boxShadow:'none'}}/>
+<input value={clientQ} onChange={e=>{setClientQ(e.target.value);setClientMode('existing')}} placeholder={isMob?T('الاسم أو الجوال أو رقم الهوية','Name, mobile or ID'):T('ابحث بالاسم (عربي/إنجليزي) أو الجوال أو رقم الهوية...','Search by name (Arabic/English), mobile or ID...')} onFocus={e=>{e.currentTarget.previousElementSibling.style.stroke=C.bentoGold}} onBlur={e=>{e.currentTarget.previousElementSibling.style.stroke='var(--tx4)'}} style={{...fkSF,padding:'0 14px 0 40px',textAlign:isAr?'right':'left',border:'1px solid transparent',boxShadow:'none'}}/>
 </div>
 {clientMode!=='new'&&<button onClick={()=>{setClientMode('new');setNewClient(p=>({...p,name_ar:/[\u0600-\u06FF]/.test(clientQ)?clientQ:p.name_ar,name_en:/^[A-Za-z\s]+$/.test(clientQ)?clientQ:p.name_en,phone:/^[0-9+]+$/.test(clientQ)?clientQ:p.phone,id_number:/^\d{10}$/.test(clientQ)?clientQ:p.id_number}))}} style={{height:42,padding:'0 14px',background:'transparent',border:'1.3px dashed rgba(176,125,0,.55)',borderRadius:9,color:C.bentoGold,fontFamily:F,fontSize:12,fontWeight:600,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:6,flexShrink:0,transition:'.15s',whiteSpace:'nowrap'}} onMouseEnter={e=>{e.currentTarget.style.background='rgba(176,125,0,.07)';e.currentTarget.style.borderColor='rgba(176,125,0,.85)'}} onMouseLeave={e=>{e.currentTarget.style.background='transparent';e.currentTarget.style.borderColor='rgba(176,125,0,.55)'}}>
 <span>{T('عميل جديد','New client')}</span>
@@ -2307,6 +2324,11 @@ const boxes=<div className='cli-boxes' style={{display:'flex',gap:8,flexShrink:0
 // flexShrink:0 — البطاقات داخل منطقة تمرير ذات ارتفاع ثابت: بلا هذا تنضغط بدل أن تُمرَّر.
 const wrapSel={position:'relative',border:`1px solid ${G.selB}`,background:G.sel,boxShadow:'var(--shadow-md)',transition:'all .22s ease',padding:'11px',borderRadius:14,display:'flex',flexDirection:'column',gap:9,flexShrink:0}
 
+// الجوال: صفّ قائمة (علم · الاسم · الهوية والجوال سطراً فرعياً) بدل البطاقة ذات المربّعات
+if(isMob){const canChange=!(QUOTE_SVCS.has(selSvc)&&kafalaSameClient===true);return<WzRow key={c.id} selected={sel} onClick={sel?undefined:handleClick}
+lead={<WzFlag url={flagUrl} label={natLabel} name={c.name_ar||c.name_en}/>} title={c.name_ar||c.name_en||'—'} sub={c.name_ar&&c.name_en?c.name_en:null}
+meta={[c.id_number&&{icon:<CreditCard size={13} strokeWidth={1.9}/>,text:c.id_number,ltr:true},c.phone&&{icon:<Phone size={13} strokeWidth={1.9}/>,text:fmtPhone(c.phone),ltr:true}]}
+trailing={sel?(canChange?<button type="button" className="wz-change" onClick={deselect}>{T('تغيير','Change')}</button>:<span className="wz-check"><Check size={14} strokeWidth={3}/></span>):null} chevron={!sel}/>}
 // مُختار — أيقونة زاوية: زر إلغاء أحمر بالزاوية + شارة «محدد» بجانب الاسم
 if(sel)return<div key={c.id} style={{...wrapSel,flexDirection:'row',alignItems:'center',gap:10}}>
 {flagEl(40)}
@@ -2339,8 +2361,8 @@ const matched=autoWorker
 const setSame=(val)=>{setWorkerIsClient(val);if(val){setSelWorker(matched||null);setClientMode('existing')}else{setSelWorker(null)}}
 return<div style={{marginTop:12,display:'flex',flexDirection:'column',gap:8}}>
 <span style={{fontSize:11,fontWeight:600,color:C.gold,fontFamily:F}}>{T('العامل','Worker')}</span>
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-{[{v:true,t:T('هو نفسه العميل','Same as the client'),sub:matched?T('تم العثور على سجل عامل مطابق','A matching worker record was found'):T('لا يوجد سجل عامل مسجّل','No registered worker record'),Icon:User},{v:false,t:T('شخص مختلف','Different person'),sub:T('يُحدَّد في الخطوة التالية','Selected in the next step'),Icon:Users}].map(opt=>{const act=workerIsClient===opt.v;const I=opt.Icon;return<div key={String(opt.v)} onClick={()=>setSame(opt.v)} style={{cursor:'pointer',padding:'11px 13px',borderRadius:11,display:'flex',alignItems:'center',gap:10,transition:'.18s',border:act?'1px solid rgba(176,125,0,.45)':'1px solid var(--bd)',background:act?'linear-gradient(135deg,rgba(176,125,0,.12),rgba(255,255,255,.02))':'var(--bd2)'}}>
+<div className='wz-opt-grid' style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+{[{v:true,t:T('هو نفسه العميل','Same as the client'),sub:matched?T('تم العثور على سجل عامل مطابق','A matching worker record was found'):T('لا يوجد سجل عامل مسجّل','No registered worker record'),Icon:User},{v:false,t:T('شخص مختلف','Different person'),sub:T('يُحدَّد في الخطوة التالية','Selected in the next step'),Icon:Users}].map(opt=>{const act=workerIsClient===opt.v;const I=opt.Icon;return<div className={'wz-opt'+(act?' on':'')} key={String(opt.v)} onClick={()=>setSame(opt.v)} style={{cursor:'pointer',padding:'11px 13px',borderRadius:11,display:'flex',alignItems:'center',gap:10,transition:'.18s',border:act?'1px solid rgba(176,125,0,.45)':'1px solid var(--bd)',background:act?'linear-gradient(135deg,rgba(176,125,0,.12),rgba(255,255,255,.02))':'var(--bd2)'}}>
 <div style={{width:32,height:32,borderRadius:9,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,background:act?'rgba(176,125,0,.18)':'var(--bd2)',border:act?'1px solid rgba(176,125,0,.4)':'1px solid var(--bd)'}}><I size={16} strokeWidth={1.9} color={act?C.bentoGold:'var(--tx4)'}/></div>
 <div style={{display:'flex',flexDirection:'column',gap:2,minWidth:0,flex:1}}><span style={{fontSize:12,fontWeight:600,color:act?C.gold:'var(--tx2)'}}>{opt.t}</span><span style={{fontSize:9,fontWeight:600,color:'var(--tx5)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{opt.sub}</span></div>
 {act&&<div style={{width:18,height:18,borderRadius:'50%',background:C.bentoGold,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>}
@@ -2405,8 +2427,8 @@ const matched=validId?autoWorker:null
 const setSame=(val)=>{setWorkerIsClient(val);if(val){setSelWorker(matched||null)}else{setSelWorker(null)}}
 return<div style={{marginTop:12,display:'flex',flexDirection:'column',gap:8}}>
 <span style={{fontSize:11,fontWeight:600,color:C.gold,fontFamily:F}}>{T('العامل','Worker')}</span>
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-{[{v:true,t:T('هو نفسه العميل','Same as the client'),sub:!validId?T('أدخل رقم الهوية أولاً','Enter the ID number first'):(matched?T('تم العثور على سجل عامل مطابق','A matching worker record was found'):T('لا يوجد عامل بهذه البيانات','No worker with these details')),Icon:User},{v:false,t:T('شخص مختلف','Different person'),sub:T('يُحدَّد في الخطوة التالية','Selected in the next step'),Icon:Users}].map(opt=>{const act=workerIsClient===opt.v;const I=opt.Icon;return<div key={String(opt.v)} onClick={()=>setSame(opt.v)} style={{cursor:'pointer',padding:'11px 13px',borderRadius:11,display:'flex',alignItems:'center',gap:10,transition:'.18s',border:act?'1px solid rgba(176,125,0,.45)':'1px solid var(--bd)',background:act?'linear-gradient(135deg,rgba(176,125,0,.12),rgba(255,255,255,.02))':'var(--bd2)'}}>
+<div className='wz-opt-grid' style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+{[{v:true,t:T('هو نفسه العميل','Same as the client'),sub:!validId?T('أدخل رقم الهوية أولاً','Enter the ID number first'):(matched?T('تم العثور على سجل عامل مطابق','A matching worker record was found'):T('لا يوجد عامل بهذه البيانات','No worker with these details')),Icon:User},{v:false,t:T('شخص مختلف','Different person'),sub:T('يُحدَّد في الخطوة التالية','Selected in the next step'),Icon:Users}].map(opt=>{const act=workerIsClient===opt.v;const I=opt.Icon;return<div className={'wz-opt'+(act?' on':'')} key={String(opt.v)} onClick={()=>setSame(opt.v)} style={{cursor:'pointer',padding:'11px 13px',borderRadius:11,display:'flex',alignItems:'center',gap:10,transition:'.18s',border:act?'1px solid rgba(176,125,0,.45)':'1px solid var(--bd)',background:act?'linear-gradient(135deg,rgba(176,125,0,.12),rgba(255,255,255,.02))':'var(--bd2)'}}>
 <div style={{width:32,height:32,borderRadius:9,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,background:act?'rgba(176,125,0,.18)':'var(--bd2)',border:act?'1px solid rgba(176,125,0,.4)':'1px solid var(--bd)'}}><I size={16} strokeWidth={1.9} color={act?C.bentoGold:'var(--tx4)'}/></div>
 <div style={{display:'flex',flexDirection:'column',gap:2,minWidth:0,flex:1}}><span style={{fontSize:12,fontWeight:600,color:act?C.gold:'var(--tx2)'}}>{opt.t}</span><span style={{fontSize:9,fontWeight:600,color:'var(--tx5)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{opt.sub}</span></div>
 {act&&<div style={{width:18,height:18,borderRadius:'50%',background:C.bentoGold,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>}
@@ -2422,7 +2444,7 @@ return<div style={{marginTop:12,display:'flex',flexDirection:'column',gap:8}}>
 {/* ─── Worker View ─── */}
 {step2Mode==='worker'&&<div>
 {/* Search — hidden when a worker is already selected or in new-worker mode (mirrors client UI) */}
-{!selWorker&&workerMode!=='new'&&<div style={{display:'flex',alignItems:'stretch',gap:8,marginBottom:(workerQ&&workerResults.length===0)?16:14}}>
+{!selWorker&&workerMode!=='new'&&<div className="wz-search-row" style={{display:'flex',alignItems:'stretch',gap:8,marginBottom:(workerQ&&workerResults.length===0)?16:14}}>
 <div style={{position:'relative',flex:1,minWidth:0}}>
 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--tx4)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{position:'absolute',top:'50%',left:14,transform:'translateY(-50%)',pointerEvents:'none',transition:'stroke .2s'}}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
 <input value={workerQ} onChange={e=>{setWorkerQ(e.target.value);setWorkerMode('existing');setSelWorker(null)}} placeholder={T('ابحث بالاسم أو رقم الإقامة...','Search by name or Iqama...')} onFocus={e=>{e.currentTarget.previousElementSibling.style.stroke=C.bentoGold}} onBlur={e=>{e.currentTarget.previousElementSibling.style.stroke='var(--tx4)'}} style={{...fkSF,padding:'0 14px 0 40px',textAlign:isAr?'right':'left',border:'1px solid transparent',boxShadow:'none'}}/>
@@ -2446,6 +2468,12 @@ const deselect=e=>{if(e)e.stopPropagation();setSelWorker(null)}
 const stColors={expired:'#c0392b',soon:'#e5b534',ok:'#27a046',none:'var(--tx5)'}
 const infoBox=(Icon,label,val,valColor)=><div style={{display:'flex',alignItems:'center',gap:8,padding:'7px 10px',borderRadius:9,background:'var(--fk-input-bg)',border:'1px solid rgba(176,125,0,.18)',minWidth:0}}><Icon size={13} color={valColor||C.bentoGold} strokeWidth={1.8}/><div style={{display:'flex',flexDirection:'column',gap:2,minWidth:0}}><span style={{fontSize:10.5,color:'var(--tx3)',fontWeight:600}}>{label}</span><span style={{fontSize:12,color:valColor||'var(--tx)',fontWeight:600,direction:'ltr',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{val}</span></div></div>
 const flagEl=size=><div title={natLabel} style={{width:size,height:size,borderRadius:12,background:'rgba(0,0,0,.25)',border:sel?'1.5px solid rgba(176,125,0,.4)':'1px solid rgba(255,255,255,.08)',flexShrink:0,transition:'.25s',boxShadow:sel?'0 2px 8px rgba(176,125,0,.15)':'none',position:'relative',overflow:'hidden'}}>{flagUrl?<img src={flagUrl} alt={natLabel} loading="lazy" style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>:<div style={{width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center'}}><Globe size={Math.round(size*.42)} strokeWidth={1.6} color="rgba(255,255,255,.35)"/></div>}</div>
+// الجوال: صفّ قائمة — الإقامة · الانتهاء (ملوّن بالحالة) · الجوال في سطر فرعي
+if(isMob)return<WzRow key={w.id} selected={sel} onClick={sel?undefined:()=>setSelWorker(w)}
+lead={<WzFlag url={flagUrl} label={natLabel}/>} title={nm} sub={w.name_en&&nm!==w.name_en?w.name_en:null}
+titleExtra={w.worker_type==='temporary'?<span className="wz-tag">{T('مؤقت','Temp')}</span>:null}
+meta={sel?[w.nationality&&{text:natLabel}]:[w.iqama_number&&{icon:<CreditCard size={13} strokeWidth={1.9}/>,text:w.iqama_number,ltr:true},w.iqama_expiry_date&&{icon:<Calendar size={13} strokeWidth={1.9}/>,text:fmtDate(w.iqama_expiry_date),ltr:true,color:stColors[dateStatus(w.iqama_expiry_date)]},w.phone&&{icon:<Phone size={13} strokeWidth={1.9}/>,text:fmtPhone(w.phone),ltr:true}]}
+trailing={sel?(!workerIsClient?<button type="button" className="wz-change" onClick={deselect}>{T('تغيير','Change')}</button>:<span className="wz-check"><Check size={14} strokeWidth={3}/></span>):null} chevron={!sel}/>
 // مُختار — أيقونة زاوية (التفاصيل الغنية تظهر أسفله)
 if(sel)return<div key={w.id} style={{position:'relative',border:`1px solid ${G.selB}`,background:G.sel,boxShadow:'var(--shadow-md)',transition:'all .22s ease',padding:'14px',borderRadius:16,display:'flex',alignItems:'center',gap:14}}>
 {!workerIsClient&&<button onClick={deselect} title={T('تغيير العامل','Change worker')} style={{position:'absolute',top:11,left:13,height:21,padding:'0 9px',borderRadius:7,background:'rgba(192,57,43,.10)',border:'1px solid rgba(192,57,43,.3)',color:C.red,fontFamily:F,fontSize:10,fontWeight:600,display:'inline-flex',alignItems:'center',gap:5,justifyContent:'center',cursor:'pointer',zIndex:2,transition:'.15s'}} onMouseEnter={e=>{e.currentTarget.style.background='rgba(192,57,43,.18)';e.currentTarget.style.borderColor='rgba(192,57,43,.55)'}} onMouseLeave={e=>{e.currentTarget.style.background='rgba(192,57,43,.10)';e.currentTarget.style.borderColor='rgba(192,57,43,.3)'}}>{T('تغيير','Change')}</button>}
@@ -2464,7 +2492,7 @@ return<>
 {/* ─── Worker data fieldset ─── */}
 <div style={{marginTop:19,padding:'16px 14px 12px',borderRadius:12,border:'1.5px solid rgba(176,125,0,.35)',position:'relative'}}>
 <div style={{position:'absolute',top:-9,right:14,background:'var(--modal-bg)',padding:'0 8px',fontSize:12,fontWeight:600,color:C.bentoGold,fontFamily:F,maxWidth:'calc(100% - 28px)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{workerLabel}</div>
-<div style={{display:'grid',gridTemplateColumns:'1fr 1.3fr 1fr 1fr',gap:10}}>
+<div className='wz-pill-grid' style={{display:'grid',gridTemplateColumns:'1fr 1.3fr 1fr 1fr',gap:10}}>
 <div style={pillBase}>
 <CreditCard size={12} color={C.bentoGold} strokeWidth={1.8}/>
 <div style={{display:'flex',flexDirection:'column',gap:5,flex:1,minWidth:0}}><span style={lbl}>{T('رقم الإقامة','Iqama No')}</span><span style={{...val}}>{w.iqama_number||'—'}</span></div>
@@ -2500,7 +2528,7 @@ return<>
 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg> {T('قوى نظيف','Qiwa clean')}
 </span>:null)}
 </div>}
-<div style={{display:'grid',gridTemplateColumns:selSvc==='ajeer_contract'?'1fr 1fr 1fr 1fr':'1fr 1fr 1fr',gap:10}}>
+<div className='wz-pill-grid' style={{display:'grid',gridTemplateColumns:selSvc==='ajeer_contract'?'1fr 1fr 1fr 1fr':'1fr 1fr 1fr',gap:10}}>
 <div style={pillBase}>
 <Hash size={12} color={C.bentoGold} strokeWidth={1.8}/>
 <div style={{display:'flex',flexDirection:'column',gap:5,flex:1,minWidth:0}}><span style={lbl}>{T('الرقم الموحد','Unified No')}</span><span style={{...val,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{w.facility.unified_national_number||'—'}</span></div>
@@ -2585,7 +2613,7 @@ placeholder={inpPh(inp,isAr)} style={{...fS,height:42,...(inp.direction==='ltr'?
 </div>})()}
 
 </div>}
-</div></ModalSection>}
+</div></ModalSection></div>}
 
 {/* ═══ Step 3: Dynamic Fields ═══ */}
 {((step===3&&!QUOTE_SVCS.has(selSvc))||(step===2&&QUOTE_SVCS.has(selSvc)))&&<div style={{flex:1,minHeight:0,display:'flex',flexDirection:'column'}}>
@@ -3264,7 +3292,7 @@ const minFees=isIq?iqamaQuoteGovFees(qt):_gov;return<div style={{borderRadius:12
 <span>{QL.badge}</span>
 </div>
 <button onClick={()=>{setSelKafalaQuote(null);setKafalaSameClient(null)}} title={T('تغيير الحسبة','Change quote')} style={{position:'absolute',top:11,left:13,height:21,padding:'0 9px',borderRadius:7,background:'rgba(192,57,43,.10)',border:'1px solid rgba(192,57,43,.3)',color:C.red,fontFamily:F,fontSize:10,fontWeight:600,display:'inline-flex',alignItems:'center',justifyContent:'center',cursor:'pointer',zIndex:2,transition:'.15s'}} onMouseEnter={e=>{e.currentTarget.style.background='rgba(192,57,43,.18)';e.currentTarget.style.borderColor='rgba(192,57,43,.55)'}} onMouseLeave={e=>{e.currentTarget.style.background='rgba(192,57,43,.10)';e.currentTarget.style.borderColor='rgba(192,57,43,.3)'}}>{T('تغيير','Change')}</button>
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginTop:4}}>
+<div className='wz-kv2' style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginTop:4}}>
 <div><div style={{fontSize:10,color:'var(--tx5)',fontWeight:600,marginBottom:3}}>{T('العامل','Worker')}</div><div style={{fontSize:13,fontWeight:600,color:'var(--tx)',fontFamily:F}}>{qt.worker_name||'—'}</div></div>
 <div><div style={{fontSize:10,color:'var(--tx5)',fontWeight:600,marginBottom:3}}>{T('رقم الإقامة','Iqama No')}</div><div style={{fontSize:13,fontWeight:600,color:'var(--tx)',direction:'ltr',textAlign:'right'}}>{qt.iqama_number||'—'}</div></div>
 <div><div style={{fontSize:10,color:'var(--tx5)',fontWeight:600,marginBottom:3}}>{T('رقم طلب التسعيرة','Quote No.')}</div><div style={{fontSize:13,fontWeight:600,color:C.gold,direction:'ltr',textAlign:'right'}}>{qt.quote_no?noDash(qt.quote_no):'—'}</div></div>
@@ -3776,8 +3804,8 @@ const authVal=isVisa&&hasResidence?(visaInstallments.authorization===''?defaultE
 // الدفعة لكل تأشيرة (الباقي بعد المشتركة): إصدار الإقامة للدائمة، أو التوكيل للمؤقتة.
 const residenceSubtotalCalc=isVisa?Math.max(0,effectiveTotal-issuanceVal-authVal):0
 const residencePerVisaVal=isVisa?(visaInstallments.residencePerVisa===''?(numVisas>0?residenceSubtotalCalc/numVisas:0):(Number(visaInstallments.residencePerVisa)||0)):0
-const SectionTitle=({children})=><div style={{fontSize:11,fontWeight:600,color:C.gold,fontFamily:F,marginBottom:6,paddingBottom:4,borderBottom:'1px solid rgba(176,125,0,.15)'}}>{children}</div>
-const Row=({label,value,highlight})=><div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',padding:'3px 0',gap:12}}>
+const SectionTitle=({children})=><div className='wz-sum-title' style={{fontSize:11,fontWeight:600,color:C.gold,fontFamily:F,marginBottom:6,paddingBottom:4,borderBottom:'1px solid rgba(176,125,0,.15)'}}>{children}</div>
+const Row=({label,value,highlight})=><div className='wz-sum-row' style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',padding:'3px 0',gap:12}}>
 <span style={{fontSize:11,color:'var(--tx3)',fontWeight:600,fontFamily:F}}>{label}</span>
 <span style={{fontSize:12,color:highlight||'var(--tx2)',fontWeight:600,fontFamily:F,textAlign:isAr?'left':'right'}}>{value}</span>
 </div>
@@ -4235,7 +4263,7 @@ return <div style={{marginTop:6,background:'linear-gradient(135deg,rgba(176,125,
 </div>}
 
 {/* Summary screen — full summary, last step before submission. يملأ الإطار ويُمرّر عمودياً عند الحاجة. */}
-{showSummaryScreen&&<div className="sr-scroll" style={{flex:1,minHeight:0,overflowY:'auto',border:'1.5px solid rgba(176,125,0,.35)',borderRadius:12,padding:'14px 14px 8px'}}><SummaryCard compact={false}/></div>}
+{showSummaryScreen&&<div className="sr-scroll wz-sum-wrap" style={{flex:1,minHeight:0,overflowY:'auto',border:'1.5px solid rgba(176,125,0,.35)',borderRadius:12,padding:'14px 14px 8px'}}><SummaryCard compact={false}/></div>}
 </div>
 })()}
 

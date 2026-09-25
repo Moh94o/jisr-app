@@ -3,6 +3,8 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import { Target } from 'lucide-react'
 import { Modal as FKModal, ModalSection, ActionButton, GRID, NumberField, CurrencyField } from './components/ui/FormKit.jsx'
 import { Shimmer } from './components/ui/Skeleton.jsx'
+import { useIsMobile, MChips, MFab } from './components/mobile/MobileKit.jsx'
+import './styles/m-home.css'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = { dk: '#171717', md: '#222222', fm: '#1e1e1e', gold: '#B07D00', gl: '#B07D00', red: '#c0392b', blue: '#3483b4', ok: '#27a046' }
@@ -34,6 +36,7 @@ export default function KPIPage({ sb, toast, user, lang, branchId }) {
   const [saving, setSaving] = useState(false)
   const [editErr, setEditErr] = useState(null)
   const [history, setHistory] = useState([])
+  const isMobile = useIsMobile()
 
   const METRICS = [
     { key: 'revenue', l: T('الإيرادات', 'Revenue'), unit: 'currency', icon: '◎', color: C.gold },
@@ -159,6 +162,163 @@ export default function KPIPage({ sb, toast, user, lang, branchId }) {
     const d = new Date(month + '-01')
     return d.toLocaleDateString(isAr ? 'ar-SA-u-ca-gregory-nu-latn' : 'en', { month: 'long', year: 'numeric' })
   })()
+
+  // نافذة تحديد الأهداف (مشتركة بين عرض الحاسب والجوال)
+  const editModal = editPop && (
+      <FKModal open onClose={() => { setEditErr(null); setEditPop(false) }} variant="edit" width={560}
+        title={T('تحديد الأهداف', 'Set Targets')} subtitle={monthLabel} Icon={Target}
+        errorMsg={editErr}
+        footer={
+          <ActionButton onClick={saveTargets} disabled={saving}>
+            {saving ? T('جاري الحفظ...', 'Saving...') : T('حفظ الأهداف', 'Save Targets')}
+          </ActionButton>
+        }>
+        <ModalSection Icon={Target} label={T('الأهداف الشهرية', 'Monthly Targets')} hint={monthLabel}>
+          <div style={GRID}>
+            {METRICS.map(m => m.unit === 'currency'
+              ? <CurrencyField key={m.key} label={m.l} unit={T('ر.س', 'SAR')} placeholder="0.00"
+                  value={editForm[m.key]}
+                  onChange={v => { setEditErr(null); setEditForm(p => ({ ...p, [m.key]: v })) }} />
+              : <NumberField key={m.key} label={m.l} placeholder="0"
+                  value={editForm[m.key]}
+                  onChange={v => { setEditErr(null); setEditForm(p => ({ ...p, [m.key]: v })) }} />)}
+          </div>
+        </ModalSection>
+      </FKModal>
+    )
+
+  // ════ عرض الجوال (≤768px): رأس مضغوط + منتقي شهر + شرائح المكاتب + حلقة الأداء العام + صفوف الأهداف ════
+  if (isMobile) {
+    const shiftMonth = (d) => { const t = new Date(month + '-01T00:00:00Z'); t.setUTCMonth(t.getUTCMonth() + d); setMonth(t.toISOString().slice(0, 7)) }
+    const fmtV = (m, v) => Number(v || 0).toLocaleString('en-US')
+    const shown = METRICS.map(m => ({ m, t: targets.find(x => x.metric_key === m.key) })).filter(x => x.t)
+    const achieved = targets.filter(t => { const m = METRICS.find(x => x.key === t.metric_key); return pct(t.actual_value, t.target_value) >= 100 && !m?.invert }).length
+    const overallPct = targets.length ? Math.round(targets.reduce((s, t) => s + pct(t.actual_value, t.target_value), 0) / targets.length) : 0
+    const oc = pctColor(overallPct, false)
+    const ring = (p, c, size, stroke) => {
+      const r = (size - stroke) / 2, L = 2 * Math.PI * r
+      return (
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: 'rotate(-90deg)', flexShrink: 0 }}>
+          <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="currentColor" strokeOpacity=".12" strokeWidth={stroke} />
+          <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={c} strokeWidth={stroke} strokeLinecap="round" strokeDasharray={L} strokeDashoffset={L * (1 - Math.min(100, p) / 100)} style={{ transition: 'stroke-dashoffset .6s ease' }} />
+        </svg>
+      )
+    }
+    return <div className={'mh' + (targets.length > 0 && !loading ? ' mkp-pad' : '')}>
+      <div className="mh-head">
+        <div className="mh-head-t">
+          <h1>{T('لوحة الأهداف', 'KPI Dashboard')}</h1>
+          <div className="mh-meta"><span>{T('الأداء مقابل الأهداف الشهرية', 'Performance vs monthly targets')}</span></div>
+        </div>
+        <button className="mh-iconbtn" onClick={refreshActuals} aria-label={T('تحديث', 'Refresh')}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6M1 20v-6h6" /><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" /></svg>
+        </button>
+      </div>
+
+      <div className="mkp-month">
+        <button onClick={() => shiftMonth(-1)} aria-label={T('الشهر السابق', 'Previous month')}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d={isAr ? 'm9 6 6 6-6 6' : 'm15 6-6 6 6 6'} /></svg>
+        </button>
+        <label>
+          <span>{monthLabel}</span>
+          <input type="month" value={month} onChange={e => e.target.value && setMonth(e.target.value)} aria-label={T('الشهر', 'Month')} />
+        </label>
+        <button onClick={() => shiftMonth(1)} aria-label={T('الشهر التالي', 'Next month')}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d={isAr ? 'm15 6-6 6 6 6' : 'm9 6 6 6-6 6'} /></svg>
+        </button>
+      </div>
+
+      {isGM && branches.length > 0 && (
+        <MChips value={branchFilter || ''} onChange={v => setBranchFilter(v || null)}
+          options={[{ value: '', label: T('كل المكاتب', 'All branches') }, ...branches.map(b => ({ value: b.id, label: String(b.name_ar || '').replace(/^مكتب\s+/, '') }))]} />
+      )}
+
+      {loading ? <>
+        <div className="mh-card mkp-sum"><Shimmer w={84} h={84} r="50%" /><div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10 }}><Shimmer w="60%" h={14} /><Shimmer w="40%" h={11} /></div></div>
+        {[0, 1, 2, 3].map(i => <div key={i} className="mh-card"><Shimmer w="40%" h={13} /><div style={{ height: 12 }} /><Shimmer w="70%" h={22} /><div style={{ height: 12 }} /><Shimmer h={6} /></div>)}
+      </> : targets.length === 0 ? (
+        <div className="mh-card mkp-empty">
+          <div className="mkp-empty-ic"><Target size={26} strokeWidth={1.8} /></div>
+          <b>{T('لم يتم تحديد أهداف لهذا الشهر', 'No targets set for this month')}</b>
+          <span>{T('أضف أهداف الشهر لتتابع الأداء هنا', 'Add this month\'s targets to track performance here')}</span>
+          <button className="mh-primary" onClick={openEditor}>{T('تحديد الأهداف', 'Set Targets')}</button>
+        </div>
+      ) : <>
+        <div className="mh-hero mkp-hero">
+          <div className="mkp-hero-ring" style={{ color: '#f6efe0' }}>
+            {ring(overallPct, oc === C.ok ? '#8be3a4' : oc === C.red ? '#ff9f94' : '#f5b870', 92, 9)}
+            <b>{overallPct}%</b>
+          </div>
+          <div className="mkp-hero-t">
+            <div className="mh-hero-lbl"><Target size={15} strokeWidth={2} /><span>{T('الأداء العام', 'Overall performance')}</span></div>
+            <div className="mkp-hero-big"><b>{achieved}</b><span>/ {targets.length}</span></div>
+            <div className="mkp-hero-sub">{T('أهداف محققة', 'targets achieved')} · {monthLabel}</div>
+          </div>
+        </div>
+
+        <div className="mh-group">{T('الأهداف', 'Targets')}</div>
+        <div className="mkp-list">
+          {shown.map(({ m, t }) => {
+            const p = pct(t.actual_value, t.target_value)
+            const clr = pctColor(p, m.invert)
+            const prev = Number(t.previous_value || 0)
+            const change = prev > 0 ? Math.round(((Number(t.actual_value) - prev) / prev) * 100) : null
+            const rem = Number(t.target_value || 0) - Number(t.actual_value || 0)
+            return (
+              <div key={m.key} className="mh-card mkp-row" style={{ '--tone': m.color }}>
+                <div className="mkp-row-main">
+                  <div className="mkp-row-h">
+                    <span className="mkp-dot" />
+                    <span className="mkp-name">{m.l}</span>
+                    {change !== null && <span className={'mh-delta ' + (change > 0 ? 'up' : change < 0 ? 'down' : 'flat')}><span dir="ltr">{change > 0 ? '+' : ''}{change}%</span></span>}
+                  </div>
+                  <div className="mkp-val">
+                    <b style={{ color: clr }}>{fmtV(m, t.actual_value)}</b>
+                    <span>/ {fmtV(m, t.target_value)}{m.unit === 'currency' ? ' ' + T('ر.س', 'SAR') : ''}</span>
+                  </div>
+                  <div className="mkp-foot">
+                    {m.invert
+                      ? (p <= 100 ? T('ضمن الحد', 'Within limit') : T('تجاوز الحد', 'Over limit'))
+                      : (p >= 100 ? T('تم تحقيق الهدف', 'Target met') : T('متبقي ', 'Remaining ') + fmtV(m, rem) + (m.unit === 'currency' ? T(' ر.س', ' SAR') : ''))}
+                  </div>
+                </div>
+                <div className="mkp-ring" style={{ color: 'var(--tx)' }}>
+                  {ring(p, clr, 58, 6)}
+                  <b style={{ color: clr }}>{p}%</b>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+
+        {chartData.length > 1 && (
+          <section className="mh-card">
+            <div className="mh-card-h"><h3>{T('الإيرادات مقابل الهدف', 'Revenue vs target')}</h3><span className="mh-card-note">{T('آخر 6 أشهر', 'Last 6 months')}</span></div>
+            <div className="mh-legend">
+              <span><i style={{ background: 'rgba(176,125,0,.28)' }} />{T('الهدف', 'Target')}</span>
+              <span><i style={{ background: C.gold }} />{T('الفعلي', 'Actual')}</span>
+            </div>
+            <div className="mh-chart" style={{ height: 180 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData} barGap={3} margin={{ top: 6, right: 2, left: 2, bottom: 0 }}>
+                  <CartesianGrid stroke="rgba(120,100,60,.13)" vertical={false} />
+                  <XAxis dataKey="month" reversed={isAr} tickFormatter={x => x.slice(5) + '/' + x.slice(2, 4)} tick={{ fontSize: 11, fill: 'rgba(95,80,54,.7)', fontFamily: 'Cairo' }} tickLine={false} axisLine={{ stroke: 'rgba(120,100,60,.13)' }} />
+                  <YAxis orientation={isAr ? 'right' : 'left'} tick={{ fontSize: 11, fill: 'rgba(95,80,54,.7)', fontFamily: 'Cairo' }} tickFormatter={v => v >= 1e6 ? (v / 1e6).toFixed(1).replace(/\.0$/, '') + 'M' : Math.round(v / 1000) + 'K'} tickLine={false} axisLine={false} width={38} />
+                  <Tooltip cursor={{ fill: 'rgba(176,125,0,.07)' }} contentStyle={{ background: 'var(--m-surface)', border: '.5px solid rgba(90,70,30,.15)', borderRadius: 12, fontFamily: F, fontSize: 12, boxShadow: '0 8px 24px rgba(60,45,15,.15)' }}
+                    labelStyle={{ color: 'var(--tx4)', fontSize: 11 }} formatter={(v, n) => [num(v) + T(' ر.س', ' SAR'), n]} />
+                  <Bar dataKey="target" name={T('الهدف', 'Target')} fill="rgba(176,125,0,.25)" radius={[5, 5, 0, 0]} maxBarSize={16} />
+                  <Bar dataKey="actual" name={T('الفعلي', 'Actual')} fill={C.gold} radius={[5, 5, 0, 0]} maxBarSize={16} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </section>
+        )}
+      </>}
+
+      {targets.length > 0 && !loading && <MFab label={T('تحديد الأهداف', 'Set Targets')} onClick={openEditor} icon={<Target size={20} strokeWidth={2.2} />} />}
+      {editModal}
+    </div>
+  }
 
   if (loading) return <div style={{ fontFamily: F }}>
     <style>{`@keyframes sk-shimmer{0%{background-position:100% 0}100%{background-position:-100% 0}}`}</style>
@@ -401,28 +561,6 @@ export default function KPIPage({ sb, toast, user, lang, branchId }) {
       </div>
     })()}
 
-    {/* Edit Modal — FormKit */}
-    {editPop && (
-      <FKModal open onClose={() => { setEditErr(null); setEditPop(false) }} variant="edit" width={560}
-        title={T('تحديد الأهداف', 'Set Targets')} subtitle={monthLabel} Icon={Target}
-        errorMsg={editErr}
-        footer={
-          <ActionButton onClick={saveTargets} disabled={saving}>
-            {saving ? T('جاري الحفظ...', 'Saving...') : T('حفظ الأهداف', 'Save Targets')}
-          </ActionButton>
-        }>
-        <ModalSection Icon={Target} label={T('الأهداف الشهرية', 'Monthly Targets')} hint={monthLabel}>
-          <div style={GRID}>
-            {METRICS.map(m => m.unit === 'currency'
-              ? <CurrencyField key={m.key} label={m.l} unit={T('ر.س', 'SAR')} placeholder="0.00"
-                  value={editForm[m.key]}
-                  onChange={v => { setEditErr(null); setEditForm(p => ({ ...p, [m.key]: v })) }} />
-              : <NumberField key={m.key} label={m.l} placeholder="0"
-                  value={editForm[m.key]}
-                  onChange={v => { setEditErr(null); setEditForm(p => ({ ...p, [m.key]: v })) }} />)}
-          </div>
-        </ModalSection>
-      </FKModal>
-    )}
+    {editModal}
   </div>
 }

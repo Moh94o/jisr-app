@@ -19,6 +19,8 @@ import { can, isGM as isGmUser, cardVisible, canCardBtn, fieldVisible, fieldEdit
 import { swrGet, swrSet, useLiveRefresh } from './lib/liveData.js'
 import { buildRefIndex, matchReceipt, fieldDiffers } from './lib/jub1ExcelMatch.js'
 import BackButton from './components/BackButton'
+import { useIsMobile, MStatStrip, MCardList, MFab, MChips, MSearch } from './components/mobile/MobileKit.jsx'
+import './styles/m-calc.css'
 
 const TAB = 'jub1_receipts'
 
@@ -108,6 +110,7 @@ export default function Jub1ReceiptsPage({ sb, user, toast, lang = 'ar', emptyIc
   const [creating, setCreating] = useState(false)     // نافذة «سند جديد» = رفع صور + قراءة آلية + حفظ مسودة
 
   const isGM = user?.role?.name_ar === 'المدير العام'
+  const isMob = useIsMobile()   // عرض الجوال: بطاقات بدل الجدول + زر عائم
 
   // ── تحميل المراجع + القيود (كاش جلسة: تُرسم فوراً ثم تُحدَّث صامتاً) ────────
   const applyRefs = useCallback((refs) => {
@@ -506,6 +509,58 @@ export default function Jub1ReceiptsPage({ sb, user, toast, lang = 'ar', emptyIc
     return arc
   })
   const readyPct = Math.round(((stats.reviewed + stats.converted) / donutTot) * 100)
+
+  // ═══ الجوال: أرقام مختصرة + بحث + فلاتر الحالة + بطاقات (نفس filtered/visibleCount) + زر عائم ═══
+  if (isMob) {
+    const stOpts = ['draft', 'complete', 'needs_review', 'reviewed', 'converted']
+    const oneSt = statusSel.length === 1 ? statusSel[0] : (statusSel.length ? '_multi' : '')
+    return (
+      <div className="mj-list">
+        <div className="mc-list-head"><h1>{T('سندات القبض', 'Receipts')} <span className="mj-code">JUB1</span></h1></div>
+        {isGM && <MStatStrip items={[
+          { label: T('إجمالي السندات', 'Total'), value: fmt0(sums.total), unit: T('ريال', 'SAR'), tone: 'gold', sub: T(`${stats.total.toLocaleString('en-US')} سند`, `${stats.total} receipts`) },
+          { label: T('المقبوض', 'Received'), value: fmt0(sums.paid), unit: T('ريال', 'SAR'), tone: 'green' },
+          { label: T('المتبقي', 'Remaining'), value: fmt0(sums.remaining), unit: T('ريال', 'SAR'), tone: 'red' },
+          { label: T('جاهز', 'Ready'), value: readyPct + '%', tone: 'blue', sub: T('مدقق أو محوّل', 'verified/converted') },
+          { label: T('عليه ملاحظات', 'Flagged'), value: stats.flagged.toLocaleString('en-US'), tone: 'orange', onClick: () => setOnlyFlagged(v => !v), sub: onlyFlagged ? T('مفعّل — اضغط للإلغاء', 'on — tap to clear') : T('اضغط للتصفية', 'tap to filter') },
+        ]} />}
+        <MSearch value={q} onChange={setQ} placeholder={T('عميل، جوال، هوية، رقم سند…', 'Client, phone, ID, receipt no…')} />
+        <MChips value={onlyFlagged ? '_flag' : oneSt} onChange={v => { if (v === '_flag') { setOnlyFlagged(x => !x); return } setOnlyFlagged(false); setStatusSel(v ? [v] : []) }} options={[
+          { value: '', label: T('الكل', 'All'), count: isGM ? stats.total : undefined },
+          ...stOpts.map(k => ({ value: k, label: STATUS[k].l, count: isGM ? stats[k] : undefined })),
+          { value: '_flag', label: T('عليه ملاحظات', 'Flagged') },
+        ]} />
+        {!loading && filtered.length === 0
+          ? <EmptyState icon={emptyIcon} title={T('لا توجد سندات', 'No receipts')} desc={T('تُضاف السندات عبر المعالجة الآلية لصور السندات', 'Receipts are added via automatic image processing')} />
+          : <MCardList loading={loading}
+              rows={filtered.slice(0, visibleCount).map(e => {
+                const paid = paidOf(e), total = num(e.total_amount), rem = Math.max(0, total - paid)
+                const st = STATUS[e.review_status] || STATUS.draft
+                const fl = flagsOf(e)
+                return {
+                  key: e.id, onClick: () => openFromList(e.id), accent: st.c,
+                  title: e.client_name || T('بدون اسم', 'No name'),
+                  subtitle: <span className="mc-card-sub"><bdi className="mc-mono">#{e.primary_receipt_no || '—'}</bdi><i /><bdi>{dt(e.receipt_date)}</bdi></span>,
+                  badge: { text: T(st.l, st.e), tone: st.c },
+                  fields: [
+                    { label: T('الإجمالي', 'Total'), value: total ? <span className="mc-amt">{fmt(total)}<small>{T('ريال', 'SAR')}</small></span> : '—' },
+                    { label: T('الخدمة', 'Service'), value: services.find(s => s.id === e.service_item_id)?.value_ar || '—' },
+                    { label: T('المقبوض', 'Received'), value: fmt(paid), tone: 'green' },
+                    { label: T('المتبقي', 'Remaining'), value: total ? fmt(rem) : '—', tone: rem > 0.5 ? 'red' : 'gray' },
+                    fl.length ? { label: T('ملاحظات', 'Flags'), value: fl.join(' · '), tone: 'orange', full: true } : null,
+                  ],
+                }
+              })}
+              onEndReached={visibleCount < filtered.length ? () => setVisibleCount(v => Math.min(v + 150, filtered.length)) : undefined}
+            />}
+        {canCreate && <MFab label={T('سند جديد', 'New receipt')} onClick={openNew} />}
+        {creating && (
+          <NewReceiptModal sb={sb} user={user} lang={lang} tt={tt} branch={branch} services={services}
+            onClose={() => { setCreating(false); loadEntries() }} />
+        )}
+      </div>
+    )
+  }
 
   return (
     <div style={{ fontFamily: 'Cairo, Tajawal, sans-serif', paddingBottom: 40 }}>

@@ -3,7 +3,7 @@ import { RefreshCw, Printer, BadgeCheck, MessageSquare, Plus, Paperclip, User, F
 import { C, F, EmptyState, Modal as FKModal, ModalSection, TextArea, TextField, FileField, CurrencyField, YesNo, Select as FKSelect, DateField as FKDateField, GRID, SuccessView } from '../components/ui/FormKit.jsx'
 import { can as canPerm, cardVisible, canCardBtn, tabOffices, fieldVisible, fieldEditable, modalAllowed } from '../lib/permissions.js'
 import { noDash } from '../lib/utils.js'
-import { navSetHere } from '../lib/navStack.js'
+import { navSetHere, navPeekFor, navBack } from '../lib/navStack.js'
 import { swrGet, swrSet, useLiveRefresh, getTestBranchIds, excludeTestBranchesOr } from '../lib/liveData.js'
 import { getIqamaRenewalPricingConfig, renewalApprovalDiscountCap } from '../lib/kafalaPricing.js'
 import { computeRenewalDerived } from '../lib/renewalDerived.js'
@@ -11,8 +11,192 @@ import { syncInvoicePricing } from '../lib/invoicePricingSync.js'
 import OfficialStampBadge from '../components/ui/OfficialStampBadge.jsx'
 import BackButton from '../components/BackButton'
 import { PRINT_PALETTE } from '../lib/printTheme.js'
+import { useBackHandler } from '../lib/mobileBack.js'
+import { useIsMobile, MStatStrip, MCardList, MFab, MChips, MSearch, MBadge } from '../components/mobile/MobileKit.jsx'
+import '../styles/m-calc.css'
 
 const nm = v => Number(v || 0).toLocaleString('en-US')
+
+/* ═══════════ عرض الجوال لصفحات الحسبات (نقل الكفالة + تجديد الإقامة) ═══════════
+   مكوّنات عرض فقط — تُغذّى من حالة الصفحة وحساباتها الحالية ولا تحسب أسعاراً.
+   تُستعمل هنا وفي TransferCalcPage (App.jsx) عبر RenewalCalcPage.M */
+
+// ألوان الحالات على الخلفية الفاتحة (أوضح من ألوان الحاسبي)
+const M_ST_TONE = { draft: 'gray', priced: '#b7860b', approved: 'blue', invoiced: 'green', completed: 'green', cancelled: 'red', pending: 'orange' }
+const M_HERO_TONE = { priced: '#f3c26b', approved: '#8cc4f0', invoiced: '#7fd49a', completed: '#7fd49a', cancelled: '#ff8a7a' }
+const mInitials = (s) => {
+  const w = String(s || '').replace(/[^\p{L}\s]/gu, ' ').trim().split(/\s+/).filter(Boolean)
+  if (!w.length) return '؟'
+  return (w[0][0] + (w.length > 1 ? w[w.length - 1][0] : '')).toUpperCase()
+}
+// صلاحية التسعيرة (5 أيام من التسعير) — نص قصير + لون للعرض
+function mValidity(pricedAt, T) {
+  const t = pricedAt ? new Date(pricedAt).getTime() : 0
+  if (!t) return null
+  const total = 5 * 86400000
+  const rem = total - (Date.now() - t)
+  if (rem <= 0) return { text: T('انتهت الصلاحية', 'Expired'), short: T('منتهية', 'Expired'), tone: 'red', pct: 0 }
+  const d = Math.floor(rem / 86400000), h = Math.floor((rem % 86400000) / 3600000)
+  const text = d > 0 ? T(`صالحة ${d} ${d >= 3 && d <= 10 ? 'أيام' : 'يوم'} و ${h} س`, `${d}d ${h}h left`) : T(`صالحة ${h} ساعة`, `${h}h left`)
+  return { text, short: d > 0 ? T(`${d} ${d >= 3 && d <= 10 ? 'أيام' : 'يوم'}`, `${d}d`) : T(`${h} س`, `${h}h`), tone: d <= 1 ? 'orange' : 'green', pct: rem / total }
+}
+const mTime = (iso) => { if (!iso) return '—'; const d = new Date(iso); if (isNaN(d)) return '—'; return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') }
+const mDate = (iso) => { if (!iso) return '—'; const d = new Date(iso); if (isNaN(d)) return '—'; return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') }
+
+/* قائمة الحسبات على الجوال: عنوان + شريط أرقام + فلاتر الحالة + بحث + كروت مجمّعة حسب اليوم + زر عائم */
+function CalcMList({ T, title, stats, chips, search, groups, loading, empty, fab }) {
+  return (
+    <div className="mc-list">
+      <div className="mc-list-head">
+        <h1>{title}</h1>
+      </div>
+      <MStatStrip items={stats} />
+      {search && <MSearch {...search} />}
+      {chips && <MChips {...chips} />}
+      {loading ? <MCardList loading rows={[]} /> : (!groups || !groups.length) ? empty : groups.map(g => (
+        <section key={g.key} className="mc-day">
+          <div className="mc-day-head"><span className={'mc-day-lbl' + (g.today ? ' today' : '')}>{g.label}</span>{g.sub && <span className="mc-day-sub">{g.sub}</span>}<span className="mc-day-n">{g.rows.length}</span></div>
+          <MCardList rows={g.rows} />
+        </section>
+      ))}
+      {fab && <MFab label={fab.label} onClick={fab.onClick} />}
+    </div>
+  )
+}
+
+// كرت حسبة واحدة في القائمة (props لـ MCard)
+function calcMCard({ T, id, name, quoteNo, office, total, status, stLabel, iqama, tags, pricedAt, createdAt, flag, onClick }) {
+  const v = ['priced', 'approved'].includes(status) ? mValidity(pricedAt, T) : null
+  return {
+    key: id,
+    title: <bdi>{name || '—'}</bdi>,
+    subtitle: <span className="mc-card-sub"><bdi className="mc-mono">{quoteNo}</bdi>{office && <><i />{office}</>}</span>,
+    leading: flag ? <img src={flag} alt="" /> : <span className="mc-ini">{mInitials(name)}</span>,
+    badge: { text: stLabel, tone: M_ST_TONE[status] || 'gray' },
+    accent: M_ST_TONE[status] || 'gray',
+    onClick,
+    fields: [
+      { label: T('الإجمالي', 'Total'), value: <span className="mc-amt">{nm(Math.round(Number(total) || 0))}<small>{T('ريال', 'SAR')}</small></span> },
+      { label: T('رقم الإقامة', 'Iqama'), value: iqama || '—', ltr: true },
+      tags && tags.length ? { label: T('الخدمات', 'Services'), value: tags.join(' · ') } : { label: T('الوقت', 'Time'), value: mTime(pricedAt || createdAt), ltr: true },
+      v ? { label: T('الصلاحية', 'Validity'), value: v.short, tone: v.tone } : { label: T('الوقت', 'Time'), value: mTime(pricedAt || createdAt), ltr: true },
+    ],
+  }
+}
+
+// زر رجوع أصلي (نفس منطق BackButton: الرجوع الذكي + زر الرجوع في الجوال)
+function MBack({ onBack, navKind, navId, isAr, label }) {
+  const from = navKind ? navPeekFor(navKind, navId) : null
+  const text = from ? (from.label ? (isAr ? (from.label.ar || from.label.en) : (from.label.en || from.label.ar)) : (isAr ? 'الصفحة السابقة' : 'Back')) : label
+  const click = from ? () => { if (!navBack(navKind, navId)) onBack?.() } : onBack
+  useBackHandler(!!click, () => click?.())
+  return (
+    <button className="mc-back" onClick={click}>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d={isAr ? 'm9 18 6-6-6-6' : 'm15 18-6-6 6-6'} /></svg>
+      <span>{text}</span>
+    </button>
+  )
+}
+
+/* تفاصيل حسبة بملء الشاشة: بطاقة الإجمالي · البنود · الأقسام · التعليقات · الطباعة · شريط إجراءات ثابت */
+function CalcMDetail({ T, isAr, kind, onBack, navKind, navId, status, quoteNo, workerName, workerSub, flag, meta, total, split, validity, pricing, sections, comments, print, actions, children }) {
+  const [copied, setCopied] = useState(false)
+  const acts = (actions || []).filter(Boolean)
+  const v = validity || null
+  return (
+    <div className={'mc-detail' + (acts.length ? ' has-bar' : '')}>
+      <div className="mc-nav">
+        <MBack onBack={onBack} navKind={navKind} navId={navId} isAr={isAr} label={T('الحسبات', 'Quotes')} />
+        <span className="mc-nav-kind">{kind}</span>
+      </div>
+
+      <div className="mc-hero">
+        <div className="mc-hero-top">
+          <span className="mc-hero-badge" style={{ '--tone': M_HERO_TONE[status.key] || '#e8dcc0' }}>{status.text}</span>
+          <button className="mc-hero-no" onClick={() => { try { navigator.clipboard?.writeText(quoteNo); setCopied(true); setTimeout(() => setCopied(false), 1400) } catch {} }}>
+            <bdi>{quoteNo}</bdi>
+            {copied
+              ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+              : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>}
+          </button>
+        </div>
+        <div className="mc-hero-who">
+          <span className="mc-hero-av">{flag ? <img src={flag} alt="" /> : mInitials(workerName)}</span>
+          <span className="mc-hero-names">
+            <bdi className="mc-hero-name">{workerName || '—'}</bdi>
+            {(workerSub || (meta && meta.length)) && <span className="mc-hero-meta">{[workerSub, ...(meta || [])].filter(Boolean).map((m, i) => <React.Fragment key={i}>{i > 0 && <i />}<bdi>{m}</bdi></React.Fragment>)}</span>}
+          </span>
+        </div>
+        <div className="mc-hero-total">
+          <span className="mc-hero-lbl">{T('الإجمالي المطلوب', 'Total due')}</span>
+          <span className="mc-hero-amt">{nm(Math.round(Number(total) || 0))}<small>{T('ريال', 'SAR')}</small></span>
+        </div>
+        {split && split.length > 0 && <div className="mc-hero-split">
+          {split.filter(Boolean).map((s, i) => <div key={i}><span>{s.label}</span><b>{s.value}</b></div>)}
+        </div>}
+        {v && <div className="mc-hero-valid" style={{ '--tone': v.tone === 'red' ? '#ff8a7a' : v.tone === 'orange' ? '#f3c26b' : '#7fd49a' }}>
+          <span className="mc-hero-bar"><span style={{ width: Math.max(4, Math.round(v.pct * 100)) + '%' }} /></span>
+          <span className="mc-hero-vtxt">{v.text}</span>
+        </div>}
+      </div>
+
+      {pricing && <div className="mc-sec">
+        <div className="mc-sec-head"><h3>{pricing.title}</h3>{pricing.edit && <button className="mc-sec-act" onClick={pricing.edit}>{T('تعديل', 'Edit')}</button>}</div>
+        <div className="mc-rows">
+          {pricing.items.filter(Boolean).map((it, i) => <div key={i} className="mc-row"><span className="mc-row-l">{it.label}</span><span className="mc-row-v mc-num" style={it.tone ? { color: it.tone } : undefined}>{it.value}</span></div>)}
+          {(pricing.summary || []).filter(Boolean).map((it, i) => <div key={'s' + i} className={'mc-row' + (i === 0 ? ' mc-row-sep' : '')}><span className="mc-row-l" style={it.tone ? { color: it.tone } : undefined}>{it.label}</span><span className="mc-row-v mc-num" style={it.tone ? { color: it.tone } : undefined}>{it.value}</span></div>)}
+        </div>
+        <div className="mc-total"><span>{pricing.totalLabel}</span><b>{nm(Math.round(Number(pricing.total) || 0))}<small>{T('ريال', 'SAR')}</small></b></div>
+      </div>}
+
+      {(sections || []).filter(Boolean).map((s, si) => {
+        const rows = (s.rows || []).filter(r => r && r.value != null && r.value !== '' && r.value !== '—')
+        if (!rows.length && !s.children) return null
+        return (
+          <div key={si} className="mc-sec">
+            <div className="mc-sec-head"><h3>{s.title}</h3>{s.edit && <button className="mc-sec-act" onClick={s.edit}>{T('تعديل', 'Edit')}</button>}</div>
+            {rows.length > 0 && <div className="mc-rows">
+              {rows.map((r, i) => <div key={i} className={'mc-row' + (r.onClick ? ' mc-row-tap' : '')} onClick={r.onClick}>
+                <span className="mc-row-l">{r.label}</span>
+                <span className={'mc-row-v' + (r.ltr ? ' mc-num' : '')} style={r.tone ? { color: r.tone } : undefined}>{r.ltr ? <bdi>{r.value}</bdi> : r.value}</span>
+              </div>)}
+            </div>}
+            {s.children}
+          </div>
+        )
+      })}
+
+      {comments && <div className="mc-sec">
+        <div className="mc-sec-head"><h3>{T('التعليقات والمراحل', 'Comments & timeline')}</h3></div>
+        <div className="mc-tl">
+          {comments.items.map((ev, i) => ev.kind === 'ms'
+            ? <div key={i} className="mc-tl-ms" style={{ '--tone': ev.color }}><span className="mc-tl-dot" /><b>{ev.label}</b><bdi>{mDate(ev.ts)} · {mTime(ev.ts)}</bdi></div>
+            : <div key={i} className="mc-tl-note">
+                <p>{ev.text}</p>
+                {ev.attachments && ev.attachments.length > 0 && <div className="mc-tl-atts">{ev.attachments.map((a, j) => <a key={j} href={a.file_url} target="_blank" rel="noreferrer">{a.file_name || T('مرفق', 'Attachment')}</a>)}</div>}
+                <span className="mc-tl-foot">{ev.who && <b>{ev.who}</b>}<bdi>{mDate(ev.ts)} · {mTime(ev.ts)}</bdi></span>
+              </div>)}
+          {!comments.items.some(e => e.kind !== 'ms') && <div className="mc-tl-empty">{T('لا توجد تعليقات بعد', 'No comments yet')}</div>}
+        </div>
+        {comments.onAdd && <button className="mc-add" onClick={comments.onAdd}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>{T('إضافة تعليق', 'Add comment')}
+        </button>}
+      </div>}
+
+      {print && print.length > 0 && <div className="mc-sec">
+        <div className="mc-sec-head"><h3>{T('طباعة التسعيرة', 'Print quote')}</h3></div>
+        <div className="mc-print">
+          {print.map(o => <button key={o.k} onClick={o.onClick}><img src={`https://flagcdn.com/w40/${o.cc}.png`} alt="" width="20" height="14" /><span>{o.l}</span></button>)}
+        </div>
+      </div>}
+
+      {acts.length > 0 && <div className="mc-actbar">
+        {acts.map((a, i) => <button key={i} className={'mc-act ' + (a.kind || 'primary')} onClick={a.onClick} disabled={a.disabled}>{a.label}</button>)}
+      </div>}
+      {children}
+    </div>
+  )
+}
 
 // زر نسخ صغير — يظهر علامة صح للحظة بعد النسخ
 const CopyBtn = ({ text, lang }) => {
@@ -114,10 +298,12 @@ function RnwSkeleton({ listRows = 6 }) {
 }
 
 /* RenewalCalcPage — قائمة تسعيرات تجديد الإقامة بنفس تصميم تسعيرات التنازل. */
+export { CalcMList, CalcMDetail, calcMCard, mValidity }
 export default function RenewalCalcPage({ sb, toast, user, lang, emptyIcon, onNewCalc }) {
   const isAr = (lang || 'ar') !== 'en'
   const T = (a, e) => isAr ? a : e
   const dir = isAr ? 'rtl' : 'ltr'
+  const isMob = useIsMobile()   // عرض الجوال (≤768px) — القائمة والتفاصيل ببطاقات أصلية؛ الحاسبي كما هو
   // مكاتب المستخدم لتبويب حسبة التجديد: null = بلا قيد (المدير العام / «كل المكاتب»).
   const officeScope = useMemo(() => tabOffices(user, 'renewal_calc'), [user])
   const [rows, setRows] = useState([])
@@ -820,7 +1006,8 @@ ${noticeBlk}
     </div>
   )
 
-  if (loading) return <div style={{ fontFamily: F, paddingTop: 0, paddingBottom: 80, direction: dir }}>{listHeader}<RnwSkeleton /></div>
+  if (loading) return isMob ? <CalcMList T={T} title={T('حسبة تجديد الإقامات', 'Renewal Calculator')} loading />
+    : <div style={{ fontFamily: F, paddingTop: 0, paddingBottom: 80, direction: dir }}>{listHeader}<RnwSkeleton /></div>
 
   // ═══════════════ شاشة التفاصيل ═══════════════
   if (detailsRow) {
@@ -945,6 +1132,200 @@ ${noticeBlk}
       }
       return s
     })()
+
+    // النوافذ (تصديق · إلغاء · تعديل كرت · تعليق) — تُرسم في الحاسبي والجوال معاً
+    const detailModals = <>
+      {/* ═══ نافذة تصديق الحسبة — FormKit (نجاح داخل النافذة) ═══ */}
+      {approveForm && (() => {
+        const f = approveForm
+        const setF = (k, v) => setApproveForm(p => ({ ...p, [k]: v }))
+        const d = discountEnabled ? computeApprovalDiscount(f) : null
+        const belowFloor = !!(d && d.capped)
+        return <FKModal open onClose={() => { if (approveSaving) return; setApproveForm(null); if (approveSaved) { setApproveSaved(false); setDetailsRow(null); load() } }} width={520} variant="edit"
+          success={approveSaved ? <SuccessView title={T('تم تصديق الحسبة', 'Quote approved')} code={f._quoteNo ? noDash(f._quoteNo) : undefined} /> : null}
+          title={T('تصديق الحسبة', 'Approve Quote')} subtitle={f._workerName || undefined} Icon={BadgeCheck}
+          onSubmit={submitApproval} submitting={approveSaving} submitLabel={T('تصديق الحسبة', 'Approve Quote')}
+          pages={[{ valid: true, content: (
+            <ModalSection Icon={BadgeCheck} label={T('تأكيد التصديق', 'Confirm Approval')}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, padding: '14px 16px', borderRadius: 10, background: 'rgba(176,125,0,.08)', border: '1px solid rgba(176,125,0,.3)' }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx2)' }}>{T('إجمالي التسعيرة', 'Quote Total')}</span>
+                  <span style={{ color: C.gold, display: 'inline-flex', direction: 'rtl', alignItems: 'baseline', gap: 4 }}><span style={{ fontSize: 18, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{nm(Math.round(Number(f._total || 0)))}</span><span style={{ fontSize: 11, fontWeight: 600 }}>{T('ريال', 'SAR')}</span></span>
+                </div>
+                {discountEnabled && d && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 9, padding: '12px 14px', borderRadius: 10, background: 'var(--inputBg)', border: '1px solid var(--bd)' }}>
+                      <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx2)' }}>{T('خصم إضافي', 'Extra Discount')} <span style={{ fontSize: 10, fontWeight: 400, color: 'var(--tx4)' }}>({T('اختياري', 'optional')})</span></div>
+                      {/* أرضية الخصم تُضبط من الإدارة (الخدمات ← تجديد الإقامة ← رسوم المكتب) ولا تظهر للمُصدِّق — يرى حقل مبلغ الخصم فقط. */}
+                      <input type="text" inputMode="decimal" value={f.discValue} onChange={e => setF('discValue', e.target.value.replace(/[^0-9.]/g, ''))} placeholder={T('مبلغ الخصم بالريال', 'Discount amount (SAR)')} style={{ width: '100%', height: 40, padding: '0 14px', border: '1px solid var(--bd)', borderRadius: 9, fontFamily: F, fontSize: 15, fontWeight: 600, color: C.gold, outline: 'none', background: 'var(--inputBg)', boxSizing: 'border-box', textAlign: 'center', direction: 'ltr' }} />
+                      {/* سقف الخصم لهذه المدة (سياسة الأدمن) — يظهر للجميع، وهو الحدّ الفعلي للمُصدِّق غير المدير العام. */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, fontWeight: 600, color: 'var(--tx4)' }}>
+                        <span>{T(`سقف الخصم لهذه المدة (${nm(Number(f._renewalMonths || 0))} ${T('شهر', 'mo')})`, `Discount cap for this duration (${nm(Number(f._renewalMonths || 0))} mo)`)}</span>
+                        <span><b style={{ color: 'var(--tx2)' }}>{nm(d.maxDiscount)}</b> {T('ريال', 'SAR')}</span>
+                      </div>
+                      {belowFloor && <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx4)' }}>{T(`الخصم يتجاوز السقف المسموح (${nm(d.maxDiscount)} ريال) — سيُطبَّق الحد الأقصى تلقائياً.`, `The discount exceeds the allowed cap (${nm(d.maxDiscount)} SAR) — the maximum will be applied automatically.`)}</div>}
+                      {/* الخصم يُطبَّق على رسوم المكتب (لا على الإجمالي) — نُبرز رسوم المكتب بعد الخصم، والإجمالي سطرٌ ثانوي. */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 7, borderTop: '1px dashed rgba(176,125,0,.3)' }}>
+                        <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx2)' }}>{T('رسوم المكتب بعد الخصم', 'Office fee after discount')}</span>
+                        <span style={{ color: C.gold, display: 'inline-flex', direction: 'rtl', alignItems: 'baseline', gap: 4 }}><span style={{ fontSize: 16, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{nm(Math.max(0, (f._officeFee || 0) - d.applied))}</span><span style={{ fontSize: 10, fontWeight: 600 }}>{T('ريال', 'SAR')}</span></span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 6, borderTop: '1px dashed rgba(176,125,0,.22)' }}>
+                        <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx4)' }}>{T('الإجمالي بعد الخصم', 'Total after discount')}</span>
+                        <span style={{ color: 'var(--tx3)', display: 'inline-flex', direction: 'rtl', alignItems: 'baseline', gap: 4 }}><span style={{ fontSize: 12.5, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{nm(d.newTotal)}</span><span style={{ fontSize: 10, fontWeight: 600 }}>{T('ريال', 'SAR')}</span></span>
+                      </div>
+                    </div>
+                )}
+                <div style={{ fontSize: 12, color: 'var(--tx3)', lineHeight: 1.7 }}>{T('بالتصديق تنتقل الحسبة إلى حالة «مصدّقة» ويُسجَّل اسمك وتاريخ التصديق.', 'Approving moves the quote to “Approved” and records your name and the approval date.')}</div>
+              </div>
+            </ModalSection>
+          ) }]} />
+      })()}
+
+      {/* ═══ نافذة إلغاء الحسبة — FormKit (نجاح داخل النافذة) ═══ */}
+      {cancelForm && (() => {
+        const f = cancelForm
+        const setF = (k, v) => setCancelForm(p => ({ ...p, [k]: v }))
+        return <FKModal open onClose={() => { if (cancelSaving) return; setCancelForm(null); if (cancelSaved) { setCancelSaved(false); setDetailsRow(null); load() } }} width={520} variant="edit"
+          success={cancelSaved ? <SuccessView title={T('تم إلغاء الحسبة', 'Quote cancelled')} code={f._quoteNo ? noDash(f._quoteNo) : undefined} /> : null}
+          title={T('إلغاء الحسبة', 'Cancel Quote')} subtitle={f._workerName || undefined} Icon={AlertCircle}
+          onSubmit={submitCancel} submitting={cancelSaving} submitLabel={T('تأكيد الإلغاء', 'Confirm Cancellation')}
+          pages={[{ valid: true, content: (
+            <ModalSection Icon={AlertCircle} label={T('تأكيد الإلغاء', 'Confirm Cancellation')}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 9, padding: '12px 14px', borderRadius: 10, background: 'var(--inputBg)', border: '1px solid var(--bd)' }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx2)' }}>{T('سبب الإلغاء', 'Cancellation reason')} <span style={{ fontSize: 10, fontWeight: 400, color: 'var(--tx4)' }}>({T('اختياري', 'optional')})</span></div>
+                  <textarea value={f.reason} onChange={e => setF('reason', e.target.value.slice(0, 500))} placeholder={T('سبب الإلغاء (اختياري)…', 'Reason (optional)…')} rows={3} style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--bd)', borderRadius: 9, fontFamily: F, fontSize: 13, fontWeight: 500, color: 'var(--tx)', outline: 'none', background: 'var(--inputBg)', boxSizing: 'border-box', resize: 'vertical', direction: dir }} />
+                </div>
+                <div style={{ fontSize: 12, color: C.red, lineHeight: 1.7, background: 'rgba(192,57,43,.08)', border: '1px solid rgba(192,57,43,.25)', borderRadius: 9, padding: '10px 12px' }}>{T('بالإلغاء تنتقل الحسبة إلى حالة «ملغاة» ويُسجَّل اسمك وتاريخ الإلغاء. ولا يمكن استخدامها في فاتورة بعد ذلك.', 'Cancelling moves the quote to “Cancelled”, records your name and the date, and it can no longer be invoiced.')}</div>
+              </div>
+            </ModalSection>
+          ) }]} />
+      })()}
+
+      {/* ═══ نافذة تعديل كرت — FormKit (نفس تفاصيل نقل الكفالة) ═══ */}
+      {cardEdit && (() => {
+        const f = cardEdit; const setF = (k, v) => setCardEdit(p => ({ ...p, [k]: v }))
+        const fVis = (k) => fieldVisible(user, 'renewal_calc', k), fEd = (k) => fieldEditable(user, 'renewal_calc', k)
+        const titles = { worker: T('تعديل بيانات العامل', 'Edit Worker Data'), professional: T('تعديل البيانات المهنية', 'Edit Professional Data'), renewal: T('تعديل خيارات التجديد', 'Edit Renewal Options'), pricing: T('تعديل التسعيرة', 'Edit Pricing') }
+        let content
+        if (f.card === 'worker') content = <ModalSection Icon={User} label={T('بيانات العامل', 'Worker Data')}><div style={GRID}>
+          {fVis('worker_name') && <TextField full label={T('الاسم', 'Name')} value={f.worker_name || ''} onChange={v => setF('worker_name', v)} disabled={!fEd('worker_name')} />}
+          {fVis('iqama_number') && <TextField label={T('رقم الإقامة', 'Iqama Number')} dir="ltr" value={f.iqama_number || ''} onChange={v => setF('iqama_number', v)} disabled={!fEd('iqama_number')} />}
+          {fVis('phone') && <TextField label={T('رقم الجوال', 'Mobile')} dir="ltr" value={f.phone || ''} onChange={v => setF('phone', v)} disabled={!fEd('phone')} />}
+          {fVis('nationality_id') && <FKSelect label={T('الجنسية', 'Nationality')} value={f.nationality_id || ''} onChange={v => setF('nationality_id', v)} placeholder={'— ' + T('اختر', 'Select') + ' —'} options={nationalities} getKey={x => x.id} getLabel={x => lang === 'en' ? (x.name_en || x.name_ar) : x.name_ar} disabled={!fEd('nationality_id')} />}
+          {fVis('dob') && <FKDateField label={T('تاريخ الميلاد', 'Date of Birth')} value={f.dob || ''} onChange={v => setF('dob', v)} disabled={!fEd('dob')} />}
+        </div></ModalSection>
+        else if (f.card === 'professional') content = <ModalSection Icon={FileText} label={T('البيانات المهنية', 'Professional Data')}><div style={GRID}>
+          <TextField full label={T('المهنة', 'Occupation')} value={f.occupation_name_ar || ''} onChange={v => setF('occupation_name_ar', v)} />
+          <FKDateField label={T('انتهاء الإقامة (ميلادي)', 'Iqama Expiry (G)')} value={f.iqama_expiry_gregorian || ''} onChange={v => setF('iqama_expiry_gregorian', v)} />
+          <TextField label={T('انتهاء الإقامة (هجري)', 'Iqama Expiry (H)')} dir="ltr" value={f.iqama_expiry_hijri || ''} onChange={v => setF('iqama_expiry_hijri', v)} />
+        </div></ModalSection>
+        else if (f.card === 'renewal') content = <ModalSection Icon={RefreshCw} label={T('خيارات التجديد', 'Renewal Options')}><div style={GRID}>
+          {fVis('renewal_months') && <TextField label={T('مدة التجديد (شهر)', 'Renewal Period (months)')} dir="ltr" value={f.renewal_months ?? ''} onChange={v => setF('renewal_months', String(v).replace(/[^0-9]/g, ''))} disabled={!fEd('renewal_months')} />}
+          {fVis('change_profession') && <YesNo label={T('تغيير المهنة', 'Change Occupation')} value={f.change_profession} onChange={v => setF('change_profession', v)} disabled={!fEd('change_profession')} />}
+          {f.change_profession && fVis('new_occupation_name_ar') ? <TextField label={T('المهنة الجديدة', 'New Occupation')} value={f.new_occupation_name_ar || ''} onChange={v => setF('new_occupation_name_ar', v)} disabled={!fEd('new_occupation_name_ar')} /> : null}
+          {fVis('exemption') && <YesNo label={T('الإعفاء', 'Exemption')} value={f.exemption} onChange={v => setF('exemption', v)} disabled={!fEd('exemption')} />}
+          {fVis('work_permit_expiry') && <FKDateField label={T('انتهاء رخصة العمل', 'Work Permit Expiry')} value={f.work_permit_expiry || ''} onChange={v => setF('work_permit_expiry', v)} disabled={!fEd('work_permit_expiry')} />}
+        </div></ModalSection>
+        else content = <ModalSection Icon={Banknote} label={T('الرسوم', 'Fees')}><div style={GRID}>
+          {[['office_fee', T('رسوم المكتب', 'Office Fee')], ['iqama_renewal_fee', T('تجديد الإقامة', 'Iqama Renewal')], ['late_fine_amount', T('غرامة تأخير التجديد', 'Renewal Late Fine')], ['work_permit_fee', T('رسوم رخصة العمل', 'Work Permit')], ['medical_fee', T('التأمين الطبي', 'Medical')], ['prof_change_fee', T('تغيير المهنة', 'Occupation Change')], ['gov_excess', T('الزائد عن الحدود الحكومية', 'Gov Excess')], ['absher_discount', T('خصم أبشر', 'Absher Discount')], ['manual_discount', T('خصم المكتب', 'Office Discount')]].filter(([k]) => fVis(k)).map(([k, l]) => <CurrencyField key={k} label={l} value={f[k] ?? ''} onChange={v => setF(k, v)} disabled={!fEd(k)} />)}
+          <div style={{ gridColumn: '1/-1', display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderRadius: 9, background: 'rgba(176,125,0,.08)', border: '1px solid rgba(176,125,0,.3)', minHeight: 44 }}><span style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx2)' }}>{T('الإجمالي بعد التعديل', 'New total')}</span><span style={{ flex: 1 }} /><span style={{ fontSize: 16, fontWeight: 600, color: C.gold, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{(() => { const sum = (r.pricing_model === 'flat' ? ['office_fee', 'iqama_renewal_fee', 'late_fine_amount', 'work_permit_fee', 'medical_fee', 'prof_change_fee'] : ['office_fee', 'gov_excess', 'late_fine_amount', 'prof_change_fee']).reduce((s, k) => s + (Number(f[k]) || 0), 0) + (Array.isArray(r.extras) ? r.extras : []).reduce((s, e) => s + (Number(e?.amount) || 0), 0); const tot = Math.max(0, sum - (Number(f.absher_discount) || 0) - (Number(f.manual_discount) || 0)); return nm(tot) + ' ' + T('ريال', 'SAR') })()}</span></div>
+        </div></ModalSection>
+        return <FKModal open onClose={() => { if (!cardSaving) setCardEdit(null) }} width={560} variant="edit" title={titles[f.card]} Icon={FileText}
+          onSubmit={saveCardEdit} submitting={cardSaving} submitLabel={T('حفظ', 'Save')} pages={[{ valid: true, content }]} />
+      })()}
+
+      {/* ═══ نافذة إضافة تعليق ═══ */}
+      {quoteNoteModal && <RenewalNoteModal sb={sb} T={T} lang={lang} rcId={r.id} user={user} onClose={() => setQuoteNoteModal(false)} onSaved={loadQuoteNotes} />}
+    </>
+    // فتح نافذة التصديق — مشترك بين زر الحاسبي وشريط إجراءات الجوال
+    const openApprove = () => { const expired = r.priced_at ? (Date.now() - new Date(r.priced_at).getTime()) > 5 * 86400000 : false; if (expired) { toast(T('انتهت صلاحية التسعيرة — لا يمكن التصديق', 'Quote expired')); return } setApproveSaved(false); const _rc = getIqamaRenewalPricingConfig(r.branch_id || null); setApproveForm({ _id: r.id, _workerName: r.worker_name, _quoteNo: r.quote_no, _total: Number(r.total_amount || 0), _officeFee: Number(r.office_fee || 0), _renewalMonths: Number(r.renewal_months || 0), _discCap: renewalApprovalDiscountCap(_rc, r.renewal_months), discValue: '', approval_note: '' }) }
+    const openCancel = () => { setCancelSaved(false); setCancelForm({ _id: r.id, _workerName: r.worker_name, _quoteNo: r.quote_no, reason: '' }) }
+
+    // ═══ الجوال: تفاصيل بملء الشاشة (نفس القيم والحسابات المعروضة في الحاسبي) ═══
+    if (isMob) {
+      const sar = v => nm(v) + ' ' + T('ريال', 'SAR')
+      const renMonths = Number(r.renewal_months || 0)
+      const billedIqamaMos = r.billed_renewal_months != null ? Number(r.billed_renewal_months) : (() => { let billed = renMonths; const exp = r.iqama_expiry_gregorian ? new Date(r.iqama_expiry_gregorian) : null; if (exp && !isNaN(exp)) { const ref = r.priced_at ? new Date(r.priced_at) : new Date(); ref.setHours(0, 0, 0, 0); exp.setHours(0, 0, 0, 0); if (exp < ref) { const end = new Date(ref); end.setMonth(end.getMonth() + renMonths); let m = (end.getFullYear() - exp.getFullYear()) * 12 + (end.getMonth() - exp.getMonth()); let d = end.getDate() - exp.getDate(); if (d < 0) { m -= 1; d += new Date(end.getFullYear(), end.getMonth(), 0).getDate() } billed = d > 0 ? m + 1 : m } } return billed })()
+      const renIqamaSuffix = billedIqamaMos > 0 ? T(` (${billedIqamaMos} شهر)`, ` (${billedIqamaMos} mo)`) : ''
+      const renSuffix = renMonths > 0 ? T(` (${renMonths} شهر)`, ` (${renMonths} mo)`) : ''
+      const cover = r.pricing_model === 'flat' ? 0 : (r.office_cover != null ? Number(r.office_cover) : Math.max(0, Number(r.iqama_renewal_fee || 0) + Number(r.work_permit_fee || 0) + Number(r.medical_fee || 0) - Number(r.gov_excess || 0)))
+      const officeFee = Number(r.office_fee || 0), total = Number(r.total_amount || 0), absher = Number(r.absher_discount || 0), manual = Number(r.manual_discount || 0)
+      const officeNet = r.office_fee_net != null ? Number(r.office_fee_net) : Math.max(0, officeFee - cover - manual)
+      const govFeesTotal = r.government_fees != null ? Number(r.government_fees) : Number(r.iqama_renewal_fee || 0) + Number(r.work_permit_fee || 0) + Number(r.medical_fee || 0) + Number(r.late_fine_amount || 0) + Number(r.prof_change_fee || 0)
+      const iqExp = r.iqama_expiry_gregorian ? new Date(r.iqama_expiry_gregorian) : null
+      const base = (iqExp && !isNaN(iqExp) && iqExp > new Date()) ? new Date(iqExp) : new Date()
+      const expExpiry = r.expected_expiry_date || (renMonths > 0 ? (() => { const d = new Date(base); d.setMonth(d.getMonth() + renMonths); return d })() : null)
+      const durMo = r.expected_duration_months != null ? Number(r.expected_duration_months) : renMonths
+      const invoiced = ['invoiced', 'completed'].includes(r.status)
+      const fv = k => fieldVisible(user, 'renewal_calc', k)
+      const canEdit = card => { const ck = { worker: 'worker_data', professional: 'worker_data', renewal: 'renewal_options', pricing: 'pricing' }[card] || card; return canCardBtn(user, 'renewal_calc', ck, 'edit') && modalAllowed(user, 'renewal_calc', 'edit_card') ? () => openCardEdit(card) : null }
+      const canApprove = canCardBtn(user, 'renewal_calc', 'actions_print', 'approve')
+      const expired = r.priced_at ? (Date.now() - new Date(r.priced_at).getTime()) > 5 * 86400000 : false
+      const showActs = cardVisible(user, 'renewal_calc', 'actions_print')
+      const showApprove = showActs && r.status === 'priced' && canApprove && modalAllowed(user, 'renewal_calc', 'approve_quote')
+      const showCancel = showActs && ['priced', 'approved'].includes(r.status) && canApprove && canCardBtn(user, 'renewal_calc', 'actions_print', 'cancel') && modalAllowed(user, 'renewal_calc', 'cancel_quote') && !(expired && !r.invoice_id)
+      const timeline = [
+        ...quoteNotes.map(n => ({ kind: 'note', ts: n.created_at, text: n.note, attachments: n.attachments, who: (nameOf(usersById[n.created_by]) || '').trim().split(/\s+/).filter(Boolean).slice(0, 2).join(' ') })),
+        ...[{ ts: r.priced_at, label: T('تم التسعير', 'Priced'), color: '#b7860b' }, { ts: r.approved_at, label: T('تم التصديق', 'Approved'), color: C.blue }, { ts: r.invoiced_at, label: T('تمت الفوترة', 'Invoiced'), color: C.ok }, { ts: r.cancelled_at, label: T('تم الإلغاء', 'Cancelled'), color: C.red }].filter(m => m.ts).map(m => ({ kind: 'ms', ...m })),
+      ].sort((a, b) => new Date(a.ts) - new Date(b.ts))
+      return <>
+        <CalcMDetail T={T} isAr={isAr} kind={T('حسبة تجديد إقامة', 'Iqama renewal')} onBack={() => setDetailsRow(null)} navKind="renewal_quote" navId={r.quote_no || ''}
+          status={{ key: r.status, text: stLabel[r.status] || r.status }} quoteNo={noDash(quoteNo)} flag={natFlag}
+          workerName={fv('worker_name') ? r.worker_name : '—'} workerSub={fv('iqama_number') ? r.iqama_number : null} meta={[branchCode, fmtD(r.priced_at || r.created_at)]}
+          total={total}
+          split={cardVisible(user, 'renewal_calc', 'financial_summary') ? [{ label: T('رسوم المكتب', 'Office fee'), value: nm(officeNet) }, { label: T('رسوم حكومية', 'Government fees'), value: nm(govFeesTotal) }] : null}
+          validity={['priced', 'approved'].includes(r.status) ? mValidity(r.priced_at, T) : null}
+          pricing={cardVisible(user, 'renewal_calc', 'pricing') ? {
+            title: T('التسعيرة', 'Pricing'), edit: canEdit('pricing'), totalLabel: T('الإجمالي النهائي', 'Final total'), total,
+            items: [
+              Number(r.iqama_renewal_fee || 0) > 0 && { label: T('تجديد الإقامة', 'Iqama Renewal') + renIqamaSuffix, value: sar(r.iqama_renewal_fee) },
+              Number(r.late_fine_amount || 0) > 0 && { label: T('غرامة تأخير التجديد', 'Renewal Late Fine'), value: sar(r.late_fine_amount), tone: C.red },
+              Number(r.work_permit_fee || 0) > 0 && { label: T('رخصة العمل', 'Work Permit') + renSuffix, value: sar(r.work_permit_fee) },
+              Number(r.prof_change_fee || 0) > 0 && { label: T('تغيير المهنة', 'Change Occupation'), value: sar(r.prof_change_fee) },
+              Number(r.medical_fee || 0) > 0 && { label: T('التأمين الطبي', 'Medical Insurance'), value: sar(r.medical_fee) },
+              ...extras.map(e => ({ label: e.name || T('بند إضافي', 'Extra'), value: sar(e.amount), tone: C.blue })),
+              officeFee > 0 && { label: T('رسوم المكتب', 'Office Fees'), value: sar(officeFee) },
+            ],
+            summary: [
+              cover > 0 && { label: T('الخصم', 'Discount'), value: '− ' + sar(cover), tone: C.ok },
+              absher > 0 && { label: T('خصم أبشر', 'Absher Discount'), value: '− ' + sar(absher), tone: C.ok },
+              manual > 0 && { label: T('خصم إضافي', 'Extra Discount'), value: '− ' + sar(manual), tone: C.ok },
+            ],
+          } : null}
+          sections={[
+            cardVisible(user, 'renewal_calc', 'worker_data') && { title: T('العامل والمنشأة', 'Worker & Facility'), edit: canEdit('worker'), rows: [
+              fv('worker_name') && { label: T('الاسم', 'Name'), value: r.worker_name },
+              fv('iqama_number') && { label: T('رقم الإقامة', 'Iqama No'), value: r.iqama_number, ltr: true },
+              fv('rd_iqama_expiry') && { label: T('انتهاء الإقامة', 'Iqama Expiry'), value: r.iqama_expiry_gregorian ? fmtD(r.iqama_expiry_gregorian) : null, ltr: true, tone: r.iqama_expired ? C.red : (r.iqama_expiry_gregorian ? C.ok : undefined) },
+              fv('rd_occupation') && { label: T('المهنة الحالية', 'Current Occupation'), value: r.occupation_name_ar || detailWorkerOcc || null },
+              { label: T('الجنسية', 'Nationality'), value: nat ? (isAr ? nat.name_ar : (nat.name_en || nat.name_ar)) : r.nationality },
+              fv('dob') && { label: T('العمر', 'Age'), value: ageYears != null ? ageYears + ' ' + T('سنة', 'y') : null },
+              fv('phone') && { label: T('رقم الجوال', 'Phone'), value: r.phone ? String(r.phone).replace(/^\+?966/, '0') : null, ltr: true },
+              detailFacility && { label: T('المنشأة', 'Facility'), value: isAr ? detailFacility.name_ar : (detailFacility.name_en || detailFacility.name_ar) },
+              detailFacility && fv('rd_fac_unified') && { label: T('الرقم الموحد', 'Unified No'), value: detailFacility.unified_number, ltr: true },
+            ] },
+            cardVisible(user, 'renewal_calc', 'renewal_options') && { title: T('التجديد', 'Renewal'), edit: canEdit('renewal'), rows: [
+              fv('exemption') && { label: T('الإعفاء', 'Exemption'), value: yesNo(r.exemption), tone: r.exemption === true ? C.gold : undefined },
+              fv('renewal_months') && { label: T('مدة التجديد', 'Renewal Period'), value: r.renewal_months ? r.renewal_months + ' ' + T('شهر', 'mo') : null, tone: C.gold },
+              fv('change_profession') && { label: T('تغيير المهنة', 'Change Occupation'), value: yesNo(r.change_profession) },
+              r.change_profession && r.new_occupation_name_ar && fv('new_occupation_name_ar') && { label: T('المهنة الجديدة', 'New Occupation'), value: r.new_occupation_name_ar, tone: C.gold },
+              r.work_permit_expiry && fv('work_permit_expiry') && { label: T('انتهاء رخصة العمل', 'Work Permit Expiry'), value: fmtD(r.work_permit_expiry), ltr: true },
+              cardVisible(user, 'renewal_calc', 'financial_summary') && { label: T('المدة المتوقعة', 'Expected Duration'), value: durMo > 0 ? durMo + ' ' + T('شهر', 'mo') : null },
+              cardVisible(user, 'renewal_calc', 'financial_summary') && { label: T('الإنتهاء المتوقع', 'Expected Expiry'), value: expExpiry ? fmtD(expExpiry) : null, ltr: true },
+              r.invoice_id && invoiced && { label: T('الفاتورة', 'Invoice'), value: T('فتح الفاتورة', 'Open invoice'), onClick: () => { try { window.dispatchEvent(new CustomEvent('app-navigate-invoice', { detail: { id: r.invoice_id } })) } catch {} } },
+              r.status === 'cancelled' && r.cancel_reason && { label: T('سبب الإلغاء', 'Cancel reason'), value: r.cancel_reason, tone: C.red },
+            ] },
+          ]}
+          comments={cardVisible(user, 'renewal_calc', 'comments') ? { items: timeline, onAdd: modalAllowed(user, 'renewal_calc', 'add_comment') ? () => setQuoteNoteModal(true) : null } : null}
+          print={showActs ? [{ k: 'ar', l: 'عربي', cc: 'sa' }, { k: 'en', l: 'English', cc: 'gb' }, { k: 'hi', l: 'हिन्दी', cc: 'in' }, { k: 'ur', l: 'اردو', cc: 'pk' }, { k: 'bn', l: 'বাংলা', cc: 'bd' }].map(o => ({ ...o, onClick: () => printRenewalDoc(r, o.k) })) : null}
+          actions={[
+            showApprove && { label: expired ? T('انتهت الصلاحية', 'Expired') : T('تصديق الحسبة', 'Approve quote'), onClick: openApprove, disabled: expired },
+            showCancel && { label: T('إلغاء', 'Cancel'), kind: 'danger', onClick: openCancel },
+          ]}
+        />
+        {detailModals}
+      </>
+    }
 
     return <div style={{ fontFamily: F, paddingTop: 0, color: 'var(--tx2)', direction: dir }}>
       <div style={{ marginBottom: 20 }}>
@@ -1208,7 +1589,7 @@ ${noticeBlk}
             const showCancel = ['priced', 'approved'].includes(r.status) && canApprove && canCardBtn(user, 'renewal_calc', 'actions_print', 'cancel') && modalAllowed(user, 'renewal_calc', 'cancel_quote') && !(expired && !r.invoice_id)
             return <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {(showApprove || showCancel) && <div style={{ display: 'flex', gap: 8 }}>
-              {showApprove && <button onClick={() => { if (expired) { toast(T('انتهت صلاحية التسعيرة — لا يمكن التصديق', 'Quote expired')); return } setApproveSaved(false); const _rc = getIqamaRenewalPricingConfig(r.branch_id || null); setApproveForm({ _id: r.id, _workerName: r.worker_name, _quoteNo: r.quote_no, _total: Number(r.total_amount || 0), _officeFee: Number(r.office_fee || 0), _renewalMonths: Number(r.renewal_months || 0), _discCap: renewalApprovalDiscountCap(_rc, r.renewal_months), discValue: '', approval_note: '' }) }} disabled={expired}
+              {showApprove && <button onClick={openApprove} disabled={expired}
                 onMouseEnter={e => { if (!expired) e.currentTarget.style.filter = 'brightness(.93)' }} onMouseLeave={e => { e.currentTarget.style.filter = 'none' }}
                 style={{ flex: 1, height: 38, padding: '0 14px', borderRadius: 9, background: C.blue, border: '1px solid ' + C.blue, boxShadow: '0 2px 7px rgba(0,0,0,.12), inset 0 1px 0 rgba(176,125,0,.1)', color: '#fff', cursor: expired ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7, fontFamily: F, fontSize: 12.5, fontWeight: 600, opacity: expired ? .55 : 1, whiteSpace: 'nowrap', transition: 'filter .15s ease' }}>
                 <span>{T('تصديق الحسبة', 'Approve Quote')}</span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
@@ -1238,107 +1619,7 @@ ${noticeBlk}
 
         </div>
       </div>
-      {/* ═══ نافذة تصديق الحسبة — FormKit (نجاح داخل النافذة) ═══ */}
-      {approveForm && (() => {
-        const f = approveForm
-        const setF = (k, v) => setApproveForm(p => ({ ...p, [k]: v }))
-        const d = discountEnabled ? computeApprovalDiscount(f) : null
-        const belowFloor = !!(d && d.capped)
-        return <FKModal open onClose={() => { if (approveSaving) return; setApproveForm(null); if (approveSaved) { setApproveSaved(false); setDetailsRow(null); load() } }} width={520} variant="edit"
-          success={approveSaved ? <SuccessView title={T('تم تصديق الحسبة', 'Quote approved')} code={f._quoteNo ? noDash(f._quoteNo) : undefined} /> : null}
-          title={T('تصديق الحسبة', 'Approve Quote')} subtitle={f._workerName || undefined} Icon={BadgeCheck}
-          onSubmit={submitApproval} submitting={approveSaving} submitLabel={T('تصديق الحسبة', 'Approve Quote')}
-          pages={[{ valid: true, content: (
-            <ModalSection Icon={BadgeCheck} label={T('تأكيد التصديق', 'Confirm Approval')}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, padding: '14px 16px', borderRadius: 10, background: 'rgba(176,125,0,.08)', border: '1px solid rgba(176,125,0,.3)' }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx2)' }}>{T('إجمالي التسعيرة', 'Quote Total')}</span>
-                  <span style={{ color: C.gold, display: 'inline-flex', direction: 'rtl', alignItems: 'baseline', gap: 4 }}><span style={{ fontSize: 18, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{nm(Math.round(Number(f._total || 0)))}</span><span style={{ fontSize: 11, fontWeight: 600 }}>{T('ريال', 'SAR')}</span></span>
-                </div>
-                {discountEnabled && d && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 9, padding: '12px 14px', borderRadius: 10, background: 'var(--inputBg)', border: '1px solid var(--bd)' }}>
-                      <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx2)' }}>{T('خصم إضافي', 'Extra Discount')} <span style={{ fontSize: 10, fontWeight: 400, color: 'var(--tx4)' }}>({T('اختياري', 'optional')})</span></div>
-                      {/* أرضية الخصم تُضبط من الإدارة (الخدمات ← تجديد الإقامة ← رسوم المكتب) ولا تظهر للمُصدِّق — يرى حقل مبلغ الخصم فقط. */}
-                      <input type="text" inputMode="decimal" value={f.discValue} onChange={e => setF('discValue', e.target.value.replace(/[^0-9.]/g, ''))} placeholder={T('مبلغ الخصم بالريال', 'Discount amount (SAR)')} style={{ width: '100%', height: 40, padding: '0 14px', border: '1px solid var(--bd)', borderRadius: 9, fontFamily: F, fontSize: 15, fontWeight: 600, color: C.gold, outline: 'none', background: 'var(--inputBg)', boxSizing: 'border-box', textAlign: 'center', direction: 'ltr' }} />
-                      {/* سقف الخصم لهذه المدة (سياسة الأدمن) — يظهر للجميع، وهو الحدّ الفعلي للمُصدِّق غير المدير العام. */}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, fontWeight: 600, color: 'var(--tx4)' }}>
-                        <span>{T(`سقف الخصم لهذه المدة (${nm(Number(f._renewalMonths || 0))} ${T('شهر', 'mo')})`, `Discount cap for this duration (${nm(Number(f._renewalMonths || 0))} mo)`)}</span>
-                        <span><b style={{ color: 'var(--tx2)' }}>{nm(d.maxDiscount)}</b> {T('ريال', 'SAR')}</span>
-                      </div>
-                      {belowFloor && <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx4)' }}>{T(`الخصم يتجاوز السقف المسموح (${nm(d.maxDiscount)} ريال) — سيُطبَّق الحد الأقصى تلقائياً.`, `The discount exceeds the allowed cap (${nm(d.maxDiscount)} SAR) — the maximum will be applied automatically.`)}</div>}
-                      {/* الخصم يُطبَّق على رسوم المكتب (لا على الإجمالي) — نُبرز رسوم المكتب بعد الخصم، والإجمالي سطرٌ ثانوي. */}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 7, borderTop: '1px dashed rgba(176,125,0,.3)' }}>
-                        <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx2)' }}>{T('رسوم المكتب بعد الخصم', 'Office fee after discount')}</span>
-                        <span style={{ color: C.gold, display: 'inline-flex', direction: 'rtl', alignItems: 'baseline', gap: 4 }}><span style={{ fontSize: 16, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{nm(Math.max(0, (f._officeFee || 0) - d.applied))}</span><span style={{ fontSize: 10, fontWeight: 600 }}>{T('ريال', 'SAR')}</span></span>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 6, borderTop: '1px dashed rgba(176,125,0,.22)' }}>
-                        <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx4)' }}>{T('الإجمالي بعد الخصم', 'Total after discount')}</span>
-                        <span style={{ color: 'var(--tx3)', display: 'inline-flex', direction: 'rtl', alignItems: 'baseline', gap: 4 }}><span style={{ fontSize: 12.5, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{nm(d.newTotal)}</span><span style={{ fontSize: 10, fontWeight: 600 }}>{T('ريال', 'SAR')}</span></span>
-                      </div>
-                    </div>
-                )}
-                <div style={{ fontSize: 12, color: 'var(--tx3)', lineHeight: 1.7 }}>{T('بالتصديق تنتقل الحسبة إلى حالة «مصدّقة» ويُسجَّل اسمك وتاريخ التصديق.', 'Approving moves the quote to “Approved” and records your name and the approval date.')}</div>
-              </div>
-            </ModalSection>
-          ) }]} />
-      })()}
-
-      {/* ═══ نافذة إلغاء الحسبة — FormKit (نجاح داخل النافذة) ═══ */}
-      {cancelForm && (() => {
-        const f = cancelForm
-        const setF = (k, v) => setCancelForm(p => ({ ...p, [k]: v }))
-        return <FKModal open onClose={() => { if (cancelSaving) return; setCancelForm(null); if (cancelSaved) { setCancelSaved(false); setDetailsRow(null); load() } }} width={520} variant="edit"
-          success={cancelSaved ? <SuccessView title={T('تم إلغاء الحسبة', 'Quote cancelled')} code={f._quoteNo ? noDash(f._quoteNo) : undefined} /> : null}
-          title={T('إلغاء الحسبة', 'Cancel Quote')} subtitle={f._workerName || undefined} Icon={AlertCircle}
-          onSubmit={submitCancel} submitting={cancelSaving} submitLabel={T('تأكيد الإلغاء', 'Confirm Cancellation')}
-          pages={[{ valid: true, content: (
-            <ModalSection Icon={AlertCircle} label={T('تأكيد الإلغاء', 'Confirm Cancellation')}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 9, padding: '12px 14px', borderRadius: 10, background: 'var(--inputBg)', border: '1px solid var(--bd)' }}>
-                  <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx2)' }}>{T('سبب الإلغاء', 'Cancellation reason')} <span style={{ fontSize: 10, fontWeight: 400, color: 'var(--tx4)' }}>({T('اختياري', 'optional')})</span></div>
-                  <textarea value={f.reason} onChange={e => setF('reason', e.target.value.slice(0, 500))} placeholder={T('سبب الإلغاء (اختياري)…', 'Reason (optional)…')} rows={3} style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--bd)', borderRadius: 9, fontFamily: F, fontSize: 13, fontWeight: 500, color: 'var(--tx)', outline: 'none', background: 'var(--inputBg)', boxSizing: 'border-box', resize: 'vertical', direction: dir }} />
-                </div>
-                <div style={{ fontSize: 12, color: C.red, lineHeight: 1.7, background: 'rgba(192,57,43,.08)', border: '1px solid rgba(192,57,43,.25)', borderRadius: 9, padding: '10px 12px' }}>{T('بالإلغاء تنتقل الحسبة إلى حالة «ملغاة» ويُسجَّل اسمك وتاريخ الإلغاء. ولا يمكن استخدامها في فاتورة بعد ذلك.', 'Cancelling moves the quote to “Cancelled”, records your name and the date, and it can no longer be invoiced.')}</div>
-              </div>
-            </ModalSection>
-          ) }]} />
-      })()}
-
-      {/* ═══ نافذة تعديل كرت — FormKit (نفس تفاصيل نقل الكفالة) ═══ */}
-      {cardEdit && (() => {
-        const f = cardEdit; const setF = (k, v) => setCardEdit(p => ({ ...p, [k]: v }))
-        const fVis = (k) => fieldVisible(user, 'renewal_calc', k), fEd = (k) => fieldEditable(user, 'renewal_calc', k)
-        const titles = { worker: T('تعديل بيانات العامل', 'Edit Worker Data'), professional: T('تعديل البيانات المهنية', 'Edit Professional Data'), renewal: T('تعديل خيارات التجديد', 'Edit Renewal Options'), pricing: T('تعديل التسعيرة', 'Edit Pricing') }
-        let content
-        if (f.card === 'worker') content = <ModalSection Icon={User} label={T('بيانات العامل', 'Worker Data')}><div style={GRID}>
-          {fVis('worker_name') && <TextField full label={T('الاسم', 'Name')} value={f.worker_name || ''} onChange={v => setF('worker_name', v)} disabled={!fEd('worker_name')} />}
-          {fVis('iqama_number') && <TextField label={T('رقم الإقامة', 'Iqama Number')} dir="ltr" value={f.iqama_number || ''} onChange={v => setF('iqama_number', v)} disabled={!fEd('iqama_number')} />}
-          {fVis('phone') && <TextField label={T('رقم الجوال', 'Mobile')} dir="ltr" value={f.phone || ''} onChange={v => setF('phone', v)} disabled={!fEd('phone')} />}
-          {fVis('nationality_id') && <FKSelect label={T('الجنسية', 'Nationality')} value={f.nationality_id || ''} onChange={v => setF('nationality_id', v)} placeholder={'— ' + T('اختر', 'Select') + ' —'} options={nationalities} getKey={x => x.id} getLabel={x => lang === 'en' ? (x.name_en || x.name_ar) : x.name_ar} disabled={!fEd('nationality_id')} />}
-          {fVis('dob') && <FKDateField label={T('تاريخ الميلاد', 'Date of Birth')} value={f.dob || ''} onChange={v => setF('dob', v)} disabled={!fEd('dob')} />}
-        </div></ModalSection>
-        else if (f.card === 'professional') content = <ModalSection Icon={FileText} label={T('البيانات المهنية', 'Professional Data')}><div style={GRID}>
-          <TextField full label={T('المهنة', 'Occupation')} value={f.occupation_name_ar || ''} onChange={v => setF('occupation_name_ar', v)} />
-          <FKDateField label={T('انتهاء الإقامة (ميلادي)', 'Iqama Expiry (G)')} value={f.iqama_expiry_gregorian || ''} onChange={v => setF('iqama_expiry_gregorian', v)} />
-          <TextField label={T('انتهاء الإقامة (هجري)', 'Iqama Expiry (H)')} dir="ltr" value={f.iqama_expiry_hijri || ''} onChange={v => setF('iqama_expiry_hijri', v)} />
-        </div></ModalSection>
-        else if (f.card === 'renewal') content = <ModalSection Icon={RefreshCw} label={T('خيارات التجديد', 'Renewal Options')}><div style={GRID}>
-          {fVis('renewal_months') && <TextField label={T('مدة التجديد (شهر)', 'Renewal Period (months)')} dir="ltr" value={f.renewal_months ?? ''} onChange={v => setF('renewal_months', String(v).replace(/[^0-9]/g, ''))} disabled={!fEd('renewal_months')} />}
-          {fVis('change_profession') && <YesNo label={T('تغيير المهنة', 'Change Occupation')} value={f.change_profession} onChange={v => setF('change_profession', v)} disabled={!fEd('change_profession')} />}
-          {f.change_profession && fVis('new_occupation_name_ar') ? <TextField label={T('المهنة الجديدة', 'New Occupation')} value={f.new_occupation_name_ar || ''} onChange={v => setF('new_occupation_name_ar', v)} disabled={!fEd('new_occupation_name_ar')} /> : null}
-          {fVis('exemption') && <YesNo label={T('الإعفاء', 'Exemption')} value={f.exemption} onChange={v => setF('exemption', v)} disabled={!fEd('exemption')} />}
-          {fVis('work_permit_expiry') && <FKDateField label={T('انتهاء رخصة العمل', 'Work Permit Expiry')} value={f.work_permit_expiry || ''} onChange={v => setF('work_permit_expiry', v)} disabled={!fEd('work_permit_expiry')} />}
-        </div></ModalSection>
-        else content = <ModalSection Icon={Banknote} label={T('الرسوم', 'Fees')}><div style={GRID}>
-          {[['office_fee', T('رسوم المكتب', 'Office Fee')], ['iqama_renewal_fee', T('تجديد الإقامة', 'Iqama Renewal')], ['late_fine_amount', T('غرامة تأخير التجديد', 'Renewal Late Fine')], ['work_permit_fee', T('رسوم رخصة العمل', 'Work Permit')], ['medical_fee', T('التأمين الطبي', 'Medical')], ['prof_change_fee', T('تغيير المهنة', 'Occupation Change')], ['gov_excess', T('الزائد عن الحدود الحكومية', 'Gov Excess')], ['absher_discount', T('خصم أبشر', 'Absher Discount')], ['manual_discount', T('خصم المكتب', 'Office Discount')]].filter(([k]) => fVis(k)).map(([k, l]) => <CurrencyField key={k} label={l} value={f[k] ?? ''} onChange={v => setF(k, v)} disabled={!fEd(k)} />)}
-          <div style={{ gridColumn: '1/-1', display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderRadius: 9, background: 'rgba(176,125,0,.08)', border: '1px solid rgba(176,125,0,.3)', minHeight: 44 }}><span style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx2)' }}>{T('الإجمالي بعد التعديل', 'New total')}</span><span style={{ flex: 1 }} /><span style={{ fontSize: 16, fontWeight: 600, color: C.gold, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{(() => { const sum = (r.pricing_model === 'flat' ? ['office_fee', 'iqama_renewal_fee', 'late_fine_amount', 'work_permit_fee', 'medical_fee', 'prof_change_fee'] : ['office_fee', 'gov_excess', 'late_fine_amount', 'prof_change_fee']).reduce((s, k) => s + (Number(f[k]) || 0), 0) + (Array.isArray(r.extras) ? r.extras : []).reduce((s, e) => s + (Number(e?.amount) || 0), 0); const tot = Math.max(0, sum - (Number(f.absher_discount) || 0) - (Number(f.manual_discount) || 0)); return nm(tot) + ' ' + T('ريال', 'SAR') })()}</span></div>
-        </div></ModalSection>
-        return <FKModal open onClose={() => { if (!cardSaving) setCardEdit(null) }} width={560} variant="edit" title={titles[f.card]} Icon={FileText}
-          onSubmit={saveCardEdit} submitting={cardSaving} submitLabel={T('حفظ', 'Save')} pages={[{ valid: true, content }]} />
-      })()}
-
-      {/* ═══ نافذة إضافة تعليق ═══ */}
-      {quoteNoteModal && <RenewalNoteModal sb={sb} T={T} lang={lang} rcId={r.id} user={user} onClose={() => setQuoteNoteModal(false)} onSaved={loadQuoteNotes} />}
+      {detailModals}
     </div>
   }
 
@@ -1383,6 +1664,35 @@ ${noticeBlk}
   const gcell = (icon, label, value) => value ? <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0, alignItems: 'flex-start' }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 9, color: 'var(--tx4)', fontWeight: 600, letterSpacing: '.2px' }}>{icon}{label}</span><span style={{ display: 'inline-flex', minWidth: 0, maxWidth: '100%' }}>{value}</span></div> : null
 
   const hasAdv = Object.values(advFilter).some(Boolean)
+
+  // ═══ الجوال: أرقام مختصرة + فلاتر الحالة + بطاقات مجمّعة حسب اليوم + زر عائم ═══
+  if (isMob) {
+    const tagsOf = r => [Number(r.renewal_months || 0) > 0 ? T(r.renewal_months + ' شهر', r.renewal_months + ' mo') : null, r.change_profession ? T('تغيير مهنة', 'Occ. change') : null, Number(r.medical_fee || 0) > 0 ? T('تأمين', 'Insurance') : null].filter(Boolean)
+    return <CalcMList T={T} title={T('حسبة تجديد الإقامات', 'Renewal Calculator')}
+      stats={[
+        { label: T('متوسط التسعيرة', 'Avg quote'), value: nm(avgStats.value), unit: T('ريال', 'SAR'), tone: 'gold', sub: T(`${avgStats.count} تسعيرة`, `${avgStats.count} quotes`) },
+        { label: T('مسعّرة', 'Priced'), value: nm(sCounts.priced), tone: '#b7860b', onClick: () => setListFilter(listFilter === 'priced' ? 'all' : 'priced') },
+        { label: T('مصدّقة', 'Approved'), value: nm(sCounts.approved), tone: 'blue', onClick: () => setListFilter(listFilter === 'approved' ? 'all' : 'approved') },
+        { label: T('مفوترة', 'Invoiced'), value: nm(sCounts.invoiced + sCounts.completed), tone: 'green', onClick: () => setListFilter(listFilter === 'invoiced' ? 'all' : 'invoiced') },
+        { label: T('ملغاة', 'Cancelled'), value: nm(sCounts.cancelled), tone: 'red', onClick: () => setListFilter(listFilter === 'cancelled' ? 'all' : 'cancelled') },
+      ]}
+      search={{ value: searchQ, onChange: setSearchQ, placeholder: T('اسم العامل، الإقامة، رقم التسعيرة…', 'Worker, iqama, quote no…') }}
+      chips={{ value: listFilter, onChange: setListFilter, options: [
+        { value: 'all', label: T('الكل', 'All'), count: searched.length },
+        { value: 'priced', label: T('مسعّرة', 'Priced'), count: sCounts.priced },
+        { value: 'approved', label: T('مصدّقة', 'Approved'), count: sCounts.approved },
+        { value: 'invoiced', label: T('مفوترة', 'Invoiced'), count: sCounts.invoiced + sCounts.completed },
+        { value: 'cancelled', label: T('ملغاة', 'Cancelled'), count: sCounts.cancelled },
+      ] }}
+      groups={groupOrder.map(k => ({ key: k, label: dayLabel(k), sub: dayFull(k), today: k === todayStr, rows: groups[k].map(r => calcMCard({
+        T, id: r.id, name: r.worker_name, quoteNo: noDash(r.quote_no || '#' + String(r.id || '').slice(0, 8).toUpperCase()), office: r._branchCode || r.priced_user?.branch?.code || null,
+        total: r.total_amount, status: r.status, stLabel: stLabel[r.status] || r.status, iqama: r.iqama_number, tags: tagsOf(r), pricedAt: r.priced_at, createdAt: r.created_at,
+        flag: natOf(r)?.flag_url || null, onClick: () => setDetailsRow(r),
+      })) }))}
+      empty={<EmptyState icon={emptyIcon} title={T('لا توجد تسعيرات', 'No quotes')} desc={T('أنشئ أول تسعيرة من زر «حسبة جديدة»', 'Create your first quote')} />}
+      fab={canPerm(user, 'renewal_calc.create') ? { label: T('حسبة جديدة', 'New quote'), onClick: () => onNewCalc?.() } : null}
+    />
+  }
 
   return <div style={{ fontFamily: F, paddingTop: 0, paddingBottom: 80, direction: dir }}>
     {/* ═══ العنوان ═══ */}
@@ -1549,3 +1859,6 @@ ${noticeBlk}
       })}</div>}
   </div>
 }
+
+// أدوات عرض الجوال للحسبات — تُستعمل أيضاً في TransferCalcPage داخل App.jsx (استيرادها الافتراضي فقط)
+RenewalCalcPage.M = { useIsMobile, CalcMList, CalcMDetail, calcMCard, mValidity }

@@ -11,6 +11,8 @@ import { TAB_CARDS, CARD_GROUP_LABELS, TAB_FIELDS, TAB_MODALS, TAB_STAGES, TAB_S
 import { isGM as isGmUser } from '../../lib/permissions.js'
 import { branchLabel } from '../../lib/utils.js'
 import { ALL_SERVICES, SVC_CODE_MAP } from '../../ServiceRequestPage.jsx'
+import { useIsMobile, MStatStrip, MSearch, MChips, MFab, MBadge } from '../../components/mobile/MobileKit.jsx'
+import { MPageHead, MBack, MHero, MGroup, MKV, MItem, MLink, MSwitch, MSwitchRow, MAvatar } from './MAdminKit.jsx'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = { gold: '#B07D00', red: '#c0392b', blue: '#3483b4', ok: '#27a046' }
@@ -86,6 +88,7 @@ export default function PermissionsPage({ sb, user, toast, lang, nav, hubTabs, v
   const [adding, setAdding] = useState(false)
   const [selectedId, setSelectedId] = useState(null) // open employee detail page
   const [loading, setLoading] = useState(true)
+  const isMobile = useIsMobile()
 
   // Creating accounts is a General-Manager-only action.
   const isGM = user?.role?.name_ar === 'المدير العام' || user?.role?.name_en === 'General Manager'
@@ -130,7 +133,8 @@ export default function PermissionsPage({ sb, user, toast, lang, nav, hubTabs, v
 
   return (
     <div style={{ fontFamily: F, paddingTop: 0 }}>
-      <div style={{ marginBottom: 24, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+      {isMobile && isGM && <MFab label="مستخدم جديد" onClick={() => setAdding(true)} />}
+      <div className="m-hide" style={{ marginBottom: 24, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
         <div>
           <div style={{ fontSize: 24, fontWeight: 600, color: 'var(--tx)', letterSpacing: '-.3px', lineHeight: 1.2 }}>المستخدمون</div>
           <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 12, lineHeight: 1.6 }}>تفعيل أو تعطيل حسابات المستخدمين والتحكم بصلاحية الدخول للنظام.</div>
@@ -164,6 +168,7 @@ function UsersTab({ sb, user, toast, lang, loading, users, branches, nationaliti
   const [advOpen, setAdvOpen] = useState(false)
   const roleOptions = useMemo(() => { const m = new Map(); users.forEach(u => { if (u.role?.id) m.set(u.role.id, u.role) }); return [...m.values()] }, [users])
   const [savingIds, setSavingIds] = useState(() => new Set())
+  const isMobile = useIsMobile()
   const pendingCount = users.filter(u => !u.is_active).length
   const filtered = users.filter(u => {
     if (statusFilter === 'active' && !u.is_active) return false
@@ -230,6 +235,46 @@ function UsersTab({ sb, user, toast, lang, loading, users, branches, nationaliti
     return Array.from(map.values()).sort((a, b) => rank(a.name) - rank(b.name) || b.items.length - a.items.length)
   }, [sorted])
 
+  if (isMobile) {
+    const natN = natDist.filter(n => n.id !== '__none').length
+    return (
+      <div>
+        <MPageHead title="المستخدمون" sub={`${nm(activeCount)} نشط${pendingCount ? ` · ${nm(pendingCount)} معطّل` : ''}`} />
+        <MStatStrip items={[
+          { label: 'نشطون', value: nm(activeCount), tone: 'green', sub: pendingCount > 0 ? `من ${nm(users.length)}` : 'جميع الحسابات' },
+          pendingCount > 0 && { label: 'معطّلون', value: nm(pendingCount), tone: 'red', onClick: () => setStatusFilter('pending') },
+          { label: 'الأدوار', value: nm(roleOptions.length), tone: 'purple' },
+          natN > 0 && { label: 'الجنسيات', value: nm(natN), tone: 'blue', sub: natDist[0]?.name },
+        ]} />
+        <MSearch value={q} onChange={setQ} placeholder="ابحث بالاسم أو الجوال أو البريد" />
+        <MChips value={statusFilter} onChange={setStatusFilter} options={[
+          { value: 'all', label: 'الكل', count: users.length }, { value: 'active', label: 'نشط', count: activeCount }, { value: 'pending', label: 'معطّل', count: pendingCount },
+        ]} />
+        {loading && users.length === 0 ? (
+          <div className="mk-cards">{[0, 1, 2, 3].map(i => <div key={i} className="mk-card mk-skel"><span /><span /><span /></div>)}</div>
+        ) : sorted.length === 0 ? (
+          <EmptyState icon={emptyIcon} title="لا يوجد موظفين" desc="أضِف مستخدمين لإدارة أدوارهم وصلاحياتهم" />
+        ) : roleGroups.map((g, gi) => (
+          <MGroup key={g.id} title={g.name} action={<span className="ma-group-meta">{g.active}/{g.items.length} نشط</span>}>
+            {g.items.map(u => {
+              const nat = (nationalities || []).find(n => n.id === u.person?.nationality_id)
+              const name = u.person?.name_ar || u.person?.name_en || '—'
+              const isMe = u.id === user?.id
+              const codes = (u.branch_ids && u.branch_ids.length) ? u.branch_ids.map(id => (branches || []).find(b => b.id === id)?.branch_code).filter(Boolean).join('، ') : (u.branch?.branch_code || '')
+              return (
+                <MItem key={u.id} dim={!u.is_active} onClick={() => onOpen(u)} chevron={false}
+                  leading={<MAvatar img={nat?.flag_url} text={name.trim().charAt(0)} tone={u.role?.color || g.color || ROLE_PALETTE[gi % ROLE_PALETTE.length]} size={42} round />}
+                  title={<>{name}{isMe && <span className="ma-pill" style={{ marginInlineStart: 6 }}>أنت</span>}</>}
+                  sub={[codes, u.email].filter(Boolean).join(' · ')}
+                  trailing={<MSwitch on={u.is_active === true} busy={savingIds.has(u.id)} disabled={isMe} onChange={() => toggle(u)} />} />
+              )
+            })}
+          </MGroup>
+        ))}
+        {user && (user?.role?.name_ar === 'المدير العام' || user?.role?.name_en === 'General Manager') && <div className="ma-fab-pad" />}
+      </div>
+    )
+  }
 
   return (
     <div>
@@ -539,6 +584,8 @@ function CopyBtn({ value, toast }) {
 }
 
 function VisToggle({ on, locked, onClick }) {
+  const isMobile = useIsMobile()
+  if (isMobile) return <MSwitch on={on} disabled={locked} onChange={() => onClick?.()} />
   return (
     <button type="button" disabled={locked} onClick={onClick}
       style={{ width: 40, height: 22, borderRadius: 999, border: 'none', background: on ? C.ok : 'var(--bd)', cursor: locked ? 'not-allowed' : 'pointer', position: 'relative', padding: 0, transition: '.2s', flexShrink: 0, opacity: locked ? .5 : 1 }}>
@@ -561,6 +608,16 @@ const actionKind = (action) => action === 'view' || action === 'access' ? 'view'
   : action === 'create' ? 'create' : action === 'edit' ? 'edit' : action === 'delete' ? 'delete' : 'special'
 
 function Seg({ value, options, onChange, disabled }) {
+  const isMobile = useIsMobile()
+  if (isMobile) {
+    return (
+      <div className="ma-seg" role="tablist">
+        {options.map(o => (
+          <button key={o.v} type="button" role="tab" aria-selected={o.v === value} className={o.v === value ? 'on' : ''} disabled={disabled} onClick={() => onChange(o.v)}>{o.l}</button>
+        ))}
+      </div>
+    )
+  }
   return (
     <div style={{ display: 'inline-flex', background: 'rgba(0,0,0,.22)', border: '1px solid var(--bd)', borderRadius: 9, padding: 3, gap: 3 }}>
       {options.map(o => {
@@ -1016,6 +1073,7 @@ export function PermissionsPanel({ sb, currentUser, u, role, mode = 'user', bran
 // collapsed «advanced» drawer (PermissionsPanel).
 // ═══════════════════════════════════════════════════════════════════
 function RoleAssignmentCard({ sb, currentUser, u, roles, branches, toast, onChanged }) {
+  const isMobile = useIsMobile()
   const userIsGM = isGmUser(u)
   const canManage = isGmUser(currentUser)
   const [rows, setRows] = useState(null)   // [{ role_id, scope:'all'|'specific', branchIds:[] }]
@@ -1109,6 +1167,60 @@ function RoleAssignmentCard({ sb, currentUser, u, roles, branches, toast, onChan
   // Roles available to add (active, not already assigned).
   const assignedIds = new Set((rows || []).map(r => r.role_id))
   const addable = (roles || []).filter(r => r.is_active !== false && !assignedIds.has(r.id))
+
+  if (isMobile) {
+    const shield = <ShieldCheck size={20} />
+    if (userIsGM) return (
+      <MGroup title="الأدوار والصلاحيات">
+        <MItem leading={shield} tone="gold" title="مدير عام — صلاحية كاملة" sub="كل الأقسام والمكاتب تلقائياً" />
+      </MGroup>
+    )
+    return (<>
+      <MGroup title={`الأدوار المُسندة${rows ? ` · ${rows.length}` : ''}`} footer="لكل دور نطاق فروع — يمكن إسناد دور مختلف لفرع مختلف.">
+        {!rows ? <div className="ma-pad"><Shimmer w="100%" h={48} r={10} /></div>
+          : (rows.length === 0 && !canManage) ? <div className="ma-empty">لا أدوار مُسندة</div>
+          : rows.map(row => {
+            const r = roleById[row.role_id]
+            return (
+              <div key={row.role_id} className="ma-block">
+                <MItem leading={shield} tone={r?.color || C.gold} title={r?.name_ar || '—'}
+                  sub={row.scope === 'all' ? 'كل الفروع' : ((row.branchIds || []).map(branchCode).join('، ') || 'اختر الفروع')}
+                  trailing={canManage ? <button type="button" className="ma-mini del" aria-label="إزالة الدور" disabled={busy} onClick={() => removeRole(row.role_id)}><X size={16} /></button> : null} />
+                {canManage && (
+                  <div className="ma-pad">
+                    <Seg value={row.scope} disabled={busy} onChange={(m) => setScope(row.role_id, m)}
+                      options={[{ v: 'all', l: 'كل الفروع' }, { v: 'specific', l: 'فروع محددة' }]} />
+                    {row.scope === 'specific' && (
+                      <div style={{ marginTop: 10 }}>
+                        <MultiSelect placeholder="اختر الفروع…" value={row.branchIds}
+                          onChange={(ids) => setBranches(row.role_id, ids)}
+                          options={branches || []} getKey={b => b.id} getLabel={b => branchLabel(b)} />
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        {canManage && addable.length > 0 && (
+          <div className="ma-pad ma-block">
+            <Select placeholder="+ إضافة دور…" value={null} onChange={(v) => addRole(v)}
+              options={addable} getKey={r => r.id} getLabel={r => r.name_ar} />
+          </div>
+        )}
+      </MGroup>
+      <MGroup title="ملخّص الوصول" footer="ما يراه ويفعله بناءً على أدواره.">
+        {!eff ? <div className="ma-pad"><Shimmer w="100%" h={40} r={9} /></div>
+          : eff.length === 0 ? <div className="ma-empty">لا صلاحيات بعد — أسنِد دوراً ليظهر ما يستطيع الوصول إليه.</div>
+          : eff.map(m => (
+            <div key={m.module} className="ma-access">
+              <b>{m.label || m.module}</b>
+              <span>{m.acts.map((a, i) => <i key={i}>{a}</i>)}</span>
+            </div>
+          ))}
+      </MGroup>
+    </>)
+  }
 
   return (
     <div style={cardChrome}>
@@ -1237,6 +1349,7 @@ function RoleAssignmentCard({ sb, currentUser, u, roles, branches, toast, onChan
 const INVOICE_SVC_CODES = new Set(ALL_SERVICES.map(s => SVC_CODE_MAP[s.id]).filter(Boolean))
 
 function InvoiceServiceScopeCard({ sb, currentUser, u, toast, onChanged }) {
+  const isMobile = useIsMobile()
   const userIsGM = isGmUser(u)
   const canManage = isGmUser(currentUser)
   const [serviceTypes, setServiceTypes] = useState([])
@@ -1276,6 +1389,21 @@ function InvoiceServiceScopeCard({ sb, currentUser, u, toast, onChanged }) {
 
   if (userIsGM) return null   // GM bypasses every scope — nothing to configure.
 
+  if (isMobile) return (
+    <MGroup title="أنواع خدمات الفواتير" footer="يحصر الفواتير التي يراها هذا المستخدم على أنواع الخدمات المحددة فقط — عبر كل مكاتبه.">
+      <div className="ma-pad">
+        <Seg value={pol.mode} disabled={busy || !canManage} onChange={setMode}
+          options={[{ v: 'all', l: 'كل الأنواع' }, { v: 'specific', l: 'أنواع محددة' }]} />
+        {pol.mode === 'specific' && (
+          <div style={{ marginTop: 10 }}>
+            <MultiSelect placeholder="اختر أنواع الخدمات…" value={pol.ids || []}
+              onChange={setIds} options={serviceTypes} getKey={s => s.id} getLabel={s => s.value_ar || s.value_en} />
+          </div>
+        )}
+      </div>
+    </MGroup>
+  )
+
   return (
     <div style={cardChrome}>
       <div style={cardHeader}>
@@ -1307,6 +1435,7 @@ function InvoiceServiceScopeCard({ sb, currentUser, u, toast, onChanged }) {
 // new tab shows up here automatically.
 // ═══════════════════════════════════════════════════════════════════
 function LandingPageCard({ sb, currentUser, u, nav, hubTabs, toast, onChanged }) {
+  const isMobile = useIsMobile()
   const canManage = isGmUser(currentUser)
   const [val, setVal] = useState(() => (typeof u.landing_page === 'string' ? u.landing_page : ''))
   const [busy, setBusy] = useState(false)
@@ -1338,6 +1467,12 @@ function LandingPageCard({ sb, currentUser, u, nav, hubTabs, toast, onChanged })
 
   const onPick = (v) => { setVal(v); persist(v) }
 
+  if (isMobile) return (
+    <MGroup title="الصفحة الافتراضية بعد الدخول" footer={!canManage ? 'يضبطها المدير العام فقط.' : busy ? 'جارٍ الحفظ…' : '«افتراضي» = حسب دوره (أدوار الفواتير والمحاسب تفتح على الفواتير، وغيرها على الرئيسية).'}>
+      <div className="ma-pad"><Drop value={val} onChange={onPick} options={pageOpts} placeholder="اختر الصفحة…" /></div>
+    </MGroup>
+  )
+
   return (
     <div style={cardChrome}>
       <div style={cardHeader}>
@@ -1358,6 +1493,8 @@ function LandingPageCard({ sb, currentUser, u, nav, hubTabs, toast, onChanged })
 
 // Compact mini toggle for per-card action buttons.
 function MiniToggle({ on, locked, onClick }) {
+  const isMobile = useIsMobile()
+  if (isMobile) return <span className="ma-switch-sm"><MSwitch on={on} disabled={locked} onChange={() => onClick?.()} /></span>
   return (
     <button type="button" disabled={locked} onClick={onClick}
       style={{ width: 30, height: 17, borderRadius: 999, border: 'none', background: on ? C.ok : 'var(--bd)', cursor: locked ? 'not-allowed' : 'pointer', position: 'relative', padding: 0, transition: '.2s', flexShrink: 0, opacity: locked ? .5 : 1 }}>
@@ -1604,6 +1741,7 @@ function UserDetailPage({ sb, currentUser, toast, lang, u, branches, roles, nati
   const [editing, setEditing] = useState(false)
   const [busy, setBusy] = useState(false)
   const [pwShown, setPwShown] = useState(false)
+  const isMobile = useIsMobile()
   const name = u.person?.name_ar || u.person?.name_en || '—'
   const isMe = u.id === currentUser?.id
   const isActive = u.is_active === true
@@ -1670,6 +1808,43 @@ function UserDetailPage({ sb, currentUser, toast, lang, u, branches, roles, nati
       )}
     </div>
   )
+
+  if (isMobile) {
+    const natFlag = nationalities.find(n => n.id === u.person?.nationality_id)?.flag_url
+    const kv = (f, i) => f.chips
+      ? <MKV key={i} label={f.label} value={f.chips.length ? f.chips.join('  ·  ') : ''} ltr tone="gold" wrap />
+      : <MKV key={i} label={f.label} value={f.value} ltr={f.mono} copy={f.copy} toast={toast} />
+    return (
+      <div style={{ fontFamily: F, color: 'var(--tx2)', direction: 'rtl' }}>
+        <MBack onBack={onBack} label="المستخدمون" />
+        <MHero img={natFlag} avatar={name.trim().charAt(0)} tone={accent} title={name} sub={u.email} subLtr
+          badges={<>
+            {u.role && <MBadge text={u.role.name_ar} tone={accent} />}
+            <MBadge text={isActive ? 'نشط' : 'معطّل'} tone={isActive ? 'green' : 'gray'} />
+            {isMe && <MBadge text="أنت" tone="gold" />}
+          </>} />
+        <MGroup footer={isMe ? 'لا يمكنك تعطيل حسابك.' : 'الحساب المعطّل لا يستطيع تسجيل الدخول.'}>
+          <MSwitchRow title="الحساب مفعّل" on={isActive} busy={busy} disabled={isMe} onChange={toggleActive} />
+        </MGroup>
+        <MGroup title="الهوية">{infoFields.slice(0, 4).map(kv)}</MGroup>
+        <MGroup title="بيانات العمل" action={<MLink onClick={() => setEditing(true)}>تعديل</MLink>}>
+          {infoFields.slice(4, 8).map(kv)}
+          <div className="ma-kv">
+            <span className="ma-kv-l">كلمة المرور</span>
+            {u.plain_password ? (<>
+              <span className="ma-kv-v" dir="ltr" style={{ letterSpacing: pwShown ? '.5px' : '3px' }}>{pwShown ? u.plain_password : '••••••••'}</span>
+              <button type="button" className="ma-copy" onClick={() => setPwShown(v => !v)} aria-label={pwShown ? 'إخفاء' : 'إظهار'}>{pwShown ? <EyeOff size={15} /> : <Eye size={15} />}</button>
+              <CopyBtn value={u.plain_password} toast={toast} />
+            </>) : <span className="ma-kv-v empty">غير متوفرة</span>}
+          </div>
+        </MGroup>
+        <RoleAssignmentCard sb={sb} currentUser={currentUser} u={u} roles={roles} branches={branches} toast={toast} onChanged={onChanged} />
+        <LandingPageCard sb={sb} currentUser={currentUser} u={u} nav={nav} hubTabs={hubTabs} toast={toast} onChanged={onChanged} />
+        <InvoiceServiceScopeCard sb={sb} currentUser={currentUser} u={u} toast={toast} onChanged={onChanged} />
+        {editing && <WorkInfoModal sb={sb} user={u} branches={branches} roles={roles} toast={toast} onClose={() => setEditing(false)} onSaved={async () => { setEditing(false); await onChanged?.() }} />}
+      </div>
+    )
+  }
 
   return (
     <div style={{ fontFamily: F, paddingTop: 0, paddingBottom: 48, color: 'var(--tx2)', direction: 'rtl' }}>

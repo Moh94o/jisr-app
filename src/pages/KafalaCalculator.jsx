@@ -6,6 +6,8 @@ import { getKafalaPricingConfig } from '../lib/kafalaPricing.js'
 import { computeRenewalExpiryYMD } from '../lib/expiryDuration.js'
 import { noDash } from '../lib/utils.js'
 import { Modal as FKModal, Select as FKSelect, Flag, ActionButton } from '../components/ui/FormKit.jsx'
+import { useIsMobile } from '../components/mobile/MobileKit.jsx'
+import '../styles/m-calc.css'
 import { stageVisible, fieldVisible, isGM } from '../lib/permissions.js'
 
 const F = "'Cairo','Tajawal',sans-serif"
@@ -508,6 +510,7 @@ const nm = v => Number(v || 0).toLocaleString('en-US')
 // ═══ Main Component ═══
 export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoToTransferCalc }) {
   const T = (a, e) => (lang || 'ar') !== 'en' ? a : e
+  const isMob = useIsMobile()   // عرض الجوال: بلاطات بعمودين + بطاقة الإجمالي الجاري
   const isAr = (lang || 'ar') !== 'en'
   const dir = isAr ? 'rtl' : 'ltr'
 
@@ -1253,7 +1256,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
   const wizardBody = (
     <>
       <style>{`@keyframes mq-spin{to{transform:rotate(360deg)}}`}</style>
-      <div className="kc-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', padding: '6px 4px 4px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div className="kc-scroll mc-calc" style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', padding: '6px 4px 4px', display: 'flex', flexDirection: 'column', gap: 12 }}>
 
       {/* ═══════════════════════════════════════ */}
       {/* TAB 0: بيانات العامل — matches ServiceRequest kafala step 3 page 1 */}
@@ -1490,7 +1493,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
               if (!(stageVisible(user,'transfer_calc','w_pricing') && fieldVisible(user,'transfer_calc','w_renewal_period'))) return null
               return (
                 <Card Icon={Calendar} label={T('تجديد الإقامة','Iqama Renewal')} span={2}>
-                  <div style={{ display: 'flex', gap: 6 }}>
+                  <div className={'mc-tilerow' + (transferOnlyAllowed ? ' odd' : '')} style={{ display: 'flex', gap: 6 }}>
                     {transferOnlyAllowed && (
                       <RenewalPill flex={1.3} selected={f.transferOnly} onClick={() => { set('transferOnly', true); set('renewIqama', false) }}>
                         <span>{T('نقل فقط','Transfer only')}</span>
@@ -1515,7 +1518,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
                 وتظهر في صفحة المراجعة، فنخفي الكرت هنا لتقليل الازدحام. */}
             {!mqLocked && stageVisible(user,'transfer_calc','w_pricing') && fieldVisible(user,'transfer_calc','w_transfer_fee') && (
               <Card Icon={CreditCard} label={T('رسوم النقل','Transfer Fee')} span={2}>
-                <div style={{ display: 'flex', gap: 6 }}>
+                <div className={'mc-tilerow' + (transferOptions.length % 2 ? ' odd' : '')} style={{ display: 'flex', gap: 6 }}>
                   {transferOptions.map(v => {
                     const sel = String(Math.round(parseFloat(f.transferFeeInput) || 0)) === v
                     return (
@@ -1543,8 +1546,8 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
           </div>
 
 
-          {/* Total — hero (مثبّت أسفل، دائمًا ظاهر) */}
-          <div style={{ flexShrink: 0, padding: '14px 18px', borderRadius: 14, background: 'linear-gradient(135deg, rgba(176,125,0,.17) 0%, rgba(176,125,0,.05) 100%)', border: '1px solid rgba(176,125,0,.45)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: 'inset 0 1px 0 var(--bd), 0 4px 16px rgba(176,125,0,.08)' }}>
+          {/* Total — hero (مثبّت أسفل، دائمًا ظاهر) — على الجوال تحلّ محلّه بطاقة الإجمالي الجاري الملتصقة */}
+          <div className="m-hide" style={{ flexShrink: 0, padding: '14px 18px', borderRadius: 14, background: 'linear-gradient(135deg, rgba(176,125,0,.17) 0%, rgba(176,125,0,.05) 100%)', border: '1px solid rgba(176,125,0,.45)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: 'inset 0 1px 0 var(--bd), 0 4px 16px rgba(176,125,0,.08)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
               <div style={{ width: 38, height: 38, borderRadius: 11, background: 'rgba(176,125,0,.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.gold, flexShrink: 0 }}>
                 <Calculator size={19} strokeWidth={2.2} />
@@ -1559,6 +1562,13 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
               <span style={{ fontSize: 13, fontWeight: 600, opacity: .7 }}>{T('ريال','SAR')}</span>
             </span>
           </div>
+          {/* الجوال: بطاقة الإجمالي الجاري (عرض فقط — نفس total أعلاه) */}
+          {isMob && (
+            <div className="mc-running">
+              <span className="mc-running-l"><b>{T('الإجمالي الحالي','Running total')}</b><small>{f.transferOnly ? T('نقل فقط','Transfer only') : (f.renewalMonths ? T(`نقل + تجديد ${f.renewalMonths} شهر`, `Transfer + ${f.renewalMonths}-mo renewal`) : T('اختر مدة التجديد','Pick a period'))}</small></span>
+              <span className="mc-running-v">{nm(Math.round(total))}<small>{T('ريال','SAR')}</small></span>
+            </div>
+          )}
         </div>
       })()}
 
@@ -1566,7 +1576,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
       {/* TAB 3: مراجعة */}
       {/* ═══════════════════════════════════════ */}
       {tab === 3 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div className="mc-calc" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {/* Worker summary */}
           <div style={{ padding: '12px 14px 8px', borderRadius: 10, background: 'rgba(52,131,180,.04)', border: '1px solid rgba(52,131,180,.25)', position: 'relative' }}>
             {(() => {

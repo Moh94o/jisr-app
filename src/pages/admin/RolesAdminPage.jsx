@@ -7,6 +7,8 @@ import { isGM as isGmUser, can } from '../../lib/permissions.js'
 import { closedRoleVisibility } from '../../lib/permCatalog.js'
 import * as svc from '../../services/rolesAdminService.js'
 import { PermissionsPanel } from './PermissionsPage.jsx'
+import { useIsMobile, MStatStrip, MFab, MBadge } from '../../components/mobile/MobileKit.jsx'
+import { MPageHead, MBack, MHero, MGroup, MItem, MAvatar } from './MAdminKit.jsx'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = { gold: '#B07D00', red: '#c0392b', ok: '#27a046', blue: '#3483b4' }
@@ -19,6 +21,7 @@ export default function RolesAdminPage({ sb, user, toast, lang, emptyIcon, nav, 
   const [loading, setLoading] = useState(true)
   const [selectedId, setSelectedId] = useState(null)
   const [modal, setModal] = useState(null) // { mode:'create'|'edit', role? }
+  const isMobile = useIsMobile()
   // دورٌ جديد يُولد مغلقاً بالكامل: خريطة إظهارٍ كلُّها `false` تُبذَر عند الإنشاء.
   const closedVis = useMemo(() => closedRoleVisibility(nav, hubTabs), [nav, hubTabs])
 
@@ -51,6 +54,45 @@ export default function RolesAdminPage({ sb, user, toast, lang, emptyIcon, nav, 
   }
 
   const totalPerms = catalog.reduce((s, m) => s + m.perms.length, 0)
+
+  if (isMobile) {
+    const activeN = roles.filter(r => r.is_active !== false).length
+    const usersN = roles.reduce((s, r) => s + (r.user_count || 0), 0)
+    return (
+      <div style={{ fontFamily: F }}>
+        <MPageHead title="الأدوار والصلاحيات" sub="عرّف الأدوار مرة واحدة ثم أسنِدها للمستخدمين" />
+        {!loading && roles.length > 0 && <MStatStrip items={[
+          { label: 'الأدوار', value: roles.length, tone: 'gold', sub: activeN < roles.length ? `${roles.length - activeN} معطّل` : 'جميعها نشطة' },
+          { label: 'إسنادات', value: usersN, tone: 'blue', sub: 'مستخدم × دور' },
+          { label: 'الصلاحيات المتاحة', value: totalPerms, tone: 'purple' },
+        ]} />}
+        {loading ? (
+          <div className="mk-cards">{[0, 1, 2, 3].map(i => <div key={i} className="mk-card mk-skel"><span /><span /><span /></div>)}</div>
+        ) : roles.length === 0 ? (
+          <EmptyState icon={emptyIcon} title="لا توجد أدوار" desc="أنشئ أول دور لتبدأ بتوزيع الصلاحيات" />
+        ) : (
+          <MGroup>
+            {roles.map(r => {
+              const pct = totalPerms ? Math.round((r.perm_count / totalPerms) * 100) : 0
+              return (
+                <MItem key={r.id} dim={r.is_active === false} onClick={() => setSelectedId(r.id)}
+                  leading={<ShieldCheck size={20} />} tone={r.color || C.gold}
+                  title={<>{r.name_ar}{r.is_system && <Lock size={12} style={{ marginInlineStart: 6, color: 'var(--tx5)', verticalAlign: 'middle' }} />}</>}
+                  sub={`${r.perm_count} صلاحية · ${r.user_count} مستخدم`}
+                  badge={r.is_active === false ? <MBadge text="معطّل" tone="gray" /> : <span className="ma-ring" style={{ '--p': pct, '--tone': r.color || C.gold }}><b>{pct}%</b></span>} />
+              )
+            })}
+          </MGroup>
+        )}
+        {canManage && <><div className="ma-fab-pad" /><MFab label="دور جديد" onClick={() => setModal({ mode: 'create' })} /></>}
+        {modal && (
+          <RoleFormModal mode={modal.mode} role={modal.role} toast={toast} seedVisibility={closedVis}
+            onClose={() => setModal(null)}
+            onSaved={async () => { setModal(null); await load() }} />
+        )}
+      </div>
+    )
+  }
 
   return (
     <div style={{ fontFamily: F, paddingTop: 0 }}>
@@ -144,6 +186,37 @@ function RoleEditor({ sb, role, catalog, canManage, toast, onBack, onChanged, on
   }
 
   const isGmRole = role.name_en === 'General Manager' || role.name_ar === 'المدير العام'
+  const isMobile = useIsMobile()
+
+  if (isMobile) {
+    return (
+      <div style={{ fontFamily: F, direction: 'rtl' }}>
+        <MBack onBack={onBack} label="الأدوار" />
+        <MHero avatar={<ShieldCheck strokeWidth={1.9} />} square tone={c} title={role.name_ar} sub={role.name_en} subLtr
+          badges={<>
+            <MBadge text={`${role.perm_count ?? 0} صلاحية`} tone={c} />
+            {role.is_system && <MBadge text="دور نظامي" tone="gray" />}
+            {role.is_active === false && <MBadge text="معطّل" tone="red" />}
+          </>} />
+        {canManage && !role.is_system && (
+          <div className="ma-actions">
+            <button className="ma-act" onClick={onEdit}><Pencil />تعديل</button>
+            <button className="ma-act danger" onClick={del}><Trash2 />حذف</button>
+          </div>
+        )}
+        <RoleUsersCard roleId={role.id} color={c} />
+        {isGmRole ? (
+          <MGroup><MItem leading={<ShieldCheck size={20} />} tone={c} title="صلاحية كاملة تلقائياً" sub="المدير العام يملك كل الصلاحيات — لا حاجة لضبطها." /></MGroup>
+        ) : (
+          <div className="ma-perm-wrap">
+            <div className="ma-group-hdr"><span>ما يراه ويفعله هذا الدور</span></div>
+            <PermissionsPanel mode="role" sb={sb} role={role} modules={catalog}
+              nav={nav} hubTabs={hubTabs} toast={toast} onRoleChanged={onChanged} embedded readOnly={!canManage} />
+          </div>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div style={{ fontFamily: F, paddingTop: 0, paddingBottom: 48, direction: 'rtl' }}>
@@ -200,6 +273,16 @@ function RoleUsersCard({ roleId, color }) {
     return () => { alive = false }
   }, [roleId])
   const c = color || C.gold
+  const isMobile = useIsMobile()
+  if (isMobile) return (
+    <MGroup title={`المستخدمون بهذا الدور${users ? ` · ${users.length}` : ''}`}>
+      {users === null ? <div className="ma-empty">…</div>
+        : users.length === 0 ? <div className="ma-empty">لا مستخدمين لهذا الدور بعد.</div>
+        : users.map(u => (
+          <MItem key={u.id} leading={<MAvatar text={String(u.name || '؟').trim().charAt(0)} tone={c} size={36} round />} title={u.name} sub={u.email} subLtr />
+        ))}
+    </MGroup>
+  )
   return (
     <div style={{ borderRadius: 12, background: 'var(--inputBg)', border: '1px solid var(--bd)', overflow: 'hidden', marginBottom: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '11px 13px', borderBottom: '1px solid var(--bd)' }}>

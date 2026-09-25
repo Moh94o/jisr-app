@@ -1,0 +1,226 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   الجوال — مركز المزامنة + المركز السعودي/بلدي + جداول التأشيرات والإقامات.
+   الأصناف msync-* / msd-* / mvg-* تُرسم على الجوال فقط، أو تُضاف لعناصر الحاسب
+   دون أي تنسيق خارج استعلام ≤ 768px. الاستثناء الوحيد: .msec — غلاف أقسام ملف
+   المنشأة بـ display:contents فلا يغيّر تخطيط الحاسب إطلاقاً.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.msec { display: contents; }
+
+@media (max-width: 768px) {
+
+  /* ── ترويسة الصفحة ─────────────────────────────────────────────── */
+  .msync-head { margin: 2px 2px 14px; }
+  .msync-head h1 { margin: 0; font-size: 26px; font-weight: 800; color: var(--tx); letter-spacing: -.4px; line-height: 1.2; }
+  .msync-head p { margin: 3px 0 0; font-size: 13px; font-weight: 600; color: var(--tx4); font-variant-numeric: tabular-nums; }
+  .msync-err { margin-bottom: 12px; padding: 12px 14px; border-radius: 14px; background: rgba(192, 57, 43, .08); color: #c0392b; font-size: 13px; font-weight: 600; }
+
+  /* ── البحث + زر التصفية ────────────────────────────────────────── */
+  .msync-searchrow { display: flex; gap: 10px; align-items: flex-start; }
+  .msync-searchrow .mk-search { flex: 1; min-width: 0; }
+  .msync-filter {
+    position: relative; width: 46px; height: 46px; border-radius: 14px; border: 0; flex-shrink: 0;
+    background: rgba(90, 70, 30, .07); color: var(--tx2); display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
+  }
+  .msync-filter.on { background: #1f1a12; color: #f3d98a; }
+  .msync-filter i { position: absolute; top: 9px; inset-inline-end: 9px; width: 8px; height: 8px; border-radius: 50%; background: #d97a1e; box-shadow: 0 0 0 2px #1f1a12; }
+  .msync-adv { margin: -2px 0 14px; padding: 4px; border-radius: 18px; background: var(--m-surface); border: .5px solid var(--m-line); }
+  .msync-adv > div:first-child { margin: 0 !important; border: 0 !important; background: transparent !important; padding: 12px !important; }
+  .msync-adv > div:first-child > div { grid-template-columns: minmax(0, 1fr) !important; gap: 12px !important; }
+  .msync-adv-foot { display: flex; gap: 8px; padding: 4px 12px 12px; }
+  .msync-adv-foot button {
+    flex: 1; height: 46px; border-radius: 13px; border: .5px solid var(--m-line); background: transparent; color: var(--tx2);
+    font-family: inherit; font-size: 15px; font-weight: 700; cursor: pointer;
+  }
+  .msync-adv-foot button.primary { background: #1f1a12; color: #f3d98a; border-color: #1f1a12; }
+  .msync-count { margin: -4px 4px 10px; font-size: 12.5px; font-weight: 700; color: var(--tx4); font-variant-numeric: tabular-nums; }
+
+  /* ── بطاقة المنشأة ─────────────────────────────────────────────── */
+  .msync .mk-card-lead { background: transparent; }
+  .msync-lead {
+    width: 42px; height: 42px; border-radius: 13px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+    background: rgba(176, 125, 0, .11); color: #B07D00;
+  }
+  .msync-lead.is-branch { background: rgba(47, 124, 179, .11); color: #2f7cb3; }
+  .msync-lead.lg { width: 60px; height: 60px; border-radius: 18px; }
+  .msync-lead.lg svg { width: 28px; height: 28px; }
+  .msync-date { display: inline-flex; align-items: baseline; gap: 6px; min-width: 0; max-width: 100%; }
+  .msync-date bdi { font-variant-numeric: tabular-nums; }
+  .msync-date small { font-size: 11.5px; font-weight: 700; opacity: .9; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .msync-owner {
+    display: flex; align-items: center; gap: 7px; margin-top: 12px; padding-top: 10px; border-top: .5px solid var(--m-line);
+    font-size: 13px; font-weight: 600; color: var(--tx3); min-width: 0;
+  }
+  .msync-owner svg { flex-shrink: 0; color: var(--tx4); }
+  .msync-owner > span:not(.msync-src) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .msync-owner em { font-style: normal; font-size: 11.5px; font-weight: 700; color: var(--tx4); background: rgba(90, 70, 30, .07); padding: 1px 7px; border-radius: 999px; }
+  .msync-src { margin-inline-start: auto; display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; }
+
+  .msync-empty {
+    display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; padding: 34px 22px;
+    border-radius: 20px; background: var(--m-surface); border: .5px solid var(--m-line);
+  }
+  .msync-empty.small { padding: 26px 18px; }
+  .msync-empty b { font-size: 17px; font-weight: 800; color: var(--tx); }
+  .msync-empty span { font-size: 14px; font-weight: 500; color: var(--tx4); line-height: 1.7; }
+  .msync-empty-ico { width: 64px; height: 64px; border-radius: 20px; display: inline-flex !important; align-items: center; justify-content: center; background: rgba(176, 125, 0, .11); color: #B07D00 !important; margin-bottom: 4px; }
+  .msync-note {
+    display: flex; align-items: flex-start; gap: 10px; margin: 18px 2px 0; padding: 12px 14px; border-radius: 14px;
+    background: rgba(90, 70, 30, .05); color: var(--tx4); font-size: 12.5px; font-weight: 600; line-height: 1.6;
+  }
+  .msync-note svg { flex-shrink: 0; margin-top: 1px; }
+
+  /* ── ملف المنشأة: شريط الرجوع + البطل + الشرائح ─────────────────── */
+  .m-sync-detail { padding-bottom: 12px !important; }
+  .msd-bar { display: flex; align-items: center; justify-content: space-between; margin: -6px -6px 4px; min-height: 44px; }
+  .msd-back {
+    display: inline-flex; align-items: center; gap: 2px; height: 44px; padding: 0 6px; border: 0; background: none;
+    font-family: inherit; font-size: 16px; font-weight: 600; color: #B07D00; cursor: pointer;
+  }
+  .msd-bar-src { display: inline-flex; gap: 8px; align-items: center; padding-inline-end: 6px; }
+  .msd-hero {
+    display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px;
+    padding: 20px 16px 14px; border-radius: 22px; background: var(--m-surface); border: .5px solid var(--m-line);
+    box-shadow: 0 1px 2px rgba(90, 70, 30, .05);
+  }
+  .msd-hero h2 { margin: 6px 0 0; font-size: 21px; font-weight: 800; color: var(--tx); line-height: 1.35; letter-spacing: -.2px; }
+  .msd-hero .en { margin: 0; font-size: 13px; font-weight: 600; color: var(--tx4); }
+  .msd-pills { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-top: 6px; }
+  .msd-pills .mk-badge { font-size: 12px; padding: 4px 11px; }
+  .msd-prov { margin: 2px 0 0; font-size: 12.5px; font-weight: 600; color: #9b59b6; }
+  .msd-facts {
+    display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); width: calc(100% + 32px); margin: 12px -16px -14px;
+    border-top: .5px solid var(--m-line);
+  }
+  .msd-facts button {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-height: 66px; padding: 8px 4px;
+    border: 0; background: none; font-family: inherit; cursor: pointer; min-width: 0;
+  }
+  .msd-facts button + button { border-inline-start: .5px solid var(--m-line); }
+  .msd-facts button:active { background: var(--m-press); }
+  .msd-facts b { font-size: 19px; font-weight: 800; color: var(--tx); font-variant-numeric: tabular-nums; line-height: 1.2; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .msd-facts b.sm { font-size: 13px; line-height: 1.8; }
+  .msd-facts span { font-size: 11px; font-weight: 600; color: var(--tx4); white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+  .msd-tabs {
+    position: sticky; top: -14px; z-index: 20; margin: 0 calc(-1 * var(--m-gutter)) 12px; padding: 12px 0 8px;
+    background: color-mix(in srgb, var(--bg) 92%, transparent);
+    -webkit-backdrop-filter: saturate(1.6) blur(14px); backdrop-filter: saturate(1.6) blur(14px);
+  }
+  .msd-tabs .mk-chips { margin: 0; }
+  .msd-tabs .mk-chip { height: 36px; font-size: 13.5px; }
+
+  /* ── التبويب النشط يحدّد الأقسام الظاهرة ──────────────────────────── */
+  .m-sync-detail[data-mtab="overview"] [data-msec]:not([data-msec="overview"]),
+  .m-sync-detail[data-mtab="owners"] [data-msec]:not([data-msec="owners"]),
+  .m-sync-detail[data-mtab="cr"] [data-msec]:not([data-msec="cr"]),
+  .m-sync-detail[data-mtab="workers"] [data-msec]:not([data-msec="workers"]),
+  .m-sync-detail[data-mtab="gosi"] [data-msec]:not([data-msec="gosi"]),
+  .m-sync-detail[data-mtab="qiwa"] [data-msec]:not([data-msec="qiwa"]),
+  .m-sync-detail[data-mtab="muqeem"] [data-msec]:not([data-msec="muqeem"]),
+  .m-sync-detail[data-mtab="ajeer"] [data-msec]:not([data-msec="ajeer"]),
+  .m-sync-detail[data-mtab="history"] [data-msec]:not([data-msec="history"]) { display: none !important; }
+
+  /* ── العمودان → عمود واحد، والشريط الجانبي أولاً في «نظرة عامة» ──── */
+  .m-sync-detail .msd-grid { display: flex !important; flex-direction: column; gap: 12px !important; }
+  .m-sync-detail .msd-main { gap: 12px !important; width: 100%; }
+  .m-sync-detail .msd-side { position: static !important; order: -1; gap: 12px !important; width: 100%; }
+
+  /* ── كروت المجموعات: سطح iOS مُجمَّع ──────────────────────────────── */
+  .m-sync-detail .msd-grid [style*="border-radius: 14px"][style*="overflow: hidden"] {
+    border-radius: 18px !important; background: var(--m-surface) !important; border: .5px solid var(--m-line) !important;
+    box-shadow: 0 1px 2px rgba(90, 70, 30, .05) !important;
+  }
+  /* رأس الكرت (عنوان + شارة + سهم) */
+  .m-sync-detail [style*="padding: 14px 22px"][style*="border-bottom"] { padding: 14px 16px !important; min-height: 52px; gap: 8px !important; }
+  .m-sync-detail [style*="font-size: 16px"][style*="color: rgb(176, 125, 0)"] { font-size: 16px !important; font-weight: 800 !important; color: var(--tx) !important; line-height: 1.35; }
+  /* محتوى الكرت: عمود واحد وحواف أضيق */
+  .m-sync-detail [style*="padding: 14px 22px"]:not([style*="border-bottom"]) { padding: 12px 12px 14px !important; }
+  .m-sync-detail [style*="padding: 20px 22px"] { padding: 16px 14px 12px !important; }
+  .m-sync-detail [style*="grid-template-columns: 1fr 1fr"] { grid-template-columns: minmax(0, 1fr) !important; }
+  .m-sync-detail [style*="grid-template-columns: 1fr 1fr 1fr"] { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+  /* صفوف (عنوان ← قيمة): قائمة iOS مُجمَّعة — بلا صناديق، فواصل رفيعة */
+  .m-sync-detail [style*="padding: 14px 22px"][style*="grid-template-columns: 1fr 1fr;"],
+  .m-sync-detail [style*="padding: 14px 22px"][style*="flex-direction: column"][style*="gap: 6px"] { gap: 0 !important; padding: 2px 16px 6px !important; }
+  .m-sync-detail [style*="padding: 10px 12px"][style*="justify-content: space-between"],
+  .m-sync-detail [style*="padding: 9px 12px"][style*="justify-content: space-between"] {
+    min-height: 48px; padding: 10px 0 !important; border-radius: 0 !important; background: transparent !important;
+    border: 0 !important; border-bottom: .5px solid var(--m-line) !important;
+  }
+  .m-sync-detail [style*="padding: 10px 12px"][style*="justify-content: space-between"]:last-child,
+  .m-sync-detail [style*="padding: 9px 12px"][style*="justify-content: space-between"]:last-child { border-bottom: 0 !important; }
+  .m-sync-detail [style*="padding: 10px 12px"][style*="justify-content: space-between"] > span:first-child,
+  .m-sync-detail [style*="padding: 9px 12px"][style*="justify-content: space-between"] > span:first-child { font-size: 13.5px !important; }
+  .m-sync-detail [style*="padding: 10px 12px"][style*="justify-content: space-between"] > span:last-child,
+  .m-sync-detail [style*="padding: 9px 12px"][style*="justify-content: space-between"] > span:last-child { font-size: 15px !important; min-width: 0; }
+  /* الأشخاص (ملاك/مدراء) — صفّ قائمة بدل صندوق */
+  .m-sync-detail [style*="padding: 9px 12px"][style*="border-radius: 8px"]:not([style*="justify-content"]) {
+    padding: 13px 0 !important; border: 0 !important; border-bottom: .5px solid var(--m-line) !important; border-radius: 0 !important; background: transparent !important;
+  }
+  .m-sync-detail [style*="padding: 9px 12px"][style*="border-radius: 8px"]:not([style*="justify-content"]):last-child { border-bottom: 0 !important; }
+  /* ملفات السجل: عمودان ومعاينة أقصر */
+  .m-sync-detail [style*="minmax(280px, 1fr)"] { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 10px !important; }
+  .m-sync-detail [style*="minmax(280px, 1fr)"] [style*="aspect-ratio"] { aspect-ratio: 3 / 3.4 !important; }
+  /* جداول داخل الكروت: تمرير أفقي داخلي بدل تمدّد الصفحة */
+  .m-sync-detail table { font-size: 12.5px; }
+  .m-sync-detail .msd-main > * { min-width: 0; max-width: 100%; }
+  .m-sync-detail [style*="overflow-x: auto"], .m-sync-detail [style*="overflow: auto"] { -webkit-overflow-scrolling: touch; }
+  .m-sync-detail [style*="height: 1px"][style*="margin: 8px 0"] { display: none; }
+
+  /* زر الحذف والحجب — صفّ كامل بأسفل «نظرة عامة» */
+  .msd-danger { margin-top: 6px; }
+  .msd-danger > button {
+    width: 100%; height: 50px !important; border-radius: 16px !important; justify-content: center; font-size: 15px !important;
+    background: rgba(192, 57, 43, .06) !important; border: .5px solid rgba(192, 57, 43, .25) !important;
+  }
+}
+
+/* ═══ جداول التأشيرات والإقامات على الجوال ═══════════════════════════════ */
+@media (max-width: 768px) {
+  .mvg .mk-card-lead { background: transparent; }
+  .mvg-lead {
+    width: 42px; height: 42px; border-radius: 13px; display: inline-flex; flex-direction: column; align-items: center; justify-content: center;
+    background: color-mix(in srgb, var(--c, #B07D00) 13%, transparent); color: var(--c, #B07D00);
+    font-size: 17px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums;
+  }
+  .mvg-lead small { font-size: 9.5px; font-weight: 700; opacity: .8; margin-bottom: 2px; }
+  .mvg-act {
+    width: 100%; height: 44px; margin-top: 12px; border-radius: 13px; border: 0; cursor: pointer;
+    background: #1f1a12; color: #f3d98a; font-family: inherit; font-size: 14.5px; font-weight: 700;
+  }
+  .mvg-steps { display: flex; gap: 6px; margin-top: 12px; flex-wrap: wrap; }
+  .mvg-step {
+    display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 10px; border-radius: 999px;
+    font-size: 12px; font-weight: 700; background: rgba(90, 70, 30, .06); color: var(--tx4);
+  }
+  .mvg-step.ok { background: rgba(31, 138, 76, .1); color: #1f8a4c; }
+  .mvg-step i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: .7; }
+  .mvg-note { margin-top: 12px; padding-top: 10px; border-top: .5px solid var(--m-line); font-size: 12.5px; font-weight: 600; color: var(--tx4); line-height: 1.6; }
+}
+
+/* ═══ تفاصيل معاملة المركز السعودي / بلدي على الجوال ═════════════════════ */
+@media (max-width: 768px) {
+  .m-crd { padding-bottom: 24px !important; }
+  .m-crd [style*="border-radius: 16px"][style*="overflow: hidden"] {
+    border-radius: 18px !important; background: var(--m-surface) !important; border: .5px solid var(--m-line) !important; box-shadow: 0 1px 2px rgba(90, 70, 30, .05) !important;
+  }
+  .m-crd [style*="padding: 14px 22px"][style*="border-bottom"] { padding: 12px 16px !important; min-height: 52px; }
+  .m-crd [style*="padding: 14px 22px"]:not([style*="border-bottom"]),
+  .m-crd [style*="padding: 12px 22px"], .m-crd [style*="padding: 6px 22px"] { padding-inline: 16px !important; }
+  .m-crd [style*="grid-template-columns: 1fr 1fr"] { grid-template-columns: minmax(0, 1fr) !important; }
+  /* العنوان: أكبر وبلا وصف طويل */
+  .m-crd > div:nth-child(2) [style*="font-size: 22px"] { font-size: 22px !important; font-weight: 800 !important; line-height: 1.35; }
+  .m-crd > div:nth-child(2) > [style*="margin-top: 10px"] { display: none; }
+  /* أزرار الحالة وإرفاق الملفات: أهداف لمس ≥ 44px */
+  .m-crd button[style*="padding: 9px 12px"], .m-crd button[style*="padding: 7px 14px"] { min-height: 46px; font-size: 14px !important; border-radius: 12px !important; }
+  .m-crd [style*="height: 32px"] { height: 40px !important; }
+  .m-crd a[style*="padding: 9px 12px"] { min-height: 46px; }
+  .m-crd input, .m-crd textarea { min-height: 44px; }
+}
+@media (max-width: 768px) {
+  .m-crd [style*="padding: 14px 22px"][style*="grid-template-columns: 1fr 1fr"] { gap: 0 !important; padding-block: 2px 6px !important; }
+  .m-crd [style*="padding: 10px 12px"][style*="border-radius: 10px"] {
+    padding: 11px 0 !important; border-radius: 0 !important; background: transparent !important; border: 0 !important; border-bottom: .5px solid var(--m-line) !important;
+  }
+  .m-crd [style*="padding: 10px 12px"][style*="border-radius: 10px"]:last-child { border-bottom: 0 !important; }
+  .m-crd [style*="padding: 10px 12px"][style*="border-radius: 10px"] > div:first-child { font-size: 12.5px !important; }
+  .m-crd [style*="padding: 10px 12px"][style*="border-radius: 10px"] > div:last-child { font-size: 15px !important; text-align: start !important; }
+}

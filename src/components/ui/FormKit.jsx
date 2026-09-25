@@ -22,6 +22,7 @@
 import React, { useState, useEffect, useRef, useId, useContext, createContext } from 'react'
 import ReactDOM from 'react-dom'
 import { useBackHandler } from '../../lib/mobileBack'
+import { useIsMobile } from '../mobile/MobileKit.jsx'
 import { X, ChevronDown, ChevronLeft, ChevronRight, Check, Search, Save, Calendar as CalIcon, Clock as ClockIcon, Minus, Plus, Upload, Paperclip, AlertTriangle, Info, Trash2, Copy, Circle, CheckCircle2 } from 'lucide-react'
 
 /* ═══════════════════════════════ التوكنز ═══════════════════════════════ */
@@ -246,7 +247,7 @@ export const AccentContext = createContext(C.gold)
 export const ModalSection = ({ Icon, label, hint, children, style, bodyStyle, flex }) => {
   const ac = useContext(AccentContext)
   return (
-    <div style={{ borderRadius: 12, border: `1.5px solid ${ac}59`, padding: '18px 14px 14px', position: 'relative', marginTop: 20, transition: '.2s', ...(flex ? { flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' } : {}), ...style }}>
+    <div className="fk-section" style={{ borderRadius: 12, border: `1.5px solid ${ac}59`, padding: '18px 14px 14px', position: 'relative', marginTop: 20, transition: '.2s', ...(flex ? { flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' } : {}), ...style }}>
       <div style={{ position: 'absolute', top: -9, insetInlineStart: 14, background: C.modal, padding: '0 8px', fontSize: 12, fontWeight: 600, color: ac, fontFamily: F, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
         {Icon && <Icon size={12} strokeWidth={2.2} />}
         <span>{label}</span>
@@ -260,8 +261,9 @@ export { ModalSection as KCard }
 
 /* ════════════════════════════ الدروب داون ═════════════════════════════ */
 // Dropdown أساسي بالبورتال + بحث + خلية مخصّصة. هو محرّك Select / MultiSelect.
-export const Dropdown = ({ value, onChange, options, placeholder, getKey, getLabel, getSub, searchable = true, renderCell, renderSelected, error, multi = false, selectedKeys, disabled = false }) => {
+export const Dropdown = ({ value, onChange, options, placeholder, getKey, getLabel, getSub, searchable = true, renderCell, renderSelected, error, multi = false, selectedKeys, disabled = false, sheetTitle }) => {
   const { dir, T } = useFKLang()
+  const mob = useIsMobile()
   const ac = useContext(AccentContext)
   const btnRef = useRef(null)
   const portalRef = useRef(null)
@@ -305,7 +307,7 @@ export const Dropdown = ({ value, onChange, options, placeholder, getKey, getLab
 
   return (
     <div style={{ position: 'relative', width: '100%' }}>
-      <button ref={btnRef} type="button" onClick={toggle}
+      <button ref={btnRef} type="button" onClick={toggle} className="fk-dd-btn"
         style={{ ...sF, cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? .5 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, color: (selected || selKeys.length) ? C.tx : C.tx5, boxShadow: errRing(error), padding: '0 32px', position: 'relative' }}>
         <span style={{ flex: 1, textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: (selected || selKeys.length) ? 600 : 500, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
           {multi
@@ -315,7 +317,44 @@ export const Dropdown = ({ value, onChange, options, placeholder, getKey, getLab
         <ChevronDown size={12} color={ac} strokeWidth={2.5}
           style={{ position: 'absolute', insetInlineEnd: 12, top: '50%', transform: `translateY(-50%) ${open ? 'rotate(180deg)' : ''}`, transition: '.2s' }} />
       </button>
-      {open && ReactDOM.createPortal(
+      {open && mob && ReactDOM.createPortal(
+        <div ref={portalRef} className="fk-msheet-wrap" style={{ direction: dir, fontFamily: F, '--fk-ac': ac }}>
+          <div className="fk-msheet-bg" onClick={() => { setOpen(false); setQ('') }} />
+          <div className="fk-msheet" role="listbox">
+            <div className="fk-msheet-grab" />
+            <div className="fk-msheet-head">
+              <span className="fk-msheet-title">{sheetTitle || placeholder || T('اختر', 'Select')}</span>
+              <button type="button" className="fk-msheet-done" onClick={() => { setOpen(false); setQ('') }}>{multi ? T('تم', 'Done') : T('إغلاق', 'Close')}</button>
+            </div>
+            {searchable && options.length > 5 && (
+              <label className="fk-msheet-search">
+                <Search size={17} />
+                <input value={q} onChange={e => setQ(e.target.value)} placeholder={T('ابحث...', 'Search...')} enterKeyHint="search" />
+              </label>
+            )}
+            <div className="fk-msheet-list">
+              {filtered.length === 0 && <div className="fk-msheet-empty">{T('لا توجد نتائج', 'No results')}</div>}
+              {filtered.slice(0, 300).map(o => {
+                const k = getK(o)
+                const sel = isChosen(o)
+                return (
+                  <div key={k} className={'fk-msheet-row' + (sel ? ' on' : '')} onClick={() => {
+                    if (multi) { onChange(selKeys.includes(k) ? selKeys.filter(x => x !== k) : [...selKeys, k], o) }
+                    else { onChange(k, o); setOpen(false); setQ('') }
+                  }}>
+                    <span className="fk-msheet-cell">
+                      {renderCell ? renderCell(o, sel, q) : <span className="fk-msheet-lbl">{getL(o)}</span>}
+                      {!renderCell && getSub && getSub(o) && <span className="fk-msheet-sub">{getSub(o)}</span>}
+                    </span>
+                    <span className={'fk-msheet-check' + (multi ? ' multi' : '')}>{sel && <Check size={multi ? 13 : 18} strokeWidth={3} />}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>, document.body
+      )}
+      {open && !mob && ReactDOM.createPortal(
         <div ref={portalRef} style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, background: C.modal2, border: '1px solid var(--bd)', borderRadius: 10, maxHeight: pos.maxH, display: 'flex', flexDirection: 'column', zIndex: 3000, boxShadow: '0 12px 40px var(--shadowClr)', overflow: 'hidden', direction: dir, fontFamily: F }}>
           <style>{`.fk-dd-scroll::-webkit-scrollbar{width:0;display:none}.fk-dd-scroll{scrollbar-width:none;-ms-overflow-style:none}
             .fk-dd-search{border:1px solid ${ac}73!important}
@@ -362,6 +401,7 @@ export const Dropdown = ({ value, onChange, options, placeholder, getKey, getLab
 export const CalendarPopup = ({ value, onPick, onClose, anchor, min, max }) => {
   const { dir } = useFKLang()
   const ac = useContext(AccentContext)
+  const mob = useIsMobile()
   const today = new Date()
   const parsed = value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value.split('-').map(Number) : null
   const initial = parsed ? { y: parsed[0], m: parsed[1] - 1 } : { y: today.getFullYear(), m: today.getMonth() }
@@ -382,8 +422,8 @@ export const CalendarPopup = ({ value, onPick, onClose, anchor, min, max }) => {
   const left = Math.max(8, Math.min(window.innerWidth - POPUP_W - 8, anchor.left + anchor.width / 2 - POPUP_W / 2))
   return ReactDOM.createPortal(
     <>
-      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 3000 }} />
-      <div style={{ position: 'fixed', top, left, width: POPUP_W, background: C.modal2, border: '1px solid var(--bd)', borderRadius: 10, padding: 12, zIndex: 3001, boxShadow: '0 12px 40px var(--shadowClr)', fontFamily: F, direction: dir }}>
+      <div onClick={onClose} className={mob ? 'fk-msheet-bg fk-cal-bg' : undefined} style={{ position: 'fixed', inset: 0, zIndex: 3000 }} />
+      <div className={mob ? 'fk-cal-sheet' : undefined} style={{ position: 'fixed', top, left, width: POPUP_W, background: C.modal2, border: '1px solid var(--bd)', borderRadius: 10, padding: 12, zIndex: 3001, boxShadow: '0 12px 40px var(--shadowClr)', fontFamily: F, direction: dir }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, direction: 'ltr' }}>
           <button type="button" onClick={prevMonth} style={navBtn}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6"/></svg>
@@ -659,14 +699,14 @@ export const FileField = ({ label, req, error, hint, value, onChange, accept = '
 // قائمة منسدلة (اختيار واحد). options + getKey/getLabel كما في Dropdown.
 export const Select = ({ label, req, error, hint, full, ...dd }) => (
   <Field label={label} req={req} error={error} hint={hint} full={full}>
-    <Dropdown error={!!error} {...dd} />
+    <Dropdown error={!!error} sheetTitle={typeof label === 'string' ? label : undefined} {...dd} />
   </Field>
 )
 
 // قائمة منسدلة (اختيار متعدّد). value = مصفوفة مفاتيح.
 export const MultiSelect = ({ label, req, error, hint, full, value, onChange, ...dd }) => (
   <Field label={label} req={req} error={error} hint={hint} full={full}>
-    <Dropdown multi error={!!error} selectedKeys={value || []} onChange={onChange} {...dd} />
+    <Dropdown multi error={!!error} selectedKeys={value || []} onChange={onChange} sheetTitle={typeof label === 'string' ? label : undefined} {...dd} />
   </Field>
 )
 
@@ -997,9 +1037,9 @@ export const ActionButton = ({ children, Icon = Save, onClick, disabled, dir = '
     </span>
   )
   return (
-    <button onClick={onClick} disabled={disabled}
+    <button onClick={onClick} disabled={disabled} className={'fk-act ' + (isGhost ? 'fk-act-ghost' : 'fk-act-primary')}
       onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
-      style={{ height: 40, padding: '0 6px', background: 'transparent', border: 'none', fontFamily: F, fontSize: 14, fontWeight: 600, cursor: disabled ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: 10, transition: '.2s', color: txtColor, opacity: disabled ? .5 : 1 }}>
+      style={{ '--fk-ac': clr, height: 40, padding: '0 6px', background: 'transparent', border: 'none', fontFamily: F, fontSize: 14, fontWeight: 600, cursor: disabled ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: 10, transition: '.2s', color: txtColor, opacity: disabled ? .5 : 1 }}>
       {dir === 'fwd' && Icon && ico}
       <span>{children}</span>
       {dir !== 'fwd' && Icon && ico}
@@ -1140,17 +1180,17 @@ export function Modal({ open, onClose, title, subtitle, Icon, width = 720, child
 
           {/* الترويسة — تُخفى عبر hideHeader عند تضمين مكوّن له ترويسته الخاصة */}
           {!hideHeader && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 26px 6px', flexShrink: 0 }}>
+          <div className="fk-head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 26px 6px', flexShrink: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               {Icon && <Icon size={26} color={AC} strokeWidth={1.8} style={{ flexShrink: 0 }} />}
               <div>
-                <div style={{ fontSize: 22, fontWeight: 600, color: 'var(--tx)', lineHeight: 1.2 }}>{title}</div>
+                <div className="fk-title" style={{ fontSize: 22, fontWeight: 600, color: 'var(--tx)', lineHeight: 1.2 }}>{title}</div>
                 {subtitle && !hasPages && <div style={{ fontSize: 12, fontWeight: 600, color: C.tx4, marginTop: 2 }}>{subtitle}</div>}
               </div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               {headerExtra}
-              {!hideClose && <button onClick={() => onClose?.()}
+              {!hideClose && <button className="fk-close" onClick={() => onClose?.()}
                 onMouseEnter={() => setCloseHov(true)} onMouseLeave={() => setCloseHov(false)}
                 style={{ width: 36, height: 36, borderRadius: 10, background: closeHov ? 'rgba(192,57,43,.15)' : 'var(--bd2)', border: `1px solid ${closeHov ? C.red + '66' : 'var(--bd)'}`, color: closeHov ? C.red : C.tx3, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: '.15s' }}>
                 <X size={14} />
@@ -1161,7 +1201,7 @@ export function Modal({ open, onClose, title, subtitle, Icon, width = 720, child
 
           {/* شريط التبويبات — وصول حرّ (للوحات العرض). تحت العنوان مباشرة. */}
           {hasTabs && (
-            <div style={{ display: 'flex', gap: 4, padding: '0 26px 12px', flexShrink: 0, overflowX: 'auto' }}>
+            <div className="fk-tabs" style={{ display: 'flex', gap: 4, padding: '0 26px 12px', flexShrink: 0, overflowX: 'auto' }}>
               {tabs.map((t, i) => {
                 const sel = i === Math.min(curTab, tabs.length - 1)
                 return (
@@ -1177,7 +1217,7 @@ export function Modal({ open, onClose, title, subtitle, Icon, width = 720, child
 
           {/* شريط التقدّم + اسم الخطوة الحالية — تحت العنوان مباشرة */}
           {hasPages && (pages.length > 1 || pages[cur].title) && (
-            <div style={{ padding: '0 26px 4px', flexShrink: 0 }}>
+            <div className="fk-prog" style={{ padding: '0 26px 4px', flexShrink: 0 }}>
               {pages.length > 1 && (
                 <div style={{ display: 'flex', gap: 6, marginBottom: pages[cur].title ? 9 : 0 }}>
                   {pages.map((_, i) => (
@@ -1201,13 +1241,13 @@ export function Modal({ open, onClose, title, subtitle, Icon, width = 720, child
 
           {/* التذييل: السابق (يمين) · رسالة خطأ (وسط) · التالي/حفظ (يسار) */}
           {showFooter && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 26px 16px', flexShrink: 0, gap: 12 }}>
-              <div style={{ minWidth: 90, display: 'flex', justifyContent: 'flex-start' }}>{backNode}</div>
-              <div style={{ flex: 1, minHeight: 18, fontSize: 12, fontWeight: 600, color: C.red, transition: '.15s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+            <div className="fk-foot" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 26px 16px', flexShrink: 0, gap: 12 }}>
+              <div className={'fk-foot-back' + (backNode ? '' : ' empty')} style={{ minWidth: 90, display: 'flex', justifyContent: 'flex-start' }}>{backNode}</div>
+              <div className={'fk-foot-err' + (shownError ? '' : ' empty')} style={{ flex: 1, minHeight: 18, fontSize: 12, fontWeight: 600, color: C.red, transition: '.15s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                 {shownError && <AlertTriangle size={14} strokeWidth={2.4} style={{ flexShrink: 0 }} />}
                 <span>{shownError}</span>
               </div>
-              <div style={{ minWidth: 90, display: 'flex', justifyContent: 'flex-end' }}>{forwardNode}</div>
+              <div className={'fk-foot-fwd' + (forwardNode ? '' : ' empty')} style={{ minWidth: 90, display: 'flex', justifyContent: 'flex-end' }}>{forwardNode}</div>
             </div>
           )}
         </div>
@@ -1273,8 +1313,9 @@ export function ConfirmDialog({ open, onConfirm, onCancel, title, message, itemN
   cancelText = cancelText ?? T('إلغاء', 'Cancel')
   const clr = danger ? C.red : C.gold
   return ReactDOM.createPortal(
-    <div onClick={onCancel} style={{ position: 'fixed', inset: 0, background: 'rgba(14,14,14,.8)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100, padding: 16 }}>
-      <div onClick={e => e.stopPropagation()} dir={dir} style={{ background: C.modal, borderRadius: 16, width: 440, maxWidth: '95vw', overflow: 'hidden', boxShadow: '0 20px 48px var(--shadowClr)', border: `1px solid ${clr}26`, fontFamily: F }}>
+    <div className="fk-confirm-ovl" onClick={onCancel} style={{ position: 'fixed', inset: 0, background: 'rgba(14,14,14,.8)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100, padding: 16 }}>
+      <style>{SHEET_CSS}</style>
+      <div className="fk-confirm" onClick={e => e.stopPropagation()} dir={dir} style={{ background: C.modal, borderRadius: 16, width: 440, maxWidth: '95vw', overflow: 'hidden', boxShadow: '0 20px 48px var(--shadowClr)', border: `1px solid ${clr}26`, fontFamily: F }}>
         <div style={{ padding: '28px 24px', textAlign: 'center' }}>
           <div style={{ width: 56, height: 56, borderRadius: '50%', background: `${clr}14`, border: `2px solid ${clr}26`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
             <AlertTriangle size={24} color={clr} strokeWidth={2} />
@@ -1282,9 +1323,9 @@ export function ConfirmDialog({ open, onConfirm, onCancel, title, message, itemN
           <div style={{ fontSize: 16, fontWeight: 600, color: clr, marginBottom: 8 }}>{title}</div>
           <div style={{ fontSize: 13, color: C.tx3, lineHeight: 1.8, marginBottom: itemName ? 4 : 20 }}>{message}</div>
           {itemName && <div style={{ fontSize: 14, fontWeight: 600, color: C.tx2, marginBottom: 20 }}>"{itemName}"</div>}
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-            <button onClick={onCancel} style={{ height: 42, padding: '0 24px', borderRadius: 10, border: '1.5px solid var(--bd)', background: 'transparent', color: C.tx3, fontFamily: F, fontSize: 13, fontWeight: 600, cursor: 'pointer', flex: 1 }}>{cancelText}</button>
-            <button onClick={onConfirm} style={{ height: 42, padding: '0 24px', borderRadius: 10, border: 'none', background: clr, color: '#fff', fontFamily: F, fontSize: 13, fontWeight: 600, cursor: 'pointer', flex: 1 }}>{confirmText}</button>
+          <div className="fk-confirm-btns" style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+            <button className="fk-confirm-cancel" onClick={onCancel} style={{ height: 42, padding: '0 24px', borderRadius: 10, border: '1.5px solid var(--bd)', background: 'transparent', color: C.tx3, fontFamily: F, fontSize: 13, fontWeight: 600, cursor: 'pointer', flex: 1 }}>{cancelText}</button>
+            <button className="fk-confirm-ok" onClick={onConfirm} style={{ height: 42, padding: '0 24px', borderRadius: 10, border: 'none', background: clr, color: '#fff', fontFamily: F, fontSize: 13, fontWeight: 600, cursor: 'pointer', flex: 1 }}>{confirmText}</button>
           </div>
         </div>
       </div>
@@ -1312,7 +1353,7 @@ export function Toast({ open, type = 'success', message, onClose, duration = 300
   const k = TOAST_KIND[type] || TOAST_KIND.success
   const Ico = k.Icon
   return ReactDOM.createPortal(
-    <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 4000, direction: dir, fontFamily: F, pointerEvents: 'none' }}>
+    <div className="fk-toast" style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 4000, direction: dir, fontFamily: F, pointerEvents: 'none' }}>
       <style>{`@keyframes fkToastIn{0%{opacity:0;transform:translateY(12px)}100%{opacity:1;transform:translateY(0)}}`}</style>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 18px', borderRadius: 12, background: C.modal, boxShadow: `0 12px 40px var(--shadowClr)`, border: `1px solid ${k.c}40`, maxWidth: 'min(440px, 92vw)', animation: 'fkToastIn .25s ease', pointerEvents: 'auto' }}>
         <span style={{ width: 28, height: 28, borderRadius: '50%', background: k.c + '1a', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
