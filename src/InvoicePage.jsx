@@ -95,6 +95,8 @@ const svcThemeFor = (st) => {
 // Permanent/temporary work-visa share the same application table, detail fields and icon as the legacy work_visa.
 const VISA_SVC_CODES = new Set(['work_visa', 'work_visa_permanent', 'work_visa_9m', 'work_visa_6m', 'work_visa_temporary'])
 const baseSvcCode = (code) => (VISA_SVC_CODES.has(code) ? 'work_visa' : code)
+// رموز الخدمات (كما في lookup_items) التي يُسمح فيها بوسيط — مرآة `AGENT_SERVICES` في معالج الفاتورة
+const INV_AGENT_SVC_CODES = new Set(['transfer', 'kafala_transfer', 'iqama_renewal', 'work_visa_6m', 'work_visa_9m', 'work_visa_permanent'])
 // تأشيرات «بإقامة» بمسار الإقامة الكامل (١٢ شهر و٦ أشهر): مراحل التأمين/رخصة العمل + إقامة لكل تأشيرة + توزيع المنشآت.
 // «تأشيرة بإقامة 3 شهور» (المؤقتة) ليست منها. أي فحص كان يقارن بـ 'work_visa_permanent' يجب أن يستعمل هذه المجموعة.
 const RESIDENCE_VISA_CODES = new Set(['work_visa_permanent', 'work_visa_9m', 'work_visa_6m'])
@@ -5382,6 +5384,10 @@ const ReceiptVouchersCard = ({ imgs, isAr, T }) => {
   const curRot = cur ? (rot[cur.id] ?? cur.rotation ?? 0) : 0
   const sideways = curRot % 180 !== 0
   const dateOf = r => (r.date ? String(r.date).slice(0, 10) : null)
+  // ترتيب السند داخل الفاتورة (القائمة مرتّبة بالتاريخ): «السند الأول»، «السند الثاني»…
+  const arOrd = ['الأول','الثاني','الثالث','الرابع','الخامس','السادس','السابع','الثامن','التاسع','العاشر']
+  const enOrd = ['First','Second','Third','Fourth','Fifth','Sixth','Seventh','Eighth','Ninth','Tenth']
+  const ordLabel = i => T(`السند ${arOrd[i] || i + 1}`, enOrd[i] ? `${enOrd[i]} Voucher` : `Voucher ${i + 1}`)
 
   return (
     <div style={cardChrome}>
@@ -5414,7 +5420,7 @@ const ReceiptVouchersCard = ({ imgs, isAr, T }) => {
             </div>
             <div style={{ padding: '9px 10px', display: 'flex', flexDirection: 'column', justifyContent: 'center', width: 86, minWidth: 86 }}>
               {/* هوية السند: تسمية صغيرة فوق الرقم */}
-              <span style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--tx4)', lineHeight: 1.4 }}>{T('سند', 'Voucher')}</span>
+              <span style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--tx4)', lineHeight: 1.4, whiteSpace: 'nowrap' }}>{ordLabel(i)}</span>
               <span style={{ fontSize: 15.5, fontWeight: 600, color: r.cancelled ? 'var(--tx3)' : 'var(--tx)', direction: 'ltr', fontVariantNumeric: 'tabular-nums', lineHeight: 1.3 }}>
                 {r.sanad || '—'}
               </span>
@@ -5580,14 +5586,15 @@ const EntityHero = ({ icon, primary, secondary, latin, cells, onOpen, openTitle 
       </div>
     </div>
     {cells.length > 0 && (
-      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(3, Math.max(1, cells.length))},1fr)`, gap: 8 }}>
+      // All cells share one row; the copy button sits beside the label so the value gets the full cell width.
+      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.max(1, cells.length)},minmax(0,1fr))`, gap: 6 }}>
         {cells.map((c, i) => (
-          <div key={i} style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
-            <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{c.label}</span>
-            <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, direction: 'ltr' }}>
+          <div key={i} style={{ minWidth: 0, background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '8px 8px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4 }}>
+              <span style={{ minWidth: 0, fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.label}</span>
               <CopyBtn text={c.value} />
-              <span style={{ minWidth: 0, fontSize: 13, color: c.value ? 'var(--tx2)' : 'var(--tx4)', fontWeight: 600, direction: c.value && !c.text ? 'ltr' : 'rtl', fontFamily: c.value && !c.text ? 'monospace' : undefined, fontVariantNumeric: 'tabular-nums', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.value || '—'}</span>
             </span>
+            <span title={c.value || undefined} style={{ minWidth: 0, fontSize: 12, color: c.value ? 'var(--tx2)' : 'var(--tx4)', fontWeight: 600, direction: c.value && !c.text ? 'ltr' : 'rtl', textAlign: 'right', fontFamily: c.value && !c.text ? 'monospace' : undefined, fontVariantNumeric: 'tabular-nums', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.value || '—'}</span>
           </div>
         ))}
       </div>
@@ -9522,7 +9529,10 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
   // منشئ الفاتورة يضيف وسيطاً لفاتورته حتى بلا صلاحية invoices.edit — نفس منطق إنجاز/تعديل معاملته الخاصة
   // (project_creator_completes_own_txn). بلا هذا لا يرى منشئ الفواتير كرت الوسيط الفارغ إطلاقاً فلا يملك طريقة لإضافته.
   const isInvoiceCreator = !!(user?.id && inv?.created_by && String(inv.created_by) === String(user.id))
-  const showEmptyAgent = showEmpty || isInvoiceCreator
+  /* ولا وسيط أصلاً إلا في نقل الكفالة وتجديد الإقامة والتأشيرة بإقامة 6/9/12 شهراً (قرار المستخدم
+     2026-09-26): في غيرها لا يُعرض كرت الوسيط الفارغ ولا زرّ «إضافة وسيط». */
+  const agentAllowed = INV_AGENT_SVC_CODES.has(inv?.service_type?.code)
+  const showEmptyAgent = (showEmpty || isInvoiceCreator) && agentAllowed
   /* زر تعديل موحّد لأي شريط حالة: المدير العام دائماً، وبقية المستخدمين خلال 24 ساعة من الإنجاز. */
   const stageEditBtn = (at, onClick, title) => (onClick && canEditDone(user, at)) ? (
     <button onClick={onClick} title={title}

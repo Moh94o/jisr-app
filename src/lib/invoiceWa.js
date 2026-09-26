@@ -33,7 +33,7 @@ const isZeroInvoiceSvc = (code, total) => {
 const moLbl = n => (n >= 3 && n <= 10) ? 'أشهر' : 'شهر'
 
 // اسم نوع المستند من قيمته المخزّنة — أنواع الأدمن (docTypesConfig) أولاً ثم الأنواع الثابتة.
-const DOC_TYPE_STATIC = { commercial_register: 'السجل التجاري', resident_file: 'ملف مقيم', iqama_copy: 'صورة إقامة', contract: 'عقد عمل', salary_cert: 'تعريف بالراتب', other: 'أخرى' }
+const DOC_TYPE_STATIC = { commercial_register: 'السجل التجاري', resident_file: 'ملف مقيم', insurance_policy: 'بوليصة التأمين', iqama_copy: 'صورة إقامة', contract: 'عقد عمل', salary_cert: 'تعريف بالراتب', other: 'أخرى' }
 function docTypeName(v) {
   if (!v) return ''
   try {

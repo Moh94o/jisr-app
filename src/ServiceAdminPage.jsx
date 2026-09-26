@@ -48,6 +48,7 @@ export function setKafalaPricingConfig(partial){
 export const DOC_TYPE_DEFAULTS=[
   {value:'commercial_register',label:'السجل التجاري'},
   {value:'resident_file',label:'ملف مقيم'},
+  {value:'insurance_policy',label:'بوليصة التأمين'},
 ]
 export function getDocTypes(){
   try{const r=JSON.parse(localStorage.getItem('docTypesConfig')||'null');return Array.isArray(r)&&r.length?r.filter(d=>d&&d.value):DOC_TYPE_DEFAULTS}catch{return DOC_TYPE_DEFAULTS}
@@ -372,10 +373,14 @@ exit_reentry_visa:{store:'servicesPricingConfig',sub:'exitReentry',fields:[
   {k:'issueMultiplePerMonth',l:'إصدار متعددة · كل شهر إضافي',d:200,sfx:'ريال/شهر'},
   {k:'extendSingle',l:'تمديد مفردة · كل شهر',d:100,sfx:'ريال/شهر'},
   {k:'extendMultiple',l:'تمديد متعددة · كل شهر',d:200,sfx:'ريال/شهر'},
-  {k:'officeFeeFixed',l:'رسوم مكتب ثابتة',d:50,sfx:'ريال'}
+  {k:'officeFeeFixed',l:'رسوم مكتب ثابتة',d:50,sfx:'ريال'},
+  {k:'mqExpiredFee',l:'إضافة عند انتهاء اشتراك مقيم للمنشأة',d:200,sfx:'ريال'}
 ],note:'الإصدار: السعر الأساسي يشمل عدد الأشهر المحدد، ويُضاف سعر كل شهر إضافي بعدها. التمديد: عدد الأشهر × سعر الشهر.'},
 final_exit_visa:{store:'servicesPricingConfig',sub:'finalExit',fields:[
-  {k:'fee',l:'رسوم الخروج النهائي',d:150,sfx:'ريال'}
+  {k:'fee',l:'رسوم الخروج النهائي',d:150,sfx:'ريال'},
+  // حين تكون تأشيرة الخروج النهائي للعامل منتهيةً في مقيم (طلب المستخدم 2026-09-26)
+  {k:'expiredFee',l:'رسوم الخروج النهائي إذا كانت التأشيرة منتهية',d:1250,sfx:'ريال'},
+  {k:'mqExpiredFee',l:'إضافة عند انتهاء اشتراك مقيم للمنشأة',d:200,sfx:'ريال'}
 ]},
 profession_change:{store:'servicesPricingConfig',sub:'professionChange',fields:[
   {k:'fee',l:'رسم تغيير المهنة',d:200,sfx:'ريال'},
@@ -388,7 +393,9 @@ name_translation:{store:'servicesPricingConfig',sub:'nameTranslation',fields:[
   {k:'pct',l:'نسبة من الراتب الجديد',d:5,sfx:'%'}
 ],note:'السعر = نسبة مئوية من الراتب الجديد المُدخل في الفاتورة (يُقرَّب لأقرب رقم صحيح).'},
 iqama_print:{store:'servicesPricingConfig',sub:'iqamaPrint',fields:[
-  {k:'perCopy',l:'رسم طباعة الإقامة',d:30,sfx:'ريال'}
+  {k:'perCopy',l:'رسم طباعة الإقامة',d:30,sfx:'ريال'},
+  // يُضاف بنداً «اشتراك مقيم» حين يكون اشتراك مقيم لمنشأة العامل منتهياً (طلب المستخدم 2026-09-26)
+  {k:'mqExpiredFee',l:'إضافة عند انتهاء اشتراك مقيم للمنشأة',d:200,sfx:'ريال'}
 ]},
 chamber_certification:{store:'servicesPricingConfig',sub:'chamberCert',fields:[
   {k:'printed',l:'تصديق المطبوعات',d:200,sfx:'ريال'},

@@ -100,7 +100,7 @@ export default function InvoicePricingEditor({
   const instPreview = useMemo(() => {
     const rows = (Array.isArray(insts) ? insts : []).map(r => ({
       id: r.id, installment_order: r.installment_order,
-      total_amount: r.total_amount, paid_amount: r.paid_amount,
+      total_amount: r.total_amount, paid_amount: r.paid_amount, visa: r.visa_application_id || null,
       label: r.payment_milestone ? (isAr ? r.payment_milestone.value_ar : (r.payment_milestone.value_en || r.payment_milestone.value_ar)) : null,
     }))
     if (!rows.length) return []
@@ -115,7 +115,7 @@ export default function InvoicePricingEditor({
       })
     }
     const byId = Object.fromEntries(scoped.map(r => [r.id, r]))
-    return redistributeInstallments(scoped, totals.total).map(x => ({ ...x, label: byId[x.id]?.label || null }))
+    return redistributeInstallments(scoped, totals.total).map(x => ({ ...x, label: byId[x.id]?.label || null, visa: byId[x.id]?.visa || null }))
   }, [insts, totals.total, surplus, surplusMode, isAr])
 
   const statusOf = (t, p) => (t > 0 && p >= t - 0.005) ? T('مسدّدة بالكامل', 'Fully paid') : T('نشطة', 'Active')
@@ -296,7 +296,9 @@ export default function InvoicePricingEditor({
                     </span>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>
                       {r2(r.from) !== r2(r.to) && <span style={{ fontSize: 11, color: 'var(--tx5)', textDecoration: 'line-through' }}>{num(r.from)}</span>}
-                      <span style={{ fontSize: 12, color: r2(r.from) !== r2(r.to) ? GOLD : 'var(--tx3)', fontWeight: 600 }}>{num(r.to)}</span>
+                      {instPreview.length > 1 && !r.visa && r2(r.to) <= 0.005 && r2(r.paid) <= 0.005
+                        ? <span style={{ fontSize: 11, color: 'var(--tx4)', fontWeight: 600 }}>{T('تُحذف', 'Removed')}</span>
+                        : <span style={{ fontSize: 12, color: r2(r.from) !== r2(r.to) ? GOLD : 'var(--tx3)', fontWeight: 600 }}>{num(r.to)}</span>}
                     </span>
                   </div>
                 ))}

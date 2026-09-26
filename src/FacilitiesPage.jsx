@@ -5353,7 +5353,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                 <th>{T('أجنبي','Foreign')}</th>
                 <th>{T('سعودي','Saudi')}</th>
                 <th>{T('التأكيد السنوي','Annual Confirm')}</th>
-                <th>{T('الفرع','Branch')}</th>
+                <th>{T('المكتب','Office')}</th>
               </tr>
             </thead>
             <tbody>

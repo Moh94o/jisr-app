@@ -67,16 +67,39 @@ export async function syncInvoicePricing(sb, invoiceId, newTotal, { newLines, lo
   if (error) throw error
   // مزامنة جدول الدفعات مع الإجمالي الجديد — بنفس دالة المعاينة المستعملة في المحرّر.
   const { data: insRows } = await sb.from('installments')
-    .select('id,total_amount,paid_amount,installment_order').eq('invoice_id', invoiceId).is('deleted_at', null).order('installment_order')
+    .select('id,total_amount,paid_amount,installment_order,visa_application_id').eq('invoice_id', invoiceId).is('deleted_at', null).order('installment_order')
   if (Array.isArray(insRows) && insRows.length) {
     const sumT = insRows.reduce((s, r) => s + (Number(r.total_amount) || 0), 0)
+    const visaOf = Object.fromEntries(insRows.map(r => [r.id, r.visa_application_id || null]))
+    let after = insRows.map(r => ({ id: r.id, to: r2(r.total_amount), paid: r2(r.paid_amount) }))
     if (Math.abs(r2(total - sumT)) > 0.005) {
+      after = []
       for (const row of redistributeInstallments(insRows, total)) {
         if (r2(row.to) !== r2(row.from)) {
           const { error: insErr } = await sb.from('installments').update({ total_amount: r2(row.to) }).eq('id', row.id)
           if (insErr) throw insErr
         }
+        after.push({ id: row.id, to: r2(row.to), paid: r2(row.paid) })
       }
     }
+    await dropEmptyInstallments(sb, invoiceId, after.map(r => ({ ...r, visa: visaOf[r.id] })), nowIso)
   }
+}
+
+// دفعة صار مبلغها 0 ولا مسدَّد عليها (مثلاً «متبقي» بعد خفض الإجمالي) لا معنى لبقائها
+// في الجدول — تُحذف حذفاً ناعماً ويُحدَّث عدد الدفعات. تبقى دفعة واحدة على الأقل، ولا
+// تُحذف دفعة تشير إليها مدفوعات قائمة (كي لا تتيتّم حركة نقدية).
+async function dropEmptyInstallments(sb, invoiceId, rows, nowIso) {
+  const empty = rows.filter(r => !r.visa && r.to <= 0.005 && r.paid <= 0.005)
+  if (!empty.length) return
+  const { data: refPays } = await sb.from('payments').select('installment_id')
+    .in('installment_id', empty.map(r => r.id)).is('deleted_at', null)
+  const referenced = new Set((refPays || []).map(p => p.installment_id))
+  let drop = empty.filter(r => !referenced.has(r.id)).map(r => r.id)
+  if (drop.length >= rows.length) drop = drop.slice(0, rows.length - 1)
+  if (!drop.length) return
+  const { error } = await sb.from('installments').update({ deleted_at: nowIso }).in('id', drop)
+  if (error) throw error
+  const live = rows.length - drop.length
+  await sb.from('invoices').update({ installments_count: live > 1 ? live : 0 }).eq('id', invoiceId)
 }

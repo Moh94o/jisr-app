@@ -1445,7 +1445,7 @@ export default function WorkforcePage({ sb, toast, lang, user, onTabChange }) {
     { v: 'official_occupation_ar', l: T('المهنة الفعلية', 'Actual occupation'), t: 'str' },
     { v: 'hq_city_ar', l: T('مدينة المقر', 'HQ city'), t: 'str' },
     { v: 'facility', l: T('المنشأة', 'Facility'), t: 'str' },
-    { v: 'branch', l: T('الفرع', 'Branch'), t: 'str' },
+    { v: 'branch', l: T('المكتب', 'Office'), t: 'str' },
     { v: 'wage_total', l: T('الراتب', 'Salary'), t: 'num' },
     { v: 'iqama_expiry_date', l: T('انتهاء الإقامة', 'Iqama expiry'), t: 'date' },
     { v: 'iqama_issue_date', l: T('إصدار الإقامة', 'Iqama issue'), t: 'date' },
@@ -1641,7 +1641,7 @@ export default function WorkforcePage({ sb, toast, lang, user, onTabChange }) {
         </td>
       )
     } },
-    branch: { w: '10%', h: T('الفرع','Branch'), cell: (w) => {
+    branch: { w: '10%', h: T('المكتب','Office'), cell: (w) => {
       const asg0 = workerBranch(w)
       return (
         <td title={asg0?.branch_code || ''}>

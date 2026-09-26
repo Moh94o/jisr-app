@@ -1339,7 +1339,7 @@ export default function TempWorkforcePage({ sb, toast, lang, user, onTabChange }
                   <th>{T('الجنسية','Nationality')}</th>
                   <th>{T('المهنة الرسمية','Official Occupation')}</th>
                   <th>{T('انتهاء الإقامة','Iqama Expiry')}</th>
-                  <th>{T('الفرع','Branch')}</th>
+                  <th>{T('المكتب','Office')}</th>
                 </tr>
               </thead>
               <tbody>

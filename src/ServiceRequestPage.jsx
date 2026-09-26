@@ -1,5 +1,5 @@
 import React,{useState,useEffect,useCallback,useMemo,useRef} from 'react'
-import {CalendarClock,ArrowLeftRight,RefreshCw,Users,FileCheck,Ellipsis,ArrowRight,Plus,HeartPulse,UserCog,IdCard,Wallet,Printer,Plane,PlaneTakeoff,FileStack,Receipt,User,Phone,CreditCard,Briefcase,Building2,Calendar,ShieldCheck,Hash,AlertCircle,Globe,BadgeCheck,Circle,Upload,FileText,Copy,Check,Sparkles,TrendingUp,Coins} from 'lucide-react'
+import {AlertTriangle,CalendarClock,ArrowLeftRight,RefreshCw,Users,FileCheck,Ellipsis,ArrowRight,Plus,HeartPulse,UserCog,IdCard,Wallet,Printer,Plane,PlaneTakeoff,FileStack,Receipt,User,Phone,CreditCard,Briefcase,Building2,Calendar,ShieldCheck,Hash,AlertCircle,Globe,BadgeCheck,Circle,Upload,FileText,Copy,Check,Sparkles,TrendingUp,Coins} from 'lucide-react'
 import {isServiceActive,isServiceBillable,getPricingFor,getBranchOverrides,getDocTypes,docTypeLabel} from './ServiceAdminPage.jsx'
 import {TXN_SERVICES} from './pages/txnServices.js'
 import {noDash} from './lib/utils.js'
@@ -167,6 +167,10 @@ const VISA_SERVICES=new Set(['work_visa_permanent','work_visa_9m','work_visa_6m'
 // تأشيرات «بإقامة» بمسار الإقامة الكامل (١٢ شهر و٦ أشهر): ثلاث دفعات + مراحل التأمين/رخصة العمل + توزيع المنشآت.
 // المؤقتة (٣ شهور) خارج هذه المجموعة (مسار دفعتين بلا إقامة لكل تأشيرة). أي تأشيرة «بإقامة» جديدة تُضاف هنا.
 const RESIDENCE_VISA_SERVICES=new Set(['work_visa_permanent','work_visa_9m','work_visa_6m'])
+// خدماتٌ يُضاف فيها بند «اشتراك مقيم» حين يكون اشتراك مقيم لمنشأة العامل منتهياً (طلب المستخدم 2026-09-26)
+const MQ_SUB_SVCS=new Set(['iqama_print','exit_reentry_visa','final_exit_visa'])
+// الخدمات التي يُسمح فيها بوسيط على الفاتورة — ما عداها لا وسيط له (قرار المستخدم 2026-09-26)
+export const AGENT_SERVICES=new Set(['kafala_transfer','iqama_renewal',...RESIDENCE_VISA_SERVICES])
 
 // ═══════ Client step applies ONLY to these services ═══════
 // Every other service skips the client step and opens step 2 directly on worker selection —
@@ -259,7 +263,7 @@ const SERVICE_INPUTS={
   medical_insurance:[],
   documents:[
     {key:'doc_type',label_ar:'نوع المستند',label_en:'Document Type',type:'select',required:true,
-      options:[{value:'commercial_register',label:'السجل التجاري',label_en:'Commercial Register'},{value:'resident_file',label:'ملف مقيم',label_en:'Resident File'}]},
+      options:[{value:'commercial_register',label:'السجل التجاري',label_en:'Commercial Register'},{value:'resident_file',label:'ملف مقيم',label_en:'Resident File'},{value:'insurance_policy',label:'بوليصة التأمين',label_en:'Insurance Policy'}]},
     {key:'doc_lang',label_ar:'لغة المستند',label_en:'Document Language',type:'select',required:true,
       options:[{value:'ar',label:'عربي',label_en:'Arabic'},{value:'en',label:'إنجليزي',label_en:'English'}]}
   ],
@@ -349,6 +353,10 @@ const natLookupRef=useRef({})// nationality-by-name map for flag backfill, reuse
 const[workerMode,setWorkerMode]=useState('existing')// 'existing' | 'new'
 const[newWorker,setNewWorker]=useState({name:'',phone:'',iqama_number:''})
 const[workerFacilityStat,setWorkerFacilityStat]=useState(null)// latest nitaqat/wps data for selected worker's facility
+// اشتراك مقيم لمنشأة العامل في «طباعة الإقامة»: {expired, expiry, name} أو null (طلب المستخدم 2026-09-26)
+const[mqSub,setMqSub]=useState(null)
+// تأشيرة الخروج النهائي للعامل في مقيم (فاتورة «خروج نهائي»): {expired, validUntil, visaNumber} أو null
+const[feVisa,setFeVisa]=useState(null)
 
 // Step 4: Invoice
 const[,setPaymentType]=useState('full')// 'full' | 'installments'
@@ -573,10 +581,10 @@ const svcInputs=useMemo(()=>(selectedService?.inputs?.length?selectedService.inp
 // field has somewhere to live — never merge their single field into the worker step.
 const svcSingleField=useMemo(()=>(selSvc&&!CLIENT_SERVICES.has(selSvc))?null:((!VISA_SERVICES.has(selSvc)&&selSvc!=='iqama_renewal'&&selSvc!=='profession_change'&&selSvc!=='final_exit_visa'&&selSvc!=='exit_reentry_visa'&&selSvc!=='custom'&&selSvc!=='iqama_print'&&svcInputs.length===1)?svcInputs[0]:null),[selSvc,svcInputs])
 const hasMergedField=!!svcSingleField
-// The note sub-step now appears for every service (a dedicated step before the summary).
-// The broker (الوسيط) field inside it is offered for every service — an optional agent can be
-// attached to any invoice, exactly like permanent work visa and kafala transfer.
-const showBroker=!!selSvc
+// The note sub-step appears for every service (a dedicated step before the summary).
+// الوسيط لا يُعرض إلا في هذه الخدمات (قرار المستخدم 2026-09-26): نقل الكفالة، تجديد الإقامة،
+// والتأشيرة بإقامة 6/9/12 شهراً — لا 3 شهور ولا «عام» ولا بقيّة الخدمات.
+const showBroker=AGENT_SERVICES.has(selSvc)
 const hasBrokerStep=!!selSvc
 // ── خطوة اختيار المكتب ──────────────────────────────────────────────────────
 // المدير العام يختار من كل المكاتب؛ غيره من مكاتبه فقط. تظهر الخطوة عند وجود أكثر من خيار.
@@ -649,6 +657,50 @@ return clients.filter(c=>(c.name_ar||'').toLowerCase().includes(q)||(c.name_en||
 
 // Facility weekly stats are not in the new schema yet — keep null so dependent UI gracefully renders empty
 useEffect(()=>{setWorkerFacilityStat(null)},[selWorker])
+/* «طباعة الإقامة»: اشتراك مقيم للمنشأة التابع لها العامل — منتهٍ ⇒ يُضاف 200 ريال
+   (بند «اشتراك مقيم» في التسعيرة) ويظهر إشعارٌ فوقها. المنشأة: كفيلُ العامل في مقيم
+   (`sponsor_moi_number`) ثمّ منشأتُه الحالية في النظام؛ والاشتراك من `muqeem_companies`
+   بالرقم الموحّد — منتهٍ إن قالت المزامنة ذلك أو مضى تاريخُ انتهائه. */
+useEffect(()=>{
+setMqSub(null)
+if(!MQ_SUB_SVCS.has(selSvc)||!selWorker||!sb)return
+let cancelled=false
+;(async()=>{try{
+const iq=String(selWorker.iqama_number||'').replace(/\D/g,'')
+let moi=''
+if(iq){const{data:r}=await sb.from('muqeem_residents').select('sponsor_moi_number').eq('iqama_number',iq).limit(1).maybeSingle();moi=String(r?.sponsor_moi_number||'').replace(/\D/g,'')}
+if(!moi)moi=String(selWorker.facility?.unified_number||selWorker.current_facility?.unified_number||'').replace(/\D/g,'')
+if(!moi)return
+const{data:c}=await sb.from('muqeem_companies').select('name_ar,latest_expiry_date,subscription_expired,synced_at').eq('moi_number',moi).order('synced_at',{ascending:false}).limit(1).maybeSingle()
+if(cancelled||!c)return
+const today=new Date().toISOString().slice(0,10)
+const exp=String(c.latest_expiry_date||'').slice(0,10)
+setMqSub({expired:!!c.subscription_expired||(!!exp&&exp<today),expiry:exp,name:c.name_ar||''})
+}catch(e){console.warn('[iqama_print] muqeem subscription',e)}})()
+return()=>{cancelled=true}
+},[selSvc,selWorker,sb])
+/* «خروج نهائي»: هل تأشيرة الخروج النهائي للعامل منتهية؟ (طلب المستخدم 2026-09-26 — سعرها
+   حينئذٍ 1250 من الإعدادات). المصدر `v_muqeem_exit_visas` (كل تأشيرات مقيم في صفٍّ لكلٍّ):
+   تأشيرةٌ سارية ⇒ لا؛ وإلا فالأحدث: منتهية إن قال سجلّ المقيم «Expired»، أو كانت من
+   التقرير بلا حالة وقد مضى تاريخُها. «Used/Cancelled» ليست انتهاءً. */
+useEffect(()=>{
+setFeVisa(null)
+if(selSvc!=='final_exit_visa'||!selWorker||!sb)return
+const iq=String(selWorker.iqama_number||'').replace(/\D/g,'')
+if(!iq)return
+let cancelled=false
+;(async()=>{try{
+const{data}=await sb.from('v_muqeem_exit_visas').select('visa_number,valid_until,status,is_valid').eq('alien_id',iq).eq('kind','خروج نهائي')
+if(cancelled||!data||!data.length)return
+if(data.some(v=>v.is_valid))return
+const today=new Date().toISOString().slice(0,10)
+const last=[...data].sort((a,b)=>String(b.valid_until||'').localeCompare(String(a.valid_until||'')))[0]
+const until=String(last.valid_until||'').slice(0,10)
+const expired=last.status==='Expired'||(!last.status&&!!until&&until<today)
+setFeVisa({expired,validUntil:until,visaNumber:last.visa_number||''})
+}catch(e){console.warn('[final_exit] visa status',e)}})()
+return()=>{cancelled=true}
+},[selSvc,selWorker,sb])
 
 // عقد أجير — معامل السعودة: عدد عمال منشأة العامل المختار (يُستخدم لحساب رسم السعودة وعرضه في بطاقة المنشأة)
 const[ajeerWorkerCount,setAjeerWorkerCount]=useState(0)
@@ -904,12 +956,12 @@ const OTHER_SVC_SUB_MAP={ajeer:'ajeer_contract',exitReentry:'exit_reentry_visa',
 const getServicesConfig=(branchId=null)=>{
 const d={
   ajeer:{baseFee:300,baseMonths:3,perMonthAfter:100,saudizationEnabled:true,saudizationThreshold:6,saudizationPerWorker:250},
-  exitReentry:{issueSingleBase:300,issueMultipleBase:500,issueSingleCovered:3,issueMultipleCovered:3,issueSinglePerMonth:100,issueMultiplePerMonth:200,extendSingle:100,extendMultiple:200,officeFeeFixed:50},
-  finalExit:{fee:150},
+  exitReentry:{issueSingleBase:300,issueMultipleBase:500,issueSingleCovered:3,issueMultipleCovered:3,issueSinglePerMonth:100,issueMultiplePerMonth:200,extendSingle:100,extendMultiple:200,officeFeeFixed:50,mqExpiredFee:200},
+  finalExit:{fee:150,expiredFee:1250,mqExpiredFee:200},
   professionChange:{fee:200,officeFeeFixed:50},
   passportUpdate:{fee:100},
   nameTranslation:{pct:5},
-  iqamaPrint:{perCopy:30},
+  iqamaPrint:{perCopy:30,mqExpiredFee:200},
   chamberCert:{printed:200,openRequest:150,officeFeeFixed:15},
   documents:{perDoc:30},
   medicalInsurance:{perMonthMultiplier:1}
@@ -946,7 +998,8 @@ if(selSvc==='exit_reentry_visa'){
   const type=fields.exit_type||'single'
   const er=cfg.exitReentry
   const officeFee=parseFloat(er.officeFeeFixed)||0
-  const feeLine=officeFee>0?[{label:'رسوم مكتب',amount:officeFee}]:[]
+  // اشتراك مقيم للمنشأة منتهٍ ⇒ بند «اشتراك مقيم» من الإعدادات (كطباعة الإقامة — طلب المستخدم 2026-09-26)
+  const feeLine=[...(mqSub?.expired?[{label:'اشتراك مقيم',amount:Number(er.mqExpiredFee)||0}]:[]),...(officeFee>0?[{label:'رسوم مكتب',amount:officeFee}]:[])]
   const typeLbl=type==='multiple'?'متعددة':'مفردة'
   // التمديد: عند وجود تأشيرة فعّالة للعامل، أو عند اختيار الموظف «تمديد» يدويًا.
   const existingVisa=selWorker?.exit_reentry_visa||null
@@ -966,7 +1019,8 @@ if(selSvc==='exit_reentry_visa'){
   return{lines:[{label:`خروج وعودة (إصدار-${typeLbl})`,amount:serviceFee},...feeLine]}
 }
 if(selSvc==='final_exit_visa'){
-  return{lines:[{label:'رسوم خروج نهائي',amount:cfg.finalExit.fee}]}
+  // تأشيرة الخروج النهائي للعامل منتهية في مقيم ⇒ `expiredFee` (1250) بدل الرسم العادي (طلب المستخدم 2026-09-26)
+  return{lines:[feVisa?.expired?{label:'رسوم خروج نهائي (تأشيرة منتهية)',amount:Number(cfg.finalExit.expiredFee)||0}:{label:'رسوم خروج نهائي',amount:cfg.finalExit.fee},...(mqSub?.expired?[{label:'اشتراك مقيم',amount:Number(cfg.finalExit.mqExpiredFee)||0}]:[])]}
 }
 if(selSvc==='external_transfer_approval'){
   // لا سعر افتراضي — يبدأ صفراً ويقرّره الموظف بند «رسوم» قابل للتعديل (حدّ أدنى صفر، لا سقف).
@@ -989,7 +1043,8 @@ if(selSvc==='name_translation'){
   return{lines:[{label:'رسم تعديل الراتب',amount}]}
 }
 if(selSvc==='iqama_print'){
-  return{lines:[{label:'طباعة الإقامة',amount:cfg.iqamaPrint.perCopy||0}]}
+  // اشتراك مقيم للمنشأة منتهٍ ⇒ 200 ريال فوق رسم الطباعة (طلب المستخدم 2026-09-26)
+  return{lines:[{label:'طباعة الإقامة',amount:cfg.iqamaPrint.perCopy||0},...(mqSub?.expired?[{label:'اشتراك مقيم',amount:Number(cfg.iqamaPrint.mqExpiredFee)||0}]:[])]}
 }
 if(selSvc==='medical_insurance'){
   // التسعير بالعمر — نفس فئات الأعمار والأسعار المستخدمة في حسبة تجديد الإقامة ونقل الكفالة (medicalBrackets).
@@ -1016,7 +1071,7 @@ if(selSvc==='custom'){
   return{lines:[]}
 }
 return null
-},[selSvc,fields,selWorker,customName,ajeerWorkerCount,user,branchId,svcBranch])
+},[selSvc,fields,selWorker,customName,ajeerWorkerCount,user,branchId,svcBranch,mqSub,feVisa])
 
 // ── Other services: editable pricing state + lines ──
 const[otherServicePricing,setOtherServicePricing]=useState({overrides:{},extras:[],absherBalance:'',discount:''})
@@ -1025,6 +1080,9 @@ const[otherExtraAmount,setOtherExtraAmount]=useState('')
 // إطار التسعيرة: حقول البند الإضافي مخفية افتراضياً — تظهر فقط بعد الضغط على «إضافة بند جديد»
 const[otherExtraOpen,setOtherExtraOpen]=useState(false)
 // Reset when service changes
+// الخروج النهائي: وصولُ حالة التأشيرة (منتهية/لا) يغيّر سعر البند الأوّل (العادي ↔ 1250) — فمبلغٌ كُتب
+// قبلها لا يبقى بأقلّ من السعر الجديد (الحدّ الأدنى يُفرض عند ترك الخانة فقط)
+useEffect(()=>{if(selSvc==='final_exit_visa')setOtherServicePricing(p=>({...p,overrides:{}}))},[feVisa?.expired])// eslint-disable-line react-hooks/exhaustive-deps
 useEffect(()=>{setOtherServicePricing({overrides:{},extras:[],absherBalance:'',discount:''});setOtherExtraName('');setOtherExtraAmount('')
 // Quote-driven services share one quote-state slot — clear it on every service switch so transfer quotes
 // never leak into تجديد الإقامة (or vice-versa) and the certified-quote list reloads for the new service.
@@ -1807,7 +1865,9 @@ if(finalWorkerId&&fields.worker_phone){
 // agent row from `newBroker` and then link. Without this step the UI lets the user
 // pick a broker but the selection is discarded at submit.
 let linkedAgentId=null
-if(selBroker?.id){
+// وسيطٌ اختير ثمّ غُيّرت الخدمة إلى ما لا وسيط له: لا يُربط (الحقل مخفيّ فلا يُرى ليُزال)
+if(!showBroker){/* لا وسيط لهذه الخدمة */}
+else if(selBroker?.id){
   linkedAgentId=selBroker.id
 }else if(brokerMode==='new'&&(newBroker?.name_ar?.trim()||newBroker?.name_en?.trim())){
   const{data:newAgent,error:newAgentErr}=await sb.from('agents').insert({
@@ -2466,7 +2526,7 @@ const onLeave=e=>{if(!sel){e.currentTarget.style.background=G.base;e.currentTarg
 const deselect=e=>{if(e)e.stopPropagation();setSelWorker(null)}
 // Iqama-expiry status colors — mirror the expanded worker details below (expired/soon/ok/none).
 const stColors={expired:'#c0392b',soon:'#e5b534',ok:'#27a046',none:'var(--tx5)'}
-const infoBox=(Icon,label,val,valColor)=><div style={{display:'flex',alignItems:'center',gap:8,padding:'7px 10px',borderRadius:9,background:'var(--fk-input-bg)',border:'1px solid rgba(176,125,0,.18)',minWidth:0}}><Icon size={13} color={valColor||C.bentoGold} strokeWidth={1.8}/><div style={{display:'flex',flexDirection:'column',gap:2,minWidth:0}}><span style={{fontSize:10.5,color:'var(--tx3)',fontWeight:600}}>{label}</span><span style={{fontSize:12,color:valColor||'var(--tx)',fontWeight:600,direction:'ltr',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{val}</span></div></div>
+const infoBox=(Icon,label,val,valColor)=><div style={{display:'flex',alignItems:'center',gap:8,padding:'7px 12px',borderRadius:9,background:'var(--fk-input-bg)',border:'1px solid rgba(176,125,0,.18)',minWidth:132}}><Icon size={13} color={valColor||C.bentoGold} strokeWidth={1.8}/><div style={{display:'flex',flexDirection:'column',gap:2,minWidth:0}}><span style={{fontSize:10.5,color:'var(--tx3)',fontWeight:600}}>{label}</span><span style={{fontSize:12,color:valColor||'var(--tx)',fontWeight:600,direction:'ltr',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{val}</span></div></div>
 const flagEl=size=><div title={natLabel} style={{width:size,height:size,borderRadius:12,background:'rgba(0,0,0,.25)',border:sel?'1.5px solid rgba(176,125,0,.4)':'1px solid rgba(255,255,255,.08)',flexShrink:0,transition:'.25s',boxShadow:sel?'0 2px 8px rgba(176,125,0,.15)':'none',position:'relative',overflow:'hidden'}}>{flagUrl?<img src={flagUrl} alt={natLabel} loading="lazy" style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>:<div style={{width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center'}}><Globe size={Math.round(size*.42)} strokeWidth={1.6} color="rgba(255,255,255,.35)"/></div>}</div>
 // الجوال: صفّ قائمة — الإقامة · الانتهاء (ملوّن بالحالة) · الجوال في سطر فرعي
 if(isMob)return<WzRow key={w.id} selected={sel} onClick={sel?undefined:()=>setSelWorker(w)}
@@ -2475,15 +2535,16 @@ titleExtra={w.worker_type==='temporary'?<span className="wz-tag">{T('مؤقت','
 meta={sel?[w.nationality&&{text:natLabel}]:[w.iqama_number&&{icon:<CreditCard size={13} strokeWidth={1.9}/>,text:w.iqama_number,ltr:true},w.iqama_expiry_date&&{icon:<Calendar size={13} strokeWidth={1.9}/>,text:fmtDate(w.iqama_expiry_date),ltr:true,color:stColors[dateStatus(w.iqama_expiry_date)]},w.phone&&{icon:<Phone size={13} strokeWidth={1.9}/>,text:fmtPhone(w.phone),ltr:true}]}
 trailing={sel?(!workerIsClient?<button type="button" className="wz-change" onClick={deselect}>{T('تغيير','Change')}</button>:<span className="wz-check"><Check size={14} strokeWidth={3}/></span>):null} chevron={!sel}/>
 // مُختار — أيقونة زاوية (التفاصيل الغنية تظهر أسفله)
-if(sel)return<div key={w.id} style={{position:'relative',border:`1px solid ${G.selB}`,background:G.sel,boxShadow:'var(--shadow-md)',transition:'all .22s ease',padding:'14px',borderRadius:16,display:'flex',alignItems:'center',gap:14}}>
+if(sel)return<div key={w.id} style={{position:'relative',border:`1px solid ${G.selB}`,background:G.sel,boxShadow:'var(--shadow-md)',transition:'all .22s ease',padding:'11px',borderRadius:14,display:'flex',alignItems:'center',gap:10,flexShrink:0}}>
 {!workerIsClient&&<button onClick={deselect} title={T('تغيير العامل','Change worker')} style={{position:'absolute',top:11,left:13,height:21,padding:'0 9px',borderRadius:7,background:'rgba(192,57,43,.10)',border:'1px solid rgba(192,57,43,.3)',color:C.red,fontFamily:F,fontSize:10,fontWeight:600,display:'inline-flex',alignItems:'center',gap:5,justifyContent:'center',cursor:'pointer',zIndex:2,transition:'.15s'}} onMouseEnter={e=>{e.currentTarget.style.background='rgba(192,57,43,.18)';e.currentTarget.style.borderColor='rgba(192,57,43,.55)'}} onMouseLeave={e=>{e.currentTarget.style.background='rgba(192,57,43,.10)';e.currentTarget.style.borderColor='rgba(192,57,43,.3)'}}>{T('تغيير','Change')}</button>}
-{flagEl(48)}<div style={{flex:1,minWidth:0,display:'flex',flexDirection:'column',gap:4}}><div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}><span style={{fontSize:15.5,fontWeight:600,color:C.gold,letterSpacing:'-.2px'}}>{nm}</span></div>{w.name_en&&nm!==w.name_en&&<span style={{fontSize:11,color:'var(--tx3)',fontWeight:600,opacity:.9}}>{w.name_en}</span>}</div>
+{flagEl(40)}<div style={{flex:1,minWidth:0,display:'flex',flexDirection:'column',gap:4}}><div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}><span style={{fontSize:14.5,fontWeight:600,color:C.gold,letterSpacing:'-.2px'}}>{nm}</span></div>{w.name_en&&nm!==w.name_en&&<span style={{fontSize:11,color:'var(--tx3)',fontWeight:600,opacity:.9}}>{w.name_en}</span>}</div>
 </div>
-// غير مُختار — بطاقة معلومات زجاجية
+// غير مُختار — صفٌّ واحد ككرت العميل: العلم · الاسم · مربّعات المعلومات جانباً.
+// flexShrink:0 — القائمة منطقة تمرير بارتفاعٍ ثابت: بلا هذا تنضغط البطاقة فتبدو مقصوصة من أسفل.
 return<div key={w.id} onClick={()=>setSelWorker(w)} onMouseEnter={onEnter} onMouseLeave={onLeave}
-style={{cursor:'pointer',position:'relative',border:`1px solid ${G.baseB}`,background:G.base,boxShadow:'var(--shadow-md)',transition:'all .22s ease',padding:'14px',borderRadius:16,display:'flex',flexDirection:'column',gap:12}}>
-<div style={{display:'flex',alignItems:'center',gap:14}}>{flagEl(48)}<div style={{flex:1,minWidth:0,display:'flex',flexDirection:'column',gap:3}}><div style={{display:'flex',alignItems:'center',gap:7,flexWrap:'wrap'}}><span style={{fontSize:15.5,fontWeight:600,color:'var(--tx)',letterSpacing:'-.2px'}}>{nm}</span>{w.worker_type==='temporary'&&<span style={{fontSize:9.5,fontWeight:600,color:'#5dade2',background:'rgba(93,173,226,.12)',border:'1px solid rgba(93,173,226,.3)',borderRadius:20,padding:'2px 8px',flexShrink:0}}>{T('مؤقت','Temp')}</span>}</div>{w.name_en&&nm!==w.name_en&&<span style={{fontSize:11,color:'var(--tx3)',fontWeight:600,opacity:.9}}>{w.name_en}</span>}</div></div>
-<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>{w.iqama_number&&infoBox(CreditCard,T('رقم الإقامة','Iqama No'),w.iqama_number)}{infoBox(Calendar,T('انتهاء الإقامة','Iqama Expiry'),fmtDate(w.iqama_expiry_date),stColors[dateStatus(w.iqama_expiry_date)])}{w.phone&&infoBox(Phone,T('الجوال','Phone'),fmtPhone(w.phone))}</div>
+style={{cursor:'pointer',position:'relative',border:`1px solid ${G.baseB}`,background:G.base,boxShadow:'var(--shadow-md)',transition:'all .22s ease',padding:'11px',borderRadius:14,display:'flex',alignItems:'center',gap:10,flexShrink:0}}>
+{flagEl(40)}<div style={{flex:1,minWidth:0,display:'flex',flexDirection:'column',gap:3}}><div style={{display:'flex',alignItems:'center',gap:7,flexWrap:'wrap'}}><span style={{fontSize:14.5,fontWeight:600,color:'var(--tx)',letterSpacing:'-.2px'}}>{nm}</span>{w.worker_type==='temporary'&&<span style={{fontSize:9.5,fontWeight:600,color:'#5dade2',background:'rgba(93,173,226,.12)',border:'1px solid rgba(93,173,226,.3)',borderRadius:20,padding:'2px 8px',flexShrink:0}}>{T('مؤقت','Temp')}</span>}</div>{w.name_en&&nm!==w.name_en&&<span style={{fontSize:11,color:'var(--tx3)',fontWeight:600,opacity:.9}}>{w.name_en}</span>}</div>
+<div className='cli-boxes' style={{display:'flex',gap:8,flexShrink:0}}>{w.iqama_number&&infoBox(CreditCard,T('رقم الإقامة','Iqama No'),w.iqama_number)}{infoBox(Calendar,T('انتهاء الإقامة','Iqama Expiry'),fmtDate(w.iqama_expiry_date),stColors[dateStatus(w.iqama_expiry_date)])}{w.phone&&infoBox(Phone,T('الجوال','Phone'),fmtPhone(w.phone))}</div>
 </div>})}
 
 {/* ─── Selected Worker Expanded Details ─── */}
@@ -3623,6 +3684,16 @@ return<div style={{marginTop:10,borderRadius:12,border:'1.5px solid rgba(176,125
 <div style={{position:'absolute',top:-9,right:14,background:'var(--modal-bg)',padding:'0 8px',fontSize:12,fontWeight:600,color:C.bentoGold,fontFamily:F,display:'inline-flex',alignItems:'center',gap:5}}>
 <span>{T('التسعيرة','Pricing')}</span>
 </div>
+{/* إشعار «طباعة الإقامة»: اشتراك مقيم لمنشأة العامل منتهٍ — والـ200 مضافةٌ بنداً أدناه */}
+{MQ_SUB_SVCS.has(selSvc)&&mqSub?.expired&&<div style={{display:'flex',alignItems:'flex-start',gap:8,padding:'9px 12px',marginBottom:10,borderRadius:10,background:'rgba(234,179,8,.12)',border:'1px solid rgba(234,179,8,.45)',fontFamily:F}}>
+<AlertTriangle size={15} color="#b8860b" strokeWidth={2} style={{flexShrink:0,marginTop:2}}/>
+<span style={{fontSize:12.5,fontWeight:600,color:'var(--tx)',lineHeight:1.6}}>{T(`اشتراك مقيم للمنشأة${mqSub.name?` «${mqSub.name}»`:''} منتهٍ${mqSub.expiry?` (${mqSub.expiry})`:''} — يجب زيادة ${fmtAmt(ac?.lines?.find(l=>l.label==='اشتراك مقيم')?.amount||0)} ريال، وقد أُضيفت بنداً في التسعيرة.`,`The facility's Muqeem subscription${mqSub.name?` (${mqSub.name})`:''} has expired${mqSub.expiry?` (${mqSub.expiry})`:''} — ${fmtAmt(ac?.lines?.find(l=>l.label==='اشتراك مقيم')?.amount||0)} SAR must be added; it was added as a line below.`)}</span>
+</div>}
+{/* إشعار «خروج نهائي»: تأشيرة الخروج النهائي للعامل منتهية — والسعر صار سعرَها في الإعدادات */}
+{selSvc==='final_exit_visa'&&feVisa?.expired&&<div style={{display:'flex',alignItems:'flex-start',gap:8,padding:'9px 12px',marginBottom:10,borderRadius:10,background:'rgba(232,114,101,.10)',border:'1px solid rgba(232,114,101,.45)',fontFamily:F}}>
+<AlertTriangle size={15} color="#c0392b" strokeWidth={2} style={{flexShrink:0,marginTop:2}}/>
+<span style={{fontSize:12.5,fontWeight:600,color:'var(--tx)',lineHeight:1.6}}>{T(`تأشيرة الخروج النهائي للعامل${feVisa.visaNumber?` (${feVisa.visaNumber})`:''} منتهية${feVisa.validUntil?` منذ ${feVisa.validUntil}`:''} — رسوم الخروج النهائي ${fmtAmt(ac?.lines?.[0]?.amount||0)} ريال.`,`The worker's final-exit visa${feVisa.visaNumber?` (${feVisa.visaNumber})`:''} expired${feVisa.validUntil?` on ${feVisa.validUntil}`:''} — the final-exit fee is ${fmtAmt(ac?.lines?.[0]?.amount||0)} SAR.`)}</span>
+</div>}
 {/* نمط الجدول — شريط عناوين (البند / المبلغ) ثم صفوف مفصولة بخطوط خفيفة */}
 <div style={{display:'flex',justifyContent:'space-between',padding:'0 12px 8px',borderBottom:'1px solid rgba(176,125,0,.25)',marginBottom:2}}>
 <span style={{display:'inline-flex',alignItems:'center',gap:7}}><span style={{width:16,flexShrink:0}}/><span style={{fontSize:10.5,fontWeight:600,color:'rgba(176,125,0,.8)'}}>{T('البند','Item')}</span></span>

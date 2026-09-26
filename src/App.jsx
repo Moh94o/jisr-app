@@ -36,7 +36,7 @@ import WelcomeToast from './components/WelcomeToast.jsx'
 import { MobileTopBar, MobileHubTabs, MobileTabBar, MobileMoreSheet } from './components/mobile/MobileShell.jsx'
 import { Modal as FKModal, ModalSection, ActionButton, SuccessView, ConfirmDialog, ScrollBox, InfoRow, InfoGrid, GRID, TextField, TextArea, FileField, CurrencyField, PhoneField, IdField, Select as FKSelect, DateField as FKDateField, TimeField as FKTimeField, Segmented, YesNo, EmptyState, C as FKC, FKLang } from './components/ui/FormKit.jsx'
 import { getVisibility, isItemVisible } from './pages/VisibilityAdmin.jsx'
-import { FileText, Lock, Mail, Send, User, UserPlus, ShieldCheck, Pencil, Eye, Calendar, Banknote, ArrowLeftRight, BadgeCheck, Calculator, Trash2, RefreshCw, MessageSquare, Paperclip, Plus, AlertCircle } from 'lucide-react'
+import { FileText, Lock, Mail, Send, User, UserPlus, ShieldCheck, Pencil, Eye, Calendar, Banknote, ArrowLeftRight, BadgeCheck, Calculator, Trash2, RefreshCw, MessageSquare, Paperclip, Plus, AlertCircle, FileCheck, Users, HeartPulse, UserCog, Plane, PlaneTakeoff, Wallet, IdCard, FileStack, Printer, Coins } from 'lucide-react'
 
 import { getSupabase } from './lib/supabase.js'
 import { swrGet, swrSet, useLiveRefresh, emitDataChanged, getTestBranchIds, excludeTestBranchesOr } from './lib/liveData.js'
@@ -98,6 +98,20 @@ const DT = (clr) => ({
   receipt: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 3h9l3 3v13.5l-2-1.2-2 1.2-2-1.2-2 1.2-2-1.2-2 1.2V5a2 2 0 0 1 2-2Z" fill={clr} fillOpacity=".12" stroke={clr} strokeWidth="1.5" strokeLinejoin="round"/><path d="M8 9h6M8 12.5h6M8 16h3" stroke={clr} strokeWidth="1.3" strokeLinecap="round" opacity=".6"/></svg>,
   alert: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" fill={clr} fillOpacity=".12" stroke={clr} strokeWidth="1.5"/><line x1="12" y1="9" x2="12" y2="13" stroke={clr} strokeWidth="1.8" strokeLinecap="round"/><circle cx="12" cy="16" r="1" fill={clr}/></svg>,
   calendar: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="18" rx="2" fill={clr} fillOpacity=".12" stroke={clr} strokeWidth="1.5"/><line x1="16" y1="2" x2="16" y2="6" stroke={clr} strokeWidth="1.5" opacity=".5"/><line x1="8" y1="2" x2="8" y2="6" stroke={clr} strokeWidth="1.5" opacity=".5"/><line x1="3" y1="10" x2="21" y2="10" stroke={clr} strokeWidth="1.5" opacity=".4"/><path d="M8 14h2v2H8z" fill={clr} opacity=".5"/><path d="M12 14h2v2h-2z" fill={clr} opacity=".3"/></svg>,
+  /* أيقونات شيتات الخدمات في القائمة — نفس أيقونات كروت الخدمات في «فاتورة جديدة»
+     (ServiceRequestPage) فتُعرف الخدمة بشكلٍ واحد في الموضعين (طلب المستخدم 2026-09-26) */
+  svcChamber: <FileCheck color={clr} size={18} strokeWidth={1.7} />,
+  svcAjeer: <Users color={clr} size={18} strokeWidth={1.7} />,
+  svcMedical: <HeartPulse color={clr} size={18} strokeWidth={1.7} />,
+  svcProfession: <UserCog color={clr} size={18} strokeWidth={1.7} />,
+  svcExtTransfer: <BadgeCheck color={clr} size={18} strokeWidth={1.7} />,
+  svcExitReentry: <Plane color={clr} size={18} strokeWidth={1.7} />,
+  svcFinalExit: <PlaneTakeoff color={clr} size={18} strokeWidth={1.7} />,
+  svcSalary: <Wallet color={clr} size={18} strokeWidth={1.7} />,
+  svcPassport: <IdCard color={clr} size={18} strokeWidth={1.7} />,
+  svcDocuments: <FileStack color={clr} size={18} strokeWidth={1.7} />,
+  svcIqamaPrint: <Printer color={clr} size={18} strokeWidth={1.7} />,
+  svcPayroll: <Coins color={clr} size={18} strokeWidth={1.7} />,
 })
 
 const LANG = {
@@ -587,6 +601,10 @@ const IQAMA_TAB_ICON={transfer_txn:'transaction',iqama_renewal:'refresh',iqama_i
 /* قسم «التأشيرات»: يجمع جدولَي إصدار التأشيرات ووكالتها في تبويبٍ مستقلّ (طلب المستخدم). */
 const VISA_SHEET_KEYS=['work_visas','visa_wakalas'];
 const VISA_TAB_ICON={work_visas:'labor',visa_wakalas:'receipt'};
+// أيقونات شيتات «الخدمات» (svc_*) — مفاتيحها في `DT`
+const SVC_TAB_ICON={svc_chamber:'svcChamber',svc_ajeer:'svcAjeer',svc_medical:'svcMedical',svc_profession:'svcProfession',
+svc_ext_transfer:'svcExtTransfer',svc_exit_reentry:'svcExitReentry',svc_final_exit:'svcFinalExit',svc_salary:'svcSalary',
+svc_passport:'svcPassport',svc_documents:'svcDocuments',svc_iqama_print:'svcIqamaPrint',svc_payroll:'svcPayroll'};
 /* قسم «العمالة»: يجمع جداول العمالة الأربعة من قسم «الخدمات» في تبويبٍ مستقلّ (طلب المستخدم 2026-09-23). */
 const LABOR_SHEET_KEYS=['permanent_workers','recoveries','final_exit'];
 /* قسم «المنشآت»: جداول بيانات المنشأة من المزامنة، بالترتيب الذي أملاه المستخدم (2026-09-24).
@@ -598,8 +616,8 @@ const OFFICE_SHEET_KEYS=['persons','offices'];
 const SAUDI_SHEET_KEYS=['saudization','saudization_entry'];
 /* جداولُ تحت قسم «المالية» بجوار صفحاته (طلب المستخدم 2026-09-24) — تُعرض بمحرّك الجداول نفسه */
 const FIN_SHEET_KEYS=['collections'];
-/* «الخدمات» تبدأ بخدمات الطلبات بهذا الترتيب (طلب المستخدم 2026-09-24)، ثم بقيّة الجداول بمجموعاتها */
-const SVC_FIRST_KEYS=['svc_chamber','svc_ajeer','svc_medical','svc_profession','svc_ext_transfer','svc_exit_reentry','svc_final_exit','svc_salary','svc_passport'];
+/* «الخدمات» بهذا الترتيب (طلب المستخدم 2026-09-26، والمستندات آخرها)، ثم بقيّة جداول المجموعة */
+const SVC_FIRST_KEYS=['svc_chamber','svc_ajeer','svc_exit_reentry','svc_final_exit','svc_ext_transfer','svc_profession','svc_medical','svc_salary','svc_passport','svc_documents'];
 /* الجداول التي لها قسمٌ خاصّ فتسقط من «الخدمات» */
 const HUB_OWNED_KEYS=new Set([...IQAMA_SHEET_KEYS,...VISA_SHEET_KEYS,...LABOR_SHEET_KEYS,...FAC_SHEET_KEYS,...SAUDI_SHEET_KEYS,...FIN_SHEET_KEYS,...OFFICE_SHEET_KEYS]);
 /* قسم «الخدمات» (طلب المستخدم 2026-09-24): جداول مجموعة «الخدمات» في قسمٍ مستقلّ — خدمات الطلبات
@@ -736,7 +754,7 @@ const T=(ar,en)=>lang==='ar'?ar:en;const nav=[
    `SVC_TAB_KEYS` تُسقطها وتضع خدمات الطلبات أوّلاً (طلب المستخدم 2026-09-24). */
 const svcTabs=(()=>{const out=[];let g='';for(const k of SVC_TAB_KEYS()){const t=OPS_SHEET_TABS.find(x=>x.key===k);if(!t)continue;
 if(t.group!==g){g=t.group;out.push({id:'svchdr_'+g,hdr:1,l:T(t.group,t.groupEn)})}
-const nm=sheetNames[t.key];out.push({id:opsTabId(t.key),l:nm?(lang==='ar'?nm.ar:(nm.en||nm.ar)):T(t.ar,t.en),i:t.icon,sheet:t.key})}
+const nm=sheetNames[t.key];out.push({id:opsTabId(t.key),l:nm?(lang==='ar'?nm.ar:(nm.en||nm.ar)):T(t.ar,t.en),i:SVC_TAB_ICON[t.key]||t.icon,sheet:t.key})}
 return out})();
 /* قسم «الإقامات»: نقل الكفالة · تجديد · إصدار · توصيل — الجداول تُعرَض بمحرّك «الخدمات» نفسه
    (`opsheet_<key>`)، فنقلُها إلى هذا القسم لا يمسّ صفحتها ولا صلاحياتها (تبقى
@@ -751,7 +769,7 @@ const visaTabs=VISA_SHEET_KEYS.map(k=>{const t=OPS_SHEET_TABS.find(x=>x.key===k)
    لم تتغيّرا، وأُسقطت من قائمة «الخدمات» أعلاه بتخطّي مفاتيحها. */
 /* قسما «المنشآت» و«السعودة» (طلب المستخدم 2026-09-24) — بمحرّك «الخدمات» نفسه؛ الصلاحية بطاقة `card:ops_excels:<key>` كما هي */
 /* أيقونةٌ خاصّة لجدولٍ بعينه بدل أيقونة مجموعته في الصلاحيات (الأشخاص = أيقونة الأشخاص لا «المزامنة») */
-const SHEET_TAB_ICON={persons:'client',companies:'facility',fac_attachments:'attach',subscriptions:'subscription',qawaem:'chart',mudad:'coins',baladi_licenses:'license'};
+const SHEET_TAB_ICON={persons:'client',companies:'facility',fac_attachments:'attach',subscriptions:'subscription',qawaem:'chart',mudad:'coins',baladi_licenses:'license',...SVC_TAB_ICON};
 const sheetTabsOf=(keys)=>keys.map(k=>{const t=OPS_SHEET_TABS.find(x=>x.key===k);if(!t)return null;const nm=sheetNames[k];return{id:opsTabId(k),l:nm?(lang==='ar'?nm.ar:(nm.en||nm.ar)):T(t.ar,t.en),i:SHEET_TAB_ICON[k]||t.icon,sheet:k}}).filter(Boolean);
 const facTabs=sheetTabsOf(FAC_SHEET_KEYS);
 const officeTabs=sheetTabsOf(OFFICE_SHEET_KEYS);

@@ -239,6 +239,7 @@ export const TXN_SERVICES = {
     inputs: [
       { key: 'doc_type', label_ar: 'نوع المستند', type: 'select', required: true, options: [
         { value: 'commercial_register', label: 'السجل التجاري' }, { value: 'resident_file', label: 'ملف مقيم' },
+        { value: 'insurance_policy', label: 'بوليصة التأمين' },
         { value: 'iqama_copy', label: 'صورة إقامة' }, { value: 'contract', label: 'عقد عمل' },
         { value: 'salary_cert', label: 'تعريف بالراتب' }, { value: 'other', label: 'أخرى' },
       ] },
@@ -251,7 +252,7 @@ export const TXN_SERVICES = {
       { src: 'w_name', l_ar: 'المستفيد', l_en: 'Beneficiary' },
       { src: 'w_iqama', l_ar: 'رقم الإقامة', l_en: 'Iqama No', mono: true },
       { src: 'f_name', l_ar: 'المنشأة', l_en: 'Facility' },
-      { src: 'd:doc_type', l_ar: 'نوع المستند', l_en: 'Document Type', opts: { commercial_register: 'السجل التجاري', resident_file: 'ملف مقيم', iqama_copy: 'صورة إقامة', contract: 'عقد عمل', salary_cert: 'تعريف بالراتب', other: 'أخرى' } },
+      { src: 'd:doc_type', l_ar: 'نوع المستند', l_en: 'Document Type', opts: { commercial_register: 'السجل التجاري', resident_file: 'ملف مقيم', insurance_policy: 'بوليصة التأمين', iqama_copy: 'صورة إقامة', contract: 'عقد عمل', salary_cert: 'تعريف بالراتب', other: 'أخرى' } },
       { src: 'd:doc_lang', l_ar: 'اللغة', l_en: 'Language', opts: { ar: 'عربي', en: 'إنجليزي' } },
       { src: 'd:copies', l_ar: 'عدد النسخ', l_en: 'Copies', mono: true },
     ],

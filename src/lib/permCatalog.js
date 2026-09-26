@@ -272,15 +272,15 @@ const OPS_SHEETS = [
   ['transfer_txn', 'نقل الكفالات', 'الخدمات'],
   // ⬇ جداول خدمات الطلبات (محرّك svSheet في OpsExcelsPage) — مصدرها الفواتير.
   //    العنصر الرابع `true` = محجوب افتراضياً حتى يُمنح صراحةً (optIn).
-  ['svc_chamber', 'تصديق الغرفة التجارية', 'الخدمات', true],
+  ['svc_chamber', 'تصديق الغرفة', 'الخدمات', true],
   ['svc_ajeer', 'عقود أجير', 'الخدمات', true],
   ['svc_medical', 'التأمين الطبي', 'الخدمات', true],
   ['svc_profession', 'تغيير المهنة', 'الخدمات', true],
-  ['svc_ext_transfer', 'الموافقة للنقل الخارجي', 'الخدمات', true],
+  ['svc_ext_transfer', 'النقل الخارجي', 'الخدمات', true],
   ['svc_exit_reentry', 'الخروج والعودة', 'الخدمات', true],
   ['svc_final_exit', 'الخروج النهائي', 'الخدمات', true],
   ['svc_salary', 'تعديل الراتب', 'الخدمات', true],
-  ['svc_passport', 'تحديث بيانات الجواز', 'الخدمات', true],
+  ['svc_passport', 'تحديث الجواز', 'الخدمات', true],
   ['svc_documents', 'المستندات', 'الخدمات', true],
   ['invoices', 'الفواتير', 'المالية'],
   ['agent_commissions', 'عمولات الوسطاء', 'المالية'],

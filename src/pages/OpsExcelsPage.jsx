@@ -920,6 +920,57 @@ let opsWarmed = false                // تسخين بيانات العمالة �
    1121 شهادة من 3890 ملفاً — بدل فحص HEAD لكل صف كما تفعل صفحة المنشأة
    المفردة. المخرَج: Map من الرقم الموحّد إلى الرابط العام. */
 const CR_DIR = 'sbc-cr-certificates'
+/* «الرئيسية» (companies): نوعا المنشأة وقائمة المفوّضين (تُملأ عند تحميل الشيت) */
+const COMP_KINDS = ['مؤسسة', 'شركة']
+const COMP_REF = { persons: [], colors: new Map() }
+// خلفية خانة المفوّض بلون الشخص — لونُه من المزامنة إن كان هو، وإلا من قائمة الأشخاص
+const compPersonBg = (v, r, plat) => {
+  const n = String(v || '').split('\n')[0].trim(); if (!n) return null
+  const sub = r && r._sub
+  const c = (sub && sub[plat + '_sync_person'] === n && sub[plat + '_sync_color']) || COMP_REF.colors.get(n) || ''
+  return hexTint(c)
+}
+/* «إضافة» في «الرئيسية» تُنشئ **منشأةً في النظام** (طلب المستخدم 2026-09-26) لا صفّاً يدوياً:
+   صفٌّ في `facilities` (كإضافة صفحة المنشآت: الموحّد والتأمينات والموارد، وحارس الحجب
+   والتكرار قبله)، ووثيقةُ السجل مرفقاً للمنشأة بوسم `commercial_registration` (تقرؤه
+   بطاقة «ملفات المنشأة»)، ونوعُ المنشأة والمفوّضان في طبقة الشيت على صفّها (`fac:<id>`)
+   — لا أعمدة لها في `facilities`. والصفّ يظهر في الشيت عبر `load` (منشآت النظام غير
+   المُزامَنة بعد). */
+async function compAddFacility(sb, data, { user, isAr }) {
+  const t = (k) => String(data[k] || '').trim()
+  const name_ar = t('entity_full_name_ar')
+  const uni = t('cr_national_number'), gosi = t('gosi_registration_number'), hrsd = t('hrsd_number')
+  if (uni || gosi) {
+    const { data: blocked } = await sb.rpc('is_facility_blocked', { p_unified: uni || null, p_gosi: gosi || null })
+    if (blocked) throw new Error(isAr ? 'هذه المنشأة محجوبة عن المزامنة — ألغِ حجبها من مركز المزامنة أولاً' : 'This facility is blocked from sync — unblock it first')
+    const ors = [uni && `unified_number.eq.${uni}`, gosi && `gosi_number.eq.${gosi}`].filter(Boolean).join(',')
+    const { data: ex } = await sb.from('facilities').select('id,name_ar').is('deleted_at', null).or(ors).limit(1)
+    if (ex && ex.length) throw new Error(isAr ? `المنشأة مسجّلة في النظام باسم «${ex[0].name_ar || '—'}»` : `Already registered as “${ex[0].name_ar || '—'}”`)
+  }
+  const { data: fac, error } = await sb.from('facilities').insert({
+    name_ar, unified_number: uni || null, gosi_number: gosi || null, hrsd_number: hrsd || null,
+    saudi_center: true, created_by: user?.id || null,
+  }).select('id').maybeSingle()
+  if (error) throw (error.code === '23505' ? new Error(isAr ? 'أحد الأرقام مسجّلٌ لمنشأةٍ أخرى' : 'A number is already used by another facility') : error)
+  if (!fac) throw new Error(isAr ? 'لم تُنشأ المنشأة — تحقّق من صلاحية إضافة المنشآت' : 'Facility not created — check the create permission')
+  const doc = t('cr_document')
+  if (doc) {
+    const { error: aErr } = await sb.from('attachments').insert({
+      entity_type: 'facility', entity_id: fac.id, file_name: fileNameOf(doc), file_url: doc,
+      storage_path: trStoragePath(doc), notes: 'commercial_registration', uploaded_by: user?.id || null,
+    })
+    if (aErr) console.warn('[companies] CR attachment', aErr)
+  }
+  const extra = {}
+  for (const k of ['entity_kind', 'gosi_delegate', 'hrsd_delegate']) if (t(k)) extra[k] = t(k)
+  if (Object.keys(extra).length) {
+    const { error: oErr } = await sb.from('ops_sheet_rows').upsert(
+      { view_key: 'companies', row_key: 'fac:' + fac.id, data: extra, is_manual: false, hidden: false },
+      { onConflict: 'view_key,row_key' })
+    if (oErr) console.warn('[companies] overlay', oErr)
+  }
+  return isAr ? `أُنشئت المنشأة «${name_ar}» في النظام` : `Facility “${name_ar}” created`
+}
 async function listCrCertificates(sb) {
   const map = new Map()
   try {
@@ -1367,7 +1418,7 @@ const exitVisaCol = (tag, ar, en) => ({
 })
 const WFC = {
   // بيانات المنشأة — تُدمج رأسياً عبر صفوف عمّال نفس المنشأة (mergeCols)
-  fac_branch: branchCol({ key: 'facility_branches', ar: 'فرع المنشأة', en: 'Facility branch', w: 150 }),
+  fac_branch: branchCol({ key: 'facility_branches', ar: 'مكتب المنشأة', en: 'Facility office', w: 150 }),
   facility: { key: 'facility_ar', ar: 'المنشأة', en: 'Facility', w: 230, kind: 'text' },
   unified: { key: 'unified_number', ar: 'الرقم الموحّد', en: 'Unified no.', w: 140, kind: 'mono' },
   gosi: { key: 'gosi_number', ar: 'التأمينات', en: 'GOSI no.', w: 130, kind: 'mono' },
@@ -1391,8 +1442,8 @@ const WFC = {
   balance: { key: 'jawazat_balance', ar: 'الرصيد', en: 'Balance', w: 100, kind: 'num' },
   /* فرع العامل يُختار من قائمة الفروع العاملة ويُكتب في `workers.branch_id` —
      مصدرُه هناك لا في الشيت (v_ops_workers يقرؤه من branch_id لا من المنشأة). */
-  branch: branchSelectCol({ key: 'branch_code', ar: 'الفرع', en: 'Branch', w: 150 }),
-  worker_branch: branchSelectCol({ key: 'branch_code', ar: 'فرع العامل', en: 'Worker branch', w: 150 }),
+  branch: branchSelectCol({ key: 'branch_code', ar: 'المكتب', en: 'Office', w: 150 }),
+  worker_branch: branchSelectCol({ key: 'branch_code', ar: 'مكتب العامل', en: 'Worker office', w: 150 }),
   work_permit_expiry: { key: 'work_permit_expiry', ar: 'الرخصة', en: 'Work Permit', w: 120, kind: 'date', fg: (v) => wfExpFg(v), bg: (v) => wfExpBg(v) },
   // نفس حقل قوى بمسمّى كامل — في شيت «البيانات الأساسية» لا يجاوره عمودا الإقامة والجواز فيحتاج التوضيح
   work_permit: { key: 'work_permit_expiry', ar: 'رخصة العمل', en: 'Work permit', w: 130, kind: 'date', fg: (v) => wfExpFg(v), bg: (v) => wfExpBg(v) },
@@ -1841,7 +1892,7 @@ function FilePairCell({ slots, value, fixed, busySlot, canEdit, ownsFile, isAr, 
    الإنجليزية من تلقائها. وهي **عنصرٌ مستقلّ** لا حرفٌ في أوّل النصّ: الحرفُ
    المحايد في أوّل نصٍّ عربيّ يقفز طرفَه الآخر بقواعد الاتّجاه، فيختلف موضعُه
    من شارةٍ لأخرى بلا سبب ظاهر. */
-function FileCell({ url, busy, canEdit, isAr, onPick, onClear, onView, label, tip }) {
+function FileCell({ url, busy, canEdit, isAr, onPick, onClear, onView, label, tip, replace = false, canClear = true }) {
   const inRef = useRef(null)
   const base = {
     display: 'inline-flex', alignItems: 'center', gap: 5, height: 22, padding: '0 10px',
@@ -1863,7 +1914,13 @@ function FileCell({ url, busy, canEdit, isAr, onPick, onClear, onView, label, ti
         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{fileNameOf(url) || (isAr ? 'الملف' : 'File')}</span>
         <span aria-hidden style={{ fontSize: 11, lineHeight: 1, flexShrink: 0 }}>📎</span>
       </a>
-      {canEdit && (
+      {/* `replace`: ملفٌّ مجلوبٌ من مصدره يُستبدَل بمرفوعٍ في الشيت (ملف المستند) */}
+      {canEdit && replace && (
+        <button type="button" title={isAr ? 'استبدال الملف' : 'Replace file'}
+          onMouseDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); inRef.current && inRef.current.click() }}
+          style={{ marginInlineStart: 3, background: 'transparent', border: 'none', color: C.gold, cursor: 'pointer', fontSize: 12, lineHeight: 1, padding: 2, flexShrink: 0 }}>⇧</button>
+      )}
+      {canEdit && canClear && (
         <button type="button" title={isAr ? 'إزالة الملف' : 'Remove file'}
           onMouseDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onClear() }}
           style={{ marginInlineStart: 3, background: 'transparent', border: 'none', color: 'var(--tx4)', cursor: 'pointer', fontSize: 12, lineHeight: 1, padding: 2, flexShrink: 0 }}>✕</button>
@@ -2646,7 +2703,7 @@ const invInfoCard = (r) => {
          تعريفه أسفل الملف. ومكتبٌ بلا اسمٍ مسجَّل يبقى رمزَه وحده. */
       /* لا `wide` بعد توسعة العمود: «JUB1 · الجبيل - سوني» يسع في نصف العرض،
          وسطرٌ ممتدٌّ في وسط المجموعة يترك ثقباً في العمود الذي قبله. */
-      { ar: 'الفرع', en: 'Branch', v: srBranchText(v.branch_code || r.branch_code || '').replace('\n', ' · ') },
+      { ar: 'المكتب', en: 'Office', v: srBranchText(v.branch_code || r.branch_code || '').replace('\n', ' · ') },
       ...(fees.length ? [{ head: true, ar: 'تفصيل الرسوم', en: 'Fee breakdown' }, ...fees] : []),
       { head: true, ar: 'الحساب والحالة', en: 'Balance & status' },
       { ar: 'الإجمالي', en: 'Total', v: invMoney(v.total_amount != null ? v.total_amount : r.invoice_total), mono: true },
@@ -7065,8 +7122,12 @@ const fmtBytes = (n) => {
    ومدخلات الإنجاز (من `DONE_INPUTS` نفسها)، و`f_<key>` للملفات.
    ═══════════════════════════════════════════════════════════════════════════ */
 const SV_REF = { doneStatusId: null, occ: [] }
-const SV_WAIT = 'قيد التنفيذ', SV_ISSUE = 'مشكلة', SV_ACCT = 'إرسال للمحاسب', SV_DONE = 'تم'
-const SV_STATE_BG = { [SV_DONE]: 'rgba(46,204,113,.32)', [SV_ACCT]: 'rgba(93,173,226,.28)', [SV_WAIT]: 'rgba(234,179,8,.28)', [SV_ISSUE]: 'rgba(232,114,101,.32)' }
+/* خيارات «حالة التنفيذ» (طلب المستخدم 2026-09-26): أنجزت · في الانتظار · العامل مديون · مشكلة.
+   «إرسال للمحاسب» لم يعد خياراً: «أنجزت» في خدمةٍ تمرّ على المحاسب تُرسلها إليه أوّلاً
+   وتُنجَز بعد موافقته (`svPost`). ويبقى ثابتُه لقراءة ما قد يكون حُفظ به. */
+const SV_WAIT = 'في الانتظار', SV_DEBT = 'العامل مديون', SV_ISSUE = 'مشكلة', SV_ACCT = 'إرسال للمحاسب', SV_DONE = 'أنجزت'
+const SV_STATE_BG = { [SV_DONE]: 'rgba(46,204,113,.32)', [SV_ACCT]: 'rgba(93,173,226,.28)', [SV_WAIT]: 'rgba(234,179,8,.28)',
+  [SV_DEBT]: 'rgba(230,126,34,.30)', [SV_ISSUE]: 'rgba(232,114,101,.32)' }
 const svNeedsAcct = (code) => !!(TXN_SERVICES[code] && TXN_SERVICES[code].needs_accountant_approval)
 const SV_ACCT_AR = { pending: 'بانتظار المحاسب', approved: 'وافق المحاسب', rejected: 'رفض المحاسب' }
 const SV_ACCT_EN = { pending: 'Awaiting accountant', approved: 'Accountant approved', rejected: 'Accountant rejected' }
@@ -7154,7 +7215,11 @@ const svPost = (viewKey) => async (sb, savedRows, { user, isAr, rows }) => {
       else {
         const gone = (DONE_INPUTS[code] || []).filter((f) => f.req && !svHas(row, data, f)).map((f) => (isAr ? f.label_ar : f.label_en))
         if (gone.length) blocked = (isAr ? 'ينقص للإنجاز: ' : 'Missing for completion: ') + gone.join(isAr ? '، ' : ', ')
-        else if (acct && row.accountant_status !== 'approved') blocked = isAr ? 'الإنجاز بعد موافقة المحاسب' : 'Completion needs the accountant approval first'
+        else if (acct && row.accountant_status !== 'approved') {
+          // تُرسَل للمحاسب (إن لم تُرسَل) وتُنجَز بترحيلٍ تالٍ بعد موافقته
+          if (row.accountant_status !== 'pending' && !data.sv_acct_sent) srPatch.accountant_status = 'pending'
+          blocked = isAr ? 'أُرسلت للمحاسب — تُنجَز بعد موافقته' : 'Sent to the accountant — completes after approval'
+        }
         else if (!SV_REF.doneStatusId) blocked = isAr ? 'حالة «منجز» غير معرّفة في النظام' : 'Done status not found'
         else { srPatch.status_id = SV_REF.doneStatusId; srPatch.completed_by = svBy; srPatch.completed_at = nowIso }
       }
@@ -7250,15 +7315,27 @@ const svPost = (viewKey) => async (sb, savedRows, { user, isAr, rows }) => {
 
 /* الأعمدة المشتركة: تعريف الفاتورة والطرف والمنشأة ← المال ← (أعمدة الخدمة)
    ← مدخلات الإنجاز ← الحالة والترحيل */
-const svHeadCols = (multi) => [
+const svHeadCols = (multi, money) => [
   { key: 'invoice_no', ar: 'رقم الفاتورة', en: 'Invoice no.', w: 115, kind: 'mono', readOnly: true,
     tap: invInfoCard, tapTip: { ar: 'اعرض بطاقة الفاتورة', en: 'Show the invoice card' } },
   { key: 'request_ref_no', ar: 'رقم الطلب', en: 'Request no.', w: 115, kind: 'mono' },
   { key: 'invoice_at', ar: 'تاريخ الفاتورة', en: 'Invoice date', w: 115, kind: 'date', get: (r) => ymd(r.invoice_at || r.request_created_at) },
-  branchCol({ key: 'branch_code', ar: 'الفرع', en: 'Branch', w: 150 }),
+  branchCol({ key: 'branch_code', ar: 'المكتب', en: 'Office', w: 150 }),
   ...(multi ? [{ key: 'service_ar', ar: 'الخدمة', en: 'Service', w: 130, kind: 'text' }] : []),
   { key: 'client_name', ar: 'العميل', en: 'Client', w: 180, kind: 'text' },
   { key: 'agent_name', ar: 'الوسيط', en: 'Agent', w: 160, kind: 'text' },
+  /* الفاتورة في خليّةٍ مرسومة (`kind:'pay'`) كشيت «تجديد الإقامات» (طلب المستخدم
+     2026-09-26): الإجمالي وشارة النسبة وشريط التحصيل والمتبقّي. و`get` نصٌّ
+     يُبحث فيه ويُفرز ويُصدَّر. */
+  ...(money ? [{ key: 'inv_state', ar: 'الفاتورة', en: 'Invoice', w: 195, kind: 'pay',
+    pay: (r) => ({ total: depNum(r.invoice_total), remaining: depNum(r.remaining_amount) }),
+    get: (r, isAr2) => {
+      const tot = depNum(r.invoice_total)
+      if (!tot) return r.payment_state || ''
+      const rem = depNum(r.remaining_amount)
+      const pct = Math.round(((tot - rem) / tot) * 100)
+      return `${enNum(tot)} · ${pct}%${rem > 0 ? ` · ${isAr2 === false ? 'due' : 'متبقّي'} ${enNum(rem)}` : ''}`
+    } }] : []),
   /* الطرف: العامل المرتبط، وإلا فالعميل نفسه («العميل هو نفس العامل») */
   workerCol({ key: 'worker_name', ar: 'العامل', en: 'Worker', sectionStart: true }),
   { key: 'iqama_number', ar: 'رقم الإقامة', en: 'Iqama no.', w: 125, kind: 'mono' },
@@ -7280,6 +7357,161 @@ const SV_MONEY_COLS = [
   { key: 'payment_state', ar: 'حالة السداد', en: 'Payment', w: 120, kind: 'text', bg: (v) => SV_PAY_BG[v] || null },
   { key: 'invoice_status_ar', ar: 'حالة الفاتورة', en: 'Invoice status', w: 120, kind: 'text', bg: (v) => (/ملغ/.test(String(v || '')) ? 'rgba(232,114,101,.25)' : null) },
 ]
+/* ── المتبقّي على العامل من **كل** فواتيره (طلب المستخدم 2026-09-26) ─────────
+   الخروج والعودة والخروج النهائي والموافقة للنقل الخارجي لا تُنفَّذ حتى يسدّد
+   العامل كل ما عليه. فالعمود يجمع متبقّي كل فاتورةٍ غير ملغاة يظهر فيها العامل
+   في بيانات المعاملة — نقل كفالة · تأشيرة بإقامة (جاء بها) · تجديد · خدمات —
+   أو هو عميلُها نفسه (`v_worker_invoice_dues`). ويشمل فاتورةَ الخدمة نفسها.
+   فاتورةُ تأشيراتٍ كثيرة متبقّيها على المنشأة كلّها: يُعدّ كاملاً ويُقال في
+   التلميح — السداد لا يُوزَّع بالتأشيرة فقسمتُه رقمٌ مخترع. */
+const SV_DUES_SEL = 'worker_id,iqama_number,invoice_id,invoice_no,invoice_at,service_ar,branch_code,total_amount,remaining_amount,visa_count'
+async function svLoadDues(sb, rows) {
+  const ids = [...new Set(rows.map((r) => r.worker_id).filter(Boolean))]
+  const iqOf = (r) => String(r.iqama_number || '').trim()
+  const iqs = [...new Set(rows.map(iqOf).filter((v) => /^\d+$/.test(v)))]
+  const CH = 80   // قائمة `in` في الرابط — تُقسَم كي لا يطول
+  const jobs = []
+  for (let i = 0; i < ids.length; i += CH) jobs.push(sb.from('v_worker_invoice_dues').select(SV_DUES_SEL).in('worker_id', ids.slice(i, i + CH)))
+  for (let i = 0; i < iqs.length; i += CH) jobs.push(sb.from('v_worker_invoice_dues').select(SV_DUES_SEL).in('iqama_number', iqs.slice(i, i + CH)))
+  let got
+  try {
+    got = (await Promise.all(jobs)).flatMap((res) => { if (res.error) throw res.error; return res.data || [] })
+  } catch (e) {
+    // الشيت يُفتح ولو تعذّر الرصيد: الخليّة فارغة وتلميحها يقول السبب
+    console.warn('worker dues', e)
+    for (const r of rows) r._dues_err = true
+    return
+  }
+  const byW = new Map(), byIq = new Map()
+  for (const d of got) {
+    if (d.worker_id) byW.set(d.worker_id, [...(byW.get(d.worker_id) || []), d])
+    if (d.iqama_number) byIq.set(d.iqama_number, [...(byIq.get(d.iqama_number) || []), d])
+  }
+  for (const r of rows) {
+    const m = new Map()
+    for (const d of [...(byW.get(r.worker_id) || []), ...(byIq.get(iqOf(r)) || [])]) m.set(d.invoice_id, d)
+    r._dues = [...m.values()].sort((a, b) => String(a.invoice_at || '').localeCompare(String(b.invoice_at || '')))
+    r.worker_dues = Math.round(r._dues.reduce((s, d) => s + depNum(d.remaining_amount), 0) * 100) / 100
+  }
+}
+/* بطاقةُ المتبقّي (طلب المستخدم 2026-09-26): المبلغ غيرُ الصفر يُضغط فتظهر كل
+   فاتورةٍ عليها متبقٍّ — مجموعةٌ لكلٍّ بزرٍّ يفتحها، ثمّ الإجمالي. */
+const svDuesCard = (r) => {
+  const list = r._dues || []
+  if (!list.length) return null
+  // بلا «ريال» (طلب المستخدم 2026-09-26): الرقم وحده
+  const sar = (v) => enNum(Math.round(depNum(v) * 100) / 100)
+  const sarEn = sar
+  return {
+    ar: 'فواتير عليها متبقّي', en: 'Invoices with a balance due',
+    hero: String(r.worker_name || r.client_name || '').trim(), heroAr: 'العامل', heroEn: 'Worker',
+    rows: [
+      ...list.flatMap((d) => [
+        { head: true, openId: d.invoice_id, ar: `${d.invoice_no || '—'} · ${d.service_ar || ''}`, en: `${d.invoice_no || '—'} · ${d.service_ar || ''}` },
+        { ar: 'التاريخ', en: 'Date', v: ymd(d.invoice_at), mono: true },
+        { ar: 'المكتب', en: 'Office', v: d.branch_code ? [d.branch_code, srBranchName(d.branch_code)].filter(Boolean).join(' · ') : '' },
+        { ar: 'الإجمالي', en: 'Total', v: sar(d.total_amount), vEn: sarEn(d.total_amount), mono: true },
+        { ar: 'المتبقّي', en: 'Remaining', v: sar(d.remaining_amount), vEn: sarEn(d.remaining_amount), mono: true, tone: '#e87265' },
+        ...(d.visa_count > 1 ? [{ ar: 'ملاحظة', en: 'Note', wide: true,
+          v: `فاتورة ${enNum(d.visa_count)} تأشيرات للمنشأة — المتبقّي عليها كلها`,
+          vEn: `Invoice of ${enNum(d.visa_count)} visas — the balance is for all of them` }] : []),
+      ]),
+      { head: true, ar: 'الإجمالي', en: 'Total' },
+      { ar: 'مديونية العامل', en: 'Worker balance due', v: sar(r.worker_dues), vEn: sarEn(r.worker_dues), mono: true, tone: '#e87265', wide: true },
+    ],
+  }
+}
+/* ── «ملف المستند» في شيت «المستندات» (طلب المستخدم 2026-09-26) ─────────────
+   الخليّة تجلب الملف المطلوب من مصدره بحسب تفاصيل الطلب: السجل التجاري (عربي أو
+   إنجليزي) من ملفات المنشأة — المرفوع فيها أوّلاً ثمّ شهادة المزامنة
+   (`{الموحّد}-ar|en.pdf`)، وملفّ مقيم (عربي أو إنجليزي) من العامل — المرفوع
+   لسجلّه أوّلاً ثمّ ملفّ مقيم المُزامَن. وبوليصة التأمين لا مصدرَ لها بعد.
+   والخليّة ملفٌّ يُرفع (`ops`): ما يُرفع فيها يسبق المجلوب — لغيابه أو لخللٍ فيه. */
+const DOC_SRC = { crAr: new Map(), crEn: new Map(), facUp: new Map(), mqAr: new Map(), mqEn: new Map(), wkUp: new Map() }
+async function docLoadSources(sb, rows) {
+  const uniq = (a) => [...new Set(a.filter(Boolean).map(String))]
+  const facIds = uniq(rows.map((r) => r.facility_id))
+  const wIds = uniq(rows.map((r) => r.worker_id))
+  const iqs = uniq(rows.map((r) => String(r.iqama_number || '').replace(/\D/g, '')))
+  const CH = 80
+  const chunks = (a) => { const o = []; for (let i = 0; i < a.length; i += CH) o.push(a.slice(i, i + CH)); return o }
+  const crAr = new Map(), crEn = new Map()
+  const listCr = (async () => {
+    for (let offset = 0; ; offset += 1000) {
+      const { data, error } = await sb.storage.from('documents').list(CR_DIR, { limit: 1000, offset, sortBy: { column: 'name', order: 'asc' } })
+      if (error) throw error
+      for (const o of (data || [])) {
+        const m = /^(.+)-(ar|en)\.pdf$/.exec(o.name); if (!m) continue
+        const url = sb.storage.from('documents').getPublicUrl(`${CR_DIR}/${o.name}`).data.publicUrl
+        const key = m[1].replace(/\D/g, '') || m[1]
+        ;(m[2] === 'ar' ? crAr : crEn).set(key, url)
+      }
+      if (!data || data.length < 1000) break
+    }
+  })()
+  const att = (type, ids, notes) => Promise.all(chunks(ids).map((c) => sb.from('attachments')
+    .select('entity_id,notes,file_url,created_at').eq('entity_type', type).in('entity_id', c).in('notes', notes)
+    .is('deleted_at', null).order('created_at', { ascending: false })))
+  const [, facRes, wkRes, mqRes] = await Promise.all([
+    listCr.catch((e) => console.warn('doc cr list', e)),
+    att('facility', facIds, ['commercial_registration', 'commercial_registration_en']),
+    att('worker', wIds, ['muqeem_file']),
+    Promise.all(chunks(iqs).map((c) => sb.from('muqeem_residents').select('iqama_number,profile_pdf_path,profile_pdf_en_path').in('iqama_number', c))),
+  ])
+  const facUp = new Map(), wkUp = new Map(), mqAr = new Map(), mqEn = new Map()
+  // الأحدث أوّلاً (`order`) — فأوّلُ ما يُرى لكل مفتاحٍ هو المعتمد
+  for (const res of facRes) for (const a of (res.data || [])) { const k = `${a.entity_id}|${a.notes}`; if (!facUp.has(k)) facUp.set(k, a.file_url) }
+  for (const res of wkRes) for (const a of (res.data || [])) if (!wkUp.has(a.entity_id)) wkUp.set(a.entity_id, a.file_url)
+  for (const res of mqRes) for (const m of (res.data || [])) {
+    const k = String(m.iqama_number || '').replace(/\D/g, '')
+    if (m.profile_pdf_path) mqAr.set(k, workerPhotoUrl(m.profile_pdf_path))
+    if (m.profile_pdf_en_path) mqEn.set(k, workerPhotoUrl(m.profile_pdf_en_path))
+  }
+  Object.assign(DOC_SRC, { crAr, crEn, facUp, mqAr, mqEn, wkUp })
+}
+const docSourceOf = (r) => {
+  const en = r.d_doc_lang === 'en'
+  if (r.d_doc_type === 'commercial_register') {
+    const up = r.facility_id && DOC_SRC.facUp.get(`${r.facility_id}|${en ? 'commercial_registration_en' : 'commercial_registration'}`)
+    const uni = String(r.unified_number || '').replace(/\D/g, '')
+    return up || (uni && (en ? DOC_SRC.crEn : DOC_SRC.crAr).get(uni)) || ''
+  }
+  if (r.d_doc_type === 'resident_file') {
+    // المرفوع لسجلّ العامل نسخةٌ واحدة بلا لغة — فيُقدَّم المُزامَن بلغته، ثمّ المرفوع
+    const iq = String(r.iqama_number || '').replace(/\D/g, '')
+    return (iq && (en ? DOC_SRC.mqEn : DOC_SRC.mqAr).get(iq)) || (r.worker_id && DOC_SRC.wkUp.get(r.worker_id)) || ''
+  }
+  return ''
+}
+const DOC_FILE_COL = {
+  key: 'doc_file', ar: 'ملف المستند', en: 'Document file', w: 160, kind: 'file', ops: true, source: 'entry', replaceable: true,
+  get: (r) => docSourceOf(r),
+  cellTip: (_v, r, isAr2) => {
+    const own = r && r._ops && r._ops.doc_file
+    if (own) return isAr2 === false ? 'Uploaded in this sheet' : 'مرفوعٌ في هذا الشيت'
+    if (docSourceOf(r)) return isAr2 === false ? 'Fetched from the facility / worker files — upload to replace it if it is wrong' : 'مجلوبٌ من ملفات المنشأة أو العامل — ارفع بديلاً إن كان فيه خلل'
+    return isAr2 === false ? 'Not found in the facility / worker files — upload it' : 'غير موجود في ملفات المنشأة أو العامل — ارفعه'
+  },
+}
+const svDuesCol = () => ({
+  key: 'worker_dues', ar: 'مديونية العامل', en: 'Worker balance due', w: 150, kind: 'num',
+  readOnly: true, source: 'fetched',
+  tap: svDuesCard, tapIf: (r) => depNum(r.worker_dues) > 0,
+  tapTip: { ar: 'اعرض الفواتير التي عليها متبقّي', en: 'Show the invoices with a balance due' },
+  get: (r) => (r.worker_dues == null ? '' : r.worker_dues),
+  bg: (v) => (v === '' || v == null ? null : depNum(v) > 0 ? 'rgba(232,114,101,.25)' : 'rgba(46,204,113,.22)'),
+  cellTip: (_v, r, isAr2) => {
+    const en = isAr2 === false
+    if (r._dues_err) return en ? 'Could not load the worker’s invoices' : 'تعذّر جلب فواتير العامل'
+    const list = r._dues || []
+    if (!list.length) return en ? 'No balance due on any of the worker’s invoices' : 'لا متبقّي على العامل في أيّ فاتورة'
+    return list.map((d) => {
+      const rem = enNum(Math.round(depNum(d.remaining_amount) * 100) / 100)
+      const shared = d.visa_count > 1 ? (en ? ` (invoice of ${d.visa_count} visas)` : ` (فاتورة ${d.visa_count} تأشيرات)`) : ''
+      return `${d.invoice_no || '—'} · ${d.service_ar || ''}${d.branch_code ? ` · ${d.branch_code}` : ''} · ${en ? 'due' : 'متبقّي'} ${rem}${shared}`
+    }).join('\n')
+  },
+})
 const SV_ACCT_COL = { key: 'accountant_status', ar: 'موافقة المحاسب', en: 'Accountant', w: 150, kind: 'text', auto: true, source: 'fetched', sectionStart: true,
   get: (r, isAr2) => (isAr2 === false ? SV_ACCT_EN : SV_ACCT_AR)[r.accountant_status] || '',
   bg: (v) => SV_ACCT_BG[v] || null, cellTip: (_v, r) => (r.accountant_note || undefined) }
@@ -7287,8 +7519,12 @@ const svTailCols = (acct) => [
   ...(acct ? [SV_ACCT_COL] : []),
   /* «حالة العمل» = ما يقرّره الموظف: قيد التنفيذ/مشكلة متابعةٌ لا تُرحَّل،
      و«إرسال للمحاسب» و«تم» يكتبان في الطلب عند الترحيل */
-  { key: 'sv_state', ar: 'حالة العمل', en: 'Work state', w: 150, kind: 'text', ops: true, select: true, sectionStart: !acct,
-    options: () => (acct ? [SV_WAIT, SV_ISSUE, SV_ACCT, SV_DONE] : [SV_WAIT, SV_ISSUE, SV_DONE]), bg: (v) => SV_STATE_BG[v] || null },
+  /* «حالة التنفيذ» (كانت «حالة العمل» — طلب المستخدم 2026-09-26)، وتحت الحالة وقتُها
+     وتاريخُها من ختم الخليّة كخانات شيت «السعودة» (`sdeStFmt`) */
+  { key: 'sv_state', ar: 'حالة التنفيذ', en: 'Execution status', w: 160, kind: 'text', ops: true, select: true, sectionStart: !acct,
+    options: () => [SV_DONE, SV_WAIT, SV_DEBT, SV_ISSUE],
+    bg: (v) => SV_STATE_BG[String(v ?? '').split('\n')[0].trim()] || null,
+    optLabel: sdeStLabel('sv_state'), fmt: sdeStFmt('sv_state') },
   notesCol({ key: 'completion_note', ar: 'ملاحظة الإنجاز', en: 'Completion note', w: 200 }),
   { key: 'request_status_ar', ar: 'حالة المعاملة في النظام', en: 'System status', w: 160, kind: 'text', auto: true, source: 'fetched',
     bg: (v) => (v === 'منجز' ? 'rgba(46,204,113,.22)' : /ملغ/.test(String(v || '')) ? 'rgba(232,114,101,.25)' : null) },
@@ -7307,10 +7543,16 @@ const svStats = (acct, o = {}) => [
   ...(acct ? [svSC('eq', 'بانتظار المحاسب', 'Awaiting accountant', { k: 'accountant_status', v: ['بانتظار المحاسب', 'Awaiting accountant'] })] : []),
   svSC('eq', 'ملغية', 'Cancelled', { k: 'request_status_ar', v: ['ملغي'], tone: 'bad' }),
   ...(o.extra || []),
-  svSC('sum', o.sumAr || 'إجمالي الفواتير', o.sumEn || 'Invoices total', { k: o.sumKey || 'invoice_total', money: true }),
+  // `noSum`: شيتٌ لا يُقرأ فيه مجموعُ الفواتير (المستندات — طلب المستخدم 2026-09-26)
+  ...(o.noSum ? [] : [svSC('sum', o.sumAr || 'إجمالي الفواتير', o.sumEn || 'Invoices total', { k: o.sumKey || 'invoice_total', money: true })]),
 ]
-const svSheet = ({ key, codes, ar, en, hintAr, hintEn, cols = [], noMoney = false, occupations = false, stats }) => {
+const svSheet = ({ key, codes, ar, en, hintAr, hintEn, cols = [], noMoney = false, occupations = false, stats, msg, dues = false, workCols = [], extraLoad }) => {
   const acct = codes.some(svNeedsAcct)
+  /* عمود «السداد» (رسالة السداد للقروب) كشيت «تجديد الإقامات» — طلب المستخدم
+     2026-09-26. أوّلُ كتلة الإنجاز: يُطلب السداد ثمّ تُنجز الخدمة. ولا رسمَ
+     حكوميّاً مفصّلاً في فواتير الخدمات، فالمبلغ يكتبه الموظّف في نافذتها. */
+  const msgC = msg ? { ...msgCol({ key: 'sv_msg_' + key, ar: 'رسالة السداد — ' + ar, en: 'Payment message — ' + en, amt: () => 0, ...msg }), sectionStart: true } : null
+  const doneC = svDoneCols(codes[0]).map((c) => (msgC ? { ...c, sectionStart: false } : c))
   return {
     key, ar, en, hintAr, hintEn,
     /* لا `defaultSource: 'invoice'` هنا: يُعامَل كـ«مجلوب» فيقفل كل عمودٍ بلا
@@ -7343,144 +7585,44 @@ const svSheet = ({ key, codes, ar, en, hintAr, hintEn, cols = [], noMoney = fals
         occupations ? fetchAll(sb, 'occupations', 'name_ar', (q) => q.eq('is_active', true).order('name_ar')) : null,
         loadFacNums(sb),
       ])
+      if (msg && msg.wire) await loadMsgBanks(sb)   // بنوك الحوالة في رسالة سداد التأمين
       if (doneSt?.data?.id) SV_REF.doneStatusId = doneSt.data.id
       if (occs) SV_REF.occ = occs.map((o) => o.name_ar).filter(Boolean)
-      return src.map(svFlat)
+      const rows = src.map(svFlat)
+      if (dues) await svLoadDues(sb, rows)
+      // مصادرُ أعمدةٍ خاصّة بالشيت (ملف المستند في «المستندات») — تعذّرُها لا يُسقط الشيت
+      if (extraLoad) await extraLoad(sb, rows).catch((e) => console.warn('sv extraLoad', e))
+      return rows
     },
     search: (r) => [r.invoice_no, r.request_ref_no, r.client_name, r.worker_name, r.iqama_number, r.worker_phone,
       r.facility_ar, r.unified_number, r.gosi_number, r.hrsd_number, r.agent_name, r.branch_code, r.service_ar,
       ...Object.keys(r).filter((k) => k.startsWith('d_')).map((k) => r[k])],
-    columns: [
-      ...svHeadCols(codes.length > 1),
+    /* «مديونية العامل» آخرُ أعمدة العامل — قبل الرقم الموحّد (كتلة «العامل»، طلب المستخدم 2026-09-26) */
+    columns: svHeadCols(codes.length > 1, !noMoney).flatMap((c) => (dues && c.key === 'unified_number' ? [svDuesCol(), c] : [c])).concat([
       ...(noMoney ? [] : SV_MONEY_COLS),
       ...cols,
-      ...svDoneCols(codes[0]),
+      ...(msgC ? [msgC] : []),
+      ...doneC,
+      // أعمدة عملٍ خاصّة بالشيت قبل «حالة التنفيذ» مباشرةً
+      ...workCols,
       ...svTailCols(acct),
       ...OPS_COLS,
+    ]),
+    /* صفّ الكتل فوق الرؤوس — كشيت «تجديد الإقامات» (`view.bands`؛ طلب المستخدم
+       2026-09-26) لكل شيتات الخدمات معاً. كتلة الإنجاز باسم الشيت كـ`txnBands`؛
+       والمصدر والمتابعة والملاحظات التشغيلية بلا كتلة فيبقى فوقها فراغ. */
+    bands: [
+      { ar: 'الفاتورة', en: 'Invoice', keys: ['invoice_no', 'request_ref_no', 'invoice_at', 'branch_code', 'client_name', 'agent_name', 'inv_state'] },
+      { ar: 'العامل', en: 'Worker', keys: ['worker_name', 'iqama_number', 'worker_phone', 'nationality_ar', 'occupation_ar', 'worker_dues'] },
+      { ar: 'المنشأة', en: 'Establishment', keys: ['unified_number'] },
+      { ar: 'السداد', en: 'Payment', keys: SV_MONEY_COLS.map((c) => c.key) },
+      { ar: 'تفاصيل الخدمة', en: 'Service details', keys: ['service_ar', ...cols.map((c) => c.key)] },
+      { ar, en, keys: [...(msgC ? [msgC.key] : []), ...doneC.map((c) => c.key), ...workCols.map((c) => c.key), SV_ACCT_COL.key, 'sv_state', 'completion_note'] },
+      { ar: 'المعاملة في النظام', en: 'System transaction', keys: ['request_status_ar', 'request_completed_at', 'sv_posted_at'] },
     ],
     _stats: stats || svStats(acct),
   }
 }
-
-const SV_SHEETS = [
-  svSheet({
-    key: 'svc_chamber', codes: ['other'],
-    ar: 'تصديق الغرفة التجارية', en: 'Chamber certification',
-    hintAr: 'طلبات تصديق الغرفة التجارية',
-    hintEn: 'Chamber of commerce certification requests',
-    cols: [
-      svMapCol('chamber_subtype', 'نوع التصديق', 'Type', { printed: 'مطبوعات', open_request: 'طلب مفتوح' }, { printed: 'Printed', open_request: 'Open request' }, { w: 120, sectionStart: true }),
-      svDetCol('chamber_text', 'نصّ الطلب', 'Request text', { w: 240 }),
-      { key: 'd_chamber_file', ar: 'ملف المطبوعات', en: 'Printed file', w: 130, kind: 'link', doc: true, source: 'invoice',
-        linkLabel: 'المطبوعات', linkLabelEn: 'File', get: (r) => docUrl(r.d_chamber_file) },
-    ],
-  }),
-  svSheet({
-    key: 'svc_ajeer', codes: ['ajeer'],
-    ar: 'عقود أجير', en: 'Ajeer contracts',
-    hintAr: 'طلبات عقود أجير',
-    hintEn: 'Ajeer contract requests',
-    cols: [
-      svDetCol('borrower_700', 'الرقم الموحّد للمنشأة المستعيرة', 'Borrower unified no.', { w: 170, kind: 'mono', sectionStart: true }),
-      svDetCol('city_name', 'المدينة', 'City', { w: 120 }),
-      svDetCol('contract_months', 'مدة العقد (أشهر)', 'Contract months', { w: 120, kind: 'num' }),
-    ],
-  }),
-  svSheet({
-    key: 'svc_medical', codes: ['medical_insurance'],
-    ar: 'التأمين الطبي', en: 'Medical insurance',
-    hintAr: 'طلبات التأمين الطبي',
-    hintEn: 'Medical insurance requests',
-    cols: [
-      { key: 'mq_insurance_company', ar: 'شركة التأمين الحالية', en: 'Current insurer', w: 160, kind: 'text', source: 'fetched', sectionStart: true },
-      { key: 'mq_insurance_policy_number', ar: 'البوليصة الحالية', en: 'Current policy', w: 140, kind: 'mono', source: 'fetched' },
-      { key: 'mq_insurance_expiry', ar: 'انتهاء التأمين الحالي', en: 'Current expiry', w: 130, kind: 'date', source: 'fetched', get: (r) => ymd(r.mq_insurance_expiry) },
-    ],
-  }),
-  svSheet({
-    key: 'svc_profession', codes: ['profession_change'], occupations: true,
-    ar: 'تغيير المهنة', en: 'Profession change',
-    hintAr: 'طلبات تغيير المهنة',
-    hintEn: 'Profession change requests',
-    cols: [svDetCol('current_occupation', 'المهنة وقت الطلب', 'Occupation at request', { w: 170, sectionStart: true })],
-  }),
-  svSheet({
-    key: 'svc_ext_transfer', codes: ['external_transfer_approval'], noMoney: true,
-    ar: 'الموافقة للنقل الخارجي', en: 'External transfer approval',
-    hintAr: 'طلبات الموافقة للنقل الخارجي',
-    hintEn: 'External transfer approval requests',
-    cols: [
-      svDetCol('transfer_company_700', 'الرقم الموحّد للشركة المنقول إليها', 'Receiving company unified no.', { w: 190, kind: 'mono', sectionStart: true }),
-      svDetCol('manager_name', 'اسم المدير', 'Manager', { w: 180 }),
-      svDetCol('reason', 'السبب', 'Reason', { w: 240 }),
-    ],
-  }),
-  /* الخروج والعودة والخروج النهائي — شيتان منفصلان (طلب المستخدم 2026-09-24). حلّا محلّ
-     `svc_exit_visas` المحذوف في 09-21 (كان شيتاً واحداً للاثنين). رقم التأشيرة وانتهاؤها
-     ومرفقها تأتي من مدخلات الإنجاز (`DONE_INPUTS`) تلقائياً. */
-  svSheet({
-    key: 'svc_exit_reentry', codes: ['exit_reentry_visa'],
-    ar: 'الخروج والعودة', en: 'Exit / re-entry',
-    hintAr: 'طلبات تأشيرة الخروج والعودة',
-    hintEn: 'Exit / re-entry visa requests',
-    cols: [
-      svMapCol('op_mode', 'العملية', 'Operation', { issue: 'إصدار', extend: 'تمديد' }, { issue: 'Issue', extend: 'Extend' }, { w: 100, sectionStart: true }),
-      svMapCol('exit_type', 'نوع التأشيرة', 'Visa type', { single: 'مفردة', multiple: 'متعددة' }, { single: 'Single', multiple: 'Multiple' }, { w: 110 }),
-      svDetCol('duration_months', 'المدة (أشهر)', 'Duration (months)', { w: 110, kind: 'num' }),
-    ],
-  }),
-  svSheet({
-    key: 'svc_final_exit', codes: ['final_exit_visa'],
-    ar: 'الخروج النهائي', en: 'Final exit',
-    hintAr: 'طلبات تأشيرة الخروج النهائي',
-    hintEn: 'Final exit visa requests',
-    cols: [
-      svMapCol('exit_action', 'العملية', 'Operation', { create: 'إصدار', cancel: 'إلغاء' }, { create: 'Issue', cancel: 'Cancel' }, { w: 100, sectionStart: true }),
-      svDetCol('reason', 'السبب', 'Reason', { w: 240 }),
-    ],
-  }),
-  svSheet({
-    key: 'svc_salary', codes: ['name_translation'],
-    ar: 'تعديل الراتب', en: 'Salary adjustment',
-    hintAr: 'طلبات تعديل الراتب',
-    hintEn: 'Salary change requests',
-    cols: [
-      { key: 'gosi_salary', ar: 'الراتب المسجّل في التأمينات', en: 'GOSI salary', w: 140, kind: 'num', source: 'fetched', sectionStart: true },
-      svDetCol('new_salary', 'الراتب الجديد', 'New salary', { w: 120, kind: 'num' }),
-      svDetCol('salary_months', 'مدة الراتب (أشهر)', 'Salary months', { w: 120, kind: 'num' }),
-      svMapCol('salary_phase', 'مرحلة الراتب', 'Salary phase', { awaiting_return: 'بانتظار إرجاع الراتب', returned: 'أُرجع الراتب' }, { awaiting_return: 'Awaiting return', returned: 'Returned' },
-        { w: 160, bg: (v) => (v === 'أُرجع الراتب' || v === 'Returned' ? 'rgba(46,204,113,.22)' : v ? 'rgba(234,179,8,.25)' : null) }),
-      svDetCol('salary_return_date', 'موعد إرجاع الراتب', 'Return due', { w: 130, kind: 'date', get: (r) => ymd(r.d_salary_return_date) }),
-    ],
-  }),
-  svSheet({
-    key: 'svc_passport', codes: ['passport_update'],
-    ar: 'تحديث بيانات الجواز', en: 'Passport update',
-    hintAr: 'طلبات تحديث بيانات الجواز',
-    hintEn: 'Passport update requests',
-    cols: [
-      { key: 'passport_number', ar: 'رقم الجواز الحالي', en: 'Current passport', w: 130, kind: 'mono', source: 'fetched', sectionStart: true },
-      { key: 'passport_expiry', ar: 'انتهاء الجواز الحالي', en: 'Current expiry', w: 130, kind: 'date', source: 'fetched', get: (r) => ymd(r.passport_expiry) },
-      svMapCol('update_mode', 'نوع التحديث', 'Update type', { extend: 'تمديد', renew: 'تجديد' }, { extend: 'Extend', renew: 'Renew' }, { w: 110 }),
-      svDetCol('new_passport_no', 'رقم الجواز الجديد', 'New passport no.', { w: 130, kind: 'mono' }),
-      svDetCol('new_passport_issue_city_name', 'مدينة الإصدار', 'Issue city', { w: 130 }),
-      svDetCol('new_passport_issue_date', 'تاريخ الإصدار', 'Issue date', { w: 120, kind: 'date', get: (r) => ymd(r.d_new_passport_issue_date) }),
-      svDetCol('new_passport_expiry', 'انتهاء الجواز الجديد', 'New expiry', { w: 130, kind: 'date', get: (r) => ymd(r.d_new_passport_expiry) }),
-    ],
-  }),
-  svSheet({
-    key: 'svc_documents', codes: ['documents'],
-    ar: 'المستندات', en: 'Documents',
-    hintAr: 'طلبات المستندات',
-    hintEn: 'Document requests',
-    cols: [
-      svMapCol('doc_type', 'نوع المستند', 'Document', { commercial_register: 'السجل التجاري', resident_file: 'ملف مقيم' }, { commercial_register: 'Commercial register', resident_file: 'Resident file' }, { w: 140, sectionStart: true }),
-      svMapCol('doc_lang', 'لغة المستند', 'Language', { ar: 'عربي', en: 'إنجليزي' }, { ar: 'Arabic', en: 'English' }, { w: 100 }),
-      { key: 'document_type', ar: 'نوع المستند (الطلب)', en: 'Document type (request)', w: 150, kind: 'text', source: 'invoice', auto: true },
-    ],
-  }),
-]
-const SV_STATS = Object.fromEntries(SV_SHEETS.map((v) => [v.key, v._stats]))
 
 /* ── الشيت الأسبوعي لإصدار الإقامة — الطابور (`iqq_*`) ────────────────────────
    المشكلة التي وُجد لها: مسار «تأشيرة بإقامة» لا يجري على وتيرةٍ واحدة — العميل
@@ -8152,7 +8294,10 @@ const msgFields = (spec) => {
      «السعودة-إدخال»: الفاتورة `sde_invoice` لا `invoice_no`، والبنك من صفّ السعودي). */
   const src = spec.src || {}
   f = [
-    { k: 'purpose', ar: 'غرض السداد', en: 'Purpose', title: true, req: true, get: () => spec.purpose },
+    /* `spec.purpose` دالّةً حين يتبع الغرضُ الصفّ (شيت الغرفة: «تصديق مطبوعات» أو
+       «طلب مفتوح» بنوع التصديق) — ومعها `noSadad` و`noExtra` فلا يُبحث بها في الجداول. */
+    { k: 'purpose', ar: 'غرض السداد', en: 'Purpose', title: true, req: true,
+      get: (r, e) => (typeof spec.purpose === 'function' ? spec.purpose(r, e) : spec.purpose) },
     { sq: true },
     /* `wireOnly`: حوالةٌ بنكيّة دائماً (طلب المستخدم 2026-09-25) — الطريقة سطرٌ
        ثابتٌ في الرسالة لا خيار، وحقولُ الحوالة وحدها تظهر. */
@@ -8193,6 +8338,8 @@ const msgFields = (spec) => {
         if (src === 'unified') return effOf(r, e, 'unified_number') || String((facNumRow(r, e) || {}).unified || '')
         if (src === 'border') return effOf(r, e, 'border_number').replace(/\D/g, '')
         if (src === 'iqama') return effOf(r, e, 'iqama_number').replace(/\D/g, '')
+        // مديونيات المنشأة (شيت تعديل الراتب): رقم تأمينات المنشأة
+        if (src === 'gosi') return effOf(r, e, 'gosi_number').replace(/\D/g, '') || String((facNumRow(r, e) || {}).gosi || '')
         return ''
       } },
     ]),
@@ -8400,6 +8547,153 @@ const msgCol = (spec) => ({
       : 'افتحها لمراجعة حقولها أو تعديلها ثمّ نسخها إلى قروب «طلبات السداد»'
   },
 })
+/* شيتات الخدمات — موضعُها **بعد** محرّك رسالة السداد: أعمدتُها تُبنى عند تحميل
+   الملف وفيها `msgCol`، فلو سبقته لنادته قبل أن يُعرَّف. */
+const SV_SHEETS = [
+  svSheet({
+    key: 'svc_chamber',
+    msg: { purpose: (r) => (r.d_chamber_subtype === 'open_request' ? 'طلب مفتوح' : 'تصديق مطبوعات'), noSadad: true, noExtra: true, noId: true },
+    codes: ['other'],
+    ar: 'تصديق الغرفة', en: 'Chamber certification',
+    hintAr: 'طلبات تصديق الغرفة',
+    hintEn: 'Chamber of commerce certification requests',
+    cols: [
+      svMapCol('chamber_subtype', 'نوع التصديق', 'Type', { printed: 'مطبوعات', open_request: 'طلب مفتوح' }, { printed: 'Printed', open_request: 'Open request' }, { w: 120, sectionStart: true }),
+      svDetCol('chamber_text', 'نصّ الطلب', 'Request text', { w: 240 }),
+      { key: 'd_chamber_file', ar: 'ملف المطبوعات', en: 'Printed file', w: 130, kind: 'link', doc: true, source: 'invoice',
+        linkLabel: 'المطبوعات', linkLabelEn: 'File', get: (r) => docUrl(r.d_chamber_file) },
+    ],
+  }),
+  svSheet({
+    key: 'svc_ajeer',
+    msg: { purpose: 'عقد أجير', idReq: false },
+    codes: ['ajeer'],
+    ar: 'عقود أجير', en: 'Ajeer contracts',
+    hintAr: 'طلبات عقود أجير',
+    hintEn: 'Ajeer contract requests',
+    cols: [
+      svDetCol('borrower_700', 'الرقم الموحّد للمنشأة المستعيرة', 'Borrower unified no.', { w: 170, kind: 'mono', sectionStart: true }),
+      svDetCol('city_name', 'المدينة', 'City', { w: 120 }),
+      svDetCol('contract_months', 'مدة العقد (أشهر)', 'Contract months', { w: 120, kind: 'num' }),
+    ],
+  }),
+  svSheet({
+    key: 'svc_medical',
+    msg: { purpose: 'تأمين طبي', wire: true },
+    codes: ['medical_insurance'],
+    ar: 'التأمين الطبي', en: 'Medical insurance',
+    hintAr: 'طلبات التأمين الطبي',
+    hintEn: 'Medical insurance requests',
+    cols: [
+      { key: 'mq_insurance_company', ar: 'شركة التأمين الحالية', en: 'Current insurer', w: 160, kind: 'text', source: 'fetched', sectionStart: true },
+      { key: 'mq_insurance_policy_number', ar: 'البوليصة الحالية', en: 'Current policy', w: 140, kind: 'mono', source: 'fetched' },
+      { key: 'mq_insurance_expiry', ar: 'انتهاء التأمين الحالي', en: 'Current expiry', w: 130, kind: 'date', source: 'fetched', get: (r) => ymd(r.mq_insurance_expiry) },
+    ],
+  }),
+  svSheet({
+    key: 'svc_profession',
+    msg: { purpose: 'تغيير مهنة' },
+    codes: ['profession_change'], occupations: true,
+    ar: 'تغيير المهنة', en: 'Profession change',
+    hintAr: 'طلبات تغيير المهنة',
+    hintEn: 'Profession change requests',
+    cols: [svDetCol('current_occupation', 'المهنة وقت الطلب', 'Occupation at request', { w: 170, sectionStart: true })],
+  }),
+  svSheet({
+    key: 'svc_ext_transfer',
+    dues: true,
+    msg: { purpose: 'اشتراك قوى', idReq: false },
+    codes: ['external_transfer_approval'], noMoney: true,
+    ar: 'النقل الخارجي', en: 'External transfer',
+    hintAr: 'طلبات النقل الخارجي',
+    hintEn: 'External transfer approval requests',
+    cols: [
+      svDetCol('transfer_company_700', 'الرقم الموحّد للشركة المنقول إليها', 'Receiving company unified no.', { w: 190, kind: 'mono', sectionStart: true }),
+      svDetCol('manager_name', 'اسم المدير', 'Manager', { w: 180 }),
+      svDetCol('reason', 'السبب', 'Reason', { w: 240 }),
+    ],
+  }),
+  /* الخروج والعودة والخروج النهائي — شيتان منفصلان (طلب المستخدم 2026-09-24). حلّا محلّ
+     `svc_exit_visas` المحذوف في 09-21 (كان شيتاً واحداً للاثنين). رقم التأشيرة وانتهاؤها
+     ومرفقها تأتي من مدخلات الإنجاز (`DONE_INPUTS`) تلقائياً. */
+  svSheet({
+    key: 'svc_exit_reentry',
+    dues: true,
+    msg: { purpose: 'إصدار تأشيرة خروج وعودة' },
+    codes: ['exit_reentry_visa'],
+    ar: 'الخروج والعودة', en: 'Exit / re-entry',
+    hintAr: 'طلبات تأشيرة الخروج والعودة',
+    hintEn: 'Exit / re-entry visa requests',
+    cols: [
+      svMapCol('op_mode', 'العملية', 'Operation', { issue: 'إصدار', extend: 'تمديد' }, { issue: 'Issue', extend: 'Extend' }, { w: 100, sectionStart: true }),
+      svMapCol('exit_type', 'نوع التأشيرة', 'Visa type', { single: 'مفردة', multiple: 'متعددة' }, { single: 'Single', multiple: 'Multiple' }, { w: 110 }),
+      svDetCol('duration_months', 'المدة (أشهر)', 'Duration (months)', { w: 110, kind: 'num' }),
+    ],
+  }),
+  svSheet({
+    key: 'svc_final_exit',
+    dues: true,
+    codes: ['final_exit_visa'],
+    ar: 'الخروج النهائي', en: 'Final exit',
+    hintAr: 'طلبات تأشيرة الخروج النهائي',
+    hintEn: 'Final exit visa requests',
+    cols: [
+      svMapCol('exit_action', 'العملية', 'Operation', { create: 'إصدار', cancel: 'إلغاء' }, { create: 'Issue', cancel: 'Cancel' }, { w: 100, sectionStart: true }),
+      svDetCol('reason', 'السبب', 'Reason', { w: 240 }),
+    ],
+  }),
+  svSheet({
+    key: 'svc_salary',
+    msg: { purpose: 'دفع مديونيات منشأة', idReq: false },
+    codes: ['name_translation'],
+    ar: 'تعديل الراتب', en: 'Salary adjustment',
+    hintAr: 'طلبات تعديل الراتب',
+    hintEn: 'Salary change requests',
+    cols: [
+      { key: 'gosi_salary', ar: 'الراتب المسجّل في التأمينات', en: 'GOSI salary', w: 140, kind: 'num', source: 'fetched', sectionStart: true },
+      svDetCol('new_salary', 'الراتب الجديد', 'New salary', { w: 120, kind: 'num' }),
+      svDetCol('salary_months', 'مدة الراتب (أشهر)', 'Salary months', { w: 120, kind: 'num' }),
+      svMapCol('salary_phase', 'مرحلة الراتب', 'Salary phase', { awaiting_return: 'بانتظار إرجاع الراتب', returned: 'أُرجع الراتب' }, { awaiting_return: 'Awaiting return', returned: 'Returned' },
+        { w: 160, bg: (v) => (v === 'أُرجع الراتب' || v === 'Returned' ? 'rgba(46,204,113,.22)' : v ? 'rgba(234,179,8,.25)' : null) }),
+      svDetCol('salary_return_date', 'موعد إرجاع الراتب', 'Return due', { w: 130, kind: 'date', get: (r) => ymd(r.d_salary_return_date) }),
+    ],
+  }),
+  svSheet({
+    key: 'svc_passport',
+    msg: { purpose: 'جوازات' },
+    codes: ['passport_update'],
+    ar: 'تحديث الجواز', en: 'Passport update',
+    hintAr: 'طلبات تحديث الجواز',
+    hintEn: 'Passport update requests',
+    cols: [
+      { key: 'passport_number', ar: 'رقم الجواز الحالي', en: 'Current passport', w: 130, kind: 'mono', source: 'fetched', sectionStart: true },
+      { key: 'passport_expiry', ar: 'انتهاء الجواز الحالي', en: 'Current expiry', w: 130, kind: 'date', source: 'fetched', get: (r) => ymd(r.passport_expiry) },
+      svMapCol('update_mode', 'نوع التحديث', 'Update type', { extend: 'تمديد', renew: 'تجديد' }, { extend: 'Extend', renew: 'Renew' }, { w: 110 }),
+      svDetCol('new_passport_no', 'رقم الجواز الجديد', 'New passport no.', { w: 130, kind: 'mono' }),
+      svDetCol('new_passport_issue_city_name', 'مدينة الإصدار', 'Issue city', { w: 130 }),
+      svDetCol('new_passport_issue_date', 'تاريخ الإصدار', 'Issue date', { w: 120, kind: 'date', get: (r) => ymd(r.d_new_passport_issue_date) }),
+      svDetCol('new_passport_expiry', 'انتهاء الجواز الجديد', 'New expiry', { w: 130, kind: 'date', get: (r) => ymd(r.d_new_passport_expiry) }),
+    ],
+  }),
+  svSheet({
+    key: 'svc_documents',
+    dues: true,
+    codes: ['documents'],
+    stats: svStats(svNeedsAcct('documents'), { noSum: true }),
+    workCols: [DOC_FILE_COL],
+    extraLoad: docLoadSources,
+    ar: 'المستندات', en: 'Documents',
+    hintAr: 'طلبات المستندات',
+    hintEn: 'Document requests',
+    cols: [
+      svMapCol('doc_type', 'نوع المستند', 'Document', { commercial_register: 'السجل التجاري', resident_file: 'ملف مقيم', insurance_policy: 'بوليصة التأمين' }, { commercial_register: 'Commercial register', resident_file: 'Resident file', insurance_policy: 'Insurance policy' }, { w: 140, sectionStart: true }),
+      svMapCol('doc_lang', 'لغة المستند', 'Language', { ar: 'عربي', en: 'إنجليزي' }, { ar: 'Arabic', en: 'English' }, { w: 100 }),
+      { key: 'document_type', ar: 'نوع المستند (الطلب)', en: 'Document type (request)', w: 150, kind: 'text', source: 'invoice', auto: true },
+    ],
+  }),
+]
+const SV_STATS = Object.fromEntries(SV_SHEETS.map((v) => [v.key, v._stats]))
+
 /* قائمةُ بنوك الحوالة — تُملأ مرّةً من المصنَّفات المُدارة (`saudi_banks`) عند
    تحميل أيّ شيتٍ فيه رسالةُ تأمين، فتخدم كلَّ الشيتات. */
 const MSG_REF = { banks: [] }
@@ -8475,7 +8769,7 @@ const WKL_COLS = [
   { key: 'invoice_no', ar: 'رقم الفاتورة', en: 'Invoice no.', w: 115, kind: 'mono', readOnly: true,
     tap: invInfoCard, tapTip: { ar: 'اعرض بطاقة الفاتورة', en: 'Show the invoice card' } },
   { key: 'invoice_at', ar: 'تاريخ الفاتورة', en: 'Invoice date', w: 115, kind: 'date', get: (r) => ymd(r.invoice_at) },
-  branchCol({ key: 'branch_code', ar: 'الفرع', en: 'Branch', w: 150 }),
+  branchCol({ key: 'branch_code', ar: 'المكتب', en: 'Office', w: 150 }),
   { key: 'service_ar', ar: 'الخدمة', en: 'Service', w: 175, kind: 'text' },
   /* العميل بابُ بطاقته (`clientInfoCard`). و`get` لأجل ١١٧ صفاً في الإنتاج
      بلا اسم عميلٍ وله جوال: البطاقة لا تُفتح على خليّةٍ فارغة، فكان إزالةُ عمود
@@ -8749,7 +9043,7 @@ const IQM_COLS_BASE = [
   { key: 'invoice_no', ar: 'رقم الفاتورة', en: 'Invoice no.', w: 115, kind: 'mono', readOnly: true,
     tap: invInfoCard, tapTip: { ar: 'اعرض بطاقة الفاتورة', en: 'Show the invoice card' } },
   { key: 'invoice_at', ar: 'تاريخ الفاتورة', en: 'Invoice date', w: 115, kind: 'date', get: (r) => ymd(r.invoice_at) },
-  branchCol({ key: 'branch_code', ar: 'الفرع', en: 'Branch', w: 150 }),
+  branchCol({ key: 'branch_code', ar: 'المكتب', en: 'Office', w: 150 }),
   { key: 'service_ar', ar: 'الخدمة', en: 'Service', w: 175, kind: 'text' },
   /* العميل بابُ بطاقته (`clientInfoCard`). و`get` لأجل ١١٧ صفاً في الإنتاج
      بلا اسم عميلٍ وله جوال: البطاقة لا تُفتح على خليّةٍ فارغة، فكان إزالةُ عمود
@@ -9352,7 +9646,7 @@ const REN_COLS = [
   { key: 'invoice_no', ar: 'رقم الفاتورة', en: 'Invoice no.', w: 115, kind: 'mono', readOnly: true, sectionStart: true,
     tap: invInfoCard, tapTip: { ar: 'اعرض بطاقة الفاتورة', en: 'Show the invoice card' } },
   { key: 'invoice_at', ar: 'تاريخ الفاتورة', en: 'Invoice date', w: 115, kind: 'date', get: (r) => ymd(r.invoice_at) },
-  branchCol({ key: 'branch_code', ar: 'الفرع', en: 'Branch', w: 150 }),
+  branchCol({ key: 'branch_code', ar: 'المكتب', en: 'Office', w: 150 }),
   { key: 'service_ar', ar: 'الخدمة', en: 'Service', w: 160, kind: 'text' },
   { key: 'client_name', ar: 'العميل', en: 'Client', w: 180, kind: 'text',
     tap: clientInfoCard, tapTip: { ar: 'اعرض بيانات العميل (الجوال · الهوية)', en: 'Show client details (mobile · ID)' },
@@ -9698,40 +9992,104 @@ const VIEWS = [
          لأن سحبها تمّ عبر مسار آخر (الموارد · طلباتي · ملفات طلباتي)، و55 منها
          منشآت تأمينات-فقط بلا سجل تجاري أصلاً فختمها في gosi_establishments.
          نأخذ أحدث ختم عبر كل هذه المسارات → تغطية 1184/1185. */
-      const [src, gosi, crDocs] = await Promise.all([
+      const [src, gosi, crDocs, persons, subs, sysFacs] = await Promise.all([
         fetchAll(sb, 'sbc_facilities',
           'id,entity_full_name_ar,entity_full_name_en,cr_national_number,cr_status_ar,headquarter_city_ar,gosi_registration_number,hrsd_labor_office_id,hrsd_sequence_number,zakat_tax_number,coc_chamber_number,spl_national_address_id,last_synced_at,hrsd_synced_at,requests_synced_at,requests_files_synced_at',
           (q) => q.order('entity_full_name_ar', { nullsFirst: false })),
         fetchAll(sb, 'gosi_establishments', 'registration_no,synced_at'),
         listCrCertificates(sb),
+        // أسماء الأشخاص (أصحاب الحسابات) — قائمة «المفوّض» في التأمينات والموارد
+        fetchAll(sb, 'sync_persons', 'name_ar,name_en,color').catch(() => []),
+        /* المفوّض = الشخص الذي زامن المنشأة من حسابه — نفس «الشخص» في «الاشتراكات»
+           (طلب المستخدم 2026-09-26): مزامنة التأمينات ومزامنة قوى */
+        fetchAll(sb, 'v_ops_subscriptions', 'unified_number,gosi_number,gosi_sync_person,gosi_sync_color,qiwa_sync_person,qiwa_sync_color').catch(() => []),
+        // منشآت النظام التي لم تصلها المزامنة بعد (ومنها المُضافة من هنا) — صلاحيةٌ ناقصة لا تُسقط الشيت
+        fetchAll(sb, 'facilities', 'id,name_ar,name_en,unified_number,gosi_number,hrsd_number,sbc_facility_id',
+          (q) => q.is('deleted_at', null)).catch(() => []),
       ])
+      COMP_REF.persons = [...new Set((persons || []).map((x) => String(x.name_ar || x.name_en || '').trim()).filter(Boolean))]
+        .sort((a, b) => a.localeCompare(b, 'ar'))
+      COMP_REF.colors = new Map((persons || []).map((x) => [String(x.name_ar || x.name_en || '').trim(), x.color || '']))
+      const subBy = new Map()
+      for (const r of (subs || [])) {
+        if (!r.gosi_sync_person && !r.qiwa_sync_person) continue
+        for (const k of [r.unified_number, r.gosi_number]) { const key = facNumKey(k); if (key && !subBy.has(key)) subBy.set(key, r) }
+      }
+      const subOf = (...nums) => { for (const v of nums) { const k = facNumKey(v); if (k && subBy.has(k)) return subBy.get(k) } return null }
       const gSync = new Map()
       for (const g of gosi) {
         if (!g.synced_at) continue
         const k = String(g.registration_no)
         if (maxDate(gSync.get(k), g.synced_at) === g.synced_at) gSync.set(k, g.synced_at)
       }
-      return src.map((r) => ({
+      const synced = src.map((r) => ({
         ...r, _id: r.id,
         _last_sync: maxDate(r.last_synced_at, r.hrsd_synced_at, r.requests_synced_at,
           r.requests_files_synced_at, gSync.get(String(r.gosi_registration_number))),
         _cr_doc: crDocs.get(String(r.cr_national_number)) || '',
+        _sub: subOf(r.cr_national_number, r.gosi_registration_number),
       }))
+      /* منشأةٌ في النظام بلا سجلٍّ مُزامَن (لا رقمُها الموحّد ولا ربطُها في المزامنة) تظهر
+         صفّاً بمفتاح `fac:<id>` — وعليه تُحفظ خانات النوع والمفوّضين. ووثيقتُها مرفقُ
+         المنشأة `commercial_registration` إن لم تكن لها شهادةٌ مُزامَنة. */
+      const sbcIds = new Set(src.map((r) => String(r.id)))
+      const sbcUni = new Set(src.map((r) => String(r.cr_national_number || '')).filter(Boolean))
+      const extra = (sysFacs || []).filter((f) => !(f.sbc_facility_id && sbcIds.has(String(f.sbc_facility_id)))
+        && !(f.unified_number && sbcUni.has(String(f.unified_number))))
+      let facDocs = new Map()
+      if (extra.length) {
+        const { data: att } = await sb.from('attachments').select('entity_id,file_url,created_at')
+          .eq('entity_type', 'facility').eq('notes', 'commercial_registration').is('deleted_at', null)
+          .in('entity_id', extra.map((f) => f.id)).order('created_at', { ascending: false })
+        for (const a of (att || [])) if (!facDocs.has(a.entity_id)) facDocs.set(a.entity_id, a.file_url)
+      }
+      return [...synced, ...extra.map((f) => ({
+        id: 'fac:' + f.id, _id: 'fac:' + f.id, _sys_fac: f.id,
+        entity_full_name_ar: f.name_ar || '', entity_full_name_en: f.name_en || '',
+        cr_national_number: f.unified_number || '', gosi_registration_number: f.gosi_number || '',
+        _hrsd_txt: f.hrsd_number || '', _last_sync: null,
+        _cr_doc: crDocs.get(String(f.unified_number || '')) || facDocs.get(f.id) || '',
+        _sub: subOf(f.unified_number, f.gosi_number),
+      }))]
     },
     search: (r) => [r.entity_full_name_ar, r.entity_full_name_en, r.cr_national_number],
+    /* نافذة «إضافة صف» (طلب المستخدم 2026-09-26): نوع المنشأة ← الاسم ← الموحّد ←
+       التأمينات (ومفوّضها للمؤسسة وحدها) ← الموارد ومفوّض قوى ← وثيقة السجل التجاري.
+       المفوّض من أسماء الأشخاص (أصحاب الحسابات في `sync_persons`). */
     addFields: [
-      { key: 'entity_full_name_ar', ar: 'الاسم', en: 'Name', required: true },
+      { key: 'entity_kind', ar: 'نوع المنشأة', en: 'Entity type', required: true, options: COMP_KINDS },
+      { key: 'entity_full_name_ar', ar: 'اسم المنشأة', en: 'Facility name', required: true },
       { key: 'cr_national_number', ar: 'الرقم الموحّد', en: 'Unified no.' },
+      { key: 'cr_document', ar: 'وثيقة السجل التجاري', en: 'CR document', kind: 'file' },
+      { key: 'gosi_registration_number', ar: 'التأمينات', en: 'GOSI no.', step: 2 },
+      { key: 'gosi_delegate', ar: 'المفوّض في التأمينات', en: 'GOSI delegate', options: () => COMP_REF.persons, step: 2,
+        when: (f) => f.entity_kind === 'مؤسسة' },
+      { key: 'hrsd_number', ar: 'الموارد', en: 'HRSD no.', step: 2 },
+      { key: 'hrsd_delegate', ar: 'المفوّض في قوى', en: 'Qiwa delegate', options: () => COMP_REF.persons, step: 2 },
     ],
+    // خطوتان بلا تمرير (طلب المستخدم 2026-09-26): المنشأة ثم التأمينات والموارد
+    addNext: () => true,
+    addCustom: compAddFacility,
+    addLabel: { ar: 'منشأة', en: 'Facility', titleAr: 'إضافة منشأة', titleEn: 'Add facility', subAr: 'تُنشأ المنشأة في النظام', subEn: 'Creates the facility in the system' },
+    addStepLabels: { 1: { ar: 'بيانات المنشأة', en: 'Facility' }, 2: { ar: 'التأمينات والموارد', en: 'GOSI & HRSD' } },
     columns: [
+      // نوع المنشأة والمفوّضان: خانات تُختار (`ops`) — تُملأ من الإضافة، وتُكمَل يدوياً للمُزامَنة
+      { key: 'entity_kind', ar: 'نوع المنشأة', en: 'Entity type', w: 110, kind: 'text', ops: true, select: true, options: () => COMP_KINDS },
       { key: 'entity_full_name_ar', ar: 'اسم المنشأة', en: 'Facility', w: 280, kind: 'text', manual: true, get: (r, isAr) => (isAr ? r.entity_full_name_ar : (r.entity_full_name_en || r.entity_full_name_ar)) || '' },
       { key: 'cr_national_number', ar: 'الرقم الموحّد', en: 'Unified no.', w: 140, kind: 'mono', manual: true, ...SR_NUM_UNIFIED },
       { key: 'headquarter_city_ar', ar: 'المدينة', en: 'City', w: 120, kind: 'text' },
       { key: 'gosi_registration_number', ar: 'رقم التأمينات', en: 'GOSI no.', w: 130, kind: 'mono' },
-      { key: 'hrsd_number', ar: 'رقم الموارد البشرية', en: 'HRSD no.', w: 150, kind: 'mono', get: (r) => (r.hrsd_labor_office_id != null && r.hrsd_sequence_number) ? `${r.hrsd_labor_office_id}-${r.hrsd_sequence_number}` : '' },
+      /* المفوّضان: الشخص الذي زامن من حسابه (كـ«الاشتراكات») بلونه، وما اختير يدوياً يسبقه
+         (منشأةٌ أُضيفت ولم تُزامَن بعد) */
+      { key: 'gosi_delegate', ar: 'المفوّض في التأمينات', en: 'GOSI delegate', w: 140, kind: 'text', ops: true, select: true, options: () => COMP_REF.persons,
+        get: (r) => (r._sub && r._sub.gosi_sync_person) || '', bg: (v, r) => compPersonBg(v, r, 'gosi') },
+      { key: 'hrsd_number', ar: 'رقم الموارد البشرية', en: 'HRSD no.', w: 150, kind: 'mono', get: (r) => (r.hrsd_labor_office_id != null && r.hrsd_sequence_number) ? `${r.hrsd_labor_office_id}-${r.hrsd_sequence_number}` : (r._hrsd_txt || '') },
+      { key: 'hrsd_delegate', ar: 'المفوّض في قوى', en: 'Qiwa delegate', w: 140, kind: 'text', ops: true, select: true, options: () => COMP_REF.persons,
+        get: (r) => (r._sub && r._sub.qiwa_sync_person) || '', bg: (v, r) => compPersonBg(v, r, 'qiwa') },
       { key: 'zakat_tax_number', ar: 'الرقم المميز', en: 'VAT no.', w: 150, kind: 'mono' },
       { key: 'coc_chamber_number', ar: 'رقم الغرفة', en: 'Chamber no.', w: 130, kind: 'mono' },
       { key: 'spl_national_address_id', ar: 'رقم سبل', en: 'SPL no.', w: 140, kind: 'mono' },
+      // الصفّ المضاف يدوياً يحمل وثيقته المرفوعة في النافذة (`_ops.cr_document` تسبق المُزامَن)
       { key: 'cr_document', ar: 'مرفق السجل التجاري', en: 'CR document', w: 160, kind: 'link', doc: true,
         linkLabel: 'السجل التجاري', linkLabelEn: 'CR', get: (r) => r._cr_doc || '' },
       { key: 'last_synced_at', ar: 'آخر مزامنة', en: 'Last sync', w: 130, kind: 'date', get: (r) => ymd(r._last_sync) },
@@ -10053,7 +10411,7 @@ const VIEWS = [
       { key: 'client_name', ar: 'العميل', en: 'Client', w: 200, kind: 'text' },
       { key: 'facility_ar', ar: 'المنشأة', en: 'Facility', w: 200, kind: 'text' },
       { key: 'request_ref_no', ar: 'رقم الطلب', en: 'Request no.', w: 130, kind: 'mono' },
-      branchCol({ key: 'branch_code', ar: 'الفرع', en: 'Branch', w: 150 }),
+      branchCol({ key: 'branch_code', ar: 'المكتب', en: 'Office', w: 150 }),
       { key: 'total_amount', ar: 'الإجمالي', en: 'Total', w: 110, kind: 'num' },
       { key: 'service_amount', ar: 'قيمة الخدمة', en: 'Service amt', w: 110, kind: 'num' },
       { key: 'vat_amount', ar: 'الضريبة', en: 'VAT', w: 100, kind: 'num' },
@@ -10112,7 +10470,7 @@ const VIEWS = [
     search: (r) => [r.invoice_no, r.agent_name, r.agent_phone, r.agent_id_number, r.client_name,
       r.facility_ar, r.service_ar, r.request_ref_no, r.invoice_month, r.unified_number],
     columns: [
-      branchCol({ key: 'branch_code', ar: 'الفرع', en: 'Branch', w: 150 }),
+      branchCol({ key: 'branch_code', ar: 'المكتب', en: 'Office', w: 150 }),
       // الرقم بابٌ إلى فاتورته كما في بقيّة الشيتات (`_id` هنا هو معرّفها)
       { key: 'invoice_no', ar: 'رقم الفاتورة', en: 'Invoice no.', w: 120, kind: 'mono', readOnly: true,
         tap: invInfoCard, tapTip: { ar: 'اعرض بطاقة الفاتورة', en: 'Show the invoice card' } },
@@ -10238,7 +10596,7 @@ const VIEWS = [
       r._visa && r._visa.b, r._visa && r._visa.vn],
     columns: [
       { key: 'invoice_at', ar: 'التاريخ', en: 'Date', w: 115, kind: 'date', get: (r) => ymd(r.invoice_at) },
-      branchCol({ key: 'branch_code', ar: 'الفرع', en: 'Branch', w: 150 }),
+      branchCol({ key: 'branch_code', ar: 'المكتب', en: 'Office', w: 150 }),
       { key: 'invoice_no', ar: 'رقم الفاتورة', en: 'Invoice no.', w: 120, kind: 'mono', readOnly: true,
         tap: invInfoCard, tapTip: { ar: 'اعرض بطاقة الفاتورة', en: 'Show the invoice card' } },
       /* الفاتورة في خليّة واحدة مرسومة (`kind:'pay'`) كما في شيت نقل الكفالة:
@@ -10541,7 +10899,7 @@ const VIEWS = [
       personBgCol('gosi_sync_person', 'مزامنة التأمينات — الحساب', 'GOSI synced by', 'gosi_sync_color'),
       { key: 'gosi_synced_at', ar: 'آخر مزامنة', en: 'Last sync', w: 120, kind: 'date', get: (r) => ymd(r.gosi_synced_at) },
       { key: 'hrsd_number', ar: 'الموارد', en: 'HRSD', w: 120, kind: 'mono' },
-      branchCol({ key: 'facility_branches', ar: 'الفرع', en: 'Branch', w: 150 }),
+      branchCol({ key: 'facility_branches', ar: 'المكتب', en: 'Office', w: 150 }),
       // نفس مصدر «موظفو المنشأة — غير سعوديين» في عرض السعودة
       { key: 'est_emp_non', ar: 'المنشأة - أجنبي', en: 'Estab. — foreign', w: 120, kind: 'num' },
 
@@ -10742,7 +11100,7 @@ const VIEWS = [
       { key: 'invoice_no', ar: 'رقم الفاتورة', en: 'Invoice no.', w: 115, kind: 'mono', readOnly: true,
         tap: invInfoCard, tapTip: { ar: 'اعرض بطاقة الفاتورة', en: 'Show the invoice card' } },
       { key: 'invoice_at', ar: 'تاريخ الفاتورة', en: 'Invoice date', w: 115, kind: 'date', get: (r) => ymd(r.invoice_at) },
-      branchCol({ key: 'branch_code', ar: 'الفرع', en: 'Branch', w: 150 }),
+      branchCol({ key: 'branch_code', ar: 'المكتب', en: 'Office', w: 150 }),
       { key: 'service_ar', ar: 'الخدمة', en: 'Service', w: 175, kind: 'text' },
       /* كمية الفاتورة — عدد تأشيراتها في الشيت (`wvQty`) لا العدّاد المخزَّن.
          قيمةُ الفاتورة كلها فتُدمج مع كتلتها كبقية أعمدتها. */
@@ -11304,7 +11662,7 @@ const VIEWS = [
       { key: 'invoice_no', ar: 'رقم الفاتورة', en: 'Invoice no.', w: 115, kind: 'mono', readOnly: true,
         tap: invInfoCard, tapTip: { ar: 'اعرض بطاقة الفاتورة', en: 'Show the invoice card' } },
       { key: 'invoice_at', ar: 'تاريخ الفاتورة', en: 'Invoice date', w: 115, kind: 'date', get: (r) => ymd(r.invoice_at) },
-      branchCol({ key: 'branch_code', ar: 'الفرع', en: 'Branch', w: 150 }),
+      branchCol({ key: 'branch_code', ar: 'المكتب', en: 'Office', w: 150 }),
       { key: 'service_ar', ar: 'الخدمة', en: 'Service', w: 175, kind: 'text' },
       /* العميل بابُ بطاقته (`clientInfoCard`). و`get` لأجل ١١٧ صفاً في الإنتاج
          بلا اسم عميلٍ وله جوال: البطاقة لا تُفتح على خليّةٍ فارغة، فكان إزالةُ عمود
@@ -11459,7 +11817,7 @@ const VIEWS = [
       { key: 'invoice_no', ar: 'رقم الفاتورة', en: 'Invoice no.', w: 115, kind: 'mono', readOnly: true, sectionStart: true,
         tap: invInfoCard, tapTip: { ar: 'اعرض بطاقة الفاتورة', en: 'Show the invoice card' } },
       { key: 'invoice_at', ar: 'تاريخ الفاتورة', en: 'Invoice date', w: 115, kind: 'date', get: (r) => ymd(r.invoice_at) },
-      branchCol({ key: 'branch_code', ar: 'الفرع', en: 'Branch', w: 150 }),
+      branchCol({ key: 'branch_code', ar: 'المكتب', en: 'Office', w: 150 }),
       { key: 'service_ar', ar: 'الخدمة', en: 'Service', w: 175, kind: 'text' },
       { key: 'client_name', ar: 'العميل', en: 'Client', w: 180, kind: 'text',
         tap: clientInfoCard, tapTip: { ar: 'اعرض بيانات العميل (الجوال · الهوية)', en: 'Show client details (mobile · ID)' },
@@ -11737,7 +12095,7 @@ const VIEWS = [
       { key: 'invoice_no', ar: 'رقم الفاتورة', en: 'Invoice no.', w: 110, kind: 'mono', readOnly: true,
         tap: invInfoCard, tapTip: { ar: 'اعرض بطاقة الفاتورة', en: 'Show the invoice card' } },
       { key: 'invoice_at', ar: 'تاريخ الفاتورة', en: 'Invoice date', w: 115, kind: 'date', get: (r) => ymd(r.invoice_at) },
-      branchCol({ key: 'branch_code', ar: 'الفرع', en: 'Branch', w: 150 }),
+      branchCol({ key: 'branch_code', ar: 'المكتب', en: 'Office', w: 150 }),
       /* المنشأة وأرقامها مصدرها **سجلّ المنشآت** لا الحسبة ولا الفاتورة، فلها
          نقطتها السماوية في دليل المصادر. الترتيب المعتاد: الموحّد ← التأمينات ←
          الموارد. وتفرغ حيث لا منشأة مرتبطة بالطلب (263 صفاً من 820) — فتُكتب
@@ -12462,7 +12820,7 @@ const VIEWS = [
           return isAr2 === false ? `Pulled by: ${who}` : `استدعاه: ${who}` } },
       /* الفرع رمزاً واسماً مستعاراً بلون المكتب — كعمود الفرع في «تجديد الإقامات»
          (`branchCol`؛ طلب المستخدم 2026-09-25). الرمز من فاتورة الصفّ. */
-      { key: 'sde_branch', ar: 'فرع المكتب', en: 'Office branch', w: 150, kind: 'text', source: 'invoice', auto: true,
+      { key: 'sde_branch', ar: 'المكتب', en: 'Office', w: 150, kind: 'text', source: 'invoice', auto: true,
         get: (r, isAr, p) => srBranchText((sdeInvOf(ev(r, 'sde_invoice', p))?.branch_code) || ''),
         bg: (v) => srBranchBg(branchKey(v)), bgOverCancel: true, fg: () => 'var(--tx)' },
       /* ④ نطاق المنشأة من قوى — قراءتان أسبوعيتان بخلفية بلون النطاق:
@@ -13207,7 +13565,7 @@ const VIEWS = [
       /* الفرع باسمه مع رمزه: هو المكتب صاحب الطلب، ومنه يُعرف حساب السداد.
          ولكل مكتب لون خلفية ثابت — الجدول يجمع المكاتب كلها، والعين تفرزها
          باللون أسرع من قراءة الرمز في كل صفّ. */
-      { key: 'sr_inv_branch', ar: 'فرع الفاتورة', en: 'Invoice branch', w: 200, kind: 'text', auto: true, source: 'invoice',
+      { key: 'sr_inv_branch', ar: 'مكتب الفاتورة', en: 'Invoice office', w: 200, kind: 'text', auto: true, source: 'invoice',
         get: (r) => srBranchText(srInvWf(r, 'branch_code', 'branch_code')),
         bg: (v, r) => srBranchBg(srInvWf(r, 'branch_code', 'branch_code')), bgOverCancel: true,
         /* النصّ بلون النصّ الكامل دائماً: العمود هويّةُ مكتبٍ لا حكمٌ عليه، فلا
@@ -13456,7 +13814,7 @@ const VIEWS = [
         tap: facInfoCard, tapTip: { ar: 'اعرض بيانات المنشأة (الاسم · التأمينات · الموارد)', en: 'Show facility details (name · GOSI · HRSD)' } },
       /* الفرع المسؤول عن متابعة الرخصة: يُقترح من فرع المنشأة ويبقى **قابلاً
          للاختيار** — قد تتابعها إدارةٌ أخرى. والخيار سطرٌ واحد بالرمز والاسم. */
-      { key: 'bl_branch', ar: 'الفرع', en: 'Branch', w: 185, kind: 'text', ops: true, filled: true,
+      { key: 'bl_branch', ar: 'المكتب', en: 'Office', w: 185, kind: 'text', ops: true, filled: true,
         select: true, options: () => SR_REF.branches, optLabel: srBranchText,
         get: (r) => r.branch_code || '',
         bg: (v, r) => srBranchBg(((r._ops || {}).bl_branch) || r.branch_code), bgOverCancel: true,
@@ -14605,6 +14963,50 @@ function CellSelect({ value, options, onChange, disabled, optBg, optLabel }) {
    الخادم بالاسم أو الموحّد أو الموارد أو التأمينات أو السجل — لا ترشيحٌ لقائمةٍ
    محمَّلة (انظر علّة المنتقيات في ServiceRequestPage). القيمة = رقم الموارد،
    مفتاحُ المنشأة في «السعودة-إدخال»؛ فالمنشأة بلا رقم موارد تُعرض ولا تُختار. */
+/* حقل ملفٍّ في نافذة «إضافة صف» (`addFields` بـ`kind:'file'`): يُرفع الملف فوراً لبكت
+   المرفقات — كرفع خليّة الملف (`uploadCellFile`) — وقيمةُ الحقل رابطُه العام. */
+function AddFileField({ sb, isAr, viewKey, value, onChange, toast }) {
+  const inRef = useRef(null)
+  const [busy, setBusy] = useState(false)
+  const pick = async (file) => {
+    if (!sb || !file) return
+    setBusy(true)
+    try {
+      const safe = (file.name || 'file').replace(/[^\w.\-]+/g, '_')
+      const path = `ops_sheets/${viewKey}/new/${Date.now()}_${Math.random().toString(36).slice(2, 8)}_${safe}`
+      const { error } = await sb.storage.from('attachments').upload(path, file, { cacheControl: '3600', upsert: false })
+      if (error) throw error
+      onChange(sb.storage.from('attachments').getPublicUrl(path).data?.publicUrl || path)
+    } catch (e) { toast && toast((isAr ? 'تعذّر رفع الملف: ' : 'Upload failed: ') + (e?.message || e), 'error') }
+    finally { setBusy(false) }
+  }
+  const chip = { display: 'inline-flex', alignItems: 'center', gap: 6, height: 38, padding: '0 14px', borderRadius: 10,
+    fontFamily: F, fontSize: 12.5, fontWeight: 600, border: '1px solid', cursor: 'pointer', maxWidth: '100%', overflow: 'hidden' }
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <input ref={inRef} type="file" style={{ display: 'none' }}
+        onChange={(e) => { const f = e.target.files && e.target.files[0]; e.target.value = ''; if (f) pick(f) }} />
+      {value ? (
+        <>
+          <a href={value} target="_blank" rel="noreferrer"
+            style={{ ...chip, color: '#2ecc71', borderColor: 'rgba(46,204,113,.45)', background: 'rgba(46,204,113,.12)', textDecoration: 'none' }}>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{fileNameOf(value) || (isAr ? 'الملف' : 'File')}</span>
+            <span aria-hidden>📎</span>
+          </a>
+          <button type="button" onClick={() => inRef.current && inRef.current.click()} title={isAr ? 'استبدال' : 'Replace'}
+            style={{ ...chip, color: C.gold, borderColor: 'rgba(176,125,0,.45)', background: 'transparent' }}>⇧</button>
+          <button type="button" onClick={() => onChange('')} title={isAr ? 'إزالة' : 'Remove'}
+            style={{ ...chip, color: 'var(--tx4)', borderColor: 'var(--bd)', background: 'transparent' }}>✕</button>
+        </>
+      ) : (
+        <button type="button" disabled={busy} onClick={() => inRef.current && inRef.current.click()}
+          style={{ ...chip, color: C.gold, borderColor: 'rgba(176,125,0,.45)', background: 'rgba(176,125,0,.10)' }}>
+          {busy ? (isAr ? '… جارٍ الرفع' : '… uploading') : (isAr ? 'رفع ملف ⇧' : 'Upload file ⇧')}
+        </button>
+      )}
+    </div>
+  )
+}
 function AddFacPick({ sb, value, onChange, isAr, autoFocus }) {
   const [q, setQ] = useState('')
   const [hits, setHits] = useState(null)
@@ -15703,6 +16105,12 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
   const addHasStep2 = (view.addFields || []).some((f) => f.step === 2)
   const addGoNext = addStep === 1 && addHasStep2 && !!(view.addNext && view.addNext(addForm))
   const addFieldsNow = (view.addFields || []).filter((f) => (f.step || 1) === (addHasStep2 ? addStep : 1) && (!f.when || f.when(addForm)))
+  /* الانتقال للخطوة الثانية بعد إلزاميّ الأولى — وإلا عُرف النقصُ عند «إضافة» وصاحبُه في خطوةٍ خلفه */
+  const addNextStep = () => {
+    const miss = addFieldsNow.find((f) => f.required && !String(addForm[f.key] || '').trim())
+    if (miss) { toast && toast(T(`${miss.ar} مطلوب`, `${miss.en} required`), 'error'); return }
+    setAddStep(2)
+  }
   const [ctx, setCtx] = useState(null)            // { x, y, rowId }
   const [selRows, setSelRows] = useState(() => new Set())   // تحديد صفوف متعدد (عبر عمود الترقيم)
   const selAnchorRef = useRef(null)               // مرساة تحديد الصفوف (لـShift)
@@ -17616,6 +18024,8 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
        رقم الموارد مثلاً) فيُولد الصفّ مشوّهاً ولا يُكتشف إلا بعد الحفظ. */
     const data = {}
     for (const f of (view.addFields || [])) {
+      // حقلٌ مخفيّ بشرطه (`when`) لا يُحفظ — مفوّض التأمينات بعد تبديل النوع إلى «شركة»
+      if (f.when && !f.when(addForm)) continue
       let v = String(addForm[f.key] || '').trim(); if (!v) continue
       const c = colDefs.get(f.key)
       if (c && c.coerce) v = c.coerce(v)
@@ -19949,6 +20359,8 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
                           ) : col.kind === 'file' ? (
                             <FileCell url={raw} isAr={isAr} canEdit={editable} onView={setFileView} label={isAr ? col.ar : col.en}
                               tip={cellStamp(row, col, isAr)}
+                              /* ملفٌّ مجلوب (`col.replaceable`): يُستبدَل، والإزالةُ لما رُفع في الشيت وحده */
+                              replace={!!col.replaceable} canClear={!col.replaceable || !!(row._ops && row._ops[col.key])}
                               busy={fileBusy === `${row._id}|${col.key}`}
                               onPick={(f) => uploadCellFile(row, col, f)}
                               /* عمودٌ ملفُّه في مصدره (`col.upload`) يُمحى من مصدره أيضاً — لا بتجاوزٍ فارغ في الشيت */
@@ -20017,7 +20429,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
                                     الطبقة `pointerEvents:none` كي تمرّ النقرة للخليّة تحتها —
                                     فكان الرقم يُفتح في فاتورة التأشيرة الواحدة ولا يُفتح في
                                     غيرها. فالنصُّ وحده يستعيد الضغط، والفراغُ حوله يبقى للخليّة. */}
-                                {col.tap && disp !== '' ? (
+                                {col.tap && disp !== '' && (!col.tapIf || col.tapIf(row)) ? (
                                   <span onMouseDown={(e) => e.stopPropagation()}
                                     onClick={(e) => { e.stopPropagation(); openTapCard(col, row) }}
                                     title={col.tapTip ? (isAr ? col.tapTip.ar : col.tapTip.en) : T('اعرض التفاصيل', 'Show details')}
@@ -20034,7 +20446,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
                                     **النصّ** لا على أيقونةٍ صغيرة — والتحرير سالم:
                                     الشبكة لا تُحرّر إلا بنقرةٍ مزدوجة (أو F2/كتابة)
                                     والنقرة المزدوجة تصل الخليّة كما كانت. */}
-                                {col.tap && !isEd && disp !== '' ? (
+                                {col.tap && !isEd && disp !== '' && (!col.tapIf || col.tapIf(row)) ? (
                                   <span onMouseDown={(e) => e.stopPropagation()}
                                     onClick={(e) => { e.stopPropagation(); openTapCard(col, row) }}
                                     title={col.tapTip ? (isAr ? col.tapTip.ar : col.tapTip.en) : T('اعرض التفاصيل', 'Show details')}
@@ -20764,6 +21176,13 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
                 color: C.gold2, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span>{isAr ? f.ar : f.en}</span>
                 <span aria-hidden style={{ flex: 1, height: 1, background: 'var(--bd)' }} />
+                {f.openId && (
+                  <button type="button" onClick={() => { tapTokRef.current++; setTapInfo(null); goInvoice(f.openId) }}
+                    style={{ padding: '2px 10px', borderRadius: 999, cursor: 'pointer', fontFamily: F, fontSize: 11, fontWeight: 600,
+                      border: '1px solid rgba(176,125,0,.35)', background: 'rgba(176,125,0,.10)', color: C.gold2 }}>
+                    {T('فتح الفاتورة ↗', 'Open invoice ↗')}
+                  </button>
+                )}
               </div>
             )
             const v = ((!isAr && f.vEn) ? f.vEn : f.v) || ''
@@ -21588,12 +22007,13 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
             ? <ActionButton variant="ghost" dir="fwd" Icon={isAr ? ChevronRight : ChevronLeft} onClick={() => setAddStep(1)}>{T('رجوع', 'Back')}</ActionButton>
             : null}
           footer={addGoNext
-            ? <ActionButton Icon={isAr ? ChevronLeft : ChevronRight} onClick={() => setAddStep(2)}>{T('التالي', 'Next')}</ActionButton>
+            ? <ActionButton Icon={isAr ? ChevronLeft : ChevronRight} onClick={addNextStep}>{T('التالي', 'Next')}</ActionButton>
             : <ActionButton Icon={Save} disabled={busy} onClick={addPerson}>{busy ? T('...', '...') : T('إضافة', 'Add')}</ActionButton>}>
           {/* الحقول داخل بطاقةٍ معنونة كنوافذ البرنامج (مرجعها «تسجيل دفعة»):
               حقلٌ عارٍ وسط نافذةٍ بيضاء يبدو نصف مصمَّم. */}
           <ModalSection Icon={addStep === 2 ? Building2 : (view.addCustom ? FileInput : Plus)}
-            label={addStep === 2 ? T('بلا فاتورة', 'No invoice') : (view.addCustom ? T('الفاتورة', 'Invoice') : T('بيانات الصف', 'Row data'))} style={{ marginTop: 14 }}>
+            label={(view.addStepLabels && view.addStepLabels[addStep]) ? T(view.addStepLabels[addStep].ar, view.addStepLabels[addStep].en)
+              : addStep === 2 ? T('بلا فاتورة', 'No invoice') : (view.addCustom ? T('الفاتورة', 'Invoice') : T('بيانات الصف', 'Row data'))} style={{ marginTop: 14 }}>
             {/* `f.step`: خطوة الحقل (١ افتراضاً) · `f.when(form)`: إظهارٌ بحسب غيره ·
                 `f.options`: قائمة اختيار · `f.kind === 'facility'`: منتقي منشأة */}
             {addFieldsNow.map((f, i) => (
@@ -21602,9 +22022,16 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
                 {f.kind === 'facility' ? (
                   <AddFacPick sb={sb} isAr={isAr} value={addForm[f.key] || ''} autoFocus={i === 0}
                     onChange={(v) => setAddForm((s) => ({ ...s, [f.key]: v }))} />
+                ) : f.kind === 'file' ? (
+                  /* ملفٌّ يُرفع مع الصفّ (وثيقة السجل التجاري في «الرئيسية») — يُرفع فوراً
+                     لبكت المرفقات ويُحفظ رابطُه قيمةً للحقل كخليّة الملف */
+                  <AddFileField sb={sb} isAr={isAr} viewKey={viewKey} value={addForm[f.key] || ''}
+                    onChange={(v) => setAddForm((s) => ({ ...s, [f.key]: v }))} toast={toast} />
                 ) : f.options ? (
-                  /* قائمة البرنامج الموحّدة (FormKit) لا `<select>` المتصفّح */
-                  <Dropdown value={addForm[f.key] || ''} options={f.options} searchable={f.options.length > 5}
+                  /* قائمة البرنامج الموحّدة (FormKit) لا `<select>` المتصفّح.
+                     `options` دالّةً حين تُجلب القائمة مع الشيت (أسماء الأشخاص) */
+                  <Dropdown value={addForm[f.key] || ''} options={typeof f.options === 'function' ? f.options(addForm) : f.options}
+                    searchable={(typeof f.options === 'function' ? f.options(addForm) : f.options).length > 5}
                     getLabel={(o) => (isAr ? o : optText(o, false))} placeholder={T('اختر…', 'Choose…')}
                     sheetTitle={isAr ? f.ar : f.en}
                     onChange={(v) => setAddForm((s) => ({ ...s, [f.key]: v }))} />
@@ -21613,7 +22040,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
                   value={addForm[f.key] || ''} onChange={(e) => setAddForm((s) => ({ ...s, [f.key]: e.target.value }))}
                   dir={f.type === 'date' || f.key === 'id_number' ? 'ltr' : undefined} autoFocus={i === 0}
                   /* Enter = زرّ الإضافة (أو «التالي»): الحقل الواحد لا يُملأ ثم تُقصد الزاوية */
-                  onKeyDown={(e) => { if (e.key === 'Enter' && !busy) { if (addGoNext) setAddStep(2); else addPerson() } }} />
+                  onKeyDown={(e) => { if (e.key === 'Enter' && !busy) { if (addGoNext) addNextStep(); else addPerson() } }} />
                 )}
               </div>
             ))}
