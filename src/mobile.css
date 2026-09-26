@@ -326,6 +326,8 @@ html.ios-gap .fk-cal-sheet { padding-bottom: 16px !important; }
 
   /* الحقول داخل النوافذ: أطول وأوضح للّمس */
   .fk-modal-box input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]), .fk-modal-box .fk-dd-btn { min-height: 48px; border-radius: 12px !important; }
+  /* مربّعات النص داخل النوافذ: ارتفاعٌ أدنى واضح (كانت تنضغط حين يتقلّص إطارها على الجوال) */
+  .fk-modal-box textarea { min-height: 140px !important; line-height: 1.7; }
   .fk-modal-box .fk-section { border-radius: 16px !important; padding: 20px 14px 14px !important; margin-top: 22px !important; }
 
   /* تأكيد → Action Sheet من الأسفل */

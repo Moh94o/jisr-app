@@ -15543,6 +15543,8 @@ const M_CARDS = {
   offices: { title: ['nickname'], sub: ['city_ar', 'district_ar', 'branch_code'], badge: false, fields: [] },
   work_visas: { title: ['worker_name', 'client_name', 'facility_ar'], sub: ['facility_ar', 'invoice_no'] },
   collections: { title: ['client_name', 'worker_name'], sub: ['invoice_no', 'facility_ar'] },
+  permanent_workers: { title: ['name_ar', 'name_en'], sub: ['facility_ar'], badge: false,
+    fields: ['iqama_number', 'birth_date', 'work_permit_expiry', 'nationality_ar'] },
 }
 
 export default function OpsExcelsPageBoundary(props) {
@@ -18860,9 +18862,18 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
       if (!title && subs.length) title = subs.shift()
       subs.length = Math.min(subs.length, 2)
       // المكتب يُعرض برمزه واسمه المستعار معاً ليُعرف مكتب الصفّ من البطاقة
+      // مكتب العامل (branch_code) ومكتب منشأته (facility_branches) — كلٌّ برمزه واسمه المستعار
+      const offTxt = (c) => (srBranchName(c) ? `${c} · ${srBranchName(c)}` : c)
       const bc = String(r.branch_code || '').trim()
-      const office = bc ? (srBranchName(bc) ? `${bc} · ${srBranchName(bc)}` : bc) : ''
+      const fcs = [...new Set(String(r.facility_branches || '').split(/[,،\s]+/).map((x) => x.trim()).filter(Boolean))]
       if (bc) { const i = subs.findIndex((t) => t.split('\n')[0].trim() === bc); if (i >= 0) subs.splice(i, 1) }
+      const officeLines = []
+      if (fcs.length) {
+        const same = bc && fcs.length === 1 && fcs[0] === bc
+        if (!same) officeLines.push(T('مكتب العامل: ', 'Worker office: ') + (bc ? offTxt(bc) : T('غير محدد', 'Not set')))
+        officeLines.push((same ? T('المكتب: ', 'Office: ') : T('مكتب المنشأة: ', 'Facility office: ')) + fcs.map(offTxt).join('، '))
+      } else if (bc) officeLines.push(offTxt(bc))
+      const office = officeLines.join(' · ')
       const stg = stagesOf(r)
       const tone = view.rowBg ? toneOfBg(view.rowBg(r, { block: 1 })) : null
       const amt = amountOf(r)
@@ -18873,7 +18884,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
         /* الشارة في سطر الفرعي لا في سطر العنوان: العنوانُ والمبلغ يتّسعان، والحالة تُقرأ مع سياقها */
         subtitle: <>
           {(badge && amt) ? <span className="msh-sub"><MBadge {...badge} /><span>{subTxt}</span></span> : subTxt}
-          {office && <span className="msh-office">{office}</span>}
+          {officeLines.map((l) => <span key={l} className="msh-office">{l}</span>)}
         </>,
         subText: [subTxt, office].filter(Boolean).join(' · '),
         badge: (badge && !amt) ? badge : null,
@@ -18881,7 +18892,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
         amount: amt,
         accent: r._hidden ? 'gray' : (tone && tone !== 'gray' ? tone : null),
         leading: r.photo_path ? <MLeadPhoto key={r.photo_path} path={r.photo_path} initial={(title || '؟').trim().charAt(0)} /> : (title || '؟').trim().charAt(0),
-        fields: mSpec.fields.map((k) => { const c = col(k); const v = txt(r, k); return v ? { label: isAr ? c.ar : (c.en || c.ar), value: v, ltr: isLtr(c) } : null }).filter(Boolean),
+        fields: mSpec.fields.map((k) => { const c = col(k); const v = txt(r, k); return v ? { label: k === 'iqama_number' ? T('رقم الإقامة', 'Iqama no.') : (isAr ? c.ar : (c.en || c.ar)), value: v, ltr: isLtr(c) } : null }).filter(Boolean),
         children: stg.length ? <StageDots items={stg} isAr={isAr} /> : null,
       }
     }

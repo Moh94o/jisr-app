@@ -1725,25 +1725,16 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
               {mFilterCount > 0 && <span className="minv-filter-n">{mFilterCount}</span>}
             </button>
           </div>
-          <MChips value={mPayVal} onChange={v => { setPayFilter(M_PAY[v] || []); setPage(0) }} options={[
-            { value: 'all', label: T('الكل', 'All') },
-            { value: 'unpaid', label: T('غير مسدّدة', 'Unpaid') },
-            { value: 'partial', label: T('مسدّدة جزئياً', 'Partly paid') },
-            { value: 'paid', label: T('مسدّدة', 'Paid') },
-            { value: 'cancelled', label: T('ملغاة', 'Cancelled') },
-          ]} />
+          {branches.length > 1 && (
+            <MChips value={branchSel.length === 1 ? branchSel[0] : 'all'} onChange={v => { setBranchSel(v === 'all' ? [] : [v]); setPage(0) }} options={[
+              { value: 'all', label: T('كل المكاتب', 'All offices') },
+              ...branches.map(b => ({ value: b.id, label: branchNick(b) || b.branch_code })),
+            ]} />
+          )}
           <div className="mk-chips minv-chips2">
             {mPeriods.map(p => {
               const on = from === p.f && to === p.t
               return <button key={p.v} className={'mk-chip' + (on ? ' on' : '')} onClick={() => { setFrom(p.f); setTo(p.t); setPage(0) }}>{p.l}</button>
-            })}
-            {branches.length > 1 && <span className="minv-chipdiv" />}
-            {branches.length > 1 && (
-              <button className={'mk-chip' + (!branchSel.length ? ' on' : '')} onClick={() => { setBranchSel([]); setPage(0) }}>{T('كل المكاتب', 'All offices')}</button>
-            )}
-            {branches.length > 1 && branches.map(b => {
-              const on = branchSel.length === 1 && branchSel[0] === b.id
-              return <button key={b.id} className={'mk-chip' + (on ? ' on' : '')} onClick={() => { setBranchSel(on ? [] : [b.id]); setPage(0) }}>{b.branch_code || branchNick(b)}</button>
             })}
           </div>
           <Modal open={advOpen} onClose={() => setAdvOpen(false)} title={T('تصفية الفواتير', 'Filter invoices')} Icon={Search} width={560} scroll
