@@ -4,7 +4,7 @@ import { C, F, EmptyState, Modal as FKModal, ModalSection, TextArea, TextField, 
 import { can as canPerm, cardVisible, canCardBtn, tabOffices, fieldVisible, fieldEditable, modalAllowed } from '../lib/permissions.js'
 import { noDash } from '../lib/utils.js'
 import { navSetHere, navPeekFor, navBack } from '../lib/navStack.js'
-import { swrGet, swrSet, useLiveRefresh, getTestBranchIds, excludeTestBranchesOr } from '../lib/liveData.js'
+import { swrGet, swrSet, useLiveRefresh, getTestBranchIds, excludeTestBranchesOr, getArchiveBranchIds, dropArchiveRows } from '../lib/liveData.js'
 import { getIqamaRenewalPricingConfig, renewalApprovalDiscountCap } from '../lib/kafalaPricing.js'
 import { computeRenewalDerived } from '../lib/renewalDerived.js'
 import { syncInvoicePricing } from '../lib/invoicePricingSync.js'
@@ -399,6 +399,8 @@ export default function RenewalCalcPage({ sb, toast, user, lang, emptyIcon, onNe
       sb.from('branches').select('id,code:branch_code').is('deleted_at', null),
       sb.from('nationalities').select('id,name_ar,name_en,flag_url'),
     ])
+    // حسبات المكاتب «توثيقٌ فقط» (KHB102) لا تدخل في القائمة ولا الإحصاءات
+    res[0] = { ...res[0], data: dropArchiveRows(res[0].data, await getArchiveBranchIds(sb)) }
     swrSet(rcCacheKey, res)
     applyRcBundle(res)
   }

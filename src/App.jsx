@@ -36,10 +36,10 @@ import WelcomeToast from './components/WelcomeToast.jsx'
 import { MobileTopBar, MobileHubTabs, MobileTabBar, MobileMoreSheet } from './components/mobile/MobileShell.jsx'
 import { Modal as FKModal, ModalSection, ActionButton, SuccessView, ConfirmDialog, ScrollBox, InfoRow, InfoGrid, GRID, TextField, TextArea, FileField, CurrencyField, PhoneField, IdField, Select as FKSelect, DateField as FKDateField, TimeField as FKTimeField, Segmented, YesNo, EmptyState, C as FKC, FKLang } from './components/ui/FormKit.jsx'
 import { getVisibility, isItemVisible } from './pages/VisibilityAdmin.jsx'
-import { FileText, Lock, Mail, Send, User, UserPlus, ShieldCheck, Pencil, Eye, Calendar, Banknote, ArrowLeftRight, BadgeCheck, Calculator, Trash2, RefreshCw, MessageSquare, Paperclip, Plus, AlertCircle, FileCheck, Users, HeartPulse, UserCog, Plane, PlaneTakeoff, Wallet, IdCard, FileStack, Printer, Coins } from 'lucide-react'
+import { FileText, Lock, Mail, Send, User, UserPlus, ShieldCheck, Pencil, Eye, Calendar, Banknote, ArrowLeftRight, BadgeCheck, Calculator, Trash2, RefreshCw, MessageSquare, Paperclip, Plus, AlertCircle, FileCheck, Users, HeartPulse, UserCog, Plane, PlaneTakeoff, Wallet, IdCard, FileStack, Printer, Coins, UsersRound, Hourglass, HandCoins, CalendarClock } from 'lucide-react'
 
 import { getSupabase } from './lib/supabase.js'
-import { swrGet, swrSet, useLiveRefresh, emitDataChanged, getTestBranchIds, excludeTestBranchesOr } from './lib/liveData.js'
+import { swrGet, swrSet, useLiveRefresh, emitDataChanged, getTestBranchIds, excludeTestBranchesOr, getArchiveBranchIds, dropArchiveRows } from './lib/liveData.js'
 import { navReportPg, navPushFrom, navSetHere } from './lib/navStack.js'
 import { installMobileBack, rearmMobileBack, useBackHandler } from './lib/mobileBack.js'
 import { setupKeyboardShortcuts, noDash, branchLabel } from './lib/utils.js'
@@ -112,6 +112,11 @@ const DT = (clr) => ({
   svcDocuments: <FileStack color={clr} size={18} strokeWidth={1.7} />,
   svcIqamaPrint: <Printer color={clr} size={18} strokeWidth={1.7} />,
   svcPayroll: <Coins color={clr} size={18} strokeWidth={1.7} />,
+  /* أيقونات جداول «العمالة» (طلب المستخدم 2026-09-26) — الخروج النهائي بأيقونة خدمته نفسها */
+  labCore: <UsersRound color={clr} size={18} strokeWidth={1.7} />,
+  labExpiring: <Hourglass color={clr} size={18} strokeWidth={1.7} />,
+  labRecoveries: <HandCoins color={clr} size={18} strokeWidth={1.7} />,
+  finOverdue: <CalendarClock color={clr} size={18} strokeWidth={1.7} />,
 })
 
 const LANG = {
@@ -606,7 +611,8 @@ const SVC_TAB_ICON={svc_chamber:'svcChamber',svc_ajeer:'svcAjeer',svc_medical:'s
 svc_ext_transfer:'svcExtTransfer',svc_exit_reentry:'svcExitReentry',svc_final_exit:'svcFinalExit',svc_salary:'svcSalary',
 svc_passport:'svcPassport',svc_documents:'svcDocuments',svc_iqama_print:'svcIqamaPrint',svc_payroll:'svcPayroll'};
 /* قسم «العمالة»: يجمع جداول العمالة الأربعة من قسم «الخدمات» في تبويبٍ مستقلّ (طلب المستخدم 2026-09-23). */
-const LABOR_SHEET_KEYS=['permanent_workers','recoveries','final_exit'];
+const LABOR_SHEET_KEYS=['permanent_workers','iqama_expiring'];
+const LABOR_TAB_ICON={permanent_workers:'labCore',iqama_expiring:'labExpiring'};
 /* قسم «المنشآت»: جداول بيانات المنشأة من المزامنة، بالترتيب الذي أملاه المستخدم (2026-09-24).
    `companies` («الشركات») هو ما سمّاه «المنشآت الرئيسية». لا تخلطه بـ`workforce` («المنشآت والعمالة»). */
 const FAC_SHEET_KEYS=['companies','subscriptions','fac_attachments','qawaem','mudad','baladi_licenses'];
@@ -615,7 +621,7 @@ const OFFICE_SHEET_KEYS=['persons','offices'];
 /* قسم «السعودة»: المزامنة ثم الإدخال (طلب المستخدم 2026-09-24) */
 const SAUDI_SHEET_KEYS=['saudization','saudization_entry'];
 /* جداولُ تحت قسم «المالية» بجوار صفحاته (طلب المستخدم 2026-09-24) — تُعرض بمحرّك الجداول نفسه */
-const FIN_SHEET_KEYS=['collections'];
+const FIN_SHEET_KEYS=['collections','worker_overdue','recoveries'];
 /* «الخدمات» بهذا الترتيب (طلب المستخدم 2026-09-26، والمستندات آخرها)، ثم بقيّة جداول المجموعة */
 const SVC_FIRST_KEYS=['svc_chamber','svc_ajeer','svc_exit_reentry','svc_final_exit','svc_ext_transfer','svc_profession','svc_medical','svc_salary','svc_passport','svc_documents'];
 /* الجداول التي لها قسمٌ خاصّ فتسقط من «الخدمات» */
@@ -769,13 +775,13 @@ const visaTabs=VISA_SHEET_KEYS.map(k=>{const t=OPS_SHEET_TABS.find(x=>x.key===k)
    لم تتغيّرا، وأُسقطت من قائمة «الخدمات» أعلاه بتخطّي مفاتيحها. */
 /* قسما «المنشآت» و«السعودة» (طلب المستخدم 2026-09-24) — بمحرّك «الخدمات» نفسه؛ الصلاحية بطاقة `card:ops_excels:<key>` كما هي */
 /* أيقونةٌ خاصّة لجدولٍ بعينه بدل أيقونة مجموعته في الصلاحيات (الأشخاص = أيقونة الأشخاص لا «المزامنة») */
-const SHEET_TAB_ICON={persons:'client',companies:'facility',fac_attachments:'attach',subscriptions:'subscription',qawaem:'chart',mudad:'coins',baladi_licenses:'license',...SVC_TAB_ICON};
+const SHEET_TAB_ICON={persons:'client',companies:'facility',fac_attachments:'attach',subscriptions:'subscription',qawaem:'chart',mudad:'coins',baladi_licenses:'license',worker_overdue:'finOverdue',recoveries:'labRecoveries',...SVC_TAB_ICON,...LABOR_TAB_ICON};
 const sheetTabsOf=(keys)=>keys.map(k=>{const t=OPS_SHEET_TABS.find(x=>x.key===k);if(!t)return null;const nm=sheetNames[k];return{id:opsTabId(k),l:nm?(lang==='ar'?nm.ar:(nm.en||nm.ar)):T(t.ar,t.en),i:SHEET_TAB_ICON[k]||t.icon,sheet:k}}).filter(Boolean);
 const facTabs=sheetTabsOf(FAC_SHEET_KEYS);
 const officeTabs=sheetTabsOf(OFFICE_SHEET_KEYS);
 const saudiTabs=sheetTabsOf(SAUDI_SHEET_KEYS);
 const svcGroupTabs=sheetTabsOf(SVC_GROUP_KEYS());
-const laborTabs=LABOR_SHEET_KEYS.map(k=>{const t=OPS_SHEET_TABS.find(x=>x.key===k);if(!t)return null;const nm=sheetNames[k];return{id:opsTabId(k),l:nm?(lang==='ar'?nm.ar:(nm.en||nm.ar)):T(t.ar,t.en),i:t.icon,sheet:k}}).filter(Boolean);
+const laborTabs=LABOR_SHEET_KEYS.map(k=>{const t=OPS_SHEET_TABS.find(x=>x.key===k);if(!t)return null;const nm=sheetNames[k];return{id:opsTabId(k),l:nm?(lang==='ar'?nm.ar:(nm.en||nm.ar)):T(t.ar,t.en),i:LABOR_TAB_ICON[k]||t.icon,sheet:k}}).filter(Boolean);
 const hubTabs={
   svc_hub:svcGroupTabs,
   services_hub:svcTabs,
@@ -1679,7 +1685,7 @@ const buildUserMap=(rows)=>Object.fromEntries((rows||[]).map(u=>[u.id,u]))
 // تطبيق حزمة البيانات (حسبات + فروع + جنسيات + مستخدمون) على الحالة — تُستدعى من الكاش ومن الجلب الحي.
 const applyTcBundle=([t,b,n,u])=>{const userMap=buildUserMap(u?.data);const branchMap=Object.fromEntries((b?.data||[]).map(x=>[x.id,x.code||x.branch_code]));setData((t.data||[]).map(r=>mapTcToLegacy(r,userMap,branchMap)));setWorkers([]);setFacilities([]);setBranches(b?.data||[]);setNationalities(n?.data||[]);setTcLoading(false)}
 const tcCacheKey='tc:list:'+(tcOrScope||'all')
-const refetchTc=async()=>{const testIds=await getTestBranchIds(sb);let tcQ=sb.from('transfer_calculation').select(TC_SELECT).is('deleted_at',null).order('created_at',{ascending:false});if(tcOrScope)tcQ=tcQ.or(tcOrScope);else if(testIds.length)tcQ=tcQ.or(excludeTestBranchesOr(testIds));/* «كل المكاتب»: استبعد المكاتب التجريبية (تظهر فقط عند اختيار المكتب صراحةً) */const res=await Promise.all([tcQ,sb.from('branches').select('id,code:branch_code').is('deleted_at',null).order('branch_code'),sb.from('nationalities').select('id,name_ar,name_en,code,flag_url').order('name_ar'),sb.from('users').select(USER_SELECT).is('deleted_at',null)]);swrSet(tcCacheKey,res);applyTcBundle(res)}
+const refetchTc=async()=>{const [testIds,archIds]=await Promise.all([getTestBranchIds(sb),getArchiveBranchIds(sb)]);let tcQ=sb.from('transfer_calculation').select(TC_SELECT).is('deleted_at',null).order('created_at',{ascending:false});if(tcOrScope)tcQ=tcQ.or(tcOrScope);else if(testIds.length)tcQ=tcQ.or(excludeTestBranchesOr(testIds));/* «كل المكاتب»: استبعد المكاتب التجريبية (تظهر فقط عند اختيار المكتب صراحةً) */const res=await Promise.all([tcQ,sb.from('branches').select('id,code:branch_code').is('deleted_at',null).order('branch_code'),sb.from('nationalities').select('id,name_ar,name_en,code,flag_url').order('name_ar'),sb.from('users').select(USER_SELECT).is('deleted_at',null)]);/* حسبات المكاتب «توثيقٌ فقط» (KHB102) لا تدخل في القائمة ولا الإحصاءات */res[0]={...res[0],data:dropArchiveRows(res[0].data,archIds)};swrSet(tcCacheKey,res);applyTcBundle(res)}
 // كاش الجلسة: عند العودة للتبويب تُرسم آخر قائمة فوراً (بلا سكيلتون) ويجري جلبٌ صامت يحدّثها.
 useEffect(()=>{const cached=swrGet(tcCacheKey);if(cached)applyTcBundle(cached);refetchTc()},[sb,tcOrScope])
 // تحديث تلقائي: أي إنشاء/تصديق/فوترة/إلغاء لحسبة نقل (من هذا الجهاز أو غيره) يعيد الجلب صامتاً بلا رفرش.

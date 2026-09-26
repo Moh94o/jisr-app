@@ -9,6 +9,7 @@ import { Modal as FKModal, Select as FKSelect, Flag, ActionButton } from '../com
 import { useIsMobile } from '../components/mobile/MobileKit.jsx'
 import '../styles/m-calc.css'
 import { stageVisible, fieldVisible, isGM } from '../lib/permissions.js'
+import { getArchiveBranchIds, dropArchiveRows } from '../lib/liveData.js'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = { gold: '#B07D00', ok: '#27a046', red: '#c0392b', blue: '#3483b4', bg: '#171717', sf: '#1e1e1e', bd: 'var(--bd)' }
@@ -612,7 +613,8 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
         .is('deleted_at', null)
         .order('priced_at', { ascending: false }).limit(10)
       // حسبة فاتورتها ملغاة لا تُعدّ «سارية» — إلغاء الفاتورة يحرّر العامل ولا يحجب إصدار حسبة جديدة.
-      let candidates = data || []
+      // حسبات المكاتب «توثيقٌ فقط» (KHB102) لا تحجب حسبةً جديدة
+      let candidates = dropArchiveRows(data, await getArchiveBranchIds(sb))
       const invIds = [...new Set(candidates.map(c => c.invoice_id).filter(Boolean))]
       if (invIds.length) {
         const { data: invRows } = await sb.from('invoices')

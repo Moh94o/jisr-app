@@ -3,6 +3,7 @@ import { can as canPerm } from '../lib/permissions.js'
 import { useIsMobile } from '../components/mobile/MobileKit.jsx'
 import { MobileStageList } from './VisaGridPage.jsx'
 import '../styles/m-synchub.css'
+import { getArchiveBranchIds, dropArchiveRows } from '../lib/liveData.js'
 
 /* ═══════════════════════════════════════════════════════════════════════════
    جداول ما بعد إصدار التأشيرة — الوكالة · إصدار الإقامة · توصيل الإقامة.
@@ -401,7 +402,8 @@ export default function VisaPipelineGridPage({ sb, user, toast, lang, onTabChang
       sb.from('installments').select('id,visa_application_id,total_amount,paid_amount,notes,payment_milestone:payment_milestone_id(value_ar,value_en)')
         .not('visa_application_id', 'is', null).is('deleted_at', null).range(0, 9999),
     ])
-    const list = (visaR.data || []).filter((v) => /^work_visa/.test(v.sr?.service_type?.code || '')).map(flatten)
+    // تأشيرات طلبات المكاتب «توثيقٌ فقط» (KHB102) خارج الجدول
+    const list = dropArchiveRows(visaR.data, await getArchiveBranchIds(sb), (v) => v.sr?.branch?.id).filter((v) => /^work_visa/.test(v.sr?.service_type?.code || '')).map(flatten)
     list.sort((a, b) => {
       const d = String(b.created_at || '').localeCompare(String(a.created_at || ''))
       if (d) return d

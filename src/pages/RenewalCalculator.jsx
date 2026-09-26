@@ -8,6 +8,7 @@ import { computeRenewalDerived } from '../lib/renewalDerived.js'
 import { stageVisible, fieldVisible, fieldEditable } from '../lib/permissions.js'
 import { useIsMobile } from '../components/mobile/MobileKit.jsx'
 import '../styles/m-calc.css'
+import { getArchiveBranchIds, dropArchiveRows } from '../lib/liveData.js'
 
 // حدود الرسوم الحكومية المشمولة في «رسوم المكتب» — ما يتجاوزها يُضاف. (تُنقل للإعدادات لاحقًا)
 const COVER = { iqama: 650, workPermit: 100, medical: 1000 }
@@ -160,7 +161,8 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
         .is('deleted_at', null)
         .order('priced_at', { ascending: false }).limit(10)
       // حسبة فاتورتها ملغاة لا تُعدّ «سارية» — إلغاء الفاتورة يحرّر العامل ولا يحجب إصدار حسبة جديدة.
-      let candidates = data || []
+      // حسبات المكاتب «توثيقٌ فقط» (KHB102) لا تحجب حسبةً جديدة
+      let candidates = dropArchiveRows(data, await getArchiveBranchIds(sb))
       const invIds = [...new Set(candidates.map(c => c.invoice_id).filter(Boolean))]
       if (invIds.length) {
         const { data: invRows } = await sb.from('invoices')

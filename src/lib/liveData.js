@@ -44,6 +44,27 @@ export function getTestBranchIds(sb) {
 export const excludeTestBranchesOr = (ids, col = 'branch_id') =>
   `${col}.is.null,${col}.not.in.(${(ids || []).join(',')})`
 
+// ── مكاتب «توثيقٌ فقط» (branches.is_archive — مكتب الخبر المغلق KHB102) ──
+// فواتيرها وحسباتها محفوظةٌ للرجوع إليها في سجلّ الفواتير وحده، ولا تدخل في أيّ
+// قائمةٍ أو إحصاءٍ أو إجمالي — في أيّ نطاق، ولو اختير المكتب (قرار المستخدم 2026-09-26).
+// طبقة قاعدة البيانات تستثنيها من الـviews والـRPCs؛ هذا لما يُجلب من الجداول مباشرة.
+let _archiveBranchIdsP = null
+export function getArchiveBranchIds(sb) {
+  if (!_archiveBranchIdsP) {
+    const c = sb || getSupabase()
+    _archiveBranchIdsP = c.from('branches').select('id').eq('is_archive', true)
+      .then(r => (r.data || []).map(x => x.id))
+      .catch(() => [])
+  }
+  return _archiveBranchIdsP
+}
+// يُسقط الصفوف التي فرعُها «توثيقٌ فقط» — ويُبقي ما لا فرع له
+export const dropArchiveRows = (rows, ids, key = 'branch_id') => {
+  if (!ids || !ids.length) return rows || []
+  const s = new Set(ids)
+  return (rows || []).filter(r => !s.has(typeof key === 'function' ? key(r) : r?.[key]))
+}
+
 // ── ناقل أحداث محلي: تأمين فوري بعد عمليات هذا الجهاز (لا ينتظر رحلة Realtime) ──
 const BUS_EVENT = 'app-data-changed'
 export const emitDataChanged = (...tables) => {

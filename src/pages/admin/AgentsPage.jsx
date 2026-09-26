@@ -4,6 +4,7 @@ import { Drop } from './PermissionsPage.jsx'
 import { can as canPerm, cardVisible, canCardBtn } from '../../lib/permissions.js'
 import { noDash, branchLabel } from '../../lib/utils.js'
 import { navSetHere } from '../../lib/navStack.js'
+import { getArchiveBranchIds, dropArchiveRows } from '../../lib/liveData.js'
 import { Modal as FKModal, ModalSection, GRID, TextField, IdField, PhoneField, CurrencyField, Select, SuccessView, EmptyState } from '../../components/ui/FormKit.jsx'
 import { SkeletonCards, SkeletonList } from '../../components/ui/Skeleton.jsx'
 import { useIsMobile, MStatStrip, MCardList, MSearch, MChips, MBadge } from '../../components/mobile/MobileKit.jsx'
@@ -223,10 +224,12 @@ export default function AgentsPage({ sb, lang, user, toast, emptyIcon }) {
         nationality:nationality_id(name_ar,name_en,flag_url),
         branch:branch_id(branch_code)
       `).is('deleted_at', null).order('created_at', { ascending: false, nullsFirst: false }),
-      sb.from('service_request_agents').select('agent_id,commission_amount,commission_paid_at,service_request:service_request_id!inner(request_date,deleted_at)').is('service_request.deleted_at', null),
-    ]).then(([aR, cR]) => {
+      sb.from('service_request_agents').select('agent_id,commission_amount,commission_paid_at,service_request:service_request_id!inner(request_date,deleted_at,branch_id)').is('service_request.deleted_at', null),
+      getArchiveBranchIds(sb),
+    ]).then(([aR, cR, archIds]) => {
       const ags = aR.data || []
-      const links = cR.data || []
+      // عمولات طلبات المكاتب «توثيقٌ فقط» (KHB102) خارج كل الحسابات
+      const links = dropArchiveRows(cR.data, archIds, (x) => x.service_request?.branch_id)
 
       // Per-agent roll-up
       const byAgent = {}
@@ -527,7 +530,7 @@ function AgentDetailPage({ sb, user, agent, agentStats, toast, onBack, T, isAr, 
     sb.from('service_request_agents').select(`
       commission_amount, commission_paid_at,
       service_request:service_request_id!inner(
-        id, request_ref_no, request_date, quantity, deleted_at,
+        id, request_ref_no, request_date, quantity, deleted_at, branch_id,
         client:client_id(name_ar,name_en),
         service_type:service_type_id(code,value_ar,value_en),
         status:status_id(code,value_ar,value_en),
@@ -535,8 +538,10 @@ function AgentDetailPage({ sb, user, agent, agentStats, toast, onBack, T, isAr, 
         invoice:invoices(id,invoice_no,total_amount,paid_amount,remaining_amount,created_at,status:status_id(code,value_ar,value_en),payments(payment_date,is_valid,deleted_at))
       )
     `).eq('agent_id', agent.id).is('service_request.deleted_at', null)
-      .then(({ data }) => {
-        const rows = (data || []).filter(r => r.service_request)
+      .then(async ({ data }) => {
+        // طلبات المكاتب «توثيقٌ فقط» (KHB102) لا تُعدّ على الوسيط
+        const archIds = await getArchiveBranchIds(sb)
+        const rows = dropArchiveRows((data || []).filter(r => r.service_request), archIds, (r) => r.service_request?.branch_id)
         rows.sort((a, b) => (b.service_request?.request_date || '').localeCompare(a.service_request?.request_date || ''))
         setLinks(rows)
       })

@@ -3,6 +3,7 @@ import { can as canPerm } from '../lib/permissions.js'
 import { Modal as FKModal, ModalSection, ActionButton, SuccessView, GRID } from '../components/ui/FormKit.jsx'
 import { useIsMobile, MCardList, MChips, MSearch } from '../components/mobile/MobileKit.jsx'
 import '../styles/m-synchub.css'
+import { getArchiveBranchIds, dropArchiveRows } from '../lib/liveData.js'
 
 /* ═══════════════════════════════════════════════════════════════════════════
    جدول إصدار التأشيرات — طوابير مراحل، لا جدول واحد عريض.
@@ -214,7 +215,8 @@ export default function VisaGridPage({ sb, user, toast, lang, onTabChange }) {
         .eq('entity_type', 'visa_application').eq('notes', 'visa_file')
         .is('deleted_at', null).order('created_at', { ascending: false }).range(0, 4999),
     ])
-    const list = (visaR.data || []).filter((v) => /^work_visa/.test(v.sr?.service_type?.code || ''))
+    // تأشيرات طلبات المكاتب «توثيقٌ فقط» (KHB102) خارج الجدول
+    const list = dropArchiveRows(visaR.data, await getArchiveBranchIds(sb), (v) => v.sr?.branch?.id).filter((v) => /^work_visa/.test(v.sr?.service_type?.code || ''))
     /* ترتيب يُبقي تأشيرات الفاتورة متلاصقة ثم مرتّبة بملفّها */
     list.sort((a, b) => {
       const d = String(b.created_at || '').localeCompare(String(a.created_at || ''))

@@ -13,7 +13,7 @@ import { TXN_SERVICES } from './pages/txnServices.js'
 import { buildInvoiceDoc } from './lib/invoicePrint.js'
 import { buildInvoiceWaMessage, buildDaySummaryWaMessage, fetchInvoicePrintData } from './lib/invoiceWa.js'
 import { DONE_INPUTS, SALARY_RETURN_INPUTS, SELF_PARTY_DONE_SVCS, DONE_FILE_NOTES, doneInputsFor } from './lib/doneInputs.js'
-import { swrGet, swrSet, useLiveRefresh, emitDataChanged } from './lib/liveData.js'
+import { swrGet, swrSet, useLiveRefresh, emitDataChanged, getArchiveBranchIds } from './lib/liveData.js'
 import InvoicePricingEditor from './components/InvoicePricingEditor.jsx'
 import { useIsMobile, MStatStrip, MCard, MCardList, MFab, MChips, MSearch, MBadge } from './components/mobile/MobileKit.jsx'
 import './styles/m-invoices.css'
@@ -1380,7 +1380,7 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
 
       // فواتير الفترة (المنشأة ضمنها) — لكل خدمة: عدد الفواتير + كمية التأشيرات + المجموع.
       let invQ = sb.from('invoices')
-        .select('id,total_amount,paid_amount,status:status_id(code),service_type:service_type_id(code,value_ar),service_request:service_request_id(quantity,visa_applications(id,deleted_at))')
+        .select('id,branch_id,total_amount,paid_amount,status:status_id(code),service_type:service_type_id(code,value_ar),service_request:service_request_id(quantity,visa_applications(id,deleted_at))')
         .is('deleted_at', null)
       if (start) invQ = invQ.gte('created_at', start.toISOString())
       if (end) invQ = invQ.lt('created_at', end.toISOString())
@@ -1402,14 +1402,17 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
       const [{ data: created, error: e1 }, { data: pays, error: e2 }, { data: cxl, error: e3 }] = await Promise.all([invQ, payQ, cxlQ])
       if (e1 || e2 || e3) throw (e1 || e2 || e3)
 
+      // فواتير المكاتب «توثيقٌ فقط» (KHB102) ودفعاتها خارج الملخّص في أيّ نطاق
+      const archIds = await getArchiveBranchIds(sb)
+      const notArch = (b) => !archIds.includes(b)
       const inSet = id => !idSet || idSet.has(id)
       // الفواتير الجديدة = المنشأة ضمن الفترة غير الملغاة والمطابقة للتصفية.
-      const live = (created || []).filter(r => r.status?.code !== 'cancelled' && inSet(r.id))
+      const live = (created || []).filter(r => r.status?.code !== 'cancelled' && inSet(r.id) && notArch(r.branch_id))
       // الملغاة = آخر قيد إلغاء في cancel_log ضمن الفترة + مطابقة للتصفية.
       // بلا cancel_log (فواتير مهاجرة من Bubble): لا يُعتمد updated_at وحده — أي UPDATE جماعي
       // (كإعادة بناء search_text) يوقعها كلها في الفترة. تُحتسب فقط إن أُنشئت ضمن الفترة أيضًا.
       const cancelledRows = (cxl || []).filter(r => {
-        if (!inSet(r.id)) return false
+        if (!inSet(r.id) || !notArch(r.branch_id)) return false
         const log = Array.isArray(r.cancel_log) ? r.cancel_log : []
         const at = log.length ? log[log.length - 1]?.at : null
         if (at) { const t = new Date(at); return (!start || t >= start) && (!end || t < end) }
@@ -1434,7 +1437,7 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
          • الخارج = مرتجعات مسجّلة (دفعات سالبة) + كامل المسدَّد على فواتير أُلغيت *داخل الفترة*
            (بتاريخ الإلغاء). لا ازدواج: مسدَّد الفاتورة صافٍ من مرتجعها (تريغر paid_amount).
          • الدفعة المُبطَلة (is_valid=false) قيدٌ لم يحدث: لا تُحتسب داخلاً ولا خارجاً. */
-      const scoped = (pays || []).filter(p => p.invoice && (!branchScope || branchScope.includes(p.invoice.branch_id)) && inSet(p.invoice.id))
+      const scoped = (pays || []).filter(p => p.invoice && (!branchScope || branchScope.includes(p.invoice.branch_id)) && inSet(p.invoice.id) && notArch(p.invoice.branch_id))
       const moved = scoped.filter(p => p.is_valid)
       const recv = moved.filter(p => Number(p.amount) > 0)
       const sumOf = arr => arr.reduce((s, p) => s + Number(p.amount || 0), 0)

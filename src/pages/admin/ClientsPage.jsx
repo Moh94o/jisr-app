@@ -3,6 +3,7 @@ import BackButton from '../../components/BackButton'
 import { can as canPerm, cardVisible, canCardBtn, tabOffices, fieldVisible, fieldEditable, modalAllowed } from '../../lib/permissions.js'
 import { noDash, clientEditChanges, branchLabel } from '../../lib/utils.js'
 import { navSetHere } from '../../lib/navStack.js'
+import { getArchiveBranchIds, dropArchiveRows } from '../../lib/liveData.js'
 import { Modal as FKModal, ModalSection, GRID, TextField, IdField, PhoneField, Select, MultiSelect, Dropdown as FKDropdown, SuccessView, EmptyState } from '../../components/ui/FormKit.jsx'
 import { SkeletonCards, SkeletonList } from '../../components/ui/Skeleton.jsx'
 import { useIsMobile, MStatStrip, MCardList, MSearch, MChips, MBadge } from '../../components/mobile/MobileKit.jsx'
@@ -237,8 +238,10 @@ export default function ClientsPage({ sb, lang, user, toast, emptyIcon }) {
       inOffice(sb.from('service_requests').select('id,client_id,request_date,branch_id,quantity,status:status_id(code)').is('deleted_at', null)),
       inOffice(sb.from('invoices').select('total_amount,paid_amount,service_request_id').is('deleted_at', null)),
       sb.from('payments').select('service_request_id,payment_date').is('deleted_at', null),
-    ]).then(([cR, srR, invR, payR]) => {
-      setRaw({ clients: cR.data || [], srs: srR.data || [], invs: invR.data || [], pays: payR.data || [] })
+      getArchiveBranchIds(sb),
+    ]).then(([cR, srR, invR, payR, archIds]) => {
+      // طلبات المكاتب «توثيقٌ فقط» (KHB102) خارج كل الحسابات — وفواتيرها ومدفوعاتها معها (تُربط بالطلب)
+      setRaw({ clients: cR.data || [], srs: dropArchiveRows(srR.data, archIds), invs: invR.data || [], pays: payR.data || [] })
     })
   }, [sb, officeScope])
 
