@@ -1983,13 +1983,14 @@ const WF_REG_SOURCE_COLS = {
   passport_number: 'passport_number',
   nationality_ar: 'nationality_ar',
 }
-/* عمود «حالة استرجاع» (إدخال يدوي بقائمة منسدلة تلوّن الخلية) — يُبنى لكل رصيد */
+/* عمود «حالة استرجاع» (إدخال يدوي بقائمة منسدلة تلوّن الخلية) — يُبنى لكل رصيد.
+   تحت الحالة تاريخُ اختيارها ووقتُه من ختم الخليّة (طلب المستخدم 2026-09-26) — كخانات السعودة. */
+const RECOV_ST_BG = { 'تم الاسترجاع': 'rgba(46,204,113,.32)', 'في الانتظار': 'rgba(234,179,8,.32)', 'مشكلة': 'rgba(232,114,101,.32)' }
 const recoveryStatusCol = (key, ar, en) => ({
   key, ar, en, w: 175, kind: 'text', ops: true, select: true,
   options: () => ['تم الاسترجاع', 'في الانتظار', 'مشكلة'],
-  bg: (v) => v === 'تم الاسترجاع' ? 'rgba(46,204,113,.32)'
-    : v === 'في الانتظار' ? 'rgba(234,179,8,.32)'
-      : v === 'مشكلة' ? 'rgba(232,114,101,.32)' : null,
+  bg: (v) => RECOV_ST_BG[String(v ?? '').split('\n')[0].trim()] || null,
+  optLabel: sdeStLabel(key), fmt: sdeStFmt(key),
 })
 
 /* صورة العامل تأتي من مزامنة مقيم (bucket عام muqeem-pdfs) عبر workers.photo_path */
@@ -15896,8 +15897,12 @@ const VIEW_STATS = {
   offices: [],
   fac_attachments: [],
   recoveries: [
-    SC('rows', 'العمّال', 'Workers'),
-    SC('sum', 'إجمالي الرصيد', 'Total balance', { k: 'jawazat_balance', money: true }),
+    // من له رصيدٌ يُسترجع فقط — رصيده أكثر من ريال (طلب المستخدم 2026-09-26)
+    SC('pred', 'العمّال', 'Workers', { need: ['jawazat_balance'], fn: (v) => depNum(v('jawazat_balance')) > 1 }),
+    /* رصيدان لا إجماليٌّ واحد (طلب المستخدم 2026-09-26): أبشر من قوى على مستوى المنشأة
+       (يُعدّ مرّةً لكل منشأة) · ورصيد العمّال لكل عامل */
+    SC('sum', 'رصيد أبشر (قوى)', 'Absher balance (Qiwa)', { k: 'absher_balance', money: true, per: WF_MERGE_KEY }),
+    SC('sum', 'رصيد العمّال', 'Workers balance', { k: 'jawazat_balance', money: true }),
     SC('eq', 'استُرجعت', 'Recovered', { k: 'op_recovery_status', v: ['تم الاسترجاع'], tone: 'ok' }),
     SC('eq', 'بالانتظار', 'Waiting', { k: 'op_recovery_status', v: ['في الانتظار'], tone: 'warn' }),
     SC('eq', 'بها مشكلة', 'Problem', { k: 'op_recovery_status', v: ['مشكلة'], tone: 'bad' }),
@@ -19227,7 +19232,13 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
         case 'eq': for (const r of R) if (d.v.includes(cell(r, d.k))) val++; break
         case 'lt': for (const r of R) { const n = num(r, d.k); if (n !== null && n < d.n) val++ } break
         case 'btw': for (const r of R) { const n = num(r, d.k); if (n !== null && n >= d.n[0] && n <= d.n[1]) val++ } break
-        case 'sum': for (const r of R) { const n = num(r, d.k); if (n !== null) val += n } break
+        /* `per`: رصيدٌ على مستوى المنشأة يتكرّر في صفوف عمّالها — يُعدّ مرّةً لكل مفتاح */
+        case 'sum': { const seen = d.per ? new Set() : null
+          for (const r of R) {
+            const n = num(r, d.k); if (n === null) continue
+            if (seen) { const g = d.per(r); if (g != null) { if (seen.has(g)) continue; seen.add(g) } }
+            val += n
+          } break }
         // «هذا الشهر» بالتقويم الميلادي — القيمة الفعّالة قد تكون ISO كاملاً أو YYYY-MM-DD، وكلاهما يقبله Date
         case 'month': { const now = new Date(); for (const r of R) { const t = cell(r, d.k); if (!t) continue; const dt = new Date(t); if (!isNaN(dt) && dt.getFullYear() === now.getFullYear() && dt.getMonth() === now.getMonth()) val++ } break }
         case 'sumif': for (const r of R) { if (!d.v.includes(cell(r, d.on))) continue; const n = num(r, d.k); if (n !== null) val += n } break
