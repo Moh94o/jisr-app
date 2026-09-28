@@ -10587,6 +10587,12 @@ const personFacsText = (fc, isAr) => {
   return `${fc.n}${parts.length ? ' — ' + parts.join(' · ') : ''}`
 }
 
+// لواحق أسماء المكاتب بالإنجليزية (الجزء بعد «المدينة - ») — لشيت «المكاتب» بالواجهة الإنجليزية
+const OFFICE_SUFFIX_EN = {
+  'سيكو': 'Cico', 'سوني': 'Sony', 'المدرسة': 'Al Madrasa', 'الصبيخة': 'Al Subaikha',
+  'الثقبة': 'Al Thuqbah', 'المفرق': 'Al Mafraq', 'الوزارات': 'Al Wizarat',
+}
+
 const VIEWS = [
   /* ── المكاتب (طلب المستخدم 2026-09-24): اسم المكتب والكود والمدينة والحي ──
      من جدول `branches` مباشرة — للعرض فقط: التعديل مكانه صفحة «المكاتب» في
@@ -10602,28 +10608,41 @@ const VIEWS = [
     noSync: true,
     async load(sb) {
       const { data, error } = await sb.from('branches')
-        .select('id,branch_code,name_ar,is_test,city:city_id(name_ar),district:district_id(name_ar)')
+        .select('id,branch_code,name_ar,is_test,city:city_id(name_ar,name_en),district:district_id(name_ar,name_en)')
         // النشطة وحدها (طلب المستخدم 2026-09-24)
         .is('deleted_at', null).eq('is_active', true).order('branch_code')
       if (error) throw error
-      return (data || []).filter((b) => !b.is_test).map((b) => ({
-        _id: b.id,
-        nickname: branchNick(b),
-        branch_code: b.branch_code || '',
-        city_ar: (b.city && b.city.name_ar) || '',
-        // العمود عنوانه «الحي» فتُسقط كلمة «حي» من أوّل الاسم (حي البلد ← البلد) — طلب المستخدم 2026-09-24
-        district_ar: String((b.district && b.district.name_ar) || '').replace(/^\s*حي\s+/, '').trim(),
-      }))
+      return (data || []).filter((b) => !b.is_test).map((b) => {
+        const nick = branchNick(b)
+        const cityEn = String((b.city && b.city.name_en) || '').trim()
+        /* الاسم الإنجليزي (طلب المستخدم 2026-09-28): لا عمود إنجليزي للمكتب، فيُبنى
+           من مدينته بالإنجليزية + لاحقة الاسم («الجبيل - سوني» ← «Jubail - Sony») */
+        const [, suf = ''] = nick.split(/\s+-\s+/)
+        return {
+          _id: b.id,
+          nickname: nick,
+          nickname_en: nick ? [cityEn, OFFICE_SUFFIX_EN[suf.trim()] || suf.trim()].filter(Boolean).join(' - ') : '',
+          branch_code: b.branch_code || '',
+          city_ar: (b.city && b.city.name_ar) || '',
+          city_en: cityEn,
+          // العمود عنوانه «الحي» فتُسقط كلمة «حي» من أوّل الاسم (حي البلد ← البلد) — طلب المستخدم 2026-09-24
+          district_ar: String((b.district && b.district.name_ar) || '').replace(/^\s*حي\s+/, '').trim(),
+          district_en: String((b.district && b.district.name_en) || '').replace(/\s+District\s*$/i, '').trim(),
+        }
+      })
     },
-    search: (r) => [r.nickname, r.branch_code, r.city_ar, r.district_ar],
+    search: (r) => [r.nickname, r.nickname_en, r.branch_code, r.city_ar, r.city_en, r.district_ar, r.district_en],
     columns: [
       /* خلفية الخليّتين = لون المكتب نفسه في كل الجداول (srBranchBg) — طلب المستخدم 2026-09-24 */
       { key: 'nickname', ar: 'اسم المكتب', en: 'Office name', w: 230, kind: 'text', readOnly: true,
+        get: (r, isAr) => (isAr === false ? r.nickname_en || r.nickname : r.nickname),
         bg: (_v, r) => srBranchBg(r && r.branch_code), fg: () => 'var(--tx)' },
       { key: 'branch_code', ar: 'الكود', en: 'Code', w: 130, kind: 'mono', readOnly: true,
         bg: (_v, r) => srBranchBg(r && r.branch_code), fg: () => 'var(--tx)' },
-      { key: 'city_ar', ar: 'المدينة', en: 'City', w: 160, kind: 'text', readOnly: true },
-      { key: 'district_ar', ar: 'الحي', en: 'District', w: 180, kind: 'text', readOnly: true },
+      { key: 'city_ar', ar: 'المدينة', en: 'City', w: 160, kind: 'text', readOnly: true,
+        get: (r, isAr) => (isAr === false ? r.city_en || r.city_ar : r.city_ar) },
+      { key: 'district_ar', ar: 'الحي', en: 'District', w: 180, kind: 'text', readOnly: true,
+        get: (r, isAr) => (isAr === false ? r.district_en || r.district_ar : r.district_ar) },
     ],
   },
   {
