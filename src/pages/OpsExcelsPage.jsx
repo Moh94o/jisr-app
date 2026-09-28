@@ -486,13 +486,14 @@ const phone10 = (v) => {
 }
 const phoneCol = (base) => ({ kind: 'mono', w: 130, ...base, get: (r) => phone10(r[base.key]) })
 
-/* لون «المتبقّي بالأيام»: سالب = منتهٍ (أحمر) · ≤30 = قرب الانتهاء (أصفر) */
-const daysFg = (v) => {
+/* خلفية «المتبقّي بالأيام» (لا لون نص — طلب المستخدم 2026-09-26) لكل أعمدة المتبقّي:
+   أقلّ من 10 أيام (والمنتهي بالسالب) أحمر · حتى 30 أصفر · وما فوقها بلا لون. */
+const DAYS_RED_BG = 'rgba(232,114,101,.28)'
+const DAYS_AMBER_BG = 'rgba(234,179,8,.22)'
+const daysBg = (v) => {
   const n = parseFloat(latin(String(v ?? '')).replace(/[^\d.\-]/g, ''))
-  if (!Number.isFinite(n)) return null
-  if (n < 0) return C.red
-  if (n <= 30) return '#eab308'
-  return null
+  if (!Number.isFinite(n)) return undefined
+  return n < 10 ? solidBg(DAYS_RED_BG) : n <= 30 ? solidBg(DAYS_AMBER_BG) : undefined
 }
 
 /* ── عمود الملاحظة: نافذةٌ لا خليّةُ سطر (قرار المستخدم 2026-09-21) ─────────
@@ -1526,8 +1527,11 @@ async function wfPostToWorkers(sb, saved, ctx = {}, cols = WF_SOURCE_COLS) {
   for (const { id, data } of (saved || [])) {
     const patch = {}
     for (const [colKey, dbCol] of Object.entries(cols)) {
-      if (!data || !(colKey in data)) continue
-      const raw = data[colKey]
+      /* المسح الصريح (`__x`، انظر `OPS_CLR`) يُكتب NULL في سجلّ العامل — بلا
+         هذا كانت الخانة الممسوحة غائبةً عن البيانات فتُتخطّى، ويبقى القديم. */
+      const wiped = opsCleared(data, colKey)
+      if (!data || (!(colKey in data) && !wiped)) continue
+      const raw = wiped ? '' : data[colKey]
       const empty = raw === '' || raw == null
       /* الفرع يُختار برمزه ويُخزَّن بمعرّفه. ورمزٌ لا يقابله سجلُّ فرعٍ لا يُكتب
          أصلاً: كتابة null هنا تعني **محو** فرع العامل بسبب رمزٍ لم يُعرَف. */
@@ -3000,6 +3004,33 @@ const bareRow = (row) => {
   if (!b) { const { _ops, ...rest } = row; b = rest; BARE_ROWS.set(row, b) }
   return b
 }
+/* ── المسح الصريح لخليّةٍ تحتها قيمةُ مصدر (بلاغ المدير العام 2026-09-27) ────
+   كان مسحُ «التأمين» في «إصدار الإقامات» يعود «أنجزت» أبداً، ولأيّ مستخدم في
+   أيّ شيت: الحفظ يحذف التجاوز الفارغ، والقراءة تعدّ غيابَ التجاوز «ارجع
+   للمصدر»، والترحيل يتخطّى الفارغ — فالمسح لا يصل المصدر ولا يبقى في الشيت.
+   فيُسجَّل المسح **علامةً** في مفتاحٍ محجوز `__x` داخل بيانات الصفّ
+   (`{ مفتاح العمود: القيمة التي حجبها }`) كأخيه `__m` — لا قيمةً نصّية في خانة العمود: القيمة
+   تُقرأ في مئات المواضع (`effOf`/`av`/العدّادات/الترحيل) وكلّها كانت ستحمل
+   النصّ الحارس حرفياً. المفتاح المحجوز لا يراه إلا من يطلبه:
+     · الشبكة: `baseVal` تعرض الخانة فارغة، و`allRows` تُفرغ حقلَ المصدر في
+       الصفّ نفسه فتراه القرّاء المشتقّة فارغاً أيضاً (`syncVal` يبقى على
+       الأصل عبر `bareRow`).
+     · الترحيل: من يقرأ العلامة يكتب NULL (`iqmStagePoster`، `wfPostToWorkers`)،
+       ومن لا يقرؤها لا يرى في الخانة شيئاً فلا يكتب شيئاً.
+     · العلامة تسقط متى صار المصدر فارغاً فعلاً — لا تبقى تحجب قيمةً تُكتب
+       فيه لاحقاً من صفحةٍ أخرى. */
+const OPS_CLR = '__x'
+const opsCleared = (d, k) => !!(d && d[OPS_CLR] && d[OPS_CLR][k])
+const opsClearedKeys = (d) => Object.keys((d && d[OPS_CLR]) || {})
+// بياناتٌ بلا علامات مسحٍ لهذه المفاتيح (تُسقط المفتاح المحجوز كلّه إن فرغ)
+const opsUnclear = (d, keys) => {
+  if (!d || !d[OPS_CLR]) return d
+  const x = { ...d[OPS_CLR] }
+  for (const k of keys) delete x[k]
+  const out = { ...d }
+  if (Object.keys(x).length) out[OPS_CLR] = x; else delete out[OPS_CLR]
+  return out
+}
 /* المنشأة المستدلّ عليها من أيّ رقمٍ من الثلاثة في الصفّ — أيّها كُتب كفى. */
 const facNumRow = (r, e) => facNumOf(effOf(r, e, 'unified_number'))
   || facNumOf(effOf(r, e, 'gosi_number')) || facNumOf(effOf(r, e, 'hrsd_number')) || null
@@ -3095,7 +3126,7 @@ async function loadClientCardsFetch(sb) {
      والفشل لا يُسقط الشيت: بلا فهرسٍ تبقى البطاقة على ما في الصفّ. */
   let rows = []
   try {
-    rows = await fetchAll(sb, 'service_requests', 'id,clients(name_ar,id_number,phone,phone2,phone3,notes)')
+    rows = await fetchAll(sb, 'service_requests', 'id,clients(name_ar,name_en,id_number,phone,phone2,phone3,notes)')
   } catch (e) { console.warn('[ops] client cards', e); return }
   const m = new Map()
   for (const r of rows) { if (r && r.id && r.clients) m.set(String(r.id), r.clients) }
@@ -3104,7 +3135,7 @@ async function loadClientCardsFetch(sb) {
 const clientRowOf = (r) => (r && r.service_request_id ? CLIENT_REF.byRequest.get(String(r.service_request_id)) || null : null)
 const clientInfoCard = (r) => {
   const c = clientRowOf(r) || {}
-  const name = String(r.client_name || c.name_ar || '').trim()
+  const name = String(r.client_name || c.name_ar || c.name_en || '').trim()
   const ph = phone10(c.phone || r.client_phone || '')
   const ph2 = phone10(c.phone2 || '')
   const ph3 = phone10(c.phone3 || '')
@@ -3315,18 +3346,14 @@ const invInfoCard = (r) => {
 }
 
 /* ── عمود «العامل» وبطاقته (`workerInfoCard` + `workerCol`) ────────────────
-   الاسمُ لا يُعرِّف عاملاً: الأسماء تتشابه وتتكرّر في جدول العمالة، وطولُها
-   يأكل عرض الشيت بلا أن يحسم أيَّ «محمد» هو. فصار العمود **رقم الإقامة
-   وحده** (قرار المستخدم 2026-09-21) — رقمٌ واحدٌ يُعرِّف ويُنسخ ويُلصق في
-   البوابات — وضغطةٌ عليه تفتح بطاقةً فيها الاسم وما يُسأل عنه عادةً: الإقامة
-   وانتهاؤها وتاريخ الميلاد والجوال والجنسية والمهنة ورخصة العمل.
+   العمود يعرض **اسم العامل** (قرار المستخدم 2026-09-27، عدولٌ عن عرض رقم
+   الإقامة وحده المقرَّر في 2026-09-21)، وضغطةٌ عليه تفتح بطاقةً فيها ما يُسأل
+   عنه عادةً: الإقامة وانتهاؤها وتاريخ الميلاد والجوال والجنسية والمهنة ورخصة
+   العمل — فالرقم الذي يُنسخ للبوابات على بُعد ضغطة.
    كلّه من الصفّ الحاضر — بلا جلبٍ عند الضغط ولا فهرسٍ يُحمَّل: جدولُ العمالة
    عشراتُ الآلاف، وتحميله لأجل بطاقةٍ ثمنٌ لا يُدفع.
-   والرقم في **`fmt`** لا في `get`: `fmt` تزيينُ عرضٍ وحده — فيبقى المخزَّن
-   الاسمَ، وبه يُبحَث في الشيت ويُفرَز ويُصدَّر، ويبقى هو ما يُحرَّر في
-   الشيتات التي يُكتب فيها العامل باليد (التجاوز المحفوظ يسبق `get` أصلاً).
-   وبلا إقامةٍ في الصفّ (شيتات التأشيرات قبل الإصدار) يعود الاسم كما كان: نفيُ
-   الرقم ليس نفيَ العامل. */
+   وصفٌّ بلا اسم يعرض رقم إقامته بدلاً منه (عبر `fmt`، تزيينُ عرضٍ وحده — فيبقى
+   المخزَّن الاسمَ للبحث والفرز والتصدير والتحرير): الفراغ لا يقول إن هناك عاملاً. */
 const wkIqama = (r) => String(r?.iqama_number || r?.iqama_no || '').trim()
 const workerInfoCard = (r) => {
   if (!r) return null
@@ -3369,7 +3396,7 @@ const workerCol = (base) => ({
   kind: 'text', w: 140,
   tap: workerInfoCard,
   tapTip: { ar: 'اعرض بطاقة العامل (الاسم · انتهاء الإقامة · الجوال)', en: 'Show the worker card (name · expiry · mobile)' },
-  fmt: (v, r) => wkIqama(r) || null,
+  fmt: (v, r) => String(v ?? '').trim() || wkIqama(r) || null,
   ...base,
 })
 
@@ -3727,6 +3754,23 @@ async function loadVisaTopups(sb) {
   WV_TOPUP.by = m
 }
 const wvTopupOf = (r) => (r ? WV_TOPUP.by.get(String(r.id || r._id || '')) || null : null)
+/* ── سندات القبض الورقية المرحَّلة ────────────────────────────────────────────
+   فواتير JUB1 وKHB1 وُلدت من سندات قبضٍ ورقية، وأرقامها محفوظة في
+   `service_requests.slip_no` (نفس الحقل الذي يقرؤه بحث الفواتير). تُعرض في شيت
+   التأشيرات ليطابق الموظف التأشيرة بسندها ويَنسخ الرقم بضغطة. الرقم يُعرض كما
+   كُتب (بأصفاره) لأنه هكذا مطبوعٌ على الورقة. */
+const WV_SLIPS = { by: new Map() }
+async function loadVisaSlips(sb) {
+  const rows = await fetchAll(sb, 'service_requests', 'id,slip_no',
+    (q) => q.not('slip_no', 'is', null).neq('slip_no', '').is('deleted_at', null))
+  const m = new Map()
+  for (const r of rows) {
+    const nums = [...new Set(String(r.slip_no || '').split(/[^0-9]+/).filter(Boolean))]
+    if (nums.length) m.set(String(r.id), nums)
+  }
+  WV_SLIPS.by = m
+}
+const wvSlipsOf = (r) => (r ? WV_SLIPS.by.get(String(r.service_request_id || '')) || [] : [])
 /* ── هويّة المنشأة تُدخَل مرّةً وتُقرأ في الشيتات الثلاثة ──────────────────────
    المنشأة تُحدَّد في شيت «تأشيرات العمل» وتُخزَّن في طبقة تجاوزه
    (`ops_sheet_rows` بـ`view_key='work_visas'`) — وهي طبقةٌ **لكل شيت على حدة**،
@@ -3916,6 +3960,7 @@ async function loadVisaInstallmentsFetch(sb) {
     'service_request_id,visa_application_id,installment_order,total_amount,paid_amount,notes',
     (q) => q.is('deleted_at', null))
   const first = new Map(), wkl = new Map(), wklVisa = new Map(), iqm = new Map(), iqmVisa = new Map()
+  const rest = new Map()   // صفوف الطلب بعد الأولى غير المرتبطة بتأشيرة — منها تُجمع دفعة الإقامة
   for (const r of rows) {
     const k = String(r.service_request_id || ''); if (!k) continue
     const rec = { total: depNum(r.total_amount), paid: depNum(r.paid_amount),
@@ -3939,42 +3984,91 @@ async function loadVisaInstallmentsFetch(sb) {
     }
     const cw = wkl.get(k)
     if (!cw || wvWklBetter(rec, cw) === rec) wkl.set(k, rec)
-    const ci = iqm.get(k)
-    if (!ci || wvIqmBetter(rec, ci) === rec) iqm.set(k, rec)
+    if (!rest.has(k)) rest.set(k, [])
+    rest.get(k).push(rec)
+  }
+  /* دفعة الإقامة على مستوى الطلب **مجموعُ** صفوف مرحلتها لا صفٌّ منها: كثيراً
+     ما تُقسَّم لكل عامل («Upon Iqama Issuance» مكرّرةً بعدد التأشيرات ·
+     «عند الإصدار العامل الأول/الثاني»)، فانتقاءُ صفٍّ واحدٍ ثم قسمتُه على
+     الكمية (`wvIqmPay`) يُنقص الحصّة. فالمجموع ثم القسمة يصحّ في الشكلين:
+     دفعةٌ واحدة للطلب كلّه، أو دفعةٌ لكل عامل. وصفوف المرحلة بالترتيب:
+       ① ما ذكر الإقامة نصّاً
+       ② وإلا كلُّ ما بعد دفعة الوكالة (مما لا يذكر التوكيل)
+       ③ وإلا أعلى رتبة (السلوك السابق — لطلبٍ بلا ما بعد الوكالة) */
+  for (const [k, list] of rest) {
+    const w = wkl.get(k)
+    let parts = list.filter((x) => WV_IQM_RE.test(x.note))
+    if (!parts.length) parts = list.filter((x) => x !== w && x.ord > (w ? w.ord : 1) && !WV_WKL_RE.test(x.note))
+    if (!parts.length) parts = [list.reduce((a, b) => wvIqmBetter(a, b))]
+    const top = parts.reduce((a, b) => (b.ord > a.ord ? b : a))
+    iqm.set(k, { total: parts.reduce((s, x) => s + x.total, 0), paid: parts.reduce((s, x) => s + x.paid, 0),
+      ord: top.ord, note: top.note, parts: parts.length })
   }
   WV_INST.first = first; WV_INST.wkl = wkl; WV_INST.wklVisa = wklVisa
   WV_INST.iqm = iqm; WV_INST.iqmVisa = iqmVisa
 }
-/* {total, remaining} لخليّة الدفع، و`rec` للتلميح. */
+/* {total, remaining} لخليّة الدفع، و`rec` للتلميح.
+   الصفّ تأشيرة، فدفعةُ الطلب (غير المرتبطة بتأشيرةٍ بعينها) تُعرض **حصّةَ
+   التأشيرة الواحدة**: الإجماليّ والمتبقّي مقسومَين على كمية الطلب. كانت تُعرض
+   كاملةً على كل صفّ فتقرأ فاتورةُ تأشيرتين بوكالةٍ ٦٬٠٠٠ كأنها ٦٬٠٠٠ لكل تأشيرة
+   (طلب المستخدم 2026-09-27: ٣٬٠٠٠ لكلٍّ). ولا تُدمج الخليّة بدل القسمة — انظر
+   تعليق عمود `wakalah_inst`. والمرتبطة بتأشيرةٍ دفعتُها هي فتُعرض كما هي. */
 const wvWklPay = (r) => {
-  const rec = (r && (WV_INST.wklVisa.get(String(r.id || r._id || ''))
-    || WV_INST.wkl.get(String(r.service_request_id || '')))) || null
-  if (!rec) return { total: 0, remaining: 0, rec: null }
-  return { total: rec.total, remaining: Math.max(0, rec.total - rec.paid), rec }
+  const own = r ? WV_INST.wklVisa.get(String(r.id || r._id || '')) : null
+  const rec = own || (r ? WV_INST.wkl.get(String(r.service_request_id || '')) : null) || null
+  if (!rec) return { total: 0, remaining: 0, rec: null, n: 1 }
+  const n = own ? 1 : wvReqN(r)
+  const per = (x) => Math.round((x / n) * 100) / 100
+  return { total: per(rec.total), remaining: per(Math.max(0, rec.total - rec.paid)), rec, n }
 }
+/* عدد تأشيرات الطلب من صفوف الشيت نفسه — مصدرُ `v_ops_iqama_issuance` بلا
+   `request_quantity`، فتُعدّ صفوفه (الصفّ تأشيرة) لكل طلب. */
+const WV_REQ_N = { by: new Map() }
+const wvCountReqs = (rows) => {
+  const m = new Map()
+  for (const r of rows || []) {
+    const k = String(r.service_request_id || ''); if (k) m.set(k, (m.get(k) || 0) + 1)
+  }
+  WV_REQ_N.by = m
+}
+const wvReqN = (r) => Math.max(1, Number(r && r.request_quantity)
+  || WV_REQ_N.by.get(String((r && r.service_request_id) || '')) || 1)
+/* حصّة التأشيرة الواحدة كأختها `wvWklPay`: مجموعُ دفعة الطلب مقسوماً على كميته */
 const wvIqmPay = (r) => {
-  const rec = (r && (WV_INST.iqmVisa.get(String(r.id || r._id || ''))
-    || WV_INST.iqm.get(String(r.service_request_id || '')))) || null
-  if (!rec) return { total: 0, remaining: 0, rec: null }
-  return { total: rec.total, remaining: Math.max(0, rec.total - rec.paid), rec }
+  const own = r ? WV_INST.iqmVisa.get(String(r.id || r._id || '')) : null
+  const rec = own || (r ? WV_INST.iqm.get(String(r.service_request_id || '')) : null) || null
+  if (!rec) return { total: 0, remaining: 0, rec: null, n: 1 }
+  const n = own ? 1 : wvReqN(r)
+  const per = (x) => Math.round((x / n) * 100) / 100
+  return { total: per(rec.total), remaining: per(Math.max(0, rec.total - rec.paid)), rec, n }
 }
 const wvIqmTip = (_v, r, isAr2) => {
-  const { rec } = wvIqmPay(r)
+  const { rec, n } = wvIqmPay(r)
   if (!rec) return isAr2 === false ? 'This invoice has no installment after the first' : 'لا دفعة بعد الأولى في هذه الفاتورة'
   const byNote = WV_IQM_RE.test(rec.note)
   const nm = rec.note || (isAr2 === false ? 'no label' : 'بلا وصف')
+  const many = rec.parts > 1
+  const share = n > 1
+    ? (isAr2 === false
+      ? ' · one visa\'s share of ' + n + ': full installment ' + enNum(rec.total) + ', paid ' + enNum(rec.paid)
+      : ' · حصّة تأشيرة من ' + n + ': الدفعة كاملةً ' + enNum(rec.total) + '، المدفوع ' + enNum(rec.paid))
+    : ''
   return isAr2 === false
-    ? 'Iqama installment — "' + nm + '" (no. ' + rec.ord + ')' + (byNote ? '' : ' · picked by order, not label')
-    : 'دفعة إصدار الإقامة — «' + nm + '» (الدفعة ' + rec.ord + ')' + (byNote ? '' : ' · اختيرت بالرتبة لا بالوصف')
+    ? 'Iqama installment — "' + nm + '" (' + (many ? rec.parts + ' rows summed' : 'no. ' + rec.ord) + ')' + (byNote ? '' : ' · picked by order, not label') + share
+    : 'دفعة إصدار الإقامة — «' + nm + '» (' + (many ? 'مجموع ' + rec.parts + ' دفعات' : 'الدفعة ' + rec.ord) + ')' + (byNote ? '' : ' · اختيرت بالرتبة لا بالوصف') + share
 }
 const wvWklTip = (_v, r, isAr2) => {
-  const { rec } = wvWklPay(r)
+  const { rec, n } = wvWklPay(r)
   if (!rec) return isAr2 ? 'لا دفعة بعد الأولى في هذه الفاتورة' : 'This invoice has no installment after the first'
   const byNote = WV_WKL_RE.test(rec.note)
   const nm = rec.note || (isAr2 ? 'بلا وصف' : 'no label')
+  const share = n > 1
+    ? (isAr2 ? ` · حصّة تأشيرة من ${n}: الدفعة كاملةً ${enNum(rec.total)}، المدفوع ${enNum(rec.paid)}`
+      : ` · one visa's share of ${n}: full installment ${enNum(rec.total)}, paid ${enNum(rec.paid)}`)
+    : ''
   return isAr2
-    ? `دفعة الوكالة — «${nm}» (الدفعة ${rec.ord})${byNote ? '' : ' · اختيرت بالرتبة لا بالوصف'}`
-    : `Wakalah installment — "${nm}" (no. ${rec.ord})${byNote ? '' : ' · picked by order, not label'}`
+    ? `دفعة الوكالة — «${nm}» (الدفعة ${rec.ord})${byNote ? '' : ' · اختيرت بالرتبة لا بالوصف'}${share}`
+    : `Wakalah installment — "${nm}" (no. ${rec.ord})${byNote ? '' : ' · picked by order, not label'}${share}`
 }
 /* بلا جدول دفعاتٍ الفاتورةُ نفسها دفعتُها الأولى (٨ طلبات من ١٥١٦) — خانةٌ
    فارغة هناك تُقرأ عطلاً لا «لا جدول لها». والمتبقّي يُحسب لا يُقرأ. */
@@ -6318,7 +6412,7 @@ const colWho = (r, k) => {
   return ({ n: r.row_worker_name, iq: r.row_iqama_no, iqe: r.row_iqama_expiry,
     xt: r.row_exit_type, xu: r.row_exit_until, xn: r.row_exit_visa_no, xs: r.row_exit_src })[k] || ''
 }
-// انتهاء الإقامة: أحمر إن انقضى · أصفر إن بقي شهرٌ أو أقلّ (نفس عتبة daysFg)
+// انتهاء الإقامة (عمود تاريخ لا متبقٍّ بالأيام): لون نص — أحمر إن انقضى · أصفر إن بقي شهرٌ أو أقلّ
 const colIqExpFg = (v) => {
   const d = ymd(v); if (!d) return null
   const n = Math.round((new Date(d) - new Date(todayYmd())) / 86400000)
@@ -6435,20 +6529,50 @@ const colPromiseBg = (v) => {
    الـoverlay ولا تعرفه القاعدة فتحسبه.
    والمقارنة **بمبلغ الوعد إن كُتب، وإلا بمتبقّي الشريحة الجارية** — لا بكامل
    دَين الفاتورة: الوعد وعدٌ بدفعةٍ لا بتصفية الحساب. */
+/* ── خطة الدفع: حتى ثلاث دفعات (طلب المستخدم 2026-09-28) ─────────────────────
+   العميل قد يعد بدفعتين أو ثلاث بمواعيد مختلفة، فالوعد صار **خطة** مرتّبة
+   بالتاريخ. الدفعة الأولى على مفتاحَي الوعد القديمين (`col_promise_date/amount`)
+   فلا يضيع وعدٌ كُتب قبل التقسيط؛ والثانية والثالثة بلاحقة `_2`/`_3`.
+   الوفاء **تراكميّ**: ما وصل منذ أوّل موعد يُسدَّد به الأقدم فالأحدث — دفعةٌ
+   كبيرة تغطّي قسطين تُحسب لهما معاً. ودفعةٌ بلا مبلغ في خطةٍ وحيدة تُقاس بمطلوب
+   الصفّ (كما كان)؛ وفي خطةٍ متعدّدة لا يُفترض لها مبلغ. */
+const COL_PLAN = [['col_promise_date', 'col_promise_amount'], ['col_promise_date_2', 'col_promise_amount_2'],
+  ['col_promise_date_3', 'col_promise_amount_3']]
+const colPlan = (r) => {
+  const ps = COL_PLAN.map(([dk, ak]) => ({ d: ymd(av(r, dk)), a: depNum(av(r, ak)) })).filter((p) => p.d)
+    .sort((a, b) => a.d.localeCompare(b.d))
+  if (ps.length === 1 && !ps[0].a) ps[0].a = depNum(r._due) || depNum(r._shared_due)
+  const got = !ps.length ? 0 : (Array.isArray(r.recent_payments) ? r.recent_payments : [])
+    .reduce((a, x) => a + (ymd(x.d) >= ps[0].d ? depNum(x.a) : 0), 0)
+  // أوّل دفعةٍ لم يغطّها المجموع التراكمي = الدفعة الجارية
+  let cum = 0, cur = -1
+  ps.forEach((p, i) => { cum += p.a; p.cum = cum; if (cur < 0 && (!p.a || got < cum)) cur = i })
+  return { ps, got, cur }
+}
+/* تاريخ الدفعة يُصبغ بحالها لا بالتاريخ وحده: المغطّاة بلا لون (وإلا احمرّ
+   قسطٌ مسدَّد لأن تاريخه مضى)، والجارية أخضر اليوم وأحمر إن فات موعدها. */
+const colPlanDateBg = (v, r) => {
+  const d = ymd(v); if (!d || !r) return null
+  const { ps, cur } = colPlan(r)
+  const i = ps.findIndex((p) => p.d === d)
+  if (cur < 0 || i < cur) return null
+  return colPromiseBg(d)
+}
 const colKept = (r, isAr) => {
-  const p = ymd(av(r, 'col_promise_date'))
-  if (!p) return ''
-  const want = depNum(av(r, 'col_promise_amount')) || depNum(r._due) || depNum(r._shared_due)
-  const got = (Array.isArray(r.recent_payments) ? r.recent_payments : [])
-    .reduce((a, x) => a + (ymd(x.d) >= p ? depNum(x.a) : 0), 0)
-  const t = todayYmd()
-  if (got > 0 && (!want || got >= want)) return isAr ? `أوفى · ${enNum(got)}` : `Kept · ${enNum(got)}`
-  if (got > 0) return isAr ? `أوفى جزئياً · ${enNum(got)} من ${enNum(want)}` : `Partial · ${enNum(got)}/${enNum(want)}`
-  // وعدُ اليوم لم يُخلَف بعد — اليوم لم ينتهِ. الإخلاف يبدأ من الغد.
-  if (p > t) return isAr ? 'بانتظار الموعد' : 'Awaiting'
-  if (p === t) return isAr ? 'موعده اليوم' : 'Due today'
-  const late = Math.round((new Date(t) - new Date(p)) / 86400000)
-  return isAr ? `أخلف · ${enNum(late)} يوم` : `Broken · ${enNum(late)}d`
+  const { ps, got, cur } = colPlan(r)
+  if (!ps.length) return ''
+  const n = ps.length, t = todayYmd()
+  const step = n > 1 ? (isAr ? ` (${enNum(cur + 1)} من ${enNum(n)})` : ` (${enNum(cur + 1)}/${enNum(n)})`) : ''
+  if (cur < 0) return isAr ? `أوفى · ${enNum(got)}` : `Kept · ${enNum(got)}`
+  const p = ps[cur]
+  // جارية لم يحِن موعدها: ما سبقها وُفّي (أو لا سابق لها)
+  if (p.d > t) return cur > 0
+    ? (isAr ? `أوفى ${enNum(cur)} من ${enNum(n)} · التالية ${p.d}` : `Kept ${enNum(cur)}/${enNum(n)} · next ${p.d}`)
+    : (isAr ? 'بانتظار الموعد' : 'Awaiting')
+  if (p.d === t) return (isAr ? 'موعده اليوم' : 'Due today') + step
+  if (got > 0 && p.a) return isAr ? `أوفى جزئياً · ${enNum(got)} من ${enNum(p.cum)}` : `Partial · ${enNum(got)}/${enNum(p.cum)}`
+  const late = Math.round((new Date(t) - new Date(p.d)) / 86400000)
+  return (isAr ? `أخلف · ${enNum(late)} يوم` : `Broken · ${enNum(late)}d`) + step
 }
 const colKeptBg = (v) => {
   const s = String(v || '')
@@ -6470,99 +6594,6 @@ const COL_STATE_BG = {
   'محوَّل للإدارة': 'rgba(232,114,101,.14)',
 }
 const COL_CHANNELS = ['اتصال', 'واتساب', 'زيارة', 'عبر الوسيط']
-
-/* رقم التواصل المعتمد: جوال العميل، وإلا جوال الوسيط. يُستعمل في الإحصاء لا في
-   عمودٍ مستقلّ — الأعمدة تعرض كل اسمٍ مع جوّاله كي يُعرَف مَن يُكلَّم. */
-const colPhone = (r) => phone10(r && r.client_phone) || phone10(r && r.agent_phone)
-
-/* ملخّص التحصيل. **صدر الشريط «المطلوب الآن» لا «إجمالي المتبقي»** — الأوّل هو
-   ما يُعمل عليه اليوم والثاني حجمُ الملف. وأرقامه لا تُؤخذ من صف الإجماليات:
-   بعضها عدد لا مجموع، وبعضها نسبة، والوعود تُقرأ من طبقة الـoverlay.
-   يُحسب على الصفوف **المُصفّاة** فيتبع الفلتر والبحث والفرز — كصفّ الإجماليات
-   أسفل الشبكة تماماً: الشريط والصفّ يتكلّمان عن الشيء نفسه فلا يتناقضان. */
-/* ⚠️ الصفّ صار **مطالبة** لا فاتورة، فأرقام الفاتورة (الإجمالي والمدفوع
-   والمتبقّي وعمر الدَّين) تُجمع من **صفوف الفواتير وحدها** وإلا تضاعفت بعدد
-   أشخاصها؛ أمّا «المطلوب» فيُجمع من كل الصفوف لأنه شأنُ الصفّ نفسه.
-   والوعد يعيش على الفاتورة (عمود مجموعة) فيُحصى مرّةً عند صفّها. */
-const colSummary = (rows, isAr) => {
-  const today = todayYmd()
-  let total = 0, paid = 0, rem = 0, due = 0, defer = 0, overdue = 0, invN = 0
-  let noPay = 0, noPhone = 0, aged = 0, promToday = 0, promSum = 0, kept = 0, broke = 0
-  let seats = 0, dueDone = 0, dueWait = 0, notDone = 0, unanswered = 0, exitN = 0, exitDue = 0, sharedDue = 0
-  for (const r of rows) {
-    const d0 = depNum(r._due)
-    /* «المطلوب الآن» يبقى كامل المطالبات إلا ما وُسم صراحةً «لم يتم الإنجاز» —
-       فالصمت ليس إنكاراً. والموسوم يُذكر مبلغُه وعددُه على حدة. */
-    const st = colDoneState(r)
-    if (st === 'no') { dueWait += d0; if (d0 > 0) notDone++ } else { due += d0; if (st === 'yes') dueDone += d0 }
-    if (!st && d0 > 0) unanswered++
-    /* خروجٌ نهائيّ ساري = العامل مغادر: أعجل ما يُطارَد في الملف. ومطالبةُ الصفّ
-       هنا حصّتُه **زائداً** مشتركَ فاتورته إن كان رأسها — وإلا ظهر صفرٌ لفاتورة
-       نقلِ كفالةٍ كلُّ مالها مشترك. */
-    if (String(colWho(r, 'xt') || '').trim() === 'خروج نهائي') {
-      exitN++; exitDue += d0 + (colIsHead(r) ? depNum(r._shared_due) : 0)
-    }
-    if (colIsPerson(r)) seats++
-    /* أرقام الفاتورة تُجمع من **رأس كتلتها** لا من «الصفّ غير الشخصي»: متى حُذف
-       صفُّ الفاتورة صار رأسُها أوّلَ أشخاصها، وشرطُ النوع كان يُسقط فاتورةً كاملة
-       من الإجماليات. */
-    if (!colIsHead(r)) continue
-    const d = depNum(r.remaining_amount)
-    invN++
-    /* مطالبة الشريحة المشتركة تعيش في عمودٍ مدموج على الفاتورة لا في صفّ، فتُجمع
-       هنا عند رأس الكتلة — وإلا سقطت من «المطلوب الآن» بعد حذف صفّ الفاتورة.
-       ولا يُنقَص منها بوسم إنجاز: «حالة الإنجاز» عمودُ صفٍّ يخصّ عاملَه، وليس
-       للشقّ المشترك صفٌّ يوسَم. */
-    { const s = depNum(r._shared_due); due += s; sharedDue += s }
-    total += depNum(r.total_amount); paid += depNum(r.paid_amount); rem += d
-    defer += depNum(r._deferred)
-    overdue += depNum(r.overdue_amount)
-    if (depNum(r.paid_amount) <= 0) noPay++
-    if (!colPhone(r)) noPhone++
-    if (depNum(r.age_days) > 180) aged += d
-    const p = ymd(av(r, 'col_promise_date'))
-    if (p) {
-      const amt = depNum(av(r, 'col_promise_amount')) || d0 || depNum(r._shared_due) || d
-      if (p === today) { promToday++; promSum += amt }
-      /* «أخلف» تُقاس بالنتيجة لا بالتاريخ: وعدٌ فات موعده ووصل بعده مالٌ
-         وعدٌ مُوفىً به. فلا حاجة لعدّادٍ ثانٍ لـ«ما فات موعده». */
-      const k = colKept(r, true)
-      if (k.startsWith('أوفى')) kept++
-      else if (k.startsWith('أخلف')) broke++
-    }
-  }
-  const pct = total ? Math.round((paid / total) * 100) : 0
-  /* حصّة العامل قسمةٌ فتُخلّف كسوراً؛ والملخّص يُقرأ لا يُحاسَب عليه بالهللة،
-     فتُجبَر أرقامه كما تُجبَر في خليّة «المطلوب الآن» — وإلا قرأ المستخدم
-     «75,433.333» في شريطٍ كل جيرانه أعدادٌ صحيحة. */
-  const R = (n) => enNum(Math.round(n))
-  return [
-    { label: isAr ? 'المطلوب الآن' : 'Due now', value: R(due), tone: 'bad' },
-    ...(sharedDue ? [{ label: isAr ? 'منه على الفواتير (إصدار ووكالة)' : 'Invoice-level (issue & wakalah)',
-      value: R(sharedDue) }] : []),
-    ...(dueDone ? [{ label: isAr ? 'منه موسوم بالإنجاز' : 'Marked delivered', value: R(dueDone), tone: 'good' }] : []),
-    ...(dueWait ? [{ label: isAr ? 'موقوف — لم يُنجَز' : 'Held — undelivered',
-      value: `${R(dueWait)} · ${enNum(notDone)}`, tone: 'warn' }] : []),
-    { label: isAr ? 'مؤجَّل خلفه' : 'Deferred', value: R(defer) },
-    { label: isAr ? 'إجمالي المتبقي' : 'Total outstanding', value: R(rem) },
-    { label: isAr ? 'عدد الفواتير' : 'Invoices', value: enNum(invN) },
-    ...(seats ? [{ label: isAr ? 'صفوف الأشخاص' : 'Worker rows', value: enNum(seats) }] : []),
-    ...(unanswered ? [{ label: isAr ? 'بلا إجابة عن الإنجاز' : 'Delivery unanswered',
-      value: enNum(unanswered), tone: 'warn' }] : []),
-    ...(exitN ? [{ label: isAr ? 'عليه خروج نهائي ساري' : 'Final exit pending',
-      value: `${enNum(exitN)} · ${R(exitDue)}`, tone: 'bad' }] : []),
-    { label: isAr ? 'نسبة التحصيل' : 'Collected', value: enNum(pct) + '%',
-      tone: pct >= 80 ? 'good' : pct >= 50 ? 'warn' : 'bad' },
-    ...(overdue ? [{ label: isAr ? 'متأخر عن موعد قسطه' : 'Past due', value: enNum(overdue), tone: 'bad' }] : []),
-    { label: isAr ? 'وعود اليوم' : 'Promised today',
-      value: enNum(promToday) + (promSum ? ` · ${R(promSum)}` : ''), tone: promToday ? 'good' : undefined },
-    ...(kept || broke ? [{ label: isAr ? 'أوفى / أخلف' : 'Kept / broken',
-      value: `${enNum(kept)} / ${enNum(broke)}`, tone: kept >= broke ? 'good' : 'bad' }] : []),
-    { label: isAr ? 'أقدم من 180 يوم' : 'Over 180 days', value: enNum(aged), tone: aged ? 'warn' : 'good' },
-    { label: isAr ? 'بلا أي دفعة' : 'Nothing paid', value: enNum(noPay), tone: noPay ? 'warn' : 'good' },
-    { label: isAr ? 'بلا رقم تواصل' : 'No phone', value: enNum(noPhone), tone: noPhone ? 'warn' : 'good' },
-  ]
-}
 
 /* ── شيتات مال المكتب: للمدير العام وحده ──────────────────────────────────────
    بقيّة الشيتات تشغيليّة يحتاجها كل موظف (منشآت · عمالة · تأشيرات · مزامنة)،
@@ -7752,10 +7783,23 @@ const svFlat = (r) => {
    الثانية (إرجاع الراتب الأساسي) بعد الإنجاز. */
 const svDoneInputs = (code) => [...(DONE_INPUTS[code] || []), ...(code === 'name_translation' ? SALARY_RETURN_INPUTS : [])]
 const svKeyOf = (f) => (f.type === 'file' ? 'f_' : 'd_') + f.key
-const svDoneCols = (code) => svDoneInputs(code).map((f, i) => {
+/* المتبقّي بالأيام حتى انتهاء التأشيرة (الخروج والعودة/النهائي) — من القيمة الفعّالة
+   (تعديل الموظف أولاً ثم ما عبّأته مزامنة مقيم)، ويستمر بالسالب بعد الانتهاء كالرخص البلدية. */
+const svDaysLeft = (r, e, key) => {
+  const s = ymd(effOf(r, e, key))
+  if (!s) return ''
+  const t = new Date(`${s}T00:00:00`).getTime()
+  return Number.isFinite(t) ? String(Math.round((t - new Date(`${todayYmd()}T00:00:00`).getTime()) / 86400000)) : ''
+}
+const svDoneCols = (code) => svDoneInputs(code).flatMap((f, i) => {
   const key = svKeyOf(f)
   const base = { key, ar: f.label_ar, en: f.label_en, sectionStart: i === 0 }
   if (f.type === 'file') return { ...base, w: 150, kind: 'file' }
+  if (f.type === 'date' && f.key === 'visa_expiry') return [
+    { ...base, w: 130, kind: 'date', get: (r, _a, e) => ymd(effOf(r, e, key)) },
+    { key: 'visa_days_left', ar: 'الأيام المتبقّية', en: 'Days left', w: 110, kind: 'num', source: 'formula',
+      get: (r, _a, e) => svDaysLeft(r, e, key), bg: daysBg },
+  ]
   if (f.type === 'date') return { ...base, w: 130, kind: 'date', get: (r, _a, e) => ymd(effOf(r, e, key)) }
   if (f.type === 'number') return { ...base, w: 120, kind: 'num' }
   if (f.type === 'select' && f.source === 'occupations') return { ...base, w: 180, kind: 'text', select: true, options: () => SV_REF.occ }
@@ -8492,8 +8536,10 @@ const wklPostWakalah = async (sb, savedRows, { user, isAr, rows }) => {
    في `fields` لا نسخةٌ من الدالّة.
    والحالة تُخزَّن **رمزاً** لا عربيّةً (`ops_stage_ar` يترجمها عند العرض) فلا
    ينقسم العمود لغتين — و«مشكلة» رمزُها `issue` أُضيف إلى الدالّة.
-   ⚠️ الترحيل يكتب ما امتلأ ولا يمحو ما فرغ: تفريغُ خليّةٍ في الشيت لا يمسح
-   قيمتَها في المعاملة (الحذف فعلٌ يُطلب صراحةً لا أثرٌ جانبيّ للحفظ). */
+   ⚠️ الترحيل يكتب ما امتلأ، والخانة الفارغة **بلا قصد** (لم تُملأ بعد) لا تمسّ
+   المعاملة. أمّا **المسح الصريح** — موظّفٌ فرّغ خانةً كانت تحمل قيمة — فيُعلَّم
+   في الطبقة (`__x`، انظر `OPS_CLR`) ويُرحَّل NULL ويُحذف مفتاحُه من
+   `stage_data` (بلاغ المدير العام 2026-09-27: «التأمين» لا يعود فارغاً). */
 const IQ_CODE = { 'تم': 'done', 'في الانتظار': 'pending', 'في الإنتظار': 'pending',
   'قيد التنفيذ': 'pending',   // موروثة: كانت خيار الحالة قبل القائمة الثلاثية
   'مشكلة': 'issue' }
@@ -8512,7 +8558,9 @@ const iqmStagePoster = ({ ovKey, fpKey, fields, visaFields = [], files = [], ext
   /* المستندات داخل البصمة أيضاً: رفعُ بوليصةٍ وحدَه تغييرٌ يستحقّ ترحيلاً —
      ولولاه مرّت الحفظةُ بلا أن يُسجَّل المرفق. */
   const all = [...fields, ...visaFields, ...files]
-  const fpOf = (d) => all.map((f) => iqRead(d, f)).join('|')
+  /* المسح الصريح (`__x`) داخل البصمة بعلامةٍ لا تكون قيمة: خانةٌ مُسحت تغييرٌ
+     يستحقّ ترحيلاً (NULL في المعاملة) — وبلا علامته كان يساوي «لا شيء بعد» فيُتخطّى. */
+  const fpOf = (d) => all.map((f) => (opsCleared(d, f.k) ? '∅' : iqRead(d, f))).join('|')
   const blank = all.map(() => '').join('|')
   const sdGroups = [...new Set(fields.filter((f) => f.sd).map((f) => f.sd[0]))]
   const post = async (sb, savedRows, { user, userName, isAr, rows }) => {
@@ -8536,7 +8584,7 @@ const iqmStagePoster = ({ ovKey, fpKey, fields, visaFields = [], files = [], ext
       }
     }
     const nowIso = new Date().toISOString()
-    const held = [], patch = {}
+    const held = [], patch = {}, srcNull = {}
     let posted = 0
     for (const { id, data } of savedRows) {
       const row = byId.get(id)
@@ -8557,9 +8605,28 @@ const iqmStagePoster = ({ ovKey, fpKey, fields, visaFields = [], files = [], ext
       const body = { updated_at: nowIso, updated_by: user?.id || null }
       const sd = { ...(sdBy.get(row.iqama_row_id) || {}) }
       let sdTouched = false
+      /* خاناتٌ مسحها الموظّف صراحةً (`__x`): NULL في العمود ومفتاحُها يُحذف من
+         `stage_data` (العرض يقرأ الاثنين معاً بـCOALESCE في بعضها — فبقاءُ أحدهما
+         يُعيد القيمة). `sdDel` يُطبَّق ثانيةً بعد الدمج مع كتلةٍ تُقرأ متأخّرة. */
+      const wiped = [], sdDel = []
+      let hasVal = false
       for (const f of fields) {
+        if (opsCleared(data, f.k)) {
+          if (f.col) body[f.col] = null
+          if (f.sd) {
+            const [g, k] = f.sd
+            const cur = { ...((sd[g] && typeof sd[g] === 'object') ? sd[g] : {}) }
+            delete cur[k]
+            sd[g] = cur
+            sdDel.push([g, k])
+            sdTouched = true
+          }
+          wiped.push(f.k)
+          continue
+        }
         const v = iqRead(data, f)
         if (!v) continue
+        hasVal = true
         const val = iqCast(v, f)
         if (val === null) continue
         if (f.col) body[f.col] = val
@@ -8589,7 +8656,10 @@ const iqmStagePoster = ({ ovKey, fpKey, fields, visaFields = [], files = [], ext
       if (extra) extra(body, data)
       /* اسمُ العامل على **التأشيرة** لا على صفّ الإقامة — هناك تقرؤه الفاتورة */
       const vb = {}
-      for (const f of visaFields) { const v = iqRead(data, f); if (v) vb[f.col] = iqCast(v, f) }
+      for (const f of visaFields) {
+        if (opsCleared(data, f.k)) { vb[f.col] = null; wiped.push(f.k); continue }
+        const v = iqRead(data, f); if (v) vb[f.col] = iqCast(v, f)
+      }
       /* مستندٌ رُفع ولم يُسجَّل مرفقاً بعد — البصمة `<key>_p` تمنع التكرار */
       const fresh = files.filter((f) => { const u = String(data[f.k] || '').trim(); return u && data[f.k + '_p'] !== u })
       if (Object.keys(body).length <= 2 && !Object.keys(vb).length && !fresh.length) continue
@@ -8616,6 +8686,8 @@ const iqmStagePoster = ({ ovKey, fpKey, fields, visaFields = [], files = [], ext
               for (const [g, v] of Object.entries(body.stage_data)) {
                 merged[g] = (v && typeof v === 'object' && old[g] && typeof old[g] === 'object') ? { ...old[g], ...v } : v
               }
+              // الدمج يُعيد ما مُسح من الكتلة القديمة — فيُحذف ثانيةً فوقه
+              for (const [g, k] of sdDel) if (merged[g] && typeof merged[g] === 'object') { merged[g] = { ...merged[g] }; delete merged[g][k] }
               body.stage_data = merged
             }
             const { data: upd, error } = await sb.from('iqama_issuance_applications')
@@ -8623,6 +8695,10 @@ const iqmStagePoster = ({ ovKey, fpKey, fields, visaFields = [], files = [], ext
             if (error) throw error
             row.iqama_row_id = cur[0].id
             ok = !!(upd && upd.length)
+          } else if (!hasVal) {
+            /* لا صفَّ إقامةٍ أصلاً والرقعةُ مسحٌ وحده: لا قيمة في المصدر تُمسح،
+               فلا يُولد صفٌّ فارغ لأجلها. */
+            ok = true
           } else {
             /* ⚠️ `service_request_id` إجباريٌّ على الجدول، و`main_facility_id`
                يُقرأ من صفّ التأشيرة لأن العرض لا يحمله — بلا هذين يُولد صفٌّ
@@ -8695,7 +8771,13 @@ const iqmStagePoster = ({ ovKey, fpKey, fields, visaFields = [], files = [], ext
       /* ⚠️ البصمة لا تُختم إن تعثّر مرفقٌ: ختمُها يُخرج الصفّ من `repostable`
          فيُفقد المرفق صامتاً. تركُها يُعيد المحاولة في الحفظة التالية — وإعادةُ
          كتابة القيم نفسها على المعاملة لا تضرّ (الترحيل idempotent). */
-      patch[row._id] = fileFail ? { ...data, ...fstamp } : { ...data, ...fstamp, [fpKey]: fp }
+      /* المسحُ وصل المعاملة (NULL في العمود والكتلة، والعرض يقرؤهما مباشرةً)
+         فعلامتُه أدّت غرضها: تسقط من الطبقة، ويُفرَغ الحقل في الصفّ المحمَّل
+         (`srcNull`) — وإلا بقيت تحجب ما تكتبه نافذة الفاتورة في المرحلة لاحقاً.
+         والبصمة تُحسب بعد إسقاطها فلا يعود الصفّ «ينتظر ترحيلاً». */
+      const kept = wiped.length ? opsUnclear(data, wiped) : data
+      if (wiped.length) srcNull[row._id] = wiped
+      patch[row._id] = fileFail ? { ...kept, ...fstamp } : { ...kept, ...fstamp, [fpKey]: fpOf(kept) }
     }
     if (Object.keys(patch).length) {
       const { error } = await sb.from('ops_sheet_rows').upsert(
@@ -8706,7 +8788,7 @@ const iqmStagePoster = ({ ovKey, fpKey, fields, visaFields = [], files = [], ext
     const notes = []
     if (posted) notes.push(note(posted, isAr))
     if (held.length) notes.push([...new Set(held)].join(' · '))
-    return { note: notes.join(' · '), patch, error: held.length > 0 }
+    return { note: notes.join(' · '), patch, srcNull, error: held.length > 0 }
   }
   /* صفٌّ عُبِّئ ولم يصل المعاملة بعد (أو تغيّرت قيمتُه بعد ترحيلها) — يقرؤه
      «ترحيل ما فات» عند التحميل فيُرحَّل ما حُجب يومَه (منعته الصلاحية أو كُتب
@@ -8744,9 +8826,13 @@ const iqdAltPost = async (sb, row, data, { user, isAr, nowIso, held }) => {
     return false
   }
   const next = { ...((prior && prior.data) || {}) }
+  // المسح الصريح (`__x`) يُفرغ خانتَه في شيت النقل أيضاً
+  const stClr = opsCleared(data, 'iqama_delivery_status_ar')
+  if (stClr) delete next.tr_s_deliv
+  if (opsCleared(data, 'iqama_delivery_date')) delete next.tr_deliv_date
   if (st) next.tr_s_deliv = TR_DELIV_CODE[st] || st
   if (dt) next.tr_deliv_date = dt
-  if (dt && !st) next.tr_s_deliv = TR_DONE     // تاريخٌ بلا حالة = تمّ التوصيل
+  if (dt && !st && !stClr) next.tr_s_deliv = TR_DONE     // تاريخٌ بلا حالة = تمّ التوصيل
   const { error } = await sb.from('ops_sheet_rows').upsert({
     view_key: 'transfer_txn', row_key: String(row.id), data: next,
     sort_order: (prior && prior.sort_order) ?? null, hidden: !!(prior && prior.hidden), is_manual: false,
@@ -8768,7 +8854,8 @@ const iqdPostDelivery = iqmStagePoster({
     { k: 'iqama_delivery_date', col: 'iqama_delivery_date', kind: 'date' },
   ],
   /* تاريخُ توصيلٍ بلا حالة = تمّ التوصيل — نفس قراءة جدول «توصيل الإقامة» */
-  extra: (body, d) => { if (body.iqama_delivery_date && !iqFirst(d.iqama_delivery_status_ar)) body.iqama_delivery_status = 'done' },
+  // …إلا حالةً مسحها الموظّف صراحةً: المسحُ قرارُه لا فراغٌ يُملأ عنه
+  extra: (body, d) => { if (body.iqama_delivery_date && !iqFirst(d.iqama_delivery_status_ar) && !opsCleared(d, 'iqama_delivery_status_ar')) body.iqama_delivery_status = 'done' },
   note: (n, isAr) => (isAr ? `أُثبت توصيل ${arCount(n, 'إقامة', 'إقامتين', 'إقامات', 'إقامة')} في معاملتها`
     : `Delivery posted to ${enNum(n)} iqama(s)`),
 })
@@ -8836,7 +8923,8 @@ const iqcPostContract = iqmStagePoster({
   ],
   /* رقمُ الإقامة وحده هو ما تعدّه الفاتورة «صدرت» — فإن كُتب ولم تُختر حالةٌ
      فالإقامة صدرت، ولا يُترك العمودُ فارغاً في المعاملة. */
-  extra: (body, d) => { if (iqFirst(d.iqama_number) && !iqFirst(d.iqama_status_ar)) body.iqama_status = 'done' },
+  // …إلا حالةً مسحها الموظّف صراحةً (`__x`) — لا تُكتب «تم» فوق مسحه
+  extra: (body, d) => { if (iqFirst(d.iqama_number) && !iqFirst(d.iqama_status_ar) && !opsCleared(d, 'iqama_status_ar')) body.iqama_status = 'done' },
   note: (n, isAr) => (isAr ? `رُحِّلت مراحل ${arCount(n, 'إقامة', 'إقامتين', 'إقامات', 'إقامة')} إلى معاملتها`
     : `Iqama stages posted for ${enNum(n)} row(s)`),
 })
@@ -9444,7 +9532,7 @@ const WKL_COLS = [
      والبطاقة تقول إنه بلا اسمٍ في السجلّ فلا يُظنّ الرقمُ اسماً. */
   { key: 'client_name', ar: 'العميل', en: 'Client', w: 180, kind: 'text',
     tap: clientInfoCard, tapTip: { ar: 'اعرض بيانات العميل (الجوال · الهوية)', en: 'Show client details (mobile · ID)' },
-    get: (r) => String(r.client_name || '').trim() || String((clientRowOf(r) || {}).name_ar || '').trim() || phone10(r.client_phone) || '' },
+    get: (r) => String(r.client_name || '').trim() || String((clientRowOf(r) || {}).name_ar || (clientRowOf(r) || {}).name_en || '').trim() || phone10(r.client_phone) || '' },
   { key: 'agent_name', ar: 'الوسيط', en: 'Agent', w: 165, kind: 'text' },
   /* هويّة المنشأة عمودٌ واحد وبطاقةٌ خلفه — انظر الشرح في `IQM_COLS` */
   { key: 'unified_number', ar: 'الرقم الموحّد', en: 'Unified no.', w: 150, kind: 'mono', fg: facNumFg, fmt: (v) => fmtUniDisp(v), source: 'fetched',
@@ -9718,7 +9806,7 @@ const IQM_COLS_BASE = [
      والبطاقة تقول إنه بلا اسمٍ في السجلّ فلا يُظنّ الرقمُ اسماً. */
   { key: 'client_name', ar: 'العميل', en: 'Client', w: 180, kind: 'text',
     tap: clientInfoCard, tapTip: { ar: 'اعرض بيانات العميل (الجوال · الهوية)', en: 'Show client details (mobile · ID)' },
-    get: (r) => String(r.client_name || '').trim() || String((clientRowOf(r) || {}).name_ar || '').trim() || phone10(r.client_phone) || '' },
+    get: (r) => String(r.client_name || '').trim() || String((clientRowOf(r) || {}).name_ar || (clientRowOf(r) || {}).name_en || '').trim() || phone10(r.client_phone) || '' },
   { key: 'agent_name', ar: 'الوسيط', en: 'Agent', w: 165, kind: 'text' },
   /* ── المنشأة: رقمٌ واحد وبطاقةٌ خلفه (قرار المستخدم 2026-09-20) ───────────
      كانت أربعةَ أعمدةٍ متلاصقة (الاسم والموحّد والتأمينات والموارد) تأكل نحو
@@ -10317,7 +10405,7 @@ const REN_COLS = [
   { key: 'service_ar', ar: 'الخدمة', en: 'Service', w: 160, kind: 'text' },
   { key: 'client_name', ar: 'العميل', en: 'Client', w: 180, kind: 'text',
     tap: clientInfoCard, tapTip: { ar: 'اعرض بيانات العميل (الجوال · الهوية)', en: 'Show client details (mobile · ID)' },
-    get: (r) => String(r.client_name || '').trim() || String((clientRowOf(r) || {}).name_ar || '').trim() || phone10(r.client_phone) || '' },
+    get: (r) => String(r.client_name || '').trim() || String((clientRowOf(r) || {}).name_ar || (clientRowOf(r) || {}).name_en || '').trim() || phone10(r.client_phone) || '' },
   { key: 'agent_name', ar: 'الوسيط', en: 'Agent', w: 165, kind: 'text' },
   /* هويّة المنشأة رقمٌ واحد وبطاقةٌ خلفه — نفس قرار شيت «إصدار الإقامات» */
   { key: 'unified_number', ar: 'الرقم الموحّد', en: 'Unified no.', w: 150, kind: 'mono', fg: facNumFg, fmt: (v) => fmtUniDisp(v), source: 'fetched',
@@ -11212,9 +11300,30 @@ const VIEWS = [
   {
     key: 'collections',
     ar: 'تحصيل الفواتير', en: 'Collections',
-    summary: colSummary,
     /* خانات نافذة «الخروج النهائي وعقد قوى»: أعمدةٌ للتخزين والنوع لا للعرض. */
     hiddenCols: ['col_exit_visa_no', 'col_exit_expiry', 'col_exit_file', 'col_qiwa_file'],
+    /* صفّ الكتل فوق الرؤوس — كشيت «تجديد الإقامات» (`view.bands`؛ طلب المستخدم
+       2026-09-28). الكتل على أقسام الأعمدة نفسها (`sectionStart`)؛ وما لا كتلة له
+       (أعمدة المستخدم المضافة) يبقى فوقه فراغ. */
+    bands: [
+      { ar: 'الفاتورة', en: 'Invoice', keys: ['invoice_at', 'branch_code', 'invoice_no', 'inv_state', 'service_ar',
+        'service_quantity', 'total_amount', 'paid_amount', 'remaining_amount', '_shared_due', 'note_public'] },
+      { ar: 'المطالبة والعامل', en: 'Claim & worker', keys: ['_kind', '_worker_name', '_iqama_no', '_worker_phone',
+        '_iqama_expiry', '_er', '_fe'] },
+      { ar: 'تفاصيل المعاملة', en: 'Transaction details', keys: ['_border', '_visa_no', '_wakala_no', '_entry_date'] },
+      { ar: 'الخروج والإنجاز', en: 'Exit & delivery', keys: ['col_exit_final', '_stage', 'col_done'] },
+      { ar: 'مطالبة العامل', en: 'Worker claim', keys: ['_due', '_due_src', '_deferred'] },
+      { ar: 'سلّم الأقساط', en: 'Payment ladder', keys: ['shared_bucket', '_pos', '_ladder', 'shared_notes',
+        'shared_expected_date', '_orphan_iqama'] },
+      { ar: 'التواصل', en: 'Contacts', keys: ['client_name', 'client_phone', 'agent_name', 'agent_phone', 'facility_ar'] },
+      { ar: 'الكمية وحالة التشغيل', en: 'Quantity & progress', keys: ['visa_count', 'visa_issued', 'wakala_done',
+        'border_done', 'entered_count', 'iqama_done', '_iqama_prog', 'rem_iqama', 'rem_wakala', 'rem_issue', 'rem_unnamed'] },
+      { ar: 'عمر الدَّين وحركته', en: 'Debt age & activity', keys: ['age_days', '_band', 'last_payment_at',
+        'last_payment_amount', 'days_since_payment', 'next_due_date', 'overdue_amount', 'invoice_status_ar',
+        'payment_state', 'request_ref_no'] },
+      { ar: 'المتابعة وخطة الدفع', en: 'Follow-up & payment plan', keys: ['col_state', ...COL_PLAN.flat(), '_kept',
+        'col_contact_at', 'col_channel', 'op_follow', 'op_notes'] },
+    ],
     /* لا شريط مجموعات: نوع المطالبة صار عموداً ملوّناً في الشبكة، وفلاتر الأعمدة
        تفرز به وبأي عمودٍ آخر — فبقاء صفٍّ ثانٍ من الأزرار فوق الشيت طريقٌ مكرّرة
        إلى الفرز نفسه، تأكل ارتفاعاً وتُخفي شريط الملخّص تحت الطيّة. */
@@ -11239,7 +11348,7 @@ const VIEWS = [
        ⚠️ «حالة الإنجاز» ليست منها عمداً — إنجاز إقامة زيدٍ غير إنجاز إقامة عمرو،
        وهي بالضبط سبب وجود صفٍّ لكل شخص. */
     groupRowKey: (r) => (r.invoice_id ? `inv__${r.invoice_id}` : null),
-    groupCols: ['col_state', 'col_promise_date', 'col_promise_amount', 'col_contact_at', 'col_channel',
+    groupCols: ['col_state', ...COL_PLAN.flat(), 'col_contact_at', 'col_channel',
       'op_follow', 'op_notes'],
     /* تسجيل حالة تحصيل = تواصلٌ وقع اليوم. `autoSet` لا `autoStamp`: التاريخ
        يجب أن **يتجدّد** مع كل حالة جديدة لا أن يُكتب مرّة ويجمد. */
@@ -11249,12 +11358,18 @@ const VIEWS = [
       /* الترتيب بالمتبقّي نازلاً **لا** بالمطلوب: الصفوف تُبسَط بعد الجلب، ويجب
          أن يبقى صفُّ الفاتورة ملاصقاً لصفوف أشخاصه — فرزٌ بمطلوب الصفّ يبعثرهم.
          والمِرقاة `id` مع المتبقّي كي لا يتأرجح المتساوون بين صفحةٍ وأختها. */
-      const [src] = await Promise.all([
+      const [src, , exitMap] = await Promise.all([
         fetchAll(sb, 'v_ops_collections', '*',
           (q) => q.order('remaining_amount', { ascending: false, nullsFirst: false }).order('id')),
         loadWorkerReg(sb),                     // سجلّ العامل — عمودا «العامل» و«جوال العامل»
+        sharedP('wfExit', () => wfExitMap(sb)), // عمودا «خروج وعودة» و«خروج نهائي» — مصدر «متأخّرات العمالة» نفسه
       ])
-      return colExpand(src)
+      /* تأشيرات مقيم السارية برقم إقامة صاحب الصفّ — كما يُلحقها السجل بصفوفه
+         (`_er_all`/`_fe_all`) فيعمل `exitYesCol` هنا بلا تعديل. */
+      return colExpand(src).map((r) => {
+        const ex = exitMap[String(colWho(r, 'iq') || '').trim()]
+        return ex ? { ...r, _er_all: ex.ers || [], _fe_all: ex.fes || [] } : r
+      })
     },
     search: (r) => [r.invoice_no, r.client_name, r.client_phone, r.agent_name, r.agent_phone,
       r.facility_ar, r.request_ref_no, r.service_ar, r.shared_notes,
@@ -11338,6 +11453,8 @@ const VIEWS = [
         fetchBlock: (r, isAr2) => (/^[12]\d{9}$/.test(String(colWho(r, 'iq') || '').replace(/\D/g, ''))
           ? null : (isAr2 === false ? 'No iqama number on this row' : 'لا رقم إقامة في هذا الصفّ')),
         fetch: (r, ctx) => muqeemExpiry(colWho(r, 'iq'), ctx.isAr) },
+      // «نعم/لا» بتفاصيلها بضغطة — عمودا «متأخّرات العمالة» نفسهما (طلب المستخدم 2026-09-28)
+      exitYesCol('_er', 'خروج وعودة', 'Exit & re-entry'), exitYesCol('_fe', 'خروج نهائي', 'Final exit'),
       /* ── تفاصيل المعاملة ─────────────────────────────────────────────────── */
       { key: '_border', ar: 'رقم الحدود', en: 'Border no.', w: 125, kind: 'mono',
         get: (r) => (r._visa && r._visa.b) || '', bg: colVisaOnlyBg },
@@ -11525,9 +11642,12 @@ const VIEWS = [
       /* ── المتابعة — يكتبها المحصِّل (overlay) ───────────────────────────── */
       { key: 'col_state', ar: 'حالة التحصيل', en: 'Collection state', w: 150, kind: 'text', ops: true, sectionStart: true,
         select: true, options: () => COL_STATES, bg: (v) => COL_STATE_BG[v] || null },
-      { key: 'col_promise_date', ar: 'تاريخ الدفع المتوقع', en: 'Expected payment date', w: 150, kind: 'date', ops: true,
-        bg: (v) => colPromiseBg(v) },
-      { key: 'col_promise_amount', ar: 'المبلغ الموعود', en: 'Promised amount', w: 125, kind: 'num', ops: true },
+      /* خطة الدفع — حتى ثلاث دفعات (`COL_PLAN`). الأولى على مفتاحَي الوعد القديمين. */
+      ...[['', 'الأولى', '1st'], ['_2', 'الثانية', '2nd'], ['_3', 'الثالثة', '3rd']].flatMap(([sfx, ar, en]) => [
+        { key: 'col_promise_date' + sfx, ar: `تاريخ الدفعة ${ar}`, en: `${en} payment date`, w: 150, kind: 'date', ops: true,
+          bg: colPlanDateBg },
+        { key: 'col_promise_amount' + sfx, ar: `مبلغ الدفعة ${ar}`, en: `${en} payment amount`, w: 135, kind: 'num', ops: true },
+      ]),
       /* سجلّ المصداقية: يُقارن ما وصل **بعد** تاريخ الوعد بما وُعد به. محسوب
          لا مُدخَل — فلا يُجمَّل. */
       { key: '_kept', ar: 'الالتزام بالوعد', en: 'Promise kept?', w: 165, kind: 'text', readOnly: true,
@@ -11571,13 +11691,13 @@ const VIEWS = [
       { key: 'est_emp_non', ar: 'المنشأة - أجنبي', en: 'Estab. — foreign', w: 120, kind: 'num' },
 
       { key: 'muqeem_expiry', ar: 'انتهاء مقيم', en: 'Muqeem expiry', w: 120, kind: 'date' },
-      { key: 'muqeem_days_left', ar: 'متبقّي مقيم (يوم)', en: 'Muqeem days left', w: 120, kind: 'num', fg: daysFg },
+      { key: 'muqeem_days_left', ar: 'متبقّي مقيم (يوم)', en: 'Muqeem days left', w: 120, kind: 'num', bg: daysBg },
       personBgCol('muqeem_sync_person', 'مزامنة مقيم — الحساب', 'Muqeem synced by', 'muqeem_sync_color'),
       { key: 'muqeem_synced_at', ar: 'آخر مزامنة', en: 'Last sync', w: 120, kind: 'date', get: (r) => ymd(r.muqeem_synced_at) },
       { key: 'muqeem_points', ar: 'رصيد نقاط مقيم', en: 'Muqeem points', w: 120, kind: 'num' },
 
       { key: 'qiwa_expiry', ar: 'انتهاء قوى', en: 'Qiwa expiry', w: 120, kind: 'date' },
-      { key: 'qiwa_days_left', ar: 'متبقّي قوى (يوم)', en: 'Qiwa days left', w: 120, kind: 'num', fg: daysFg },
+      { key: 'qiwa_days_left', ar: 'متبقّي قوى (يوم)', en: 'Qiwa days left', w: 120, kind: 'num', bg: daysBg },
       // اشتراك قوى يُشترى لكل (منشأة × حساب)، فالتاريخ المعروض يخصّ حساباً بعينه —
       // وقد يكون حساب مفوَّض غير آخر من زامن. لذلك عمودان منفصلان.
       personBgCol('qiwa_sub_person', 'اشتراك قوى — الحساب', 'Qiwa subscription account', 'qiwa_sub_color'),
@@ -11590,8 +11710,8 @@ const VIEWS = [
       // المتبقّي هنا بمعنيين حسب المرحلة (كما في كرت السجل التجاري): قبل التاريخ =
       // أيام حتى فتح النافذة (أصفر) · بعده = أيام قبل تعليق السجل (أحمر).
       { key: 'cr_confirm_days_left', ar: 'متبقّي التأكيد (يوم)', en: 'Confirmation days left', w: 130, kind: 'num',
-        fg: (v, r) => (r?.cr_confirm_stage === 'متأخّر عن التأكيد' || r?.cr_confirm_stage === 'داخل نافذة التأكيد'
-          ? C.red : r?.cr_confirm_stage === 'قبل فتح النافذة' ? '#eab308' : null) },
+        bg: (v, r) => (r?.cr_confirm_stage === 'متأخّر عن التأكيد' || r?.cr_confirm_stage === 'داخل نافذة التأكيد'
+          ? solidBg(DAYS_RED_BG) : r?.cr_confirm_stage === 'قبل فتح النافذة' ? solidBg(DAYS_AMBER_BG) : undefined) },
       personBgCol('sbc_sync_person', 'مزامنة المركز — الحساب', 'SBC synced by', 'sbc_sync_color'),
       { key: 'sbc_synced_at', ar: 'آخر مزامنة', en: 'Last sync', w: 120, kind: 'date', get: (r) => ymd(r.sbc_synced_at) },
 
@@ -11642,7 +11762,7 @@ const VIEWS = [
     bands: txnBands({
       svc: ['request_quantity', 'nationality_ar', 'occupation_ar', 'visa_type_ar', 'order_kind_ar', 'gender', 'embassy_ar', 'visa_cost'],
       who: { ar: 'التأشيرة', en: 'Visa', prefixes: ['q_', 'wv_msg_'],
-        keys: ['worker_name', 'visa_number', 'border_number', 'visa_issue_date', 'visa_used', 'usage_status_ar', 'file_number',
+        keys: ['worker_name', 'visa_number', 'border_number', 'paper_slips', 'visa_issue_date', 'visa_used', 'usage_status_ar', 'file_number',
           '_file_group', 'visa_file', '_issue_posted', 'o_nationality', 'o_occupation', 'o_embassy', 'o_gender', 'o_visa_no', 'o_border_no'] },
     }),
     /* اسم المنشأة من السجل التجاري إن وُجد — القاعدة العامة (applySbcName) */
@@ -11695,7 +11815,7 @@ const VIEWS = [
        النقر في أي شطرٍ منها يُنشّط رأسها ويحرّره، فلا يُحرَّر ما لا يُرى. */
     merges: [
       { key: wvInvKey, cols: ['branch_code', 'invoice_at', 'invoice_no', 'request_ref_no',
-        'service_ar', 'request_quantity', 'client_name', 'agent_name', 'agent_phone', 'inv_state', 'invoice_status_ar', 'request_status_ar'] },
+        'service_ar', 'request_quantity', 'client_name', 'agent_name', 'agent_phone', 'inv_state', 'invoice_status_ar', 'request_status_ar', 'paper_slips'] },
       /* بُعد ثانٍ لتبويب «تأشيرات بلا فواتير»: طلب قوى الواحد = ملفٌ واحد
          بعدّة أرقام حدود، فخلاياه المشتركة (المواصفات والهوية ورقم التأشيرة
          وبيانات الطلب) تُدمج — ويبقى لكل صفٍّ رقمُ حدوده وحالتُه وقابليةُ إلغائه. */
@@ -11716,6 +11836,7 @@ const VIEWS = [
         loadVisaInstallments(sb),              // جدول الدفعات — عمود «دفعة إصدار التأشيرة»
         loadAbsherBal(sb),                     // رصيد أبشر للمنشأة — نفس عمود «نطاقات والاستقطاب»
         loadVisaTopups(sb),                    // حالة طلب شحن الرصيد لكل تأشيرة
+        loadVisaSlips(sb),                     // أرقام سندات القبض الورقية لكل طلب
         loadQiwaVisaStatus(sb),                // حالة استخدام التأشيرة من قوى برقم الحدود
         loadClientCards(sb),                   // بطاقة العميل خلف اسمه (جواله وهويّته)
         loadCrDocs(sb),                        // مرفق السجل التجاري في بطاقة المنشأة
@@ -11753,11 +11874,11 @@ const VIEWS = [
         'sadad_request', 'worker_name', 'visa_issue_date', 'visa_used',
         'file_number', '_file_group', 'visa_file', '_issue_posted', 'op_follow', 'op_notes',
         'nationality_ar', 'occupation_ar', 'embassy_ar', 'gender', 'unified_number', 'gosi_number',
-        'hrsd_number', 'facility_ar', 'visa_number', 'border_number', 'cr_document'],
+        'hrsd_number', 'facility_ar', 'visa_number', 'border_number', 'cr_document', 'paper_slips'],
     },
     search: (r) => [r.invoice_no, r.request_ref_no, r.client_name, r.agent_name, r.worker_name,
       r.visa_number, r.border_number, r.unified_number, r.gosi_number, r.hrsd_number,
-      r.facility_ar, r.q_request_id],
+      r.facility_ar, r.q_request_id, wvSlipsOf(r).join(' ')],
     addFields: [
       { key: 'worker_name', ar: 'اسم العامل', en: 'Worker', required: true },
       { key: 'visa_number', ar: 'رقم التأشيرة', en: 'Visa no.' },
@@ -11786,7 +11907,7 @@ const VIEWS = [
          والبطاقة تقول إنه بلا اسمٍ في السجلّ فلا يُظنّ الرقمُ اسماً. */
       { key: 'client_name', ar: 'العميل', en: 'Client', w: 180, kind: 'text',
         tap: clientInfoCard, tapTip: { ar: 'اعرض بيانات العميل (الجوال · الهوية)', en: 'Show client details (mobile · ID)' },
-        get: (r) => String(r.client_name || '').trim() || String((clientRowOf(r) || {}).name_ar || '').trim() || phone10(r.client_phone) || '' },
+        get: (r) => String(r.client_name || '').trim() || String((clientRowOf(r) || {}).name_ar || (clientRowOf(r) || {}).name_en || '').trim() || phone10(r.client_phone) || '' },
       /* فاتورةٌ بلا وسيط: الخانة تُشطب قطريّاً — «لا وسيط» لا «وسيطٌ لم يُدخَل بعد» */
       { key: 'agent_name', ar: 'الوسيط', en: 'Agent', w: 165, kind: 'text',
         bg: (v) => (String(v ?? '').trim() ? null : NA_BG) },
@@ -11920,6 +12041,12 @@ const VIEWS = [
       workerCol({ key: 'worker_name', ar: 'العامل', en: 'Worker', manual: true }),
       { key: 'visa_number', ar: 'رقم التأشيرة', en: 'Visa no.', w: 140, kind: 'mono', manual: true, ...WV_NUM_VISA },
       { key: 'border_number', ar: 'رقم الحدود', en: 'Border no.', w: 130, kind: 'mono', bg: wvBnBg, cellTip: wvBnTip, ...WV_NUM_BORDER },
+      /* أرقام سندات القبض الورقية المرحَّلة إلى طلب الفاتورة (`sr.slip_no`) — قيمة
+         الفاتورة كلها فتُدمج مع كتلتها، وكل رقمٍ شارةٌ تُنسخ بضغطة. نصّ `get`
+         (الأرقام بمسافات) للبحث والفرز والتصدير. */
+      { key: 'paper_slips', ar: 'سندات القبض الورقية', en: 'Paper receipts', w: 190, kind: 'mono', readOnly: true,
+        get: (r) => wvSlipsOf(r).join(' '),
+        render: (r, _raw, isAr2, ctx = {}) => mSpanWrap(ctx.mSpan, ctx.mSpanH, <SlipChips nums={wvSlipsOf(r)} isAr={isAr2 !== false} />) },
 
       /* ═══ (2ب) توائم المزامنة — تبويب «تأشيرات بلا فواتير» وحده ═══
          نفس حقول الهوية والمواصفات لكن **بمظهر المزامنة الكامل** (نقطة ذهبية +
@@ -12235,6 +12362,7 @@ const VIEWS = [
         loadClientCards(sb),      // بطاقة العميل خلف اسمه (جواله وهويّته)
         loadMsgBanks(sb),         // بنوك الحوالة في رسالة سداد التأمين
       ])
+      wvCountReqs(src)            // حصّة التأشيرة من دفعة الإقامة (`wvIqmPay`)
       return src.map((r) => ({ ...wvWithFac(r), _id: r.id }))
     },
     search: (r) => [r.invoice_no, r.request_ref_no, r.client_name, r.client_phone, r.agent_name, r.worker_name,
@@ -12337,7 +12465,7 @@ const VIEWS = [
          والبطاقة تقول إنه بلا اسمٍ في السجلّ فلا يُظنّ الرقمُ اسماً. */
       { key: 'client_name', ar: 'العميل', en: 'Client', w: 180, kind: 'text',
         tap: clientInfoCard, tapTip: { ar: 'اعرض بيانات العميل (الجوال · الهوية)', en: 'Show client details (mobile · ID)' },
-        get: (r) => String(r.client_name || '').trim() || String((clientRowOf(r) || {}).name_ar || '').trim() || phone10(r.client_phone) || '' },
+        get: (r) => String(r.client_name || '').trim() || String((clientRowOf(r) || {}).name_ar || (clientRowOf(r) || {}).name_en || '').trim() || phone10(r.client_phone) || '' },
       { key: 'agent_name', ar: 'الوسيط', en: 'Agent', w: 165, kind: 'text' },
       /* هويّة المنشأة عمودٌ واحد وبطاقةٌ خلفه — انظر الشرح في `IQM_COLS` */
       { key: 'unified_number', ar: 'الرقم الموحّد', en: 'Unified no.', w: 150, kind: 'mono', fg: facNumFg, fmt: (v) => fmtUniDisp(v), source: 'fetched',
@@ -12488,7 +12616,7 @@ const VIEWS = [
       { key: 'service_ar', ar: 'الخدمة', en: 'Service', w: 175, kind: 'text' },
       { key: 'client_name', ar: 'العميل', en: 'Client', w: 180, kind: 'text',
         tap: clientInfoCard, tapTip: { ar: 'اعرض بيانات العميل (الجوال · الهوية)', en: 'Show client details (mobile · ID)' },
-        get: (r) => String(r.client_name || '').trim() || String((clientRowOf(r) || {}).name_ar || '').trim() || phone10(r.client_phone) || '' },
+        get: (r) => String(r.client_name || '').trim() || String((clientRowOf(r) || {}).name_ar || (clientRowOf(r) || {}).name_en || '').trim() || phone10(r.client_phone) || '' },
       { key: 'agent_name', ar: 'الوسيط', en: 'Agent', w: 165, kind: 'text' },
       { key: 'unified_number', ar: 'الرقم الموحّد', en: 'Unified no.', w: 150, kind: 'mono', fg: facNumFg, fmt: (v) => fmtUniDisp(v), source: 'fetched',
         tap: facInfoCard, tapTip: { ar: 'اعرض بيانات المنشأة (الاسم · التأمينات · الموارد)', en: 'Show facility details (name · GOSI · HRSD)' },
@@ -14480,7 +14608,7 @@ const VIEWS = [
          «0» للمنتهية فلا يُفرِّق بين اليوم وسنةٍ مضت. ويستمر بالسالب بعد الانتهاء. */
       { key: 'bl_left', ar: 'المتبقّي (يوم)', en: 'Days left', w: 120, kind: 'num', source: 'formula',
         get: (r) => { const n = blDaysLeft(r); return n == null ? '' : String(n) },
-        fg: daysFg },
+        bg: daysBg },
       /* الحالة محسوبة من التاريخ لا منقولة من بلدي: «سارية» في ردّه تبقى سارية
          بعد انقضاء تاريخها متى تأخّرت المزامنة. */
       { key: 'bl_status', ar: 'الحالة', en: 'Status', w: 130, kind: 'text', source: 'formula',
@@ -14511,7 +14639,7 @@ const VIEWS = [
   /* جداول خدمات الطلبات (محرّك `svSheet` أعلاه) — تسعة جداول من مصدرٍ واحد */
   ...SV_SHEETS,
 ]
-/* «إقامات تنتهي خلال 30 يوماً» (طلب المستخدم 2026-09-26): شيت «البيانات الأساسية»
+/* «إقامات تنتهي خلال 60 يوماً» (طلب المستخدم 2026-09-26، كانت 30): شيت «البيانات الأساسية»
    نفسه — أعمدتُه وأدواتُه وسجلُّه — مقصوراً على من تنتهي إقامته من اليوم إلى 30
    يوماً. نسخةٌ مشتقّة لا تعريفٌ ثانٍ: كلُّ عمودٍ يُضاف هناك يظهر هنا. والطبقة
    طبقتُه (`overlayKey`): ملاحظةُ المتابعة على العامل واحدةٌ في الشيتين. وبلا
@@ -14523,8 +14651,8 @@ const VIEWS = [
     ...base,
     key: 'iqama_expiring',
     ar: 'قاربت الانتهاء', en: 'Expiring soon',
-    hintAr: 'العمالة التي تنتهي إقاماتها خلال الثلاثين يوماً القادمة',
-    hintEn: 'Workers whose iqamas expire in the next 30 days',
+    hintAr: 'العمالة التي تنتهي إقاماتها خلال الستين يوماً القادمة',
+    hintEn: 'Workers whose iqamas expire in the next 60 days',
     overlayKey: 'permanent_workers',
     // الترتيب بالتاريخ لا بالمنشأة — فلا دمجَ رأسيّاً لخلايا المنشأة (يتقطّع بين الصفوف)
     mergeKey: undefined, mergeCols: [],
@@ -14540,7 +14668,8 @@ const VIEWS = [
         exitYesCol('_er', 'خروج وعودة', 'Exit & re-entry'), exitYesCol('_fe', 'خروج نهائي', 'Final exit'), renewInvCol, ...FX_COLS)
       return cs
     })(),
-    load: async (sb) => (await loadRegistryExpiring(sb, 30)).filter((r) => !r._sync && iqExpIn(r.iqama_expiry_date, 0, 30)),
+    // ستّون يوماً لا ثلاثون (طلب المستخدم 2026-09-26)
+    load: async (sb) => (await loadRegistryExpiring(sb, 60)).filter((r) => !r._sync && iqExpIn(r.iqama_expiry_date, 0, 60)),
   })
 }
 /* «متأخّرات العمالة» تحت المالية (طلب المستخدم 2026-09-26): مشتقٌّ من «البيانات
@@ -14855,6 +14984,47 @@ function CopyBtn({ text, title, size = 16 }) {
         ? <svg width={size - 4} height={size - 4} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
         : <svg width={size - 4} height={size - 4} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>}
     </button>
+  )
+}
+
+/* نسخٌ يعمل على http أيضاً (شبكة المكتب): واجهة الحافظة أولاً، ثم textarea خفيّ
+   يُحدَّد ويُنسخ — لا `execCommand` على تحديد الصفحة القائم (قد ينسخ غير المقصود). */
+async function copyPlain(text) {
+  try { if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(text); return true } } catch { /* البديل */ }
+  try {
+    const ta = document.createElement('textarea')
+    ta.value = text; ta.setAttribute('readonly', '')
+    ta.style.cssText = 'position:fixed;top:0;left:-9999px;opacity:0'
+    document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0, ta.value.length)
+    const ok = document.execCommand('copy'); document.body.removeChild(ta)
+    return !!ok
+  } catch { return false }
+}
+
+/* أرقام سندات القبض شاراتٍ متجاورة، كلُّ شارةٍ تُنسخ وحدها بضغطة وتخضرّ لحظةً
+   إقراراً بالنسخ (عمود «سندات القبض» في شيت التأشيرات). */
+function SlipChips({ nums, isAr }) {
+  const [done, setDone] = useState(null)
+  if (!nums || !nums.length) return null
+  return (
+    <span style={{ display: 'flex', flexWrap: 'wrap', gap: 4, justifyContent: 'center', alignItems: 'center',
+      direction: 'ltr', pointerEvents: 'auto', maxHeight: '100%', overflow: 'hidden', padding: '2px 0' }}>
+      {nums.map((n) => (
+        <span key={n} role="button" title={isAr ? `نسخ السند ${n}` : `Copy receipt ${n}`}
+          onMouseDown={(e) => { e.preventDefault(); e.stopPropagation() }}
+          onClick={(e) => {
+            e.stopPropagation()
+            copyPlain(n).then((ok) => { if (ok) { setDone(n); setTimeout(() => setDone((d) => (d === n ? null : d)), 1200) } })
+          }}
+          style={{ fontFamily: 'monospace', fontSize: 12, fontWeight: 600, lineHeight: '18px', padding: '0 7px',
+            borderRadius: 9, cursor: 'copy', userSelect: 'none', transition: 'background .15s, color .15s',
+            border: `1px solid ${done === n ? 'rgba(46,204,113,.7)' : 'rgba(176,125,0,.45)'}`,
+            background: done === n ? 'rgba(46,204,113,.18)' : 'rgba(176,125,0,.10)',
+            color: done === n ? '#2ecc71' : 'var(--tx)' }}>
+          {done === n ? '✓ ' : ''}{n}
+        </span>
+      ))}
+    </span>
   )
 }
 
@@ -16123,11 +16293,12 @@ const VIEW_STATS = {
       SC('pred', 'بلا تاريخ', 'No date', { need: ['iqama_expiry_date'], hideZero: true, fn: (v) => iqExpIn(v('iqama_expiry_date'), null) }),
     ] }),
   ],
-  // «قاربت الانتهاء» (إقامات تنتهي خلال 30 يوماً): شريحتا الكرت نفسه اللتان يقع فيهما الشيت
+  // «قاربت الانتهاء» (إقامات تنتهي خلال 60 يوماً): شرائح الكرت نفسه التي يقع فيها الشيت
   iqama_expiring: [
     SC('group', 'انتهاء الإقامة', 'Iqama expiry', { items: [
       SC('pred', 'خلال 14 يوماً', 'Within 14 days', { need: ['iqama_expiry_date'], tone: 'bad', fn: (v) => iqExpIn(v('iqama_expiry_date'), 0, 14) }),
       SC('pred', '15 – 30 يوماً', '15–30 days', { need: ['iqama_expiry_date'], tone: 'warn', fn: (v) => iqExpIn(v('iqama_expiry_date'), 15, 30) }),
+      SC('pred', '31 – 60 يوماً', '31–60 days', { need: ['iqama_expiry_date'], tone: 'warn', fn: (v) => iqExpIn(v('iqama_expiry_date'), 31, 60) }),
     ] }),
   ],
   worker_overdue: [
@@ -17069,7 +17240,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
         const wf = ['permanent_workers', 'iqama_expiring', 'worker_overdue', 'recoveries'].some(has)
         if (wf) await quiet(() => sbcNameMap(sb))
         // «قاربت الانتهاء»: صفوفُه وحدها — لا يحتاج بيانات المزامنة الثقيلة
-        if (has('iqama_expiring')) await quiet(() => loadRegistryExpiring(sb, 30))
+        if (has('iqama_expiring')) await quiet(() => loadRegistryExpiring(sb, 60))
         if (has('worker_overdue')) await quiet(() => loadWorkerOverdue(sb))
         if (has('recoveries')) await quiet(() => loadRecoveries(sb))
         // السجلّ كاملاً ومقارنتُه بالمزامنة — أثقل ما في الصفحة، آخراً
@@ -17237,6 +17408,20 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
        و`remove`: صفوفٌ حذفها الأثر — تُطبَّقان على الطبقة محلّياً بلا إعادة تحميل. */
     const rm = Array.isArray(res.remove) ? res.remove : []
     if (rm.length) setOverlay((prev) => { const n = { ...prev }; for (const id of rm) delete n[id]; return n })
+    /* `srcNull`: `{ معرّف الصفّ: [أعمدة] }` — أثرٌ مسح المصدر فعلاً (مسحٌ صريح
+       رُحِّل NULL) وأسقط علامته من الطبقة في `patch`. فيُفرَغ الحقل في صفّ
+       المصدر المحمَّل أيضاً، وإلا عادت الخليّة تعرض القيمة القديمة من الذاكرة
+       حتى إعادة التحميل. */
+    const sn = res.srcNull && typeof res.srcNull === 'object' ? res.srcNull : null
+    if (sn && Object.keys(sn).length) {
+      setSyncRows((prev) => prev.map((r) => {
+        const ks = sn[r._id]
+        if (!ks || !ks.length) return r
+        const o = { ...r }
+        for (const k of ks) o[k] = null
+        return o
+      }))
+    }
     const posted = hasPatch || !!res.quietOk || rm.length > 0
     /* ⚠️ `quietOk` بلا `patch` (سجلّ العمالة) لا شيء يُطبَّق على الطبقة — كان
        `Object.entries(undefined)` هنا يُسقط شيت «البيانات الأساسية» بعد كل حفظ
@@ -17417,12 +17602,18 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
       const ov = overlay[r._id] || {}
       const gk = gKeyOf ? gKeyOf(r) : null
       const gd = gk ? (overlay[gk] || {}).data : null
-      out.push({
+      const o = {
         ...r,
         _ops: gk ? grpOps(ov.data, gd) : (ov.data || {}),
         _gkey: gk || null,
         _sort: ov.sort_order ?? null, _hidden: !!ov.hidden, _manual: false,
-      })
+      }
+      /* خانةٌ مسحها الموظّف صراحةً (`__x`) يُفرَغ حقلُ مصدرها في الصفّ نفسه —
+         فتراها فارغةً كلُّ القراءات المشتقّة (العدّادات، الحرّاس، `effOf`) لا
+         الخليّة وحدها. والأصلُ محفوظٌ لـ`syncVal` عبر `bareRow`. */
+      const clr = opsClearedKeys(o._ops)
+      if (clr.length) { for (const k of clr) o[k] = null; BARE_ROWS.set(o, r) }
+      out.push(o)
       seen.add(r._id)
     }
     for (const [k, ov] of Object.entries(overlay)) {
@@ -17566,6 +17757,8 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
       const ge = edits[row._gkey]
       if (ge && Object.prototype.hasOwnProperty.call(ge, col.key)) return ge[col.key] ?? ''
     }
+    // مسحٌ صريح محفوظ (`__x`) — فارغةٌ مهما كان تحتها في المصدر
+    if (opsCleared(row._ops, col.key)) return ''
     const ov = row._ops ? row._ops[col.key] : undefined
     if (ov != null && ov !== '') return ov
     // الوسيط الثالث = تعديلات الصف غير المحفوظة، كي تتحدّث الأعمدة المشتقّة
@@ -17602,6 +17795,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
   }, [isAr])
   // القيمة المحفوظة الفعّالة (تشمل التجاوز، تتجاهل التعديل غير المحفوظ)
   const savedVal = useCallback((row, col) => {
+    if (opsCleared(row._ops, col.key)) return ''
     const ov = row._ops ? row._ops[col.key] : undefined
     if (ov != null && ov !== '') return String(ov)
     if (col.ops) return col.get ? String(col.get(row, isAr) ?? '') : ''
@@ -17614,11 +17808,67 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
      بالأزرق ومثلّثِه يقول إنها تخالف النظام وهي لا تخالف شيئاً. */
   const isOverridden = useCallback((row, col) => {
     if (!col || col.ops || col.kind === 'rownum' || !row._ops) return false
+    /* المسحُ الصريح تجاوزٌ ما دام المصدر يحمل قيمة — مثلّثه يقول إن الترحيل
+       لم يُفرغ المصدر بعد (صلاحيةٌ ناقصة أو شيتٌ لا يرحّل هذا العمود). */
+    if (opsCleared(row._ops, col.key)) return !!syncVal(row, col)
     const ov = row._ops[col.key]
     if (ov == null || ov === '') return false
     const sv = syncVal(row, col)
     return !!sv && String(ov) !== sv
   }, [syncVal])
+  /* ما تعرضه الخليّة **لو لم يكن فيها تجاوزٌ ولا مسح**: قيمة المصدر، أو مشتقّةُ
+     العمود ذي `get` (والتشغيليّ منه أيضاً — قيمته الافتراضية تعود بالمسح كما
+     تعود قيمة المصدر). بها يُعرف أيُّ مسحٍ يحتاج علامة `__x` (خانةٌ لا شيء
+     تحتها يكفيها حذف التجاوز)، ومتى تسقط العلامة (صار ما تحتها فارغاً).
+     `data` = بيانات الطبقة بلا هذه الخانة. الصفّ اليدويّ لا مصدر له: قيمُه هي
+     بياناته نفسها، فحذفُها مسحٌ تامّ. */
+  const underVal = useCallback((row, col, data) => {
+    if (!row || row._manual || !col || col.kind === 'rownum') return ''
+    const b = bareRow(row) || {}
+    try {
+      if (col.get) return String(col.get({ ...b, _ops: opsUnclear(data || {}, [col.key]) }, isAr) ?? '').trim()
+      if (col.ops) return ''
+      return b[col.key] == null ? '' : String(b[col.key]).trim()
+    } catch { return '' }
+  }, [isAr])
+
+  /* ── إسقاط علامات المسح التي أدّت غرضها — بعد كل تحميل ─────────────────────
+     المسح الصريح رُحِّل NULL وصار المصدر فارغاً (بعد إعادة التحميل)؛ فعلامتُه
+     لم تعد تحجب شيئاً، وبقاؤها يحجب قيمةً تُكتب في المصدر لاحقاً من صفحةٍ أخرى
+     (نافذة المرحلة في الفاتورة). فتُسقط من الطبقة بتحديث `data` وحده. ولا تُمسّ
+     علامةٌ ما زال تحتها قيمة: ذاك مسحٌ لم يصل المصدر بعد (صلاحيةٌ ناقصة، أو
+     شيتٌ لا يرحّل العمود) فهي وحدها ما يُبقي الخانة فارغة. */
+  const clrPruneRef = useRef('')
+  useEffect(() => {
+    if (!sb || loading || weekSel !== 'live' || !canEdit || saving || Object.keys(edits).length) return
+    const fix = []
+    for (const r of allRows) {
+      if (r._manual) continue
+      const d = (overlay[r._id] || {}).data
+      const ks = opsClearedKeys(d)
+      if (!ks.length) continue
+      const gone = ks.filter((k) => { const cd = colDefs.get(k); return cd && underVal(r, cd, d) === '' })
+      if (gone.length) fix.push([r._id, opsUnclear(d, gone), d])
+    }
+    if (!fix.length) return
+    const sig = ovKey + '|' + fix.map(([id, d]) => id + ':' + opsClearedKeys(d).join(',')).join('|')
+    if (clrPruneRef.current === sig) return
+    clrPruneRef.current = sig
+    ;(async () => {
+      const done = []
+      for (const [id, d, d0] of fix) {
+        // صفٌّ بدأ الموظّف يكتب فيه: حفظُه يكتب بياناته كاملة — لا نسبقه بنسخةٍ أقدم
+        if (editsRef.current[id]) continue
+        const { error } = await sb.from('ops_sheet_rows').update({ data: d }).eq('view_key', ovKey).eq('row_key', id)
+        if (!error) done.push([id, d, d0])
+      }
+      if (done.length) setOverlay((prev) => {
+        const n = { ...prev }
+        for (const [id, d, d0] of done) if (n[id] && n[id].data === d0) n[id] = { ...n[id], data: d }
+        return n
+      })
+    })()
+  }, [sb, loading, weekSel, canEdit, saving, edits, allRows, overlay, colDefs, underVal, ovKey])
 
   // بحث شامل: يطابق أي قيمة في أي عمود (مزامنة/إدخال/صيغة/تجاوز)، إضافةً إلى
   // حقول view.search المختارة (تشمل حقولاً قد لا يكون لها عمود مثل الاسم الإنجليزي).
@@ -18682,18 +18932,35 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
         const ov = overlay[rowKey] || {}
         const rowRef = byId.get(rowKey)
         const base = ov.data || rowRef?._ops || {}
-        const mergedData = { ...base }
+        let mergedData = { ...base }
         for (const [kk, v] of Object.entries(patch)) { if (v === '' || v == null) delete mergedData[kk]; else mergedData[kk] = v }
+        /* ── المسح الصريح (انظر `OPS_CLR`) ──────────────────────────────────────
+           حذفُ التجاوز وحده يُعيد قيمة المصدر، فخانةٌ تحتها قيمةٌ تُعلَّم «مُسحت»
+           ويقرؤها الترحيل فيكتب NULL في المصدر. وكلّ قيمةٍ تُكتب بعدها تُسقط
+           العلامة، وما لا شيء تحته لا علامة له (الحذف يكفيه). */
+        for (const [kk, v] of Object.entries(patch)) {
+          const cd = colDefs.get(kk)
+          // قيمةُ العلامة = ما حجبته من المصدر: يقرؤها سجلّ الخليّة («كانت: …»)
+          const under = (v === '' || v == null) && cd && rowRef ? underVal(rowRef, cd, mergedData) : ''
+          if (under) mergedData = { ...mergedData, [OPS_CLR]: { ...(mergedData[OPS_CLR] || {}), [kk]: under.slice(0, 500) } }
+          else mergedData = opsUnclear(mergedData, [kk])
+        }
         // أعمدة «لقطة» (freeze): تُلتقط قيمتها المشتقّة أوّل حفظ تكون فيه غير فارغة
         // وتُخزَّن — فتبقى كما كانت مهما تغيّرت المزامنة بعدها (نطاق الأسبوع الأول).
         for (const cd of colDefs.values()) {
           if (!cd.freeze || !cd.get) continue
           if (mergedData[cd.key] != null && mergedData[cd.key] !== '') continue
+          if (opsCleared(mergedData, cd.key)) continue          // مُسحت عمداً: لا تُلتقط ثانيةً
           const v = String(cd.get({ ...(rowRef || {}), _ops: mergedData }, isAr) ?? '')
           if (v) mergedData[cd.key] = v
         }
         // تنظيف: تجاوز عمود مُزامَن أصبح مطابقاً لقيمة المزامنة يُحذف (لا حاجة لتخزينه)
         if (rowRef) for (const kk of Object.keys(mergedData)) { const cd = colDefs.get(kk); if (cd && !cd.ops && !cd.freeze && String(mergedData[kk]) === syncVal(rowRef, cd)) delete mergedData[kk] }
+        // علامة مسحٍ صار ما تحتها فارغاً (رحّلها حفظٌ سابق) — أدّت غرضها فتسقط
+        if (rowRef) {
+          const stale = opsClearedKeys(mergedData).filter((kk) => { const cd = colDefs.get(kk); return cd && underVal(rowRef, cd, mergedData) === '' })
+          if (stale.length) mergedData = opsUnclear(mergedData, stale)
+        }
         /* ختم الخليّة: **من أدخلها ومتى**، لكل خليّة على حدة، في مفتاحٍ محجوز
            `__m` داخل بيانات الصف — لا عمود له ولا يظهر في الشبكة، ويقرأه تلميحُ
            الخليّة عند المرور. (كان في الصفّ ختمٌ واحد `updated_by/at` يقول آخر
@@ -18778,7 +19045,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
         }
       } catch (e) { toast && toast(T('تعذّر الترحيل للدفتر: ', 'Posting to the ledger failed: ') + (e.message || e), 'error') }
     }
-  }, [sb, saving, dirtyRowCount, edits, allRows, overlay, view, user, userName, toast, T, isAr, colDefs, syncVal, applyAfterSave, removedCols, load])
+  }, [sb, saving, dirtyRowCount, edits, allRows, overlay, view, user, userName, toast, T, isAr, colDefs, syncVal, underVal, applyAfterSave, removedCols, load])
 
   // حفظ تلقائي: بعد ثوانٍ يسيرة من آخر تعديل (Enter/Tab/لصق) يُحفظ بلا زر
   const saveRef = useRef(save); useEffect(() => { saveRef.current = save }, [save])
@@ -22120,11 +22387,17 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
         const sv = syncVal(row, col)
         const overridden = isOverridden(row, col)
         const manual = !!(row._ops && row._ops[col.key] != null && row._ops[col.key] !== '')
+        const wiped = opsCleared(row._ops, col.key)
         /* عنوانٌ يعرّف الصفّ: أوّل عمودٍ فيه قيمة (الاسم أو رقم الفاتورة غالباً)
            — «تفاصيل الخليّة» بلا اسم صاحبها نافذةٌ لا يُعرف على أيّ صفٍّ فُتحت. */
         const idCol = COLS.find((c) => c.kind !== 'rownum' && c.key !== col.key && String(fmtDisp(row, c) ?? '').trim())
         const rowLabel = idCol ? String(fmtDisp(row, idCol) ?? '').trim() : ''
-        const src = manual
+        // مسحٌ صريح: ما زال في المصدر قيمة (لم يصلها الترحيل) أو صار فارغاً فيه
+        const src = wiped
+          ? (String(sv ?? '').trim()
+            ? T('مُسحت يدوياً — والنظام ما زال يحمل قيمة', 'Cleared by hand — the system still holds a value')
+            : T('مُسحت يدوياً', 'Cleared by hand'))
+          : manual
           ? (overridden ? T('إدخال يدوي فوق قيمة المزامنة', 'Manual entry over a synced value') : T('إدخال يدوي', 'Manual entry'))
           : (String(sv ?? '').trim() ? T('من المزامنة — لم يُدخلها أحد يدوياً', 'From sync — never entered by hand')
             : (formulaMap[col.key] ? T('معادلة', 'Formula') : T('فارغة', 'Empty')))

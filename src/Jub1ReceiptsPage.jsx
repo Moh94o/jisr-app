@@ -89,6 +89,7 @@ export default function Jub1ReceiptsPage({ sb, user, toast, lang = 'ar', emptyIc
   const [agents, setAgents] = useState([])           // للاقتراح التلقائي لاسم الوسيط
   const [entries, setEntries] = useState([])         // صفوف jub1_receipts + payments
   const [loading, setLoading] = useState(true)
+  const [fresh, setFresh] = useState(false)          // تمّ جلبٌ حيّ واحد على الأقل (لا الكاش وحده)
   const [statsData, setStatsData] = useState(() => swrGet('jub1_stats') || null)  // إحصاءات خادمية (RPC) — كروت فورية
   const [visibleCount, setVisibleCount] = useState(150)  // عرض تدريجي: لا نرسم آلاف الصفوف دفعة واحدة
   const sentinelRef = useRef(null)
@@ -165,6 +166,7 @@ export default function Jub1ReceiptsPage({ sb, user, toast, lang = 'ar', emptyIc
     swrSet('jub1_entries', merged)
     setEntries(merged)
     setLoading(false)
+    setFresh(true)
   }, [sb])
 
   // دمج محلي فوري: الحفظ لا ينتظر إعادة جلب آلاف الصفوف — نعدّل القائمة والكاش مباشرة
@@ -427,6 +429,32 @@ export default function Jub1ReceiptsPage({ sb, user, toast, lang = 'ar', emptyIc
     tt(T('تم حذف السند', 'Receipt deleted'))
     return true
   }, [sb, user, mutateEntries, loadEntries])
+
+  // رابط مباشر من بطاقة «سندات القبض» في الفاتورة (يُفتح بتبويب جديد):
+  // ‎#jub1_receipts?no=<رقم السند>&inv=<معرّف الفاتورة>‎ — رقم السند غير فريد، فالأولوية للسند
+  // المحوَّل إلى هذه الفاتورة؛ وإن تعذّر التحديد يُملأ البحث بالرقم ليختار الموظف.
+  const deepRef = useRef((() => {
+    try {
+      const h = window.location.hash || ''
+      if (!h.startsWith('#' + TAB + '?')) return null
+      const sp = new URLSearchParams(h.slice(h.indexOf('?') + 1))
+      const no = (sp.get('no') || '').trim()
+      return no ? { no, inv: sp.get('inv') || '' } : null
+    } catch { return null }
+  })())
+  useEffect(() => {
+    const d = deepRef.current
+    if (!d || !entries.length) return
+    const same = s => String(s || '').trim() === d.no
+    const hits = entries.filter(e => same(e.primary_receipt_no) || (e.payments || []).some(p => same(p.sanad_no)))
+    const hit = (d.inv && hits.find(e => e.converted_invoice_id === d.inv)) || (hits.length === 1 ? hits[0] : null)
+    if (!hit && !fresh) return            // الكاش قد يكون قديماً — انتظر الجلب الحيّ قبل الحكم
+    deepRef.current = null
+    try { window.history.replaceState(null, '', window.location.pathname + window.location.search) } catch {}
+    if (hit) { setRecStack([]); setViewId(hit.id); return }
+    setQ(d.no)
+    if (!hits.length) tt(T('لا يوجد سند مسجّل بالرقم ', 'No receipt registered with no ') + d.no)
+  }, [entries, fresh])
 
   // فتح سند عبر رقمه — رقاقة «أرقام السندات السابقة» هي رابط تكوين صورة الفاتورة
   const openByNo = useCallback((no) => {

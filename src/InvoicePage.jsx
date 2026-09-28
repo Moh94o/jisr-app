@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import BackButton from './components/BackButton'
-import { can as canPerm, isGM, isAccountant, cardVisible, canCardBtn, tabOffices, tabServiceTypes, statsMode, fieldVisible, fieldEditable, modalAllowed, canTabBranch } from './lib/permissions.js'
+import { can as canPerm, isGM, isAccountant, canViewPage, cardVisible, canCardBtn, tabOffices, tabServiceTypes, statsMode, fieldVisible, fieldEditable, modalAllowed, canTabBranch } from './lib/permissions.js'
 import { ALL_SERVICES, SVC_CODE_MAP } from './ServiceRequestPage.jsx'
 import { noDash, clientEditChanges, branchLabel, branchNick } from './lib/utils.js'
 import { navSetHere } from './lib/navStack.js'
@@ -5356,7 +5356,7 @@ const cardSub    = { fontSize: 11, color: 'var(--tx4)', fontWeight: 600 }
 /* ─── بطاقة «سندات القبض» ───
    تعرض صور كل سندات القبض الورقية التابعة للفاتورة (فواتير مكتب JUB1 المحوَّلة): مصغّرة لكل سند
    برقمه وتاريخه ومبلغه، والنقر يفتح عارضاً كبيراً فيه تدوير وتنقّل بين السندات. */
-const ReceiptVouchersCard = ({ imgs, isAr, T }) => {
+const ReceiptVouchersCard = ({ imgs, isAr, T, invId, canOpenReceipt }) => {
   const [open, setOpen] = useState(-1)          // فهرس السند المفتوح في العارض (-1 = مغلق)
   const [rot, setRot] = useState({})            // زاوية تدوير مؤقتة لكل صورة (لا تُحفظ)
   const spin = id => setRot(p => ({ ...p, [id]: ((p[id] || 0) + 90) % 360 }))
@@ -5415,9 +5415,24 @@ const ReceiptVouchersCard = ({ imgs, isAr, T }) => {
             <div style={{ padding: '9px 10px', display: 'flex', flexDirection: 'column', justifyContent: 'center', width: 86, minWidth: 86 }}>
               {/* هوية السند: تسمية صغيرة فوق الرقم */}
               <span style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--tx4)', lineHeight: 1.4, whiteSpace: 'nowrap' }}>{ordLabel(i)}</span>
-              <span style={{ fontSize: 15.5, fontWeight: 600, color: r.cancelled ? 'var(--tx3)' : 'var(--tx)', direction: 'ltr', fontVariantNumeric: 'tabular-nums', lineHeight: 1.3 }}>
-                {r.sanad || '—'}
-              </span>
+              {/* رقم السند رابط لصفحة السند في «سندات JUB1» — يُفتح بتبويب جديد، والنقر على باقي البطاقة يفتح العارض */}
+              {r.sanad && canOpenReceipt ? (
+                <span role="link" title={T('فتح صفحة السند في تبويب جديد', 'Open receipt page in a new tab')}
+                  onClick={e => {
+                    e.stopPropagation()
+                    const url = `${window.location.pathname}${window.location.search}#jub1_receipts?no=${encodeURIComponent(r.sanad)}${invId ? `&inv=${encodeURIComponent(invId)}` : ''}`
+                    window.open(url, '_blank', 'noopener')
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.color = 'var(--accent)'; e.currentTarget.style.textDecoration = 'underline' }}
+                  onMouseLeave={e => { e.currentTarget.style.color = r.cancelled ? 'var(--tx3)' : 'var(--tx)'; e.currentTarget.style.textDecoration = 'none' }}
+                  style={{ fontSize: 15.5, fontWeight: 600, color: r.cancelled ? 'var(--tx3)' : 'var(--tx)', direction: 'ltr', fontVariantNumeric: 'tabular-nums', lineHeight: 1.3, cursor: 'pointer', alignSelf: 'flex-start', textUnderlineOffset: 3 }}>
+                  {r.sanad}
+                </span>
+              ) : (
+                <span style={{ fontSize: 15.5, fontWeight: 600, color: r.cancelled ? 'var(--tx3)' : 'var(--tx)', direction: 'ltr', fontVariantNumeric: 'tabular-nums', lineHeight: 1.3 }}>
+                  {r.sanad || '—'}
+                </span>
+              )}
               <span style={{ height: 1, background: 'var(--bd)', margin: '7px 0 6px' }} />
               {r.amount != null && (
                 <span style={{ fontSize: 13.5, fontWeight: 600, color: r.cancelled ? 'var(--tx4)' : C.gold, direction: 'ltr', fontVariantNumeric: 'tabular-nums', lineHeight: 1.3 }}>
@@ -5468,7 +5483,7 @@ const ReceiptVouchersCard = ({ imgs, isAr, T }) => {
                 style={{ transform: `rotate(${curRot}deg)`, transition: 'transform .25s ease',
                   ...(sideways ? { maxWidth: 'min(84vh, 860px)', maxHeight: 'none' } : { maxWidth: '100%', maxHeight: '100%' }),
                   objectFit: 'contain', display: 'block' }} />
-              {imgs.length > 1 && [['start', -1, ChevronLeft], ['end', 1, ChevronRight]].map(([side, dir, Ico]) => (
+              {imgs.length > 1 && [['start', -1, isAr ? ChevronRight : ChevronLeft], ['end', 1, isAr ? ChevronLeft : ChevronRight]].map(([side, dir, Ico]) => (
                 <button key={side} onClick={() => go(isAr ? -dir : dir)}
                   style={{ position: 'absolute', [side === 'start' ? 'insetInlineStart' : 'insetInlineEnd']: 12, width: 42, height: 42, borderRadius: '50%', border: '1px solid var(--bd)', background: 'var(--modal-bg)', color: 'var(--tx3)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-md)' }}>
                   <Ico size={20} />
@@ -9367,7 +9382,9 @@ const InvoiceDetailSkeleton = () => {
 // كرت «التعليقات» — مطابق لكرت التعليقات في صفحة المعاملات: سجلّ تعليقات طلب الخدمة (service_request_notes)
 // مع المرفقات وزر «إضافة تعليق». مرتبط بنفس طلب الخدمة للفاتورة.
 function InvoiceCommentsCard({ sb, T, isAr, toast, inv, user }) {
-  const srId = inv?.service_request?.id || null
+  // `srFresh`: معرّف الطلب كما قرأته نافذة الإضافة من القاعدة لحظة الحفظ — يغلب معرّف الصفحة إن اختلف
+  const [srFresh, setSrFresh] = useState(null)
+  const srId = srFresh || inv?.service_request?.id || null
   const visText = fieldVisible(user, 'invoices', 'comment_text')
   const visAtt = fieldVisible(user, 'invoices', 'comment_attachments')
   const visCreator = fieldVisible(user, 'invoices', 'comment_creator')
@@ -9444,13 +9461,13 @@ function InvoiceCommentsCard({ sb, T, isAr, toast, inv, user }) {
           )}
         </div>
       </div>
-      {open && <InvoiceCommentModal sb={sb} T={T} toast={toast} srId={srId} user={user} onClose={() => setOpen(false)} onSaved={reload} />}
+      {open && <InvoiceCommentModal sb={sb} T={T} toast={toast} srId={srId} invId={inv?.id} user={user} onClose={() => setOpen(false)} onSaved={(sid) => (sid && sid !== srId ? setSrFresh(sid) : reload())} />}
     </div>
   )
 }
 
 // نافذة «إضافة تعليق» — مطابقة لنظيرتها في صفحة المعاملات: نص + مرفق واحد اختياري.
-function InvoiceCommentModal({ sb, T, toast, srId, user, onClose, onSaved }) {
+function InvoiceCommentModal({ sb, T, toast, srId, invId, user, onClose, onSaved }) {
   const [text, setText] = useState('')
   const [file, setFile] = useState(null)
   const [submitting, setSubmitting] = useState(false)
@@ -9461,8 +9478,19 @@ function InvoiceCommentModal({ sb, T, toast, srId, user, onClose, onSaved }) {
     if (!note) return
     setSubmitting(true); setErr(null)
     try {
+      /* طلب الخدمة يُقرأ من الفاتورة **لحظة الحفظ** لا من الصفحة المفتوحة: الصفحة
+         قد تحمل معرّف طلبٍ لم يعد موجوداً (فاتورةٌ أُعيد ربطها أو أُعيد استيرادها
+         بعد فتحها) فيرفض القيد `service_request_notes_service_request_id_fkey`. */
+      let sid = srId
+      if (invId) {
+        const { data: cur, error: curErr } = await sb.from('invoices').select('service_request_id').eq('id', invId).maybeSingle()
+        if (curErr) throw curErr
+        if (!cur) throw new Error(T('الفاتورة لم تعد موجودة — أعد فتحها من سجل الفواتير', 'This invoice no longer exists — reopen it from the invoice list'))
+        sid = cur.service_request_id || sid
+      }
+      if (!sid) throw new Error(T('لا طلب خدمة مرتبط بهذه الفاتورة', 'No service request is linked to this invoice'))
       const { data: row, error } = await sb.from('service_request_notes')
-        .insert({ service_request_id: srId, note, created_by: user?.id || null })
+        .insert({ service_request_id: sid, note, created_by: user?.id || null })
         .select('id').single()
       if (error || !row) throw (error || new Error('insert failed'))
       if (file) {
@@ -9478,7 +9506,7 @@ function InvoiceCommentModal({ sb, T, toast, srId, user, onClose, onSaved }) {
           })
         }
       }
-      await onSaved?.()
+      await onSaved?.(sid)
       setDone(true)
     } catch (e) {
       setSubmitting(false)
@@ -9816,7 +9844,7 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
       )}
       {/* سندات القبض الورقية — تظهر فقط للفواتير التي لها صور سندات مرفقة (مكتب JUB1 المحوَّل) */}
       {cardVisible(user, 'invoices', 'receipt_vouchers') && !!(data?.receiptImgs || []).length && (
-        <ReceiptVouchersCard imgs={data.receiptImgs} isAr={isAr} T={T} />
+        <ReceiptVouchersCard imgs={data.receiptImgs} isAr={isAr} T={T} invId={inv.id} canOpenReceipt={canViewPage(user, 'jub1_receipts')} />
       )}
       {cardVisible(user, 'invoices', 'notes') && (() => {
         const notePublic = (inv.note_public || '').trim()

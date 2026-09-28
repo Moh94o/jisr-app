@@ -96,6 +96,9 @@ const DT = (clr) => ({
   license: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="13" rx="2" fill={clr} fillOpacity=".12" stroke={clr} strokeWidth="1.5"/><path d="M7 8.5h7M7 12h4" stroke={clr} strokeWidth="1.3" strokeLinecap="round" opacity=".6"/><circle cx="16.5" cy="13" r="2.6" fill={clr} fillOpacity=".2" stroke={clr} strokeWidth="1.4"/><path d="M15.2 15.3 14.5 20l2-1 2 1-.7-4.7" stroke={clr} strokeWidth="1.3" strokeLinejoin="round"/></svg>,
   deposit: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 3v9M9 9l3 3 3-3" stroke={clr} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M4 13v5a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5" fill={clr} fillOpacity=".12" stroke={clr} strokeWidth="1.5" strokeLinecap="round"/></svg>,
   receipt: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 3h9l3 3v13.5l-2-1.2-2 1.2-2-1.2-2 1.2-2-1.2-2 1.2V5a2 2 0 0 1 2-2Z" fill={clr} fillOpacity=".12" stroke={clr} strokeWidth="1.5" strokeLinejoin="round"/><path d="M8 9h6M8 12.5h6M8 16h3" stroke={clr} strokeWidth="1.3" strokeLinecap="round" opacity=".6"/></svg>,
+  passport: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="5" y="2.5" width="14" height="19" rx="2" fill={clr} fillOpacity=".12" stroke={clr} strokeWidth="1.5"/><circle cx="12" cy="10" r="3.6" stroke={clr} strokeWidth="1.3"/><path d="M8.4 10h7.2M12 6.4c-1.3 1.9-1.3 5.3 0 7.2M12 6.4c1.3 1.9 1.3 5.3 0 7.2" stroke={clr} strokeWidth="1.1" opacity=".6"/><path d="M9 17.5h6" stroke={clr} strokeWidth="1.5" strokeLinecap="round"/></svg>,
+  wakala: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 3h8l4 4v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" fill={clr} fillOpacity=".12" stroke={clr} strokeWidth="1.5" strokeLinejoin="round"/><path d="M14 3v4h4" stroke={clr} strokeWidth="1.5" strokeLinejoin="round"/><path d="M7 9.5h5M7 12.5h7" stroke={clr} strokeWidth="1.3" strokeLinecap="round" opacity=".6"/><circle cx="14.5" cy="16.5" r="2.3" fill={clr} fillOpacity=".2" stroke={clr} strokeWidth="1.3"/><path d="M6.5 17.5c.8-1.3 1.6-1.3 2.1 0s1.4 1.3 2.1 0" stroke={clr} strokeWidth="1.2" strokeLinecap="round" opacity=".6"/></svg>,
+  kafala: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="8" cy="8" r="3.2" fill={clr} fillOpacity=".12" stroke={clr} strokeWidth="1.5"/><path d="M2.5 19.5a5.5 5.5 0 0 1 11 0" fill={clr} fillOpacity=".12" stroke={clr} strokeWidth="1.5" strokeLinecap="round"/><path d="M15.5 8.5h6m-2-2 2 2-2 2" stroke={clr} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M21.5 15.5h-6m2-2-2 2 2 2" stroke={clr} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity=".6"/></svg>,
   alert: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" fill={clr} fillOpacity=".12" stroke={clr} strokeWidth="1.5"/><line x1="12" y1="9" x2="12" y2="13" stroke={clr} strokeWidth="1.8" strokeLinecap="round"/><circle cx="12" cy="16" r="1" fill={clr}/></svg>,
   calendar: <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="18" rx="2" fill={clr} fillOpacity=".12" stroke={clr} strokeWidth="1.5"/><line x1="16" y1="2" x2="16" y2="6" stroke={clr} strokeWidth="1.5" opacity=".5"/><line x1="8" y1="2" x2="8" y2="6" stroke={clr} strokeWidth="1.5" opacity=".5"/><line x1="3" y1="10" x2="21" y2="10" stroke={clr} strokeWidth="1.5" opacity=".4"/><path d="M8 14h2v2H8z" fill={clr} opacity=".5"/><path d="M12 14h2v2h-2z" fill={clr} opacity=".3"/></svg>,
   /* أيقونات شيتات الخدمات في القائمة — نفس أيقونات كروت الخدمات في «فاتورة جديدة»
@@ -554,6 +557,8 @@ function DashPage({sb,user,onLogout,toast,lang,switchLang,setLang}){const[pg,set
    الفواتير، وغيرها → الرئيسية). */
 /* بعد تحديث الصفحة (F5) نعود لنفس الصفحة التي كان عليها المستخدم في هذا التبويب
    (sessionStorage مفتاحه بالمستخدم) — لا لصفحة البداية — ما دام يملك صلاحيتها. */
+/* رابط مباشر لسند JUB1 (من بطاقة «سندات القبض» في الفاتورة، بتبويب جديد) يغلب الصفحة المحفوظة. */
+try{if((window.location.hash||'').startsWith('#jub1_receipts?')&&canViewPage(user,'jub1_receipts'))return 'jub1_receipts'}catch{}
 try{const kept=sessionStorage.getItem('jisr_pg_'+(user?.id||''));if(kept&&canViewPage(user,kept))return kept}catch{}
 const lp=user?.landing_page;
 if(lp&&typeof lp==='string')return lp;
@@ -602,10 +607,10 @@ const saveVisibility=(cfg)=>{setVisibility(cfg);localStorage.setItem('jisr_visib
 // وحجبها داخل الصفحة نفسها (GM_ONLY_VIEWS) لا بصلاحية التبويب.
 /* قسم «الإقامات»: يجمع جداول نقل الكفالة والإقامات من قسم «الخدمات» في تبويبٍ مستقلّ (طلب المستخدم؛ نقل الكفالة أوّلاً 2026-09-24). */
 const IQAMA_SHEET_KEYS=['transfer_txn','iqama_renewal','iqama_issuance','iqama_dispatch'];
-const IQAMA_TAB_ICON={transfer_txn:'transaction',iqama_renewal:'refresh',iqama_issuance:'role',iqama_dispatch:'receipt'};
+const IQAMA_TAB_ICON={transfer_txn:'kafala',iqama_renewal:'refresh',iqama_issuance:'role',iqama_dispatch:'receipt'};
 /* قسم «التأشيرات»: يجمع جدولَي إصدار التأشيرات ووكالتها في تبويبٍ مستقلّ (طلب المستخدم). */
 const VISA_SHEET_KEYS=['work_visas','visa_wakalas'];
-const VISA_TAB_ICON={work_visas:'labor',visa_wakalas:'receipt'};
+const VISA_TAB_ICON={work_visas:'passport',visa_wakalas:'wakala'};
 // أيقونات شيتات «الخدمات» (svc_*) — مفاتيحها في `DT`
 const SVC_TAB_ICON={svc_chamber:'svcChamber',svc_ajeer:'svcAjeer',svc_medical:'svcMedical',svc_profession:'svcProfession',
 svc_ext_transfer:'svcExtTransfer',svc_exit_reentry:'svcExitReentry',svc_final_exit:'svcFinalExit',svc_salary:'svcSalary',

@@ -1,6 +1,6 @@
 -- ═══════════════════════════════════════════════════════════════════════════
 -- سجلّ الخلايا في «جداول العمل» — مُطبَّق على الإنتاج 2026-09-21
--- (نسخةٌ مرجعية لِما طُبِّق؛ آمنٌ إعادة تشغيله)
+-- (نسخةٌ مرجعية لِما طُبِّق؛ آمنٌ إعادة تشغيله) · 2026-09-27: تسجيل المسح الصريح `__x`
 --
 -- لماذا محفِّزٌ لا كتابةٌ من الواجهة: الشيت يُكتب من عشرين مسلكاً (حفظ دفعي ·
 -- لصق · جلب · ترحيل · استيراد)، فكتابة السجلّ في كلٍّ منها تعني ثقوباً في
@@ -98,6 +98,20 @@ begin
       left(ov, 2000), left(nv, 2000),
       coalesce(c_id, fb_id), coalesce(c_name, fb_name),
       coalesce(st_at, now()));
+  end loop;
+
+  /* المسح الصريح (2026-09-27): خانةٌ قيمتُها من المصدر لا من الطبقة تُمسح
+     بعلامةٍ في `__x` لا بتغيّر مفتاحها — فالحلقة أعلاه (تتخطّى `__`) لا تراه.
+     يُسجَّل «مُسحت» لكل علامةٍ جديدة، ما لم يكن للخانة تجاوزٌ حُذف فسُجّل أعلاه.
+     وقيمةُ العلامة هي قيمة المصدر التي حجبتها — فهي «كانت». */
+  for k in select jsonb_object_keys(coalesce(n -> '__x', '{}'::jsonb)) loop
+    continue when (o -> '__x') ? k;
+    continue when coalesce(public.ops_jsonb_text(o -> k), '') <> '';
+    ov := public.ops_jsonb_text(n -> '__x' -> k);
+    insert into public.ops_sheet_cell_history
+      (view_key, row_key, col_key, op, old_value, new_value, by_id, by_name, at)
+    values (new.view_key, new.row_key, k, 'clear', left(ov, 2000), null,
+      fb_id, fb_name, now());
   end loop;
 
   return new;
