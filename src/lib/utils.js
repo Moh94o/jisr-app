@@ -27,6 +27,25 @@ export const branchNickEn = (b, cityEn) => {
   return [city, OFFICE_SUFFIX_EN[suf] || suf].filter(Boolean).join(' - ');
 };
 
+/* الجنسية بالإنجليزية للعرض (طلب المستخدم 2026-09-28): المخزَّن عربيٌّ بتهجئاتٍ شتّى
+   (بنجلاديش · بنجلادشي · بنغلادش · الهند · هندي…) فتُعرَف بجذر اسم البلد لا بمطابقةٍ
+   حرفية. «ميانمار / جواز باكستان» يُترجَم جزءاً جزءاً. ما لا يُعرف يعود فارغاً (يبقى العربي). */
+const NAT_EN = [
+  [/بن[جغ]لا/, 'Bangladeshi'], [/هند/, 'Indian'], [/باكستان/, 'Pakistani'], [/مصر/, 'Egyptian'],
+  [/يمن/, 'Yemeni'], [/نيبال/, 'Nepalese'], [/سري ?ل[اى]?ن?ك/, 'Sri Lankan'], [/سودان/, 'Sudanese'],
+  [/[اأ]فغان/, 'Afghan'], [/بريطان/, 'British'], [/فلبين/, 'Filipino'], [/[اإ]ندونيس/, 'Indonesian'],
+  [/سعود/, 'Saudi'], [/سوري/, 'Syrian'], [/[اأ]ردن/, 'Jordanian'], [/[اإ]ثيوب/, 'Ethiopian'],
+  [/كيني/, 'Kenyan'], [/[اأ]وغند/, 'Ugandan'], [/ميانمار|بورم/, 'Myanmar'], [/تشاد/, 'Chadian'],
+  [/نيجير/, 'Nigerian'], [/صومال/, 'Somali'], [/[اإ]ريتر/, 'Eritrean'], [/لبنان/, 'Lebanese'],
+  [/فلسطين/, 'Palestinian'], [/تونس/, 'Tunisian'], [/مغرب/, 'Moroccan'], [/تركي/, 'Turkish'],
+];
+export const nationalityEn = (ar) => {
+  const s = String(ar ?? '').trim();
+  if (!s) return '';
+  const parts = s.split(/\s*\/\s*/).map((p) => (NAT_EN.find(([re]) => re.test(p)) || [])[1] || '');
+  return parts.every(Boolean) ? parts.join(' / ') : '';
+};
+
 export const branchLabel = (b) => {
   if (!b) return '—';
   const nick = branchNick(b);

@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom'
 import { can as canPerm, hasPerm, isGM as isGmUser } from '../lib/permissions.js'
 import { registerOpsColumns, registerOpsLayouts, opsFieldKey, cardOptIn, OPS_SHEET_GROUP } from '../lib/permCatalog.js'
 import { DONE_INPUTS, SALARY_RETURN_INPUTS } from '../lib/doneInputs.js'
-import { branchNick, branchNickEn } from '../lib/utils.js'
+import { branchNick, branchNickEn, nationalityEn } from '../lib/utils.js'
 import { useBackHandler } from '../lib/mobileBack.js'
 /* أسماء بنود التسعير من مصدرها الواحد — نفس ما يحرّر به كرت التسعير ويُطبع به
    قالب الفاتورة. بطاقة الشيت لا تُسمّي بنداً باسمٍ ثانٍ. */
@@ -18126,6 +18126,8 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
        المستخدم 2026-09-25 «إذا البرنامج إنجليزي يكون كل شي إنجليزي») — لكل شيتٍ يُعلن
        `sbcName`. العرض وحده؛ المخزَّن عربيٌّ كما هو. */
     if (!isAr && row._fac_en && view.sbcName && col.key === view.sbcName.field) return row._fac_en
+    // والجنسية كذلك (طلب المستخدم 2026-09-28): «بنجلاديش» ← «Bangladeshi» — لكل شيت، عرضاً وحده
+    if (!isAr && col.key === 'nationality_ar') { const t = nationalityEn(raw); if (t) return t }
     /* `col.fmt` — تزيين **العرض** وحده: القيمة المخزَّنة تبقى كما هي للفرز
        والبحث والتصدير والتحرير. لزم لأن التجاوز المحفوظ يسبق `col.get` في
        `baseVal`، فما يُضاف للعرض لا موضع له إلا هنا. */
