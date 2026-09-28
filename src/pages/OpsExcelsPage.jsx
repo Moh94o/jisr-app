@@ -343,9 +343,14 @@ const hexTint = (hex, a = 0.26) => {
   return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`
 }
 /* عمود «اسم صاحب الحساب»: خلفيته لون الشخص نفسه — تمييز بلمحة بصر */
+/* اسم صاحب حساب المزامنة بالإنجليزية في الواجهة الإنجليزية (طلب المستخدم 2026-09-28):
+   المخزَّن في الـviews عربيّ («مهدي»)، فيُترجَم **عرضاً** من `sync_persons.name_en`
+   (`SR_REF.personEn`، يُحمَّل مرّة للصفحة). الفرز واللون والبحث على العربي كما هي. */
+const personFmt = (v, _r, isAr) => (isAr === false ? SR_REF.personEn.get(String(v ?? '').trim()) || null : null)
 const personBgCol = (key, ar, en, colorKey) => ({
   key, ar, en, w: 150, kind: 'text',
   bg: (v, r) => (v ? hexTint(r?.[colorKey]) : null),
+  fmt: personFmt,
 })
 /* سعوديّ في مشتركي التأمينات: الجنسية «السعودية» (⚠️ اسم البلد لا «سعودي» كما في
    قوى) — واحتياطاً مَن لا إقامة له ويحمل هوية وطنية تبدأ بـ1. غير السعودي يحمل
@@ -5246,7 +5251,7 @@ const sdDerive = (rows, edits) => {
    بالفاتورة والعميل والمنشأة والفرع، وتُقفل الحلقة بين المعاملة والمصروف.
    المنشأة والرقم الموحّد كانا مملوءين في ٣.٦٪ فقط، فبعد تعبئة
    `service_requests.facility_id` من جداول الطلبات صارا ٦٠٪ وأُدرجا هنا. */
-const SR_REF = { inv: new Map(), days: new Map(), grp: new Map(), dup: new Map(), day: '', tab: '', prices: {}, fac: new Map(), branchLabel: new Map(), branchLabelEn: new Map(), isAr: true, branchId: new Map(), branches: [], muqRes: new Map(), muqCo: new Map(), wf: new Map() }
+const SR_REF = { inv: new Map(), days: new Map(), grp: new Map(), dup: new Map(), day: '', tab: '', prices: {}, fac: new Map(), branchLabel: new Map(), branchLabelEn: new Map(), personEn: new Map(), isAr: true, branchId: new Map(), branches: [], muqRes: new Map(), muqCo: new Map(), wf: new Map() }
 // المنشأة بالرقم الموحّد — منها يُملأ رقما التأمينات والموارد في طلبات التجديد
 const srFac = (v) => SR_REF.fac.get(String(v ?? '').replace(/\D/g, ''))
 /* اسم المكتب مع رمزه (`JUB5 · الجبيل - المدرسة`) — الرمز وحده لا يقول لمن الفاتورة.
@@ -10850,10 +10855,10 @@ const VIEWS = [
       /* المفوّضان: الشخص الذي زامن من حسابه (كـ«الاشتراكات») بلونه، وما اختير يدوياً يسبقه
          (منشأةٌ أُضيفت ولم تُزامَن بعد) */
       { key: 'gosi_delegate', ar: 'المفوّض في التأمينات', en: 'GOSI delegate', w: 140, kind: 'text', ops: true, select: true, options: () => COMP_REF.persons,
-        get: (r) => (r._sub && r._sub.gosi_sync_person) || '', bg: (v, r) => compPersonBg(v, r, 'gosi') },
+        get: (r) => (r._sub && r._sub.gosi_sync_person) || '', bg: (v, r) => compPersonBg(v, r, 'gosi'), fmt: personFmt, optLabel: (o, r, isAr) => personFmt(o, r, isAr) || o },
       { key: 'hrsd_number', ar: 'رقم الموارد البشرية', en: 'HRSD no.', w: 150, kind: 'mono', get: (r) => (r.hrsd_labor_office_id != null && r.hrsd_sequence_number) ? `${r.hrsd_labor_office_id}-${r.hrsd_sequence_number}` : (r._hrsd_txt || '') },
       { key: 'hrsd_delegate', ar: 'المفوّض في قوى', en: 'Qiwa delegate', w: 140, kind: 'text', ops: true, select: true, options: () => COMP_REF.persons,
-        get: (r) => (r._sub && r._sub.qiwa_sync_person) || '', bg: (v, r) => compPersonBg(v, r, 'qiwa') },
+        get: (r) => (r._sub && r._sub.qiwa_sync_person) || '', bg: (v, r) => compPersonBg(v, r, 'qiwa'), fmt: personFmt, optLabel: (o, r, isAr) => personFmt(o, r, isAr) || o },
       { key: 'zakat_tax_number', ar: 'الرقم المميز', en: 'VAT no.', w: 150, kind: 'mono' },
       { key: 'coc_chamber_number', ar: 'رقم الغرفة', en: 'Chamber no.', w: 130, kind: 'mono' },
       { key: 'spl_national_address_id', ar: 'رقم سبل', en: 'SPL no.', w: 140, kind: 'mono' },
@@ -17351,6 +17356,10 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
         if (!alive) return
         SR_REF.branchLabel = new Map((brs || []).map((b) => [String(b.branch_code || '').trim(), b.name_ar || '']))
         SR_REF.branchLabelEn = new Map((brs || []).map((b) => [String(b.branch_code || '').trim(), branchNickEn(b, b.city && b.city.name_en)]))
+        // أسماء أصحاب حسابات المزامنة بالإنجليزية — لأعمدة «الحساب» (personFmt)
+        const { data: sps } = await sb.from('sync_persons').select('name_ar,name_en')
+        SR_REF.personEn = new Map((sps || []).filter((p) => p.name_ar && String(p.name_en || '').trim())
+          .map((p) => [String(p.name_ar).trim(), String(p.name_en).trim()]))
         // رمز ← معرّف: عمود الفرع يُختار برمزه ويُكتب في workers.branch_id بمعرّفه
         SR_REF.branchId = new Map((brs || []).filter((b) => String(b.branch_code || '').trim()).map((b) => [String(b.branch_code).trim(), b.id]))
         // قوائم الاختيار تقتصر على العامل من الفروع (المغلق والتجريبي لا يُختاران)
