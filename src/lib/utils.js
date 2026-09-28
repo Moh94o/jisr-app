@@ -12,6 +12,21 @@ export const noDash = (v) => String(v ?? '').replace(/-/g, '');
 export const branchNick = (b) => String(b?.name_ar || b?.nickname || '').trim()
   .replace(/^مكتب\s+/, '').replace(/\s*\[\d+\]\s*$/, '').trim();
 
+/* الاسم الإنجليزي للمكتب (طلب المستخدم 2026-09-28): لا عمود إنجليزي في `branches`، فيُبنى
+   من مدينته بالإنجليزية + لاحقة الاسم مكتوبةً بحروفٍ لاتينية («الجبيل - سوني» ← «Jubail - Sony»).
+   لاحقةٌ غير معروفة تبقى بالعربية؛ وبلا مدينة إنجليزية يعود الاسم العربي. */
+const OFFICE_SUFFIX_EN = {
+  'سيكو': 'Cico', 'سوني': 'Sony', 'المدرسة': 'Al Madrasa', 'الصبيخة': 'Al Subaikha',
+  'الثقبة': 'Al Thuqbah', 'المفرق': 'Al Mafraq', 'الوزارات': 'Al Wizarat',
+};
+export const branchNickEn = (b, cityEn) => {
+  const nick = branchNick(b);
+  const city = String(cityEn || '').trim();
+  if (!nick || !city) return nick;
+  const suf = (nick.split(/\s+-\s+/)[1] || '').trim();
+  return [city, OFFICE_SUFFIX_EN[suf] || suf].filter(Boolean).join(' - ');
+};
+
 export const branchLabel = (b) => {
   if (!b) return '—';
   const nick = branchNick(b);

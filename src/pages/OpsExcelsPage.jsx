@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom'
 import { can as canPerm, hasPerm, isGM as isGmUser } from '../lib/permissions.js'
 import { registerOpsColumns, registerOpsLayouts, opsFieldKey, cardOptIn, OPS_SHEET_GROUP } from '../lib/permCatalog.js'
 import { DONE_INPUTS, SALARY_RETURN_INPUTS } from '../lib/doneInputs.js'
-import { branchNick } from '../lib/utils.js'
+import { branchNick, branchNickEn } from '../lib/utils.js'
 import { useBackHandler } from '../lib/mobileBack.js'
 /* أسماء بنود التسعير من مصدرها الواحد — نفس ما يحرّر به كرت التسعير ويُطبع به
    قالب الفاتورة. بطاقة الشيت لا تُسمّي بنداً باسمٍ ثانٍ. */
@@ -5246,7 +5246,7 @@ const sdDerive = (rows, edits) => {
    بالفاتورة والعميل والمنشأة والفرع، وتُقفل الحلقة بين المعاملة والمصروف.
    المنشأة والرقم الموحّد كانا مملوءين في ٣.٦٪ فقط، فبعد تعبئة
    `service_requests.facility_id` من جداول الطلبات صارا ٦٠٪ وأُدرجا هنا. */
-const SR_REF = { inv: new Map(), days: new Map(), grp: new Map(), dup: new Map(), day: '', tab: '', prices: {}, fac: new Map(), branchLabel: new Map(), branchId: new Map(), branches: [], muqRes: new Map(), muqCo: new Map(), wf: new Map() }
+const SR_REF = { inv: new Map(), days: new Map(), grp: new Map(), dup: new Map(), day: '', tab: '', prices: {}, fac: new Map(), branchLabel: new Map(), branchLabelEn: new Map(), isAr: true, branchId: new Map(), branches: [], muqRes: new Map(), muqCo: new Map(), wf: new Map() }
 // المنشأة بالرقم الموحّد — منها يُملأ رقما التأمينات والموارد في طلبات التجديد
 const srFac = (v) => SR_REF.fac.get(String(v ?? '').replace(/\D/g, ''))
 /* اسم المكتب مع رمزه (`JUB5 · الجبيل - المدرسة`) — الرمز وحده لا يقول لمن الفاتورة.
@@ -5316,8 +5316,12 @@ const srBranchBg = (code) => {
   }
   return solidBg(tint)
 }
-const srBranchName = (v) => String(SR_REF.branchLabel.get(String(v ?? '').trim()) || '')
-  .replace(/\s*\[\d+\]\s*$/, '').trim()
+const srBranchName = (v) => {
+  const k = String(v ?? '').trim()
+  // الواجهة الإنجليزية: الاسم الإنجليزي المبنيّ (branchNickEn) وإلا العربي
+  const en = SR_REF.isAr === false ? SR_REF.branchLabelEn.get(k) : ''
+  return String(en || SR_REF.branchLabel.get(k) || '').replace(/\s*\[\d+\]\s*$/, '').trim()
+}
 const srBranchText = (v) => {
   const code = String(v ?? '').trim()
   if (!code) return ''
@@ -10587,12 +10591,6 @@ const personFacsText = (fc, isAr) => {
   return `${fc.n}${parts.length ? ' — ' + parts.join(' · ') : ''}`
 }
 
-// لواحق أسماء المكاتب بالإنجليزية (الجزء بعد «المدينة - ») — لشيت «المكاتب» بالواجهة الإنجليزية
-const OFFICE_SUFFIX_EN = {
-  'سيكو': 'Cico', 'سوني': 'Sony', 'المدرسة': 'Al Madrasa', 'الصبيخة': 'Al Subaikha',
-  'الثقبة': 'Al Thuqbah', 'المفرق': 'Al Mafraq', 'الوزارات': 'Al Wizarat',
-}
-
 const VIEWS = [
   /* ── المكاتب (طلب المستخدم 2026-09-24): اسم المكتب والكود والمدينة والحي ──
      من جدول `branches` مباشرة — للعرض فقط: التعديل مكانه صفحة «المكاتب» في
@@ -10613,15 +10611,11 @@ const VIEWS = [
         .is('deleted_at', null).eq('is_active', true).order('branch_code')
       if (error) throw error
       return (data || []).filter((b) => !b.is_test).map((b) => {
-        const nick = branchNick(b)
         const cityEn = String((b.city && b.city.name_en) || '').trim()
-        /* الاسم الإنجليزي (طلب المستخدم 2026-09-28): لا عمود إنجليزي للمكتب، فيُبنى
-           من مدينته بالإنجليزية + لاحقة الاسم («الجبيل - سوني» ← «Jubail - Sony») */
-        const [, suf = ''] = nick.split(/\s+-\s+/)
         return {
           _id: b.id,
-          nickname: nick,
-          nickname_en: nick ? [cityEn, OFFICE_SUFFIX_EN[suf.trim()] || suf.trim()].filter(Boolean).join(' - ') : '',
+          nickname: branchNick(b),
+          nickname_en: branchNickEn(b, cityEn),
           branch_code: b.branch_code || '',
           city_ar: (b.city && b.city.name_ar) || '',
           city_en: cityEn,
@@ -16469,6 +16463,7 @@ export default function OpsExcelsPageBoundary(props) {
    الأدوات ساقطةً كما كانت لشيتَي «توريد العمالة» المرجعيّين. */
 function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTools }) {
   const isAr = lang !== 'en'
+  SR_REF.isAr = isAr   // أسماء المكاتب في خلايا كل الشيتات تتبع لغة الواجهة (srBranchName)
   const T = (a, e) => (isAr ? a : e)
   /* صلاحية التعديل. الصلاحية الفعلية `canEdit` تُشتقّ منها أدناه بعد معرفة
      الأسبوع المعروض — الأرشيف للقراءة فقط مهما كانت صلاحية المستخدم.
@@ -17351,10 +17346,11 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
     let alive = true
     ;(async () => {
       try {
-        const brs = await fetchAll(sb, 'branches', 'id,branch_code,name_ar,is_active,is_test',
+        const brs = await fetchAll(sb, 'branches', 'id,branch_code,name_ar,is_active,is_test,city:city_id(name_en)',
           (q) => q.is('deleted_at', null).order('branch_code'))
         if (!alive) return
         SR_REF.branchLabel = new Map((brs || []).map((b) => [String(b.branch_code || '').trim(), b.name_ar || '']))
+        SR_REF.branchLabelEn = new Map((brs || []).map((b) => [String(b.branch_code || '').trim(), branchNickEn(b, b.city && b.city.name_en)]))
         // رمز ← معرّف: عمود الفرع يُختار برمزه ويُكتب في workers.branch_id بمعرّفه
         SR_REF.branchId = new Map((brs || []).filter((b) => String(b.branch_code || '').trim()).map((b) => [String(b.branch_code).trim(), b.id]))
         // قوائم الاختيار تقتصر على العامل من الفروع (المغلق والتجريبي لا يُختاران)
