@@ -5,7 +5,7 @@ import { getIqamaRenewalPricingConfig } from '../lib/kafalaPricing.js'
 import { computeRenewalExpiryYMD } from '../lib/expiryDuration.js'
 import { noDash } from '../lib/utils.js'
 import { computeRenewalDerived } from '../lib/renewalDerived.js'
-import { stageVisible, fieldVisible, fieldEditable } from '../lib/permissions.js'
+import { stageVisible, fieldVisible, fieldEditable, tabOffices } from '../lib/permissions.js'
 import { useIsMobile } from '../components/mobile/MobileKit.jsx'
 import '../styles/m-calc.css'
 import { getArchiveBranchIds, dropArchiveRows } from '../lib/liveData.js'
@@ -14,20 +14,28 @@ import { getArchiveBranchIds, dropArchiveRows } from '../lib/liveData.js'
 const COVER = { iqama: 650, workPermit: 100, medical: 1000 }
 // حقول العامل المستخدمة في البحث والعيّنة العشوائية — مصدر موحّد
 const WORKER_SEL = 'id,name_ar,name_en,iqama_number,phone,birth_date,iqama_expiry_date,work_permit_expiry,nationality_id,gender,current_occupation_id,occupation_ar,current_facility_id,facility:current_facility_id(id,name_ar,name_en,unified_number,hrsd_number,gosi_number)'
+/* نطاق المكتب (طلب المستخدم 2026-09-28): المستخدم المقيَّد بمكتب لا يرى في الحسبة إلا
+   عمّال مكتبه (`workers.branch_id`) — كي لا يأخذ مكتبٌ عامل مكتبٍ آخر. `offs` من
+   `tabOffices(user,'renewal_calc')`: null = كل المكاتب (المدير العام/«كل المكاتب»)،
+   ومصفوفة فارغة = لا عمّال. العامل بلا مكتب لا يظهر للمقيَّد. */
+const NO_ID = '00000000-0000-0000-0000-000000000000'
+const scopeWorkers = (q, offs) => (!offs ? q : offs.length ? q.in('branch_id', offs) : q.eq('id', NO_ID))
 // عيّنة عشوائية محضّرة مسبقًا (double-buffer) — تُعرض فورًا عند الفتح، ويُحضَّر زوج جديد للفتحة التالية
-let PREVIEW_CACHE = []
-let WORKER_COUNT = null
-async function rollWorkerPreview(sb) {
+// (مفتاحها نطاق المكتب: عيّنةُ نطاقٍ لا تُعرض لمستخدمٍ بنطاقٍ آخر في نفس الجلسة)
+let PREVIEW_CACHE = { key: null, rows: [] }
+const WORKER_COUNT = new Map()
+async function rollWorkerPreview(sb, offs) {
   if (!sb) return []
-  if (WORKER_COUNT == null) {
-    const { count } = await sb.from('workers').select('id', { count: 'exact', head: true }).is('deleted_at', null)
-    WORKER_COUNT = count || 0
+  const key = offs ? offs.join(',') : '*'
+  if (!WORKER_COUNT.has(key)) {
+    const { count } = await scopeWorkers(sb.from('workers').select('id', { count: 'exact', head: true }).is('deleted_at', null), offs)
+    WORKER_COUNT.set(key, count || 0)
   }
-  const total = WORKER_COUNT
+  const total = WORKER_COUNT.get(key)
   if (!total) return []
   const take = Math.min(6, total)
   const off = Math.floor(Math.random() * Math.max(1, total - take + 1))
-  const { data } = await sb.from('workers').select(WORKER_SEL).is('deleted_at', null).order('id').range(off, off + take - 1)
+  const { data } = await scopeWorkers(sb.from('workers').select(WORKER_SEL).is('deleted_at', null), offs).order('id').range(off, off + take - 1)
   const rows = data || []
   for (let i = rows.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1));[rows[i], rows[j]] = [rows[j], rows[i]] }
   return rows.slice(0, 3)
@@ -133,7 +141,9 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
   const [q, setQ] = useState('')
   const [results, setResults] = useState([])
   const [searching, setSearching] = useState(false)
-  const [workerPreview, setWorkerPreview] = useState(PREVIEW_CACHE)
+  const offs = useMemo(() => tabOffices(user, 'renewal_calc'), [user])
+  const offKey = offs ? offs.join(',') : '*'
+  const [workerPreview, setWorkerPreview] = useState(() => (PREVIEW_CACHE.key === offKey ? PREVIEW_CACHE.rows : []))
   const [nationalities, setNationalities] = useState([])
   const [occupations, setOccupations] = useState([])
   const [f, setF] = useState({ exemption: true, renewalMonths: '12', changeProfession: false, newOccupation: '', newOccupationId: null, repeatViolation: false, medInsured: false, medInsuranceEnd: '', medInsuranceCompany: '', medInsurancePolicy: '', officeFee: '', extras: [], absher_on: false, absher: '' })
@@ -215,29 +225,30 @@ export default function RenewalCalculator({ sb, user, toast, lang, onClose, onGo
     setSearching(true)
     const t = setTimeout(async () => {
       try {
-        const { data } = await sb.from('workers')
+        const { data } = await scopeWorkers(sb.from('workers')
           .select(WORKER_SEL)
           .or(`iqama_number.ilike.%${term}%,name_ar.ilike.%${term}%,name_en.ilike.%${term}%`)
-          .is('deleted_at', null).limit(20)
+          .is('deleted_at', null), offs).limit(20)
         setResults(data || [])
       } catch { setResults([]) }
       setSearching(false)
     }, 280)
     return () => clearTimeout(t)
-  }, [q, sb, worker])
+  }, [q, sb, worker, offKey])
 
   // ── عيّنة عشوائية تُعرض قبل البحث — جاهزة فورًا من الكاش، ثم يُحضَّر زوج جديد للفتحة التالية ──
   useEffect(() => {
     if (!sb) return
     let cancelled = false
     ;(async () => {
-      const rows = await rollWorkerPreview(sb)
-      if (cancelled || !rows.length) return
-      if (!PREVIEW_CACHE.length) setWorkerPreview(rows)  // أول فتحة فقط — لا يوجد كاش جاهز لعرضه
-      PREVIEW_CACHE = rows  // حضّر للفتحة التالية دون تبديل المعروض حاليًا
+      const hadCache = PREVIEW_CACHE.key === offKey && PREVIEW_CACHE.rows.length
+      const rows = await rollWorkerPreview(sb, offs)
+      if (cancelled) return
+      if (!hadCache) setWorkerPreview(rows)  // أول فتحة لهذا النطاق — لا يوجد كاش جاهز لعرضه
+      PREVIEW_CACHE = { key: offKey, rows }  // حضّر للفتحة التالية دون تبديل المعروض حاليًا
     })()
     return () => { cancelled = true }
-  }, [sb])
+  }, [sb, offKey])
   const pickWorker = w => { setWorker(w); setResults([]); setQ(''); setPhone(normalizePhone(w.phone)) }
   const natOf = w => { if (!w) return null; return nationalities.find(n => n.id === w.nationality_id) || null }
   const occOf = w => { if (!w?.current_occupation_id) return null; return occupations.find(o => o.id === w.current_occupation_id) || null }
