@@ -17,9 +17,9 @@ const WORKER_SEL = 'id,name_ar,name_en,iqama_number,phone,birth_date,iqama_expir
 /* نطاق المكتب (طلب المستخدم 2026-09-28): المستخدم المقيَّد بمكتب لا يرى في الحسبة إلا
    عمّال مكتبه (`workers.branch_id`) — كي لا يأخذ مكتبٌ عامل مكتبٍ آخر. `offs` من
    `tabOffices(user,'renewal_calc')`: null = كل المكاتب (المدير العام/«كل المكاتب»)،
-   ومصفوفة فارغة = لا عمّال. العامل بلا مكتب لا يظهر للمقيَّد. */
-const NO_ID = '00000000-0000-0000-0000-000000000000'
-const scopeWorkers = (q, offs) => (!offs ? q : offs.length ? q.in('branch_id', offs) : q.eq('id', NO_ID))
+   ومصفوفة فارغة = عمّال بلا مكتب فقط. العامل بلا مكتب يظهر للجميع (طلب المستخدم). */
+const scopeWorkers = (q, offs) => (!offs ? q
+  : offs.length ? q.or(`branch_id.in.(${offs.join(',')}),branch_id.is.null`) : q.is('branch_id', null))
 // عيّنة عشوائية محضّرة مسبقًا (double-buffer) — تُعرض فورًا عند الفتح، ويُحضَّر زوج جديد للفتحة التالية
 // (مفتاحها نطاق المكتب: عيّنةُ نطاقٍ لا تُعرض لمستخدمٍ بنطاقٍ آخر في نفس الجلسة)
 let PREVIEW_CACHE = { key: null, rows: [] }
