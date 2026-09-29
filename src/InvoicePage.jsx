@@ -4075,8 +4075,13 @@ const ActionModal = ({ type, stage = null, onClose, sb, T, isAr, inv, total, pai
         if (newInvPaid >= totalNum - 0.005 && fullyPaidStatusId) {
           invPatch.status_id = fullyPaidStatusId
         }
+        /* تأكيدٌ لا مصدر: القاعدة تحسب المدفوع (trg_sync_invoice_paid_amount) وتقلب
+           الحالة نشطة↔مدفوعة (trg_zz_invoice_paid_status) لحظة إدراج الدفعة. فتعثّرُ
+           هذه الكتابة (حارس منشئ الفاتورة · RLS لمن لا يملك invoices.edit) لا يُفشل
+           دفعةً حُفظت فعلاً، ولا يُسقط ما بعدها — كانت تُظهر «منشئ الفاتورة لا يعدّل
+           سوى الوسيط» عند آخر دفعة وتُسقط إنشاء معاملة الإقامة (بلاغ 2026-09-28). */
         const { error: e3 } = await sb.from('invoices').update(invPatch).eq('id', inv.id)
-        if (e3) throw e3
+        if (e3) console.warn('invoice roll-up (DB-derived anyway):', e3.message || e3)
 
         // ─── 6. دفعة إصدار الإقامة: لو رُبطت الدفعة بتأشيرة، ارفع صورة الجواز وأنشئ
         //        معاملة الإقامة المستقلة لهذه التأشيرة — تظهر فوراً في تبويب الفحص الطبي.

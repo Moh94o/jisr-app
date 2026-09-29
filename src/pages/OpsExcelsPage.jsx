@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import ReactDOM from 'react-dom'
-import { can as canPerm, hasPerm, isGM as isGmUser } from '../lib/permissions.js'
+import { can as canPerm, hasPerm, isGM as isGmUser, opsSheetCan, opsFieldEditable, opsSheetStrict } from '../lib/permissions.js'
 import { registerOpsColumns, registerOpsLayouts, opsFieldKey, cardOptIn, OPS_SHEET_GROUP } from '../lib/permCatalog.js'
 import { DONE_INPUTS, SALARY_RETURN_INPUTS } from '../lib/doneInputs.js'
 import { branchNick, branchNickEn, nationalityEn } from '../lib/utils.js'
@@ -7200,6 +7200,14 @@ const wvIssState = (r, isAr2, pend) => {
    لكن غير المسدَّد يُذكر في التنبيه. */
 const wvPostIssuance = async (sb, savedRows, { user, isAr, rows }) => {
   const byId = new Map((rows || []).map((r) => [r._id, r]))
+  /* «ترحيل ما فات» عند فتح الشيت (`repostable`) يمرّ بصفوف الطبقة وحدها بلا
+     `rows` — فالناقص يُجلب من المصدر، وإلا مرّ الصفّ المحجوب صامتاً أبداً. */
+  const miss = savedRows.map((s) => String(s.id)).filter((i) => !byId.has(i))
+  if (miss.length) {
+    const extra = await postRowsById(sb, 'v_ops_work_visas',
+      'id,service_request_id,invoice_no,branch_code,invoice_total,remaining_amount,unified_number,visa_number,border_number,visa_issue_date', miss)
+    for (const [k, v] of extra) byId.set(k, v)
+  }
   const nowIso = new Date().toISOString()
   const held = [], patch = {}
   let posted = 0, unpaidN = 0
@@ -7253,8 +7261,15 @@ const wvPostIssuance = async (sb, savedRows, { user, isAr, rows }) => {
       updated_by: auth?.i || user?.id || null, updated_at: nowIso,
     }).eq('id', c.row.id).select('id')
     if (error) throw error
+    /* صفرُ صفوفٍ بلا خطأ = حجبُ RLS: الطلب خارج مكاتب المستخدم (القاعدة تقبل
+       محرّرَ الشيت في مكاتبه وحدها — current_user_ops_sheet_row_ok). فيُسمّى
+       المكتب ورقم الفاتورة: كانت الرسالة «تحقّق من الصلاحيات» لغزاً بلا خطوة. */
     if (!upd || !upd.length) {
-      held.push(isAr ? 'تعذّر الحفظ على التأشيرة — تحقّق من الصلاحيات' : 'Could not write the visa — check permissions')
+      const of = String(c.row.branch_code || '').trim()
+      const inv = String(c.row.invoice_no || '').trim()
+      held.push(isAr
+        ? 'تعذّر إثبات الإصدار على التأشيرة' + (inv ? ` (فاتورة ${inv})` : '') + (of ? ` — الطلب يخصّ مكتب ${of}` : '') + ' — تأكّد أنّ المكتب ضمن مكاتبك'
+        : 'Could not post the issuance to the visa' + (inv ? ` (invoice ${inv})` : '') + (of ? ` — the request belongs to office ${of}` : '') + ' — check that this office is among yours')
       continue
     }
     posted++
@@ -11792,6 +11807,15 @@ const VIEWS = [
     /* ترحيل الإصدار إلى صفّ التأشيرة بعد كل حفظة — تلقائيٌّ لا بضغطة (بخلاف شيت
        نقل الكفالة): الوحدة الناقصة لا تُرحَّل أصلاً، فلا خطرَ من حفظةٍ عابرة. */
     afterSave: wvPostIssuance,
+    /* ما حُجب يومَه (منعته الصلاحية أو تعثّر) يُرحَّل من تلقائه عند فتح الشيت:
+       وحدةٌ رباعيّة مكتملة في الطبقة بلا بصمة ترحيلٍ تطابقها. (بلاغ 2026-09-28:
+       فاتورة 2885607000 — أربع تأشيرات بقيت في الشيت وحده لأن الترحيل لا يُعاد
+       إلا بحفظةٍ جديدة.) الصفّ هنا من الطبقة وحدها، فالحكم بالمكتوب فيها. */
+    repostable: (r) => {
+      const d = (r && r._ops) || {}
+      const iv = wvIssVals(null, d)
+      return iv.typed && iv.complete && d.wv_issue_p !== iv.fp
+    },
     /* رقمٌ واحد من الثلاثة يكفي: يُكتب الموحّد (أو التأمينات أو الموارد) فتُملأ
        البقيّة واسم المنشأة من فهرس الأرقام. ختمٌ لا دهس — لا يُملأ إلا الفارغ. */
     autoStamp: (row, ctx) => facNumStamp(row, ctx),
@@ -12119,9 +12143,12 @@ const VIEWS = [
       { key: 'visa_file', ar: 'ملف التأشيرة', en: 'Visa file', w: 140, kind: 'file',
         get: (r) => docUrl(r.visa_file_path),
         upload: async (r, { sb, path, url, file, user }) => {
-          const { error } = await sb.from('visa_applications')
-            .update({ visa_file_path: url, updated_by: user?.id || null }).eq('id', r.id)
+          /* `.select` لأن حجب RLS يُرجع صفر صفوف بلا خطأ — فيُظنّ الملف مرفوعاً
+             وهو لم يُثبَّت على التأشيرة ولا تراه الفاتورة. */
+          const { data: upd, error } = await sb.from('visa_applications')
+            .update({ visa_file_path: url, updated_by: user?.id || null }).eq('id', r.id).select('id')
           if (error) throw new Error(error.message)
+          if (!upd || !upd.length) throw new Error('تعذّر تثبيت الملف على التأشيرة — تأكّد أنّ مكتب الطلب ضمن مكاتبك')
           await sb.from('attachments').insert({
             entity_type: 'visa_application', entity_id: r.id,
             file_name: file.name, file_url: url, storage_path: path,
@@ -12131,9 +12158,10 @@ const VIEWS = [
           r.visa_file_path = url          // تحديث فوري بلا إعادة تحميل الشيت
         },
         clear: async (r, { sb, user }) => {
-          const { error } = await sb.from('visa_applications')
-            .update({ visa_file_path: null, updated_by: user?.id || null }).eq('id', r.id)
+          const { data: upd, error } = await sb.from('visa_applications')
+            .update({ visa_file_path: null, updated_by: user?.id || null }).eq('id', r.id).select('id')
           if (error) throw new Error(error.message)
+          if (!upd || !upd.length) throw new Error('تعذّر إزالة الملف من التأشيرة — تأكّد أنّ مكتب الطلب ضمن مكاتبك')
           // المرفق يبقى في سجلّ المرفقات (أثرٌ لا يُمحى)، ويُرفع بدله ملفٌ جديد
           r.visa_file_path = null
         } },
@@ -16745,8 +16773,14 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
      (منح `ops_excels.view`) ولا دورَ يملكه اليوم — فكانت ستُخفي كل عمود عن
      الجميع. نفس سبب وجود `sheetShown`/`sheetCan` هنا. */
   const colShown = useCallback((k) => isGM || uvis[`field:ops_excels:${opsFieldKey(viewKey, k)}`] !== false, [isGM, uvis, viewKey])
-  const colEditOk = useCallback((k) => isGM || (uvis[`fieldedit:ops_excels:${opsFieldKey(viewKey, k)}`] !== false
-    && uvis[`field:ops_excels:${opsFieldKey(viewKey, k)}`] !== false), [isGM, uvis, viewKey])
+  /* التعديل دوراً دوراً (`opsFieldEditable`): قفلُ العمود في دورٍ يحرّر الجدول لا
+     يُسقطه دورٌ آخر لا يحرّره أصلاً. الخريطة المدموجة بديلٌ إن لم تُحمَّل الأدوار. */
+  const colEditOk = useCallback((k) => {
+    const fk = opsFieldKey(viewKey, k)
+    const per = opsFieldEditable(user, viewKey, fk)
+    if (per !== null) return per
+    return isGM || (uvis[`fieldedit:ops_excels:${fk}`] !== false && uvis[`field:ops_excels:${fk}`] !== false)
+  }, [isGM, uvis, viewKey, user])
   const tabSel = (view.tabs && tabPick.k === viewKey && tabDefs.some((t) => t.key === tabPick.t))
     ? tabPick.t
     : (tabDefs[0]?.key || '')
@@ -16965,9 +16999,15 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
      فقط»). ② المنحُ العامّ للوحدة (`ops_excels.<action>`) — يسري على كل جدولٍ
      مرئيّ ما لم يُستثنَ بـ`false`. ③ البديل القديم لدورٍ لم يُضبط في «جداول
      العمل» بعد. */
+  /* ⚠️ **دوراً دوراً** (`opsSheetCan` في permissions.js): المصادر أدناه تُقرأ
+     داخل كل دور، ويكفي دورٌ واحدٌ يأذن. الخريطة المدموجة (`uvis`) لا تصلح
+     للأفعال — منعُ «مشاهد عام» التعديلَ كان يُسقطه أيُّ دورٍ ثانٍ لم يذكر الجدول،
+     فيحرّر المشاهدُ ما لم يُمنح. الفرع أدناه بديلٌ فقط إن تعذّر جلب الأدوار. */
   const sheetCan = useCallback((action, key) => {
     if (isGM) return true
     const k = key || viewKey
+    const per = opsSheetCan(user, k, action)
+    if (per !== null) return per
     const ca = uvis[`cardact:ops_excels:${k}:${action}`]
     if (ca === false) return false           // مُنع صراحةً على هذا الجدول
     if (ca === true) return true             // مُنح صراحةً لهذا الجدول
@@ -18069,15 +18109,15 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
   /* «السماح بالتعديل» (فكّ الصفوف المقفولة): صلاحية صريحة بلا توافقٍ قديم —
      امتيازٌ يُمنح قصداً (`ops_excels.unlock_rows`) ويُستثنى على جدولٍ بعينه،
      فلا يتسرّب لدورٍ لم يُضبط في «جداول العمل» بعد. */
-  const canUnlockRows = isGM || (hasPerm(user, 'ops_excels', 'unlock_rows')
-    && uvis[`cardact:ops_excels:${viewKey}:unlock_rows`] !== false)
+  const canUnlockRows = opsSheetStrict(user, viewKey, 'unlock_rows') ?? (isGM || (hasPerm(user, 'ops_excels', 'unlock_rows')
+    && uvis[`cardact:ops_excels:${viewKey}:unlock_rows`] !== false))
   /* ── قفل مِلكيّة الإدخال (انظر `stampMine` أعلاه) ──────────────────────────
      «تعديل إدخال غيرك» امتيازٌ صريح كفكّ الصفوف: المدير العام يملكه دائماً،
      وغيرُه لا يناله إلا بمنحٍ من «الأدوار والصلاحيات» (`edit_others`) — فهو
      مقفولٌ افتراضياً على كل دورٍ قائم، وهذا هو المقصود منه. ويُستثنى على
      جدولٍ بعينه كبقيّة الخصائص. */
-  const canEditOthers = isGM || (hasPerm(user, 'ops_excels', 'edit_others')
-    && uvis[`cardact:ops_excels:${viewKey}:edit_others`] !== false)
+  const canEditOthers = opsSheetStrict(user, viewKey, 'edit_others') ?? (isGM || (hasPerm(user, 'ops_excels', 'edit_others')
+    && uvis[`cardact:ops_excels:${viewKey}:edit_others`] !== false))
   /* سببُ منعِ التعديل لأنّ القيمة لغيرك — نصّاً يصلح تلميحاً ورسالةَ رفض.
      `null` = لا مانع. خليّة «عدّة ملفات» مستثناةٌ هنا: مِلكيّتها لكل مرفقٍ على
      حدة (`ownsFile`)، وقفلُ الخليّة كلِّها كان يمنع الزميل من إضافة مرفقه. */

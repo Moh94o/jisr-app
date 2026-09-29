@@ -58,6 +58,68 @@ export const mergeRoleVis = (roleVisList) => {
   return out
 }
 
+/* ── خصائص «جداول العمل» دوراً دوراً ──────────────────────────────────────
+   الدمج المتسامح أعلاه يصلح للإظهار (يكفي دورٌ واحد يُظهر الجدول)، ولا يصلح
+   للأفعال: «مشاهد عام» يمنع التعديل على كل جدول (`cardact:…:edit=false`)،
+   ودورٌ ثانٍ لم يذكر الجدول أصلاً يُسقط المنع لأنّ `false` لا يُحمَل إلا
+   بإجماع الأدوار — فيحرّر المشاهدُ جداولَ لم يُمنح تحريرها قط.
+   فالفعل يُقيَّم **داخل كل دورٍ على حدة**، ويُمنح إن أذن به دورٌ واحد: الدور لا
+   يمنح شيئاً على جدولٍ يُخفيه هو، ولا فعلاً يمنعه هو. مرآتها في القاعدة
+   `_ops_role_sheet_can` (تحمي الترحيل إلى جداول التأشيرات والإقامات).
+   `roleGrants` تُبنى عند الدخول: [{ id, vis, perms: ['module.action'] }] —
+   منحُ الدور مقيَّدٌ بالصلاحيات الفعلية (منعُ المستخدم الفردي يغلب). */
+export const buildRoleGrants = (roles, rolePerms, effPerms) => {
+  const eff = new Set((effPerms || []).map(p => `${p.module}.${p.action}`))
+  return (roles || []).map(r => ({
+    id: r.id,
+    vis: (r.ui_visibility && typeof r.ui_visibility === 'object') ? r.ui_visibility : {},
+    perms: (rolePerms || [])
+      .filter(x => x.role_id === r.id && x.permissions && x.permissions.is_active !== false)
+      .map(x => `${x.permissions.module}.${x.permissions.action}`)
+      .filter(c => eff.has(c)),
+  }))
+}
+const opsRoleShows = (r, key) => {
+  const card = r.vis[`card:ops_excels:${key}`]
+  return cardOptIn('ops_excels', key) ? card === true : card !== false
+}
+const opsRoleCan = (r, key, action) => {
+  if (!opsRoleShows(r, key)) return false
+  const ca = r.vis[`cardact:ops_excels:${key}:${action}`]
+  if (ca === false) return false
+  if (ca === true || r.vis[`card:ops_excels:${key}`] === true) return true
+  if (r.perms.includes(`ops_excels.${action}`)) return true
+  // دورٌ لم يُضبط في «جداول العمل» بعد: الصلاحيتان القديمتان بديلٌ (توافقاً)
+  return !r.perms.some(p => p.startsWith('ops_excels.'))
+    && (r.perms.includes('sync_hub.access') || r.perms.includes('work_visas.edit'))
+}
+/* `null` = أدوار المستخدم لم تُحمَّل (فشل الجلب) — يعود المستدعي إلى الخريطة المدموجة. */
+export const opsSheetCan = (user, key, action) => {
+  if (isGM(user)) return true
+  const roles = user?.roleGrants
+  if (!Array.isArray(roles)) return null
+  return roles.some(r => opsRoleCan(r, key, action))
+}
+/* العمود يُحرَّر إن أذن به دورٌ **يحرّر هذا الجدول** ولم يقفل العمود هو نفسه. */
+export const opsFieldEditable = (user, key, fieldKey) => {
+  if (isGM(user)) return true
+  const roles = user?.roleGrants
+  if (!Array.isArray(roles)) return null
+  return roles.some(r => opsRoleCan(r, key, 'edit')
+    && r.vis[`fieldedit:ops_excels:${fieldKey}`] !== false
+    && r.vis[`field:ops_excels:${fieldKey}`] !== false)
+}
+/* امتيازٌ صريح بلا افتراض (فكّ الصفوف المقفولة · تعديل إدخال الغير): يمنحه دورٌ
+   نال `ops_excels.<action>` ويُظهر الجدول ولم يستثنِه عليه. */
+export const opsSheetStrict = (user, key, action) => {
+  if (isGM(user)) return true
+  const roles = user?.roleGrants
+  if (!Array.isArray(roles)) return null
+  return roles.some(r => opsRoleShows(r, key)
+    && r.perms.includes(`ops_excels.${action}`)
+    && r.vis[`cardact:ops_excels:${key}:${action}`] !== false)
+}
+
 export const isGM = (user) =>
   user?.role?.name_ar === 'المدير العام' || user?.role?.name_en === 'General Manager'
 
