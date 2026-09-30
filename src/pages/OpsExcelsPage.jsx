@@ -347,9 +347,16 @@ const hexTint = (hex, a = 0.26) => {
    المخزَّن في الـviews عربيّ («مهدي»)، فيُترجَم **عرضاً** من `sync_persons.name_en`
    (`SR_REF.personEn`، يُحمَّل مرّة للصفحة). الفرز واللون والبحث على العربي كما هي. */
 const personFmt = (v, _r, isAr) => (isAr === false ? SR_REF.personEn.get(String(v ?? '').trim()) || null : null)
+/* قائمةٌ منسدلة بأسماء الأشخاص (طلب المستخدم 2026-09-30): المُزامَن يبقى افتراضياً،
+   وما يُختار يدوياً تجاوزٌ في طبقة الشيت — ولونه لون الشخص المختار من `sync_persons`. */
 const personBgCol = (key, ar, en, colorKey) => ({
   key, ar, en, w: 150, kind: 'text',
-  bg: (v, r) => (v ? hexTint(r?.[colorKey]) : null),
+  select: true, options: () => SR_REF.persons,
+  optLabel: (o, r, isAr) => personFmt(o, r, isAr) || o,
+  bg: (v, r) => {
+    const n = String(v || '').trim(); if (!n) return null
+    return hexTint((r && r[key] === n && r[colorKey]) || SR_REF.personColor.get(n) || r?.[colorKey])
+  },
   fmt: personFmt,
 })
 /* سعوديّ في مشتركي التأمينات: الجنسية «السعودية» (⚠️ اسم البلد لا «سعودي» كما في
@@ -5356,7 +5363,7 @@ const sdDerive = (rows, edits) => {
    بالفاتورة والعميل والمنشأة والفرع، وتُقفل الحلقة بين المعاملة والمصروف.
    المنشأة والرقم الموحّد كانا مملوءين في ٣.٦٪ فقط، فبعد تعبئة
    `service_requests.facility_id` من جداول الطلبات صارا ٦٠٪ وأُدرجا هنا. */
-const SR_REF = { inv: new Map(), days: new Map(), grp: new Map(), dup: new Map(), day: '', tab: '', prices: {}, fac: new Map(), branchLabel: new Map(), branchLabelEn: new Map(), personEn: new Map(), isAr: true, branchId: new Map(), branches: [], muqRes: new Map(), muqCo: new Map(), wf: new Map() }
+const SR_REF = { inv: new Map(), days: new Map(), grp: new Map(), dup: new Map(), day: '', tab: '', prices: {}, fac: new Map(), branchLabel: new Map(), branchLabelEn: new Map(), personEn: new Map(), persons: [], personColor: new Map(), isAr: true, branchId: new Map(), branches: [], muqRes: new Map(), muqCo: new Map(), wf: new Map() }
 // المنشأة بالرقم الموحّد — منها يُملأ رقما التأمينات والموارد في طلبات التجديد
 const srFac = (v) => SR_REF.fac.get(String(v ?? '').replace(/\D/g, ''))
 /* اسم المكتب مع رمزه (`JUB5 · الجبيل - المدرسة`) — الرمز وحده لا يقول لمن الفاتورة.
@@ -17627,9 +17634,13 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
         SR_REF.branchLabel = new Map((brs || []).map((b) => [String(b.branch_code || '').trim(), b.name_ar || '']))
         SR_REF.branchLabelEn = new Map((brs || []).map((b) => [String(b.branch_code || '').trim(), branchNickEn(b, b.city && b.city.name_en)]))
         // أسماء أصحاب حسابات المزامنة بالإنجليزية — لأعمدة «الحساب» (personFmt)
-        const { data: sps } = await sb.from('sync_persons').select('name_ar,name_en')
+        const { data: sps } = await sb.from('sync_persons').select('name_ar,name_en,color')
         SR_REF.personEn = new Map((sps || []).filter((p) => p.name_ar && String(p.name_en || '').trim())
           .map((p) => [String(p.name_ar).trim(), String(p.name_en).trim()]))
+        // قائمة «الشخص» المنسدلة ولون كل اسم (personBgCol)
+        SR_REF.persons = [...new Set((sps || []).map((p) => String(p.name_ar || p.name_en || '').trim()).filter(Boolean))]
+          .sort((a, b) => a.localeCompare(b, 'ar'))
+        SR_REF.personColor = new Map((sps || []).map((p) => [String(p.name_ar || p.name_en || '').trim(), p.color || '']))
         // رمز ← معرّف: عمود الفرع يُختار برمزه ويُكتب في workers.branch_id بمعرّفه
         SR_REF.branchId = new Map((brs || []).filter((b) => String(b.branch_code || '').trim()).map((b) => [String(b.branch_code).trim(), b.id]))
         // قوائم الاختيار تقتصر على العامل من الفروع (المغلق والتجريبي لا يُختاران)
