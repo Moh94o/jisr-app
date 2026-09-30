@@ -3706,6 +3706,21 @@ const ActionModal = ({ type, stage = null, onClose, sb, T, isAr, inv, total, pai
     return () => { alive = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sb, type, isWorkVisa])
+  /* لا إلغاء لفاتورةٍ أُنجز من عملها شيء (طلب المستخدم 2026-09-30): نقل كفالةٍ أُنجزت مرحلةُ
+     «النقل» فيها (العامل نُقل فعلاً)، أو تجديدٌ أُنجزت أيُّ مرحلةٍ منه. الحكم وسببُه نصّاً من
+     `invoice_cancel_block` (المعاملة أو طبقة الشيت)، والقاعدة نفسها تمنعه بمحفّز على
+     `invoices` — هنا تُقال الملاحظة قبل المحاولة. */
+  const [cancelBlock, setCancelBlock] = useState(null)
+  const cancelBlockSvc = baseSvcCode(svcCode)
+  useEffect(() => {
+    if (!sb || type !== 'cancel' || !inv?.id || (cancelBlockSvc !== 'transfer' && cancelBlockSvc !== 'iqama_renewal')) { setCancelBlock(null); return }
+    let alive = true
+    ;(async () => {
+      const { data } = await sb.rpc('invoice_cancel_block', { p_invoice_id: inv.id })
+      if (alive) setCancelBlock(data || null)
+    })()
+    return () => { alive = false }
+  }, [sb, type, cancelBlockSvc, inv?.id])
   const linkCandidates = (type === 'payment' && isWorkVisa)
     ? (visaDet || []).filter(v => v.visa_number && v.border_number && !spawnedVisaIds.has(v.id))
     : []
@@ -3951,6 +3966,10 @@ const ActionModal = ({ type, stage = null, onClose, sb, T, isAr, inv, total, pai
     // (فوق إخفاء الأزرار في الواجهة — لئلا يُفتح هذا المودال بأي طريقة أخرى).
     if ((type === 'cancel' || type === 'refund') && inv.service_request?.status?.code === 'done' && !isGM(user)) {
       setActErr(T('المعاملة منجزة — الإلغاء والاسترجاع للمدير العام فقط', 'Transaction completed — cancel/refund is restricted to the General Manager'))
+      return
+    }
+    if (type === 'cancel' && cancelBlock) {
+      setActErr(T(cancelBlock, 'A stage of this transaction is already done — the invoice cannot be cancelled'))
       return
     }
     setActErr(null)
@@ -5196,6 +5215,28 @@ const ActionModal = ({ type, stage = null, onClose, sb, T, isAr, inv, total, pai
                 <RefundReasonForm T={T} notes={refundNotes} setNotes={setRefundNotes} />
               ) },
             ]),
+      ]
+    : (type === 'cancel' && cancelBlock)
+    ? [
+        { valid: false, content: (
+          <>
+            {invoiceInfo}
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginTop: 14, padding: '12px 14px', borderRadius: 10,
+              background: 'rgba(232,114,101,.10)', border: `1px solid ${C.red}55`, color: C.red, fontSize: 13, fontWeight: 600, lineHeight: 1.8 }}>
+              <AlertCircle size={18} style={{ flexShrink: 0, marginTop: 3 }} />
+              <div>
+                {T(cancelBlock, cancelBlockSvc === 'transfer'
+                  ? 'The worker has already been transferred — this invoice cannot be cancelled.'
+                  : 'A stage of this renewal is already done — this invoice cannot be cancelled.')}
+                <div style={{ fontWeight: 400, fontSize: 12, color: 'var(--tx3)' }}>
+                  {cancelBlockSvc === 'transfer'
+                    ? T('مرحلة «النقل» منجزة في المعاملة أو في شيت «نقل الكفالات».', 'The «Transfer» stage is done in the transaction or the transfers sheet.')
+                    : T('المرحلة منجزة في المعاملة أو في شيت «تجديد الإقامات».', 'The stage is done in the transaction or the renewals sheet.')}
+                </div>
+              </div>
+            </div>
+          </>
+        ) },
       ]
     : type === 'cancel'
     ? [

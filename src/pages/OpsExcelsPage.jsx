@@ -1457,6 +1457,10 @@ async function wfFollowMap(sb) {
 /* عمود «المكتب» في سجل العمالة يحمل التابع: رمز مكتبٍ بلونه واسمه، أو اسم شخصٍ بلونه */
 const wfIsPerson = (v) => { const k = String(v ?? '').split('\n')[0].trim(); return !!k && !SR_REF.branchId.has(k) && (WF_ADD_REF.personId.has(k) || WF_ADD_REF.personColor.has(k)) }
 const wfFollowText = (v) => (wfIsPerson(v) ? String(v).trim() : srBranchText(v))
+/* عاملٌ «مكتبُه» شخص (مهدي، رفعه…): خانات المنشأة والتأمين الطبي ورقم الحدود وملف مقيم
+   لا تسري عليه — تُشطَب وتُقفَل (طلب المستخدم 2026-09-30). */
+const WF_PERSON_NA_COLS = new Set(['facility_ar', 'unified_number', 'gosi_number', 'hrsd_number', 'insurance_expiry_date', 'border_number', 'muqeem_files'])
+const wfRowIsPerson = (r) => !!r && wfIsPerson((r._ops && r._ops.branch_code) || r.branch_code)
 const wfFollowBg = (v) => {
   if (wfIsPerson(v)) return hexTint(WF_ADD_REF.personColor.get(String(v).trim()), 0.22) || null
   return srBranchBg(branchKey(v))
@@ -4239,11 +4243,11 @@ const WV_CANCEL_BG = 'rgba(232,114,101,.16)'
 const INV_CANCEL_ROW_BG = 'rgba(232,114,101,.22)'   // خلفية الصفّ
 const INV_CANCEL_CELL_BG = 'rgba(232,114,101,.17)'  // خلفية كل خليّة فيه
 const wvCancelLocked = (r, col, ctx) => {
-  if (!col || (ctx && (ctx.isGM || ctx.canUnlock))) return false
-  if (!wvInvCancelled(r)) return false
+  // بلا استثناء — المحرّك يجمّد الصفّ الملغى لكل أحد (`cancelWhy`)، وهذا صداه في العروض
+  if (!col || !wvInvCancelled(r)) return false
   return (ctx && ctx.isAr === false)
-    ? 'The invoice is cancelled — its visa rows are read-only.'
-    : 'الفاتورة ملغية — صفوف تأشيراتها للقراءة فقط.'
+    ? 'The invoice is cancelled — its rows are read-only.'
+    : 'الفاتورة ملغية — صفوفها للقراءة فقط.'
 }
 async function wvAbsherTopup(r, ctx) {
   const { sb, isAr, user } = ctx || {}
@@ -10373,7 +10377,7 @@ const renDurNil = (r, pend) => { const { from, to } = renDurEnds(r, pend); retur
 const renBilledMonths = (r) => [r && r.billed_renewal_months, r && r.renewal_months, r && r.expected_duration_months]
   .map(depNum).find((n) => n > 0) || 0
 /* الأحمر لحالتين لا ثالثة (قرار المستخدم 2026-09-21):
-     · **لم تُمدَّد** — الانتهاء الجديد لا يتجاوز الحالي، فلا تجديد وقع.
+     · **لم يُجدَّد** — الانتهاء الجديد لا يتجاوز الحالي، فلا تجديد وقع.
      · **أكثر من المفوتر** — الشهر الزائد رسمُه حكوميٌّ دفعه المكتب ولم يُفوتَر،
        فهو خسارةٌ تُراجَع مع من جدّد. (كانت هذه خضراء على معنى «ونال زيادة».)
    و**الأقلُّ من المفوتر أصفر** (قرار المستخدم 2026-09-21): ليس خسارةً على
@@ -10395,8 +10399,8 @@ const renDurBg = (_v, r) => {
 const renDurTip = (_v, r, isAr2) => {
   if (renDurNil(r)) {
     return isAr2 === false
-      ? 'The new expiry is not later than the current one — nothing was extended yet (Muqeem still reports the pre-renewal date)'
-      : 'الانتهاء الجديد لا يتجاوز الحالي — لم يُمدَّد شيء بعد (مقيم ما زال يقول تاريخ ما قبل التجديد)'
+      ? 'The new expiry is not later than the current one — not renewed yet (Muqeem still reports the pre-renewal date)'
+      : 'الانتهاء الجديد لا يتجاوز الحالي — لم يُجدَّد بعد (مقيم ما زال يقول تاريخ ما قبل التجديد)'
   }
   const act = renActualDur(r); const billed = renBilledMonths(r)
   if (!act || !billed) {
@@ -10544,6 +10548,8 @@ const REN_COLS = [
      مرحلةً في `stage_data` (المهنة الجديدة تُكتب في مرحلة الإقامة). */
   { key: 'ren_prof_state', ar: 'حالة تغيير المهنة', en: 'Profession change', w: 150, kind: 'text', ops: true, select: true,
     options: () => [TR_DONE, TR_WAIT, TR_ISSUE],
+    // التاريخ سطرٌ ثانٍ تحت الحالة كبقيّة قوائم المراحل
+    optLabel: iqmStateLabel('ren_prof_state'), fmt: iqmStageFmt('ren_prof_state'),
     strike: (v, r) => depNum(r.prof_change_fee) <= 0,
     cellTip: profNaTip,
     bg: trStBg },
@@ -10646,7 +10652,7 @@ const REN_COLS = [
     get: (r, isAr2, pend) => {
       const md = renActualDur(r, pend)
       if (md) return monthsDaysText(md, isAr2 !== false)
-      return renDurNil(r, pend) ? (isAr2 === false ? 'Not extended' : 'لم تُمدَّد') : ''
+      return renDurNil(r, pend) ? (isAr2 === false ? 'Not renewed' : 'لم يُجدَّد') : ''
     },
     bg: renDurBg, cellTip: renDurTip },
   { key: 'iqama_amount', ar: 'رسم التجديد', en: 'Renewal fee', w: 110, kind: 'num', get: renGet('iqama_amount'),
@@ -12983,7 +12989,9 @@ const VIEWS = [
     // «نقل فقط» = لا رخصة عمل في هذه المعاملة، فخاناتها مقفولة لا فارغة تُغري بالتعبئة.
     // (وحالةُ تغيير المهنة مفتوحةٌ لكل الصفوف — كانت مقفولةً لمن لا مهنة جديدة
     // في حسبته، فبدت خانةً جامدةً بلا قائمة؛ والمكتب قد يتابعها قبل أن تُسجَّل.)
-    cellLocked: (r, col) => !!(r.transfer_only && (TR_WP_COLS.has(col.key) || col.key === 'tr_s_muq')),
+    /* والفاتورة الملغاة تظهر صفّاً أحمر للقراءة وحدها (طلب المستخدم 2026-09-30) — كتجديد الإقامات */
+    cellLocked: (r, col, ctx) => wvCancelLocked(r, col, ctx)
+      || !!(r.transfer_only && (TR_WP_COLS.has(col.key) || col.key === 'tr_s_muq')),
     /* وتُعلَّم بالإكس كأختها في «إصدار الإقامات»: القفل وحده غسلةٌ رمادية
        تُقرأ «ممنوعة عليك» لا «لا تخصّ هذا الصفّ». */
     cellNA: (r, col) => !!(r.transfer_only && (TR_WP_COLS.has(col.key) || col.key === 'tr_s_muq')),
@@ -13074,6 +13082,8 @@ const VIEWS = [
          له أصلاً، فلا تُغري بتعبئة حالةٍ لشيءٍ ليس في الحسبة. */
       { key: 'tr_prof_state', ar: 'حالة تغيير المهنة', en: 'Profession change', w: 150, kind: 'text', ops: true, select: true,
         options: () => [TR_DONE, TR_WAIT, TR_ISSUE],
+        // التاريخ سطرٌ ثانٍ تحت الحالة كبقيّة قوائم المراحل
+        optLabel: iqmStateLabel('tr_prof_state'), fmt: iqmStageFmt('tr_prof_state'),
         strike: (v, r) => depNum(r.prof_change_fee) <= 0,
         cellTip: profNaTip,
         bg: trStBg },
@@ -13191,6 +13201,7 @@ const VIEWS = [
       { key: 'txn_stage', ar: 'المرحلة الحالية', en: 'Current stage', w: 150, kind: 'text', readOnly: true, sectionStart: true,
         get: (r, isAr2, pend) => {
           if (r.request_status_code === 'cancelled') return isAr2 ? 'المعاملة ملغاة' : 'Cancelled'
+          if (wvInvCancelled(r)) return isAr2 ? 'الفاتورة ملغاة' : 'Invoice cancelled'
           if (r.request_status_code === 'done') return isAr2 ? 'منجزة' : 'Completed'
           const s = trPending(r, pend)
           return s ? s.ar : (isAr2 ? 'بانتظار الترحيل' : 'Awaiting posting')
@@ -13205,7 +13216,7 @@ const VIEWS = [
            اللذان يُسألان عن أي معاملة («وين وصلت؟» و«وين واقفة؟») يُجابان بنظرة
            واحدة. العدد على المراحل التي تخصّ هذه المعاملة (ثلاث في «نقل فقط»). */
         get: (r, isAr2, pend) => {
-          if (r.request_status_code === 'cancelled') return isAr2 ? 'ملغاة' : 'Cancelled'
+          if (r.request_status_code === 'cancelled' || wvInvCancelled(r)) return isAr2 ? 'ملغاة' : 'Cancelled'
           const mine = TR_STAGES.filter((s) => trApplies(r, s))
           const done = mine.filter((s) => { const v = trEff(r, s, pend); return v === TR_DONE || v === TR_SKIP })
           const last = done.length ? done[done.length - 1] : null
@@ -13328,7 +13339,11 @@ const VIEWS = [
     postLabel: { ar: 'نقل إلى سجل العمالة', en: 'Move to the workforce registry' },
     /* خانة «ملف مقيم» تُقفل حين يكون ملفّا مقيم كلاهما موجودَين — ملفُّ المنصّة لا
        يُغطّى، وخانةٌ ناقصة (عربي بلا إنجليزي) تبقى مفتوحةً لنصفها الناقص. */
+    cellNA: (r, col) => !!(col && WF_PERSON_NA_COLS.has(col.key) && wfRowIsPerson(r)),
     cellLocked: (r, col, ctx) => wfSyncRowLocked(r, col, ctx)
+      || (col && WF_PERSON_NA_COLS.has(col.key) && wfRowIsPerson(r)
+        ? ((ctx && ctx.isAr === false) ? 'This worker belongs to a person — not applicable' : 'العامل تابعٌ لشخص — الخانة لا تسري عليه')
+        : false)
       || (col && col.key === 'muqeem_files' && r
         && (r._mq_files || []).some((f) => f.t === 'ع') && (r._mq_files || []).some((f) => f.t === 'EN')
         ? ((ctx && ctx.isAr === false) ? 'Both Muqeem profiles are on file — nothing to attach' : 'ملفّا مقيم موجودان من المنصّة — لا إرفاق فوقهما')
@@ -15216,7 +15231,7 @@ function FacNumsStack({ nums, isAr, h = 38, onTap }) {
    ومبلغُها قبل أن تخرج، لا تُنسخ على عمياء بضغطةٍ لا يرى صاحبُها أثرَها.
    وما لا تكتمل رسالتُه يبقى زرّاً مطفأً ⚠، وسببُه في تلميح الخليّة (`cellTip`):
    الخانة الفارغة تُقرأ عطلاً في الشيت، وهي نقصُ بيانٍ يُسدّ. */
-function MsgCell({ label, onOpen }) {
+function MsgCell({ label, onOpen, disabled }) {
   /* **زرٌّ واحد لا حالتان** (قرار المستخدم 2026-09-22): كان ناقصُ البيانات
      يُعرض «ناقصة ⚠» رماديّاً، فامتلأ العمود بتنبيهٍ يُقرأ خللاً وهو حالُ كلّ
      صفٍّ لم يصل رقمُ سداده بعد — وذلك أكثرُ صفوف التأمين والرخصة. والخليّة
@@ -15227,14 +15242,16 @@ function MsgCell({ label, onOpen }) {
      واللون أزرق لا ذهبيّ: الذهبي لونُ الصفحة نفسها (التحديد والرؤوس) فيذوب
      فيه الزرّ، والأزرق لونُ **ما يُفتح** في هذه الشبكة (شارات الروابط). */
   return (
-    <button type="button"
+    /* `disabled`: صفُّ الفاتورة الملغاة (طلب المستخدم 2026-09-30) — لا رسالةَ سدادٍ لمعاملةٍ ملغاة */
+    <button type="button" disabled={!!disabled}
       onMouseDown={(e) => e.stopPropagation()}
-      onClick={(e) => { e.stopPropagation(); onOpen && onOpen() }}
+      onClick={(e) => { e.stopPropagation(); if (!disabled && onOpen) onOpen() }}
       style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5,
         height: 22, padding: '0 10px', borderRadius: 999, fontSize: 11.5, fontWeight: 600,
         fontFamily: F, whiteSpace: 'nowrap', maxWidth: '100%', overflow: 'hidden', flexShrink: 0,
-        cursor: 'pointer', color: C.blue,
-        border: '1px solid rgba(93,173,226,.40)', background: 'rgba(93,173,226,.12)' }}>
+        cursor: disabled ? 'not-allowed' : 'pointer', color: disabled ? 'var(--tx5)' : C.blue, opacity: disabled ? 0.55 : 1,
+        border: disabled ? '1px solid var(--bd)' : '1px solid rgba(93,173,226,.40)',
+        background: disabled ? 'transparent' : 'rgba(93,173,226,.12)' }}>
       <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</span>
       <span aria-hidden style={{ fontSize: 12, lineHeight: 1, flexShrink: 0 }}>✉</span>
     </button>
@@ -18292,8 +18309,15 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
   const ownsFile = useCallback((f) => canEditOthers
     || stampMine(f && f.b, f && f.bi, uid, myNames), [canEditOthers, uid, myNames])
   const lockCtx = useMemo(() => ({ isGM, isAr, user, canUnlock: canUnlockRows }), [isGM, isAr, user, canUnlockRows])
+  /* ── صفُّ الفاتورة الملغاة مجمّدٌ في كل شيت (قرار المستخدم 2026-09-30) ────────
+     يبقى كما هو ولا تُعدَّل فيه خليّة — لا للمدير العام ولا بفكّ الصفوف ولا بزرّ
+     العمود (الجلب/الطوابير/الرسائل). الكاشف نفسه الذي يصبغه أحمر. */
+  const cancelWhy = useCallback((row) => ((row && (view.rowCancel || wvInvCancelled)(row))
+    ? T('الفاتورة ملغاة — الصفّ مجمّد لا يُعدَّل', 'Invoice cancelled — the row is frozen') : null), [view, T])
   const cellLockWhy = useCallback((row, col) => {
     if (!row || !col) return null
+    const cw = cancelWhy(row)
+    if (cw) return cw
     /* قفلُ الصلاحية يُقال هنا لا في `isEditable` وحدها: هذا الطريق يعطي الخليّة
        غسلتَها الرمادية وتلميحَها معاً — فيُقرأ المنعُ من الشبكة، ولا يبقى
        الموظف ينقر خليّةً لا تستجيب ولا تشرح. */
@@ -18306,7 +18330,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
     const v = view.cellLocked(row, col, lockCtx)
     if (!v) return null
     return typeof v === 'string' ? v : T('هذه الخليّة مقفولة', 'This cell is locked')
-  }, [view, lockCtx, T, colEditOk, cellOwnWhy])
+  }, [view, lockCtx, T, colEditOk, cellOwnWhy, cancelWhy])
   const isEditable = useCallback((row, col) => !!(canEdit && row && col && colWritable(col)
     && srcOf(col) !== 'fetched'
     && !(layout.protected?.[col.key] && !unlockedCols.has(col.key)) && !cellLockWhy(row, col)
@@ -18403,6 +18427,9 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
          بقي اللصقُ يسقط صامتاً بلا أن يعرف الموظّف لِمَ. */
       const ownWhy = cellOwnWhy(row, col)
       if (ownWhy) { bad++; if (!rejects.includes(ownWhy)) rejects.push(ownWhy); continue }
+      // والفاتورة الملغاة تُرفض في الطريقين معاً — الزرّ لا يتجاوز التجميد
+      const cw = cancelWhy(row)
+      if (cw) { bad++; if (!rejects.includes(cw)) rejects.push(cw); continue }
       if (!viaButton && !isEditable(row, col)) { bad++; continue }
       /* `col.coerce` يُسوّي القيمة قبل كل شيء (أرقام عربية ← لاتينية مثلاً)،
          و`col.validate` يردّ سبب الرفض نصّاً. القيمة الفارغة لا تُفحَص أبداً —
@@ -18530,7 +18557,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
     return { ok: applied.length, bad }
     // view/tabSel/daySel في الاعتمادات: بدونها يبقى ختم المجموعة واليوم على قيم
     // أول رسم، فيُختَم الصف الجديد بمجموعة كانت مفتوحة قبل أن يبدّلها المستخدم
-  }, [canEdit, isEditable, cellOwnWhy, savedVal, isGroupCol, view, tabSel, daySel, tabDefs, isAr, userName, layout, allRows, colTypeMap])
+  }, [canEdit, isEditable, cellOwnWhy, cancelWhy, savedVal, isGroupCol, view, tabSel, daySel, tabDefs, isAr, userName, layout, allRows, colTypeMap])
 
   /* رفع ملف في خلية kind:'file' — يُرفع لبكت attachments العام ويُكتب رابطه
      في الخلية كأي قيمة (يبقى ضمن التعديلات حتى يُضغط «حفظ»). */
@@ -18698,7 +18725,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
   chiQRefs.current = { writeCells, allRows, colDefs }
   const openChiQueue = useCallback(async () => {
     const cq = view.chiQueue; if (!cq) return
-    const cand = filtered.filter((r) => !r._sync && /^[12]\d{9}$/.test(String(r.iqama_number || '').replace(/\D/g, '')))
+    const cand = filtered.filter((r) => !r._sync && !(view.cellNA && view.cellNA(r, { key: cq.col })) && /^[12]\d{9}$/.test(String(r.iqama_number || '').replace(/\D/g, '')))
     let recent = new Set()
     try {
       const since = new Date(Date.now() - (cq.recheckDays || 30) * 86400000).toISOString()
@@ -19978,11 +20005,17 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
     /* `d.wk` + `d.wkOf(row)`: الكرت (أو العنصر) يعدّ أسبوعاً بعينه — ٠ الجاري،
        −١ الماضي (يبدأ الجمعة) — من المعروض. شيتٌ عملُه أسبوعي يُسأل «كم هذا
        الأسبوع وكم الماضي» لا «كم في النافذة كلّها» (طلب المستخدم 2026-09-25). */
+    /* الفاتورة الملغاة لا تُحسب في أيّ كرت (طلب المستخدم 2026-09-30): صفُّها أحمرُ مجمّد
+       للاطّلاع، لا عملٌ باقٍ ولا منجز. الكاشف نفسه الذي يصبغه — ويُقال عددُها تحت كرت
+       عدد الصفوف («ملغاة N»). */
+    const isCancel = view.rowCancel || wvInvCancelled
+    const live = filtered.filter((r) => !isCancel(r))
+    const nCancelled = filtered.length - live.length
     const wkNow = weekStartOf()
     const rowsOfWk = (d) => {
-      if (d.wk == null || !d.wkOf) return filtered
+      if (d.wk == null || !d.wkOf) return live
       const target = weekShift(wkNow, d.wk)
-      return filtered.filter((r) => { const t = d.wkOf(r); return !!t && weekStartOf(t) === target })
+      return live.filter((r) => { const t = d.wkOf(r); return !!t && weekStartOf(t) === target })
     }
     // حاسبةُ تعريفٍ واحد — تُرجع null لعمودٍ غائب فيسقط كرتُه (أو عنصرُه) بصمت
     const calc = (d) => {
@@ -20047,7 +20080,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
         const items = arr.slice(0, max).map(([v, n]) => ({ ar: v, en: optText(v, false), val: n, tone: d.tone }))
         const rest = arr.slice(max).reduce((a, [, n]) => a + n, 0)
         if (rest) items.push({ ar: 'أخرى', en: 'Other', val: rest })
-        if (items.length) out.push({ ...d, type: 'group', items, val: 0, rowsTotal: filtered.length, bar: true })
+        if (items.length) out.push({ ...d, type: 'group', items, val: 0, rowsTotal: live.length, bar: true })
         continue
       }
       // الكرت المجمّع: تُحسب عناصره فرادى، ويسقط كلُّه إن غابت أعمدتها جميعاً
@@ -20058,21 +20091,21 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
         const items = (d.items || [])
           .map((it) => {
             const v = calc(it); if (v === null) return null
-            const den = it.na ? filtered.reduce((n, r) => n + (it.na(r) ? 0 : 1), 0) : null
+            const den = it.na ? live.reduce((n, r) => n + (it.na(r) ? 0 : 1), 0) : null
             /* `it.subs`: أرقامٌ صغيرةٌ تفصّل الرقم سطراً تحته («جديد ٠ · عادي ٢») —
                تُغني عن كرتٍ كامل لكلٍّ منها فيتّسع الصفّ الواحد (طلب المستخدم 2026-09-25) */
             const subs = it.subs ? it.subs.map((sd) => ({ ...sd, val: calc(sd) })).filter((x) => x.val !== null) : null
             return (den === 0) ? null : { ...it, val: v, den, subs }
           })
           .filter(Boolean)
-        if (items.length) out.push({ ...d, items, val: 0, rowsTotal: filtered.length })
+        if (items.length) out.push({ ...d, items, val: 0, rowsTotal: live.length })
         continue
       }
       const val = calc(d)
-      if (val !== null) out.push({ ...d, val })
+      if (val !== null) out.push({ ...d, val, liveTotal: live.length, ...(d.type === 'rows' ? { cancelled: nCancelled } : {}) })
     }
     return out
-  }, [view.key, filtered, colDefs, valOf])
+  }, [view, filtered, colDefs, valOf])
 
   // ── تصدير CSV (يفتح مباشرة في إكسل — بادئة BOM للعربية) ──
   const exportCsv = useCallback(() => {
@@ -20204,8 +20237,10 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
       if (s.type === 'group') {
         for (const it of s.items) {
           const den = s.ofRows ? Number(it.den ?? s.rowsTotal ?? 0) : 0
-          out.push({ label: isAr ? it.ar : it.en, value: it.money ? fmtMoney(it.val) : enNum(it.val),
-            sub: den ? T(`متبقٍّ من ${enNum(den)}`, `left of ${enNum(den)}`) : (isAr ? s.ar : s.en),
+          // المنجز من المقام كالمكتب (طلب المستخدم 2026-09-30) — والباقي في السطر الثاني
+          out.push({ label: isAr ? it.ar : it.en, value: it.money ? fmtMoney(it.val) : enNum(den ? Math.max(0, den - it.val) : it.val),
+            sub: den ? (it.val ? T(`من ${enNum(den)} · المتبقي ${enNum(it.val)}`, `of ${enNum(den)} · ${enNum(it.val)} left`)
+              : T(`من ${enNum(den)} · اكتملت`, `of ${enNum(den)} · complete`)) : (isAr ? s.ar : s.en),
             tone: den ? (it.val / den >= 0.5 ? 'red' : it.val ? 'orange' : 'green') : tn(it.tone) })
         }
       } else {
@@ -20255,7 +20290,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
         </a>) : <span className="msh-empty-v">—</span>
       case 'open': return raw ? <button type="button" className="msh-pill blue mono" onClick={() => col.open && col.open(row)}>{raw}</button> : <span className="msh-empty-v">—</span>
       case 'msg': return (col.msgNA && col.msgNA(row)) ? <span className="msh-na">{T('لا ينطبق', 'N/A')}</span>
-        : <MsgCell label={(isAr ? col.msgAr : col.msgEn) || T('رسالة السداد', 'Payment message')} onOpen={() => setMsgView({ row, col, vals: {} })} />
+        : <MsgCell label={(isAr ? col.msgAr : col.msgEn) || T('رسالة السداد', 'Payment message')} disabled={!!cancelWhy(row)} onOpen={() => setMsgView({ row, col, vals: {} })} />
       case 'yesno': return (
         <YesNoCell value={raw} isAr={isAr} canEdit={editable} busy={fetchBusy === `${row._id}|${col.key}`}
           tipYes={col.tipYes ? (isAr ? col.tipYes.ar : col.tipYes.en) : T('نعم', 'Yes')}
@@ -20367,7 +20402,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
         const lockWhy = (!ed && canEdit && colWritable(c) && srcOf(c) !== 'fetched')
           ? (cellLockWhy(row, c) || (isRowLocked(row) ? T('الصف مقفول بعد إنجاز معاملته', 'Row is locked after its transaction was completed') : null)) : null
         const statusish = !!c.bg && (c.select || c.options || /status|state|stage|_st$|^tr_s_/.test(c.key))
-        const bg = statusish && text ? c.bg((isAr === false && text !== raw) ? raw : text, row) : null
+        const bg = statusish && text ? c.bg((text !== raw && (isAr === false || text === optText(raw, isAr))) ? raw : text, row) : null
         const fam = familyOf(c)
         return {
           raw, text: text.trim(), empty: !text.trim(), na, editable: typed, widget, lockWhy,
@@ -20943,7 +20978,9 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
               const denOf = (it) => (s.ofRows ? Number(it.den ?? s.rowsTotal ?? 0) : 0)
               const canBar = s.bar && !s.ofRows && total > 0 && s.items.every((it) => !it.money)
               return (
-                <div key={i} title={(isAr ? s.ar : s.en) + ': ' + s.items.map((it) => `${isAr ? it.ar : it.en} ${fmtVal(it)}${denOf(it) ? ' / ' + enNum(denOf(it)) : ''}`).join(' · ')}
+                <div key={i} title={(isAr ? s.ar : s.en) + ': ' + s.items.map((it) => (denOf(it)
+                  ? `${isAr ? it.ar : it.en} ${enNum(Math.max(0, denOf(it) - it.val))} / ${enNum(denOf(it))}` + (it.val ? T(` (المتبقي ${enNum(it.val)})`, ` (${enNum(it.val)} left)`) : '')
+                  : `${isAr ? it.ar : it.en} ${fmtVal(it)}`)).join(' · ')}
                   style={{ ...cardSty, flex: oneRow ? `${s.items.length} 1 0` : `${s.items.length} 1 ${s.items.length * 130}px` }}>
                   {accent(C.gold, false)}
                   <span style={{ fontSize: 12, color: 'var(--tx3)', fontWeight: 600, whiteSpace: 'nowrap',
@@ -20952,10 +20989,12 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
                     {s.items.map((it, j) => {
                       const shown = fmtVal(it)
                       const den = denOf(it)
-                      /* مع `ofRows` ينقلب ثقلُ الرقمين: المجموع هو الرقم الكبير
-                         (فهو ما يُقاس عليه)، وغير المنجز صغيرٌ ملوّنٌ بحسب حجمه —
-                         أحمرُ إن كان النصف أو أكثر، وأصفرُ إن كان أقلّ. */
-                      const pClr = den > 0 ? toneClr(it.val / den >= .5 ? 'bad' : 'warn') : toneClr(it.tone)
+                      /* مع `ofRows` الرقمُ **المنجز من المقام** («31 / 33») لا الباقي (طلب المستخدم
+                         2026-09-30): «النقل 2 / 33» كان يُقرأ «أُنجز اثنان» وهو «بقي اثنان». والباقي
+                         يُقال بجانب الاسم («بقي 2») ملوّناً بحجمه — أحمرُ إن كان النصف أو أكثر، وأصفرُ
+                         إن قلّ، وأخضرُ متى اكتملت — والشريط يمتلئ بالمنجز. العدُّ نفسه (`it.val` = الباقي). */
+                      const doneN = den > 0 ? Math.max(0, den - it.val) : 0
+                      const pClr = den > 0 ? toneClr(it.val === 0 ? 'ok' : it.val / den >= .5 ? 'bad' : 'warn') : toneClr(it.tone)
                       return (
                         <span key={j} style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4,
                           justifyContent: 'flex-end',
@@ -20965,13 +21004,17 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
                               lineHeight: 1, letterSpacing: '-.4px', direction: 'ltr', fontVariantNumeric: 'tabular-nums',
                               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {den > 0
-                                ? <><span style={{ fontSize: 14, color: pClr }}>{shown}</span>{' / ' + enNum(den)}</>
+                                ? <>{enNum(doneN)}<span style={{ fontSize: 18, color: 'var(--tx)' }}>{' / ' + enNum(den)}</span></>
                                 : shown}
                             </span>
                             {it.money && <span style={{ flexShrink: 0, fontSize: 10.5, fontWeight: 600, color: 'var(--tx4)' }}>{T('ريال', 'SAR')}</span>}
                           </span>
                           <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--tx4)', whiteSpace: 'nowrap',
-                            overflow: 'hidden', textOverflow: 'ellipsis' }}>{isAr ? it.ar : it.en}</span>
+                            overflow: 'hidden', textOverflow: 'ellipsis' }}>{isAr ? it.ar : it.en}
+                            {den > 0 && (
+                              <span style={{ color: pClr }}>{' · '}{it.val ? T(`المتبقي ${enNum(it.val)}`, `${enNum(it.val)} left`) : T('اكتملت', 'Complete')}</span>
+                            )}
+                          </span>
                           {it.subs && it.subs.length > 0 && (
                             <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--tx4)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                               {it.subs.map((x, q) => (
@@ -20982,7 +21025,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
                           )}
                           {den > 0 && (
                             <span style={{ display: 'block', height: 4, borderRadius: 2, overflow: 'hidden', background: 'var(--bd)' }}>
-                              <span style={{ display: 'block', height: '100%', width: Math.min(100, (it.val / den) * 100) + '%',
+                              <span style={{ display: 'block', height: '100%', width: Math.min(100, (doneN / den) * 100) + '%',
                                 background: pClr, opacity: .8 }} />
                             </span>
                           )}
@@ -21003,7 +21046,8 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
             const clr = toneClr(s.tone)
             const shown = fmtVal(s)
             const isCount = ['eq', 'filled', 'empty', 'lt', 'btw', 'month'].includes(s.type)
-            const pct = isCount && filtered.length > 0 ? Math.round((s.val * 100) / filtered.length) : null
+            const pctBase = s.liveTotal ?? filtered.length
+            const pct = isCount && pctBase > 0 ? Math.round((s.val * 100) / pctBase) : null
             return (
               <div key={i} title={(isAr ? s.ar : s.en) + ': ' + shown + (pct !== null ? ` (${pct}% ${T('من المعروض', 'of shown rows')})` : '')}
                 style={{ ...cardSty, flex: '1 1 150px' }}>
@@ -21024,6 +21068,13 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
                     textAlign: isAr ? 'right' : 'left', fontVariantNumeric: 'tabular-nums',
                     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{shown}</span>
                   {s.money && <span style={{ flexShrink: 0, fontSize: 11, fontWeight: 600, color: 'var(--tx4)' }}>{T('ريال', 'SAR')}</span>}
+                  {/* عددُ الملغاة بجانب العدد لا داخله — الرقم الكبير ما يُعمَل عليه وحده */}
+                  {s.type === 'rows' && s.cancelled > 0 && (
+                    <span style={{ flexShrink: 0, marginInlineStart: 'auto', fontSize: 11.5, fontWeight: 600, color: C.red,
+                      background: 'rgba(232,114,101,.12)', borderRadius: 999, padding: '2px 9px', whiteSpace: 'nowrap' }}>
+                      {T('ملغاة', 'Cancelled')} <bdi style={{ fontVariantNumeric: 'tabular-nums' }}>{enNum(s.cancelled)}</bdi>
+                    </span>
+                  )}
                 </span>
               </div>
             )
@@ -21370,9 +21421,12 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
                          وتُعرض إنجليزيةً في الواجهة الإنجليزية، وحكمُ `col.bg`
                          على النصّ المعروض كان يُسقط ألوان الحالات كلَّها هناك
                          (الأخضر للتمام والأصفر للانتظار والأحمر للمشكلة).
-                         وما عدا هذه الحالة يبقى على المعروض كما كان. */
-                      const bgVal = (isAr === false && disp !== raw
-                        && (col.select || colTypeMap[col.key] === 'select')) ? raw : disp
+                         وما عدا هذه الحالة يبقى على المعروض كما كان.
+                         والعربية كذلك متى كان الفرق تسميةً وحدها (`OPT_AR`: «تم» تُعرض
+                         «أنجزت») — وإلا سقط لون «تم» عن كل قائمةٍ بلا `fmt` (حالة
+                         تغيير المهنة، بلاغ المستخدم 2026-09-30). */
+                      const bgVal = (disp !== raw && (col.select || colTypeMap[col.key] === 'select')
+                        && (isAr === false || disp === optText(raw, isAr))) ? raw : disp
                       /* الصفّ الجاهز الفارغ لا يأخذ ألوان الحالات (ليس فيه حالةٌ بعد)
                          — إلا عموداً يعلن `bgBlank`: خلفيّتُه ليست حكماً على الصفّ بل
                          **لون عمودٍ واحد ممتدّ**، وإسقاطُها في الصفّ الفارغ وحده كان
@@ -21587,6 +21641,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
                             (col.msgNA && col.msgNA(row)) ? null : (
                               <MsgCell
                                 label={(isAr ? col.msgAr : col.msgEn) || T('رسالة السداد', 'Payment message')}
+                                disabled={!!cancelWhy(row)}
                                 onOpen={() => setMsgView({ row, col, vals: {} })} />
                             )
                           ) : col.kind === 'yesno' ? (
