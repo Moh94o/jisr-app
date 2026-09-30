@@ -3009,8 +3009,24 @@ async function loadFacPersonsFetch(sb) {
   FAC_PERSON.by = m
 }
 const facPersonOf = (...nums) => { for (const v of nums) { const k = facNumKey(v); const p = k && FAC_PERSON.by.get(k); if (p) return p } return null }
+/* نطاق المنشأة في قوى وتاريخ مزامنته — لبطاقة المنشأة (طلب المستخدم 2026-09-30). المفتاح رقم
+   الموارد البشرية (مكتب العمل + الرقم التسلسلي): `company_unified_number_id` في قوى معرّفٌ
+   داخليّ لا الرقم الموحّد (7…). */
+const FAC_NITAQ = { by: new Map() }
+async function loadFacNitaqFetch(sb) {
+  const rows = await fetchAll(sb, 'qiwa_companies', 'company_labor_office_id,company_sequence_number,nitaqat_color_ar,detail_synced_at,synced_at',
+    (q) => q.not('company_sequence_number', 'is', null))
+  const m = new Map()
+  for (const r of rows) {
+    const k = facNumKey(`${r.company_labor_office_id ?? ''}${r.company_sequence_number ?? ''}`)
+    if (k) m.set(k, { band: r.nitaqat_color_ar || '', at: r.detail_synced_at || r.synced_at || '' })
+  }
+  FAC_NITAQ.by = m
+}
+const facNitaqOf = (hrsd) => { const k = facNumKey(hrsd); return k ? (FAC_NITAQ.by.get(k) || null) : null }
 const loadFacNums = (sb) => {
   bgIndex('loadFacPersons', () => loadFacPersonsFetch(sb))
+  bgIndex('loadFacNitaq', () => loadFacNitaqFetch(sb))
   return bgIndex('loadFacNums', () => loadFacNumsFetch(sb))
 }
 async function loadFacNumsFetch(sb) {
@@ -3150,6 +3166,13 @@ const facInfoCard = (r) => {
         who: who.gosi, whoAr: 'حساب التأمينات', whoEn: 'GOSI account' },
       { ar: 'رقم الموارد البشرية', en: 'HRSD no.', v: fmtHrsdDisp(hrsd), mono: true,
         who: who.qiwa, whoAr: 'حساب اشتراك قوى', whoEn: 'Qiwa subscription account' },
+      /* نطاقُ المنشأة كما في قوى بلونه، وتاريخُ آخر مزامنةٍ له (طلب المستخدم 2026-09-30) —
+         فيُعرف أحمرُها من أخضرها ومتى قيل ذلك، دون الخروج إلى شيت النطاقات. */
+      /* سطرٌ واحد (طلب المستخدم 2026-09-30): النطاقُ شارةٌ بلونه لا سطرٌ مصبوغٌ كلُّه، وتاريخُ
+         المزامنة بجانبها أهدأ — هو صفةُ النطاق («متى قال قوى ذلك») لا حقلٌ مستقلّ. */
+      ...((nq) => (nq ? [
+        { ar: 'نطاق قوى', en: 'Qiwa band', noCopy: true, wide: true, v: nq.band || nq.at ? <FacNitaqVal band={nq.band} at={ymd(nq.at)} /> : '' },
+      ] : []))(facNitaqOf(hrsd)),
     ],
     /* مرفق السجل التجاري في البطاقة لا في عمود (طلب المستخدم 2026-09-20):
        الشهادةُ شهادةُ **المنشأة**، والصفُّ في هذه الشيتات تأشيرةٌ لا منشأة —
@@ -15367,6 +15390,29 @@ function OxFileVal({ v, isAr, onView }) {
 /* `labelTone`/`bg`: سطرٌ يُصبغ كلُّه لا قيمتُه وحدها — سطرُ الخصم في بطاقة
    الفاتورة أخضر بعنوانه ورقمه وخلفيّته (طلب المستخدم 2026-09-22)، فيُميَّز
    عن الرسوم بنظرةٍ لا بقراءة. و`tone` وحدها تصبغ القيمة فقط كما كانت. */
+/* قيمة «نطاق قوى» في بطاقة المنشأة: شارةٌ بلون النطاق (نقطةٌ بلونه الصريح وخلفيّةٌ شفّافة
+   منه — كخلايا شيت النطاقات) ثم تاريخ آخر مزامنةٍ بخطٍّ أهدأ. اللغةُ من اتّجاه الصفحة. */
+function FacNitaqVal({ band, at }) {
+  const clr = nitaqBandColor(band)
+  const isAr = SR_REF.isAr !== false
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+      {band ? (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '2px 10px', borderRadius: 999,
+          background: nitaqBandBg(band) || 'var(--accent-soft)', color: 'var(--tx)', fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap' }}>
+          {clr && <span aria-hidden style={{ width: 7, height: 7, borderRadius: '50%', background: clr, flexShrink: 0 }} />}
+          {band}
+        </span>
+      ) : <span style={{ color: 'var(--tx4)' }}>{isAr ? 'بلا نطاق' : 'No band'}</span>}
+      {at && (
+        <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx4)', whiteSpace: 'nowrap' }}>
+          {isAr ? 'مزامنة' : 'Synced'} <bdi style={{ fontFamily: MONO }}>{at}</bdi>
+        </span>
+      )}
+    </span>
+  )
+}
+
 function OxRow({ label, value, mono, tone, labelTone, bg, action, isAr, labelW = 112, dense = false, labelAuto = false }) {
   const empty = value == null || String(value).trim() === ''
   return (
@@ -22578,8 +22624,8 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
                   ) : (isAr ? f.ar : f.en)}
                   tone={f.disc ? '#2ecc71' : f.tone}
                   labelTone={f.disc ? '#2ecc71' : undefined}
-                  bg={f.disc ? 'rgba(46,204,113,.10)' : undefined}
-                  action={v ? <CopyBtn text={String(v)} title={T('نسخ', 'Copy')} /> : null} />
+                  bg={f.disc ? 'rgba(46,204,113,.10)' : f.bg}
+                  action={(v && !f.noCopy) ? <CopyBtn text={String(v)} title={T('نسخ', 'Copy')} /> : null} />
               </div>
             )
           })
