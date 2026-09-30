@@ -13,6 +13,7 @@ import {
 import { Modal as FKModal, ModalSection as FKSection, ActionButton as FKAction, Select as FKSelect, MultiSelect as FKMulti, TextField as FKText, PhoneField as FKPhone, FileField as FKFile, DateField as FKDateField, Field as FKField, EmptyState, SuccessView, ConfirmDialog, ScrollBox, GRID, C, sF } from './components/ui/FormKit.jsx'
 import { SkeletonCards, SkeletonList } from './components/ui/Skeleton.jsx'
 import { useIsMobile, MStatStrip, MSearch, MChips, MFab, MBadge } from './components/mobile/MobileKit.jsx'
+import { fmtChartDay } from './lib/chartDates'
 import { MPageHead, MBack, MHero, MGroup, MKV, MItem, MLink, MSwitchRow, MSwitch, MAvatar } from './pages/admin/MAdminKit.jsx'
 
 const F = "'Cairo','Tajawal',sans-serif"
@@ -1248,12 +1249,14 @@ function BranchDetailPage({ sb, branch, dashboard, users, banks: propsBanks, doc
                         <span style={{ color: GOLD, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{nm(total)}</span> فاتورة
                       </span>
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(14, 1fr)', gap: 3, alignItems: 'end', height: 70, direction: 'rtl' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(14, 1fr)', gap: 3, alignItems: 'end', height: 70, direction: 'ltr' }}>
+                      {/* الزمن من اليسار لليمين (الأقدم يساراً)؛ عمود اليوم الجاري باهت لأنه لم يكتمل */}
                       {days14.map((d, i) => {
                         const h = (d.count / max) * 100
+                        const live = i === days14.length - 1
                         return (
-                          <div key={i} title={`${d.date.toLocaleDateString('en-CA')} — ${d.count} فاتورة`}
-                            style={{ height: `${h}%`, minHeight: d.count > 0 ? 3 : 0, background: d.count > 0 ? `linear-gradient(180deg, ${GOLD} 0%, ${GOLD}88 100%)` : 'var(--bd)', borderRadius: '3px 3px 1px 1px', border: d.count > 0 ? `1px solid ${GOLD}55` : '1px solid var(--bd2)', boxShadow: d.count > 0 ? `0 0 6px ${GOLD}33` : 'none' }} />
+                          <div key={i} title={`${fmtChartDay(d.date.toLocaleDateString('en-CA'), true)}${live ? ' (جارٍ)' : ''} — ${d.count} فاتورة`}
+                            style={{ opacity: live ? 0.5 : 1, height: `${h}%`, minHeight: d.count > 0 ? 3 : 0, background: d.count > 0 ? `linear-gradient(180deg, ${GOLD} 0%, ${GOLD}88 100%)` : 'var(--bd)', borderRadius: '3px 3px 1px 1px', border: d.count > 0 ? `1px solid ${GOLD}55` : '1px solid var(--bd2)', boxShadow: d.count > 0 ? `0 0 6px ${GOLD}33` : 'none' }} />
                         )
                       })}
                     </div>

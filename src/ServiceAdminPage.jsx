@@ -65,6 +65,26 @@ export function makeDocTypeValue(label,existing=[]){
 
 const F=`'Cairo','Tajawal',sans-serif`
 const C={gold:'#B07D00',bentoGold:'#B07D00',red:'#c0392b',ok:'#27a046',blue:'#3483b4'}
+// زر مدة في «مدد التجديد المتاحة» (نقل الكفالة + تجديد الإقامة): المتاح أخضر بعلامة ✓، والمعطّل باهت متقطّع بعلامة ✕ —
+// الحالتان متمايزتان بوضوح في العرض والتعديل معاً.
+const PeriodChip=({m,on,ed,onClick})=>(
+  <button type="button" disabled={!ed} onClick={ed?onClick:undefined} aria-pressed={on}
+    style={{flex:1,height:44,borderRadius:9,border:on?`1.5px solid ${C.ok}`:'1.5px dashed var(--bd)',background:on?'rgba(39,160,70,.10)':'transparent',color:on?C.ok:'var(--tx5)',opacity:on?1:.75,fontFamily:F,fontSize:12,fontWeight:600,cursor:ed?'pointer':'default',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:2,transition:'.15s'}}>
+    <span style={{textDecoration:on?'none':'line-through',color:on?'var(--tx)':'var(--tx5)'}}>{m} شهر</span>
+    <span style={{display:'inline-flex',alignItems:'center',gap:4,fontSize:9.5}}>
+      {on
+        ?<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        :<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>}
+      {on?'متاح':'معطّل'}
+    </span>
+  </button>
+)
+// كل مدد الحالة معطّلة = الحاسبة تتيحها كلها (لا يُترك الموظف بلا خيار) — ننبّه حتى لا يُظنّ أن التجديد ممنوع.
+const PeriodsAllOffNote=()=>(
+  <div style={{fontSize:10.5,fontWeight:600,lineHeight:1.7,color:C.gold,background:'rgba(176,125,0,.08)',border:`1px solid ${C.gold}40`,borderRadius:8,padding:'6px 10px'}}>
+    كل المدد معطّلة هنا — الحاسبة تعامل ذلك كأنها <b>كلها متاحة</b>. لتقييد المدد اترك مدةً واحدة على الأقل متاحة.
+  </div>
+)
 const FORM_INPUT={height:42,padding:'0 14px',borderRadius:10,border:'1px solid var(--bd)',background:'var(--inputBg)',color:'var(--tx)',fontFamily:F,fontSize:13,fontWeight:500,outline:'none',boxShadow:'0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05)',transition:'.18s',width:'100%',boxSizing:'border-box'}
 
 // ─── Date picker (same visual pattern as Kafala Calculator's DateField) ───
@@ -475,6 +495,9 @@ if(svcId==='kafala_transfer'){
   out.kafalaFloorDailyNoExempt=src.kafalaFloorDailyNoExempt!==undefined?src.kafalaFloorDailyNoExempt:0
   out.kafalaPeriodsExempt=Array.isArray(src.kafalaPeriodsExempt)?src.kafalaPeriodsExempt:[3,6,9,12]
   out.kafalaPeriodsNoExempt=Array.isArray(src.kafalaPeriodsNoExempt)?src.kafalaPeriodsNoExempt:[3,6,9,12]
+}
+// مدد تجديد الإقامة المتاحة تُقرأ من مخزن التجديد نفسه (كانت داخل كتلة الكفالة فلا تُحمَّل أبداً فيظهر الكل «متاح»).
+if(svcId==='iqama_renewal'){
   out.iqamaPeriodsExempt=Array.isArray(src.iqamaPeriodsExempt)?src.iqamaPeriodsExempt:[3,6,9,12]
   out.iqamaPeriodsNoExempt=Array.isArray(src.iqamaPeriodsNoExempt)?src.iqamaPeriodsNoExempt:[3,6,9,12]
 }
@@ -743,7 +766,8 @@ const renderInlineOverrideEditor=(svc)=>{
               عند تحديد عدة مكاتب، تُحرَّر القيم انطلاقًا من الافتراضي وتُطبَّق على كل المكاتب المحددة. القيم المطابقة للافتراضي تبقى موروثة (لا تُخزَّن).
             </div>
           )}
-          {renderPriceEditor(svc)}
+          {/* تجديد الإقامة: نفس محرّر الأقسام في الكرت الافتراضي (يشمل «مدد التجديد المتاحة») — حفظ كل قسم يمرّ بـsaveSectionToBranches */}
+          {svc.id==='iqama_renewal'?renderIqamaInlineEditor(svc):renderPriceEditor(svc)}
         </div>
       ):(
         <div style={{fontSize:11,color:'var(--tx5)',textAlign:'center',padding:'14px 0'}}>اختر مكتباً لعرض وتعديل التسعير</div>
@@ -1362,18 +1386,12 @@ return<div className="svc-admin-pricing" style={{display:'flex',flexDirection:'c
         const subHead=(t)=>(<div style={{fontSize:11,fontWeight:600,color:C.gold,padding:'2px 8px',borderRight:`2px solid ${C.gold}55`}}>{t}</div>)
         const listOf=(key)=>{const v=priceState[key];return Array.isArray(v)?v.map(Number):[3,6,9,12]}
         const toggle=(key,m)=>{const cur=listOf(key);const next=cur.includes(m)?cur.filter(x=>x!==m):[...cur,m].sort((a,b)=>a-b);setPriceState(p=>({...p,[key]:next}))}
-        const row=(key)=>(
+        const row=(key)=>(<>
           <div style={{display:'flex',gap:6}}>
-            {[3,6,9,12].map(m=>{
-              const on=listOf(key).includes(m)
-              return(<button key={m} type="button" disabled={!isEdit} onClick={isEdit?()=>toggle(key,m):undefined}
-                style={{flex:1,height:38,borderRadius:9,border:`1px solid ${on?C.gold:'var(--bd)'}`,background:on?'rgba(176,125,0,.12)':'var(--bd2)',color:on?C.gold:'var(--tx4)',fontFamily:F,fontSize:12,fontWeight:600,cursor:isEdit?'pointer':'default',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:1,textDecoration:on?'none':'line-through'}}>
-                <span>{m} شهر</span>
-                <span style={{fontSize:9,opacity:.8}}>{on?'متاح':'معطّل'}</span>
-              </button>)
-            })}
+            {[3,6,9,12].map(m=><PeriodChip key={m} m={m} on={listOf(key).includes(m)} ed={isEdit} onClick={()=>toggle(key,m)}/>)}
           </div>
-        )
+          {listOf(key).length===0&&<PeriodsAllOffNote/>}
+        </>)
         return(
           <div {...secCardProps(isCol)}>
             {cardEditAllowed&&!isCol&&!isEdit&&<EditTab onClick={()=>startEdit(title)}/>}
@@ -1985,18 +2003,12 @@ const renderIqamaInlineEditor=(s,opts={})=>{
     if(title==='مدد التجديد المتاحة'){
       const listOf=(key)=>{const x=v[key];return Array.isArray(x)?x.map(Number):[3,6,9,12]}
       const toggle=(key,m)=>{const cur=listOf(key);const next=cur.includes(m)?cur.filter(x=>x!==m):[...cur,m].sort((a,b)=>a-b);setPriceState(p=>({...p,[key]:next}))}
-      const row=(key)=>(
+      const row=(key)=>(<>
         <div style={{display:'flex',gap:6}}>
-          {[3,6,9,12].map(m=>{
-            const on=listOf(key).includes(m)
-            return(<button key={m} type="button" disabled={!ed} onClick={ed?()=>toggle(key,m):undefined}
-              style={{flex:1,height:38,borderRadius:9,border:`1px solid ${on?C.gold:'var(--bd)'}`,background:on?'rgba(176,125,0,.12)':'var(--bd2)',color:on?C.gold:'var(--tx4)',fontFamily:F,fontSize:12,fontWeight:600,cursor:ed?'pointer':'default',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:1,textDecoration:on?'none':'line-through'}}>
-              <span>{m} شهر</span>
-              <span style={{fontSize:9,opacity:.8}}>{on?'متاح':'معطّل'}</span>
-            </button>)
-          })}
+          {[3,6,9,12].map(m=><PeriodChip key={m} m={m} on={listOf(key).includes(m)} ed={ed} onClick={()=>toggle(key,m)}/>)}
         </div>
-      )
+        {listOf(key).length===0&&<PeriodsAllOffNote/>}
+      </>)
       return(<div style={{display:'flex',flexDirection:'column',gap:12}}>
         <div style={{fontSize:11,color:'var(--tx4)',fontWeight:600,lineHeight:1.9}}>تحديد مدد التجديد التي يستطيع الموظف اختيارها في حاسبة تجديد الإقامة، لكل حالة إعفاء على حدة. المدة المعطّلة يظهر زرّها باهتاً وغير قابل للضغط، وإن كانت مختارة تنتقل الحاسبة تلقائياً لأقرب مدة متاحة.</div>
         {sub('بإعفاء')}

@@ -5,6 +5,7 @@ import { Modal as FKModal, ModalSection, ActionButton, GRID, NumberField, Curren
 import { Shimmer } from './components/ui/Skeleton.jsx'
 import { useIsMobile, MChips, MFab } from './components/mobile/MobileKit.jsx'
 import './styles/m-home.css'
+import { fmtChartMonth } from './lib/chartDates'
 
 const F = "'Cairo','Tajawal',sans-serif"
 const C = { dk: '#171717', md: '#222222', fm: '#1e1e1e', gold: '#B07D00', gl: '#B07D00', red: '#c0392b', blue: '#3483b4', ok: '#27a046' }
@@ -302,10 +303,10 @@ export default function KPIPage({ sb, toast, user, lang, branchId }) {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData} barGap={3} margin={{ top: 6, right: 2, left: 2, bottom: 0 }}>
                   <CartesianGrid stroke="rgba(120,100,60,.13)" vertical={false} />
-                  <XAxis dataKey="month" reversed={isAr} tickFormatter={x => x.slice(5) + '/' + x.slice(2, 4)} tick={{ fontSize: 11, fill: 'rgba(95,80,54,.7)', fontFamily: 'Cairo' }} tickLine={false} axisLine={{ stroke: 'rgba(120,100,60,.13)' }} />
+                  <XAxis dataKey="month" tickFormatter={x => fmtChartMonth(x, isAr)} tick={{ fontSize: 11, fill: 'rgba(95,80,54,.7)', fontFamily: 'Cairo' }} tickLine={false} axisLine={{ stroke: 'rgba(120,100,60,.13)' }} />
                   <YAxis orientation={isAr ? 'right' : 'left'} tick={{ fontSize: 11, fill: 'rgba(95,80,54,.7)', fontFamily: 'Cairo' }} tickFormatter={v => v >= 1e6 ? (v / 1e6).toFixed(1).replace(/\.0$/, '') + 'M' : Math.round(v / 1000) + 'K'} tickLine={false} axisLine={false} width={38} />
-                  <Tooltip cursor={{ fill: 'rgba(176,125,0,.07)' }} contentStyle={{ background: 'var(--m-surface)', border: '.5px solid rgba(90,70,30,.15)', borderRadius: 12, fontFamily: F, fontSize: 12, boxShadow: '0 8px 24px rgba(60,45,15,.15)' }}
-                    labelStyle={{ color: 'var(--tx4)', fontSize: 11 }} formatter={(v, n) => [num(v) + T(' ر.س', ' SAR'), n]} />
+                  <Tooltip cursor={{ fill: 'rgba(176,125,0,.07)' }} contentStyle={{ background: 'var(--m-surface)', border: '.5px solid rgba(90,70,30,.15)', borderRadius: 12, fontFamily: F, fontSize: 12, boxShadow: '0 8px 24px rgba(60,45,15,.15)', direction: isAr ? 'rtl' : 'ltr', textAlign: 'start' }}
+                    labelStyle={{ color: 'var(--tx4)', fontSize: 11 }} labelFormatter={x => fmtChartMonth(x, isAr)} formatter={(v, n) => [num(v) + T(' ر.س', ' SAR'), n]} />
                   <Bar dataKey="target" name={T('الهدف', 'Target')} fill="rgba(176,125,0,.25)" radius={[5, 5, 0, 0]} maxBarSize={16} />
                   <Bar dataKey="actual" name={T('الفعلي', 'Actual')} fill={C.gold} radius={[5, 5, 0, 0]} maxBarSize={16} />
                 </BarChart>
@@ -511,20 +512,21 @@ export default function KPIPage({ sb, toast, user, lang, branchId }) {
           <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold, boxShadow: '0 0 5px ' + C.gold }} />
           {T('اتجاه الإيرادات مقابل الأهداف', 'Revenue vs Targets Trend')}
         </div>
-        <ResponsiveContainer width="100%" height={220}>
+        <div style={{ direction: 'ltr' }}><ResponsiveContainer width="100%" height={220}>
           <BarChart data={chartData} barGap={4}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,.06)" />
-            <XAxis dataKey="month" tick={{ fontSize: 10, fill: 'rgba(255,255,255,.4)' }} />
-            <YAxis tick={{ fontSize: 10, fill: 'rgba(255,255,255,.4)' }} tickFormatter={v => (v / 1000) + 'K'} />
+            <XAxis dataKey="month" tickFormatter={x => fmtChartMonth(x, isAr)} tick={{ fontSize: 10, fill: 'rgba(255,255,255,.4)' }} />
+            <YAxis orientation={isAr ? 'right' : 'left'} tick={{ fontSize: 10, fill: 'rgba(255,255,255,.4)' }} tickFormatter={v => (v / 1000) + 'K'} />
             <Tooltip
-              contentStyle={{ background: '#1e1e1e', border: '1px solid rgba(255,255,255,.1)', borderRadius: 10, fontFamily: F, fontSize: 11 }}
+              contentStyle={{ background: '#1e1e1e', border: '1px solid rgba(255,255,255,.1)', borderRadius: 10, fontFamily: F, fontSize: 11, direction: isAr ? 'rtl' : 'ltr', textAlign: 'start' }}
               labelStyle={{ color: 'rgba(255,255,255,.5)', fontSize: 10 }}
+              labelFormatter={x => fmtChartMonth(x, isAr)}
               formatter={(v) => [num(v) + T(' ر.س', ' SAR')]}
             />
             <Bar dataKey="target" name={T('الهدف', 'Target')} fill="rgba(176,125,0,.2)" radius={[4, 4, 0, 0]} />
             <Bar dataKey="actual" name={T('الفعلي', 'Actual')} fill={C.gold} radius={[4, 4, 0, 0]} />
           </BarChart>
-        </ResponsiveContainer>
+        </ResponsiveContainer></div>
       </div>
     )}
 

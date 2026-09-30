@@ -33,6 +33,7 @@ import BaladiCenterPage from './pages/BaladiCenterPage.jsx'
 import Jub1ReceiptsPage from './Jub1ReceiptsPage.jsx'
 import OfficialStampBadge from './components/ui/OfficialStampBadge.jsx'
 import WelcomeToast from './components/WelcomeToast.jsx'
+import MuqeemStatusPill from './components/MuqeemStatusPill.jsx'
 import { MobileTopBar, MobileHubTabs, MobileTabBar, MobileMoreSheet } from './components/mobile/MobileShell.jsx'
 import { Modal as FKModal, ModalSection, ActionButton, SuccessView, ConfirmDialog, ScrollBox, InfoRow, InfoGrid, GRID, TextField, TextArea, FileField, CurrencyField, PhoneField, IdField, Select as FKSelect, DateField as FKDateField, TimeField as FKTimeField, Segmented, YesNo, EmptyState, C as FKC, FKLang } from './components/ui/FormKit.jsx'
 import { getVisibility, isItemVisible } from './pages/VisibilityAdmin.jsx'
@@ -1233,6 +1234,8 @@ return<div style={{display:'flex',alignItems:'center',gap:8,minWidth:0,overflow:
 {/* فاصل مرن: يدفع كل المحتوى لليسار */}
 <div style={{flex:1,minWidth:0}}/>
 {/* اليسار: ثلاث شرائح متناسقة — المستخدم · التاريخ · الأوامر */}
+{/* شريحة اتصال مقيم — optIn من الصلاحيات (الرئيسية ← مؤشّر اتصال مقيم)؛ المدير العام يراها دائماً */}
+{cardVisible(user,'home','muqeem_status')&&<MuqeemStatusPill lang={lang}/>}
 {/* شريحة المستخدم — أفاتار + اسم/مكتب، تنقر تفتح الملف الشخصي */}
 {(()=>{
 const nm=(lang==='en'?(user?.person?.name_en||user?.person?.name_ar):(user?.person?.name_ar||user?.person?.name_en))||'';

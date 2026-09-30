@@ -789,15 +789,16 @@ const INVOICE_SELECT = `
         )
       `
 
-// مدة «تجديد الإقامة» بالأشهر: من الحسبة أولاً (المجمّدة expected_duration_months وإلا renewal_months)،
-// وإن لم توجد حسبة أصلاً — كالفواتير المستوردة من سندات القبض — فمن طلب التجديد نفسه (duration_months).
-const renewalMonthsOf = (calcRow, sr) => {
-  const c = Number(calcRow?.expected_duration_months != null ? calcRow.expected_duration_months : (calcRow?.renewal_months || 0))
-  if (c > 0) return c
-  const raw = sr?.iqama_renewal_applications
+// مدة «تجديد الإقامة» بالأشهر: من طلب التجديد نفسه أولاً (duration_months — وهو ما تُعدّله بطاقة «الخدمة»)،
+// وإلا من الحسبة (المجمّدة expected_duration_months وإلا renewal_months) لطلبٍ بلا مدة.
+// appRows اختياري: صفوف الطلب المجلوبة حديثاً في صفحة التفاصيل (data.det) تغلب المضمَّنة في sr.
+const renewalMonthsOf = (calcRow, sr, appRows) => {
+  const raw = (Array.isArray(appRows) && appRows.length) ? appRows : sr?.iqama_renewal_applications
   const apps = Array.isArray(raw) ? raw : (raw ? [raw] : [])
   const app = apps.find(a => a && a.deleted_at == null) || apps[0] || null
-  return Number(app?.duration_months || 0)
+  const a = Number(app?.duration_months || 0)
+  if (a > 0) return a
+  return Number(calcRow?.expected_duration_months != null ? calcRow.expected_duration_months : (calcRow?.renewal_months || 0))
 }
 const monthsLabel = (mo, isAr) => mo > 0
   ? `${mo} ${isAr ? ((mo >= 3 && mo <= 10) ? 'أشهر' : 'شهر') : (mo === 1 ? 'month' : 'months')}`
@@ -2604,7 +2605,7 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user }) {
     const isVisa = VISA_SVC_CODES.has(inv.service_type?.code)
     const visaApps = Array.isArray(sr?.visa_applications) ? sr.visa_applications : []
     const qty = isVisa ? ((data?.det || []).length || visaApps.length || Number(sr?.quantity || 0)) : 0
-    const durLabel = baseSvcCode(inv.service_type?.code) === 'iqama_renewal' ? monthsLabel(renewalMonthsOf(data?.tc || renewalCalcOf(inv), sr), isAr) : ''
+    const durLabel = baseSvcCode(inv.service_type?.code) === 'iqama_renewal' ? monthsLabel(renewalMonthsOf(data?.tc || renewalCalcOf(inv), sr, data?.det), isAr) : ''
     const svcLabel = (isAr ? (svc.label_ar_full || svc.label_ar) : (svc.label_en_full || svc.label_en)) + (qty > 0 ? ` ×${qty}` : '') + (durLabel ? ` · ${durLabel}` : '')
     const cancelled = inv.status?.code === 'cancelled'
     const zero = isZeroSvc(inv.service_type?.code, total)
@@ -2695,9 +2696,9 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user }) {
           const sub = (!isSplitVisa && va?.visa_type) ? (isAr ? va.visa_type.value_ar : (va.visa_type.value_en || va.visa_type.value_ar)) : null
           const qty = isVisa ? ((data?.det || []).length || visaApps.length || Number(inv.service_request?.quantity || 0)) : Number(inv.service_request?.quantity || 0)
           const serviceFull = [isAr ? (svc.label_ar_full || svc.label_ar) : (svc.label_en_full || svc.label_en), sub].filter(Boolean).join(' ')
-          // تجديد الإقامة: المدة المتوقعة بالأشهر — من الحسبة، وإلا من طلب التجديد (الفواتير المستوردة بلا حسبة).
+          // تجديد الإقامة: مدة التجديد بالأشهر — من طلب التجديد (بعد أي تعديل للخدمة)، وإلا من الحسبة.
           const durLabel = baseSvcCode(inv.service_type?.code) === 'iqama_renewal'
-            ? monthsLabel(renewalMonthsOf(data?.tc || renewalCalcOf(inv), inv.service_request), isAr) : ''
+            ? monthsLabel(renewalMonthsOf(data?.tc || renewalCalcOf(inv), inv.service_request, data?.det), isAr) : ''
           // النك نيم: نحذف بادئة «مكتب» ولاحقة «[n]» المكرّرة مع الكود (الاسم الكامل يبقى في التلميح).
           const brFull = String(inv.branch?.name_ar || '').trim()
           const brNick = branchNick(inv.branch)
@@ -6174,8 +6175,8 @@ const FinancialSummaryCard = ({ inv, data, isAr, T, total, paid, remaining, pct,
           const join = isAr ? ' و ' : ' · '
           let durLabel = ''
           if (data.code === 'iqama_renewal') {
-            // التجديد: المدة المتوقعة بالأشهر (مجمّدة في expected_duration_months وإلا renewal_months).
-            const rmo = Number(tc.expected_duration_months != null ? tc.expected_duration_months : (tc.renewal_months || 0))
+            // التجديد: مدة طلب التجديد (بعد تعديل الخدمة)، وإلا المجمّدة في الحسبة (expected_duration_months/renewal_months).
+            const rmo = renewalMonthsOf(tc, null, data.det)
             if (rmo > 0) durLabel = rmo + ' ' + moU(rmo)
           } else {
             const dm = Number(tc.duration_months || 0), dd = Number(tc.duration_days || 0), ed = Number(tc.expected_iqama_days || 0), rm = Number(tc.renewal_months || 0)
@@ -6188,7 +6189,9 @@ const FinancialSummaryCard = ({ inv, data, isAr, T, total, paid, remaining, pct,
             {visExpiry && (() => {
               // الإنتهاء المتوقع — العمود المجمّد، وإلا (سجلات بابل المستوردة) يُحسب بنفس صيغة كرت الحسبة:
               // البداية = انتهاء الإقامة (أو تاريخ التسعير + 7 أيام إن انتهت ≥ 30 يومًا) + أشهر التجديد.
-              let expExpiry = tc.expected_expiry_date
+              // التجديد: الانتهاء الجديد من طلب التجديد (يتبع تعديل الخدمة) يغلب لقطة الحسبة.
+              const renApp = data.code === 'iqama_renewal' ? ((data.det || []).find(a => a && a.deleted_at == null) || (data.det || [])[0]) : null
+              let expExpiry = renApp?.new_expire_date || tc.expected_expiry_date
               if (!expExpiry && data.code === 'transfer' && !(tc.transfer_only || tc.renew_iqama === false)) {
                 const exp = tc.iqama_expiry_gregorian ? new Date(tc.iqama_expiry_gregorian) : null
                 const ren = Number(tc.renewal_months || 0)

@@ -9,11 +9,11 @@ import { useBackHandler } from '../lib/mobileBack.js'
    قالب الفاتورة. بطاقة الشيت لا تُسمّي بنداً باسمٍ ثانٍ. */
 import { quoteFeeFields, isFlatRenewal, isDiscountLine } from '../lib/invoicePricingModel.js'
 import { TXN_SERVICES } from './txnServices.js'
-import { Modal, ModalSection, ActionButton, ConfirmDialog, Dropdown, Select, CalendarPopup, TextField, TextArea, DateField, FileField, CurrencyField, ScrollBox, GRID } from '../components/ui/FormKit.jsx'
+import { Modal, ModalSection, ActionButton, ConfirmDialog, Dropdown, Select, Segmented, CalendarPopup, TextField, TextArea, DateField, FileField, CurrencyField, ScrollBox, GRID } from '../components/ui/FormKit.jsx'
 import { useIsMobile, MBadge } from '../components/mobile/MobileKit.jsx'
 import { MSheetList, MSheetDetail, buildSpec, toneOfBg, stageState, StageDots, fmtMoney, rangeLabel } from '../components/mobile/sheets/MSheet.jsx'
 import '../styles/m-sheets.css'
-import { Save, Trash2, Search, RefreshCw, HeartPulse, ShieldOff, X as XIcon, HandCoins, BadgeCheck, ArrowUpDown, Zap, SlidersHorizontal, ListChecks, Pencil, ArrowUpNarrowWide, ArrowDownWideNarrow, Filter, Sigma, Pin, PinOff, Palette, Type, KeyRound, Eye, MoveHorizontal, SeparatorVertical, ClipboardCopy, Check, History, Plus, FileInput, Columns3, TableProperties, ChevronLeft, ChevronRight, Building2, CalendarDays } from 'lucide-react'
+import { Save, UserRound, IdCard, Trash2, Search, RefreshCw, HeartPulse, ShieldOff, X as XIcon, HandCoins, BadgeCheck, ArrowUpDown, Zap, SlidersHorizontal, ListChecks, Pencil, ArrowUpNarrowWide, ArrowDownWideNarrow, Filter, Sigma, Pin, PinOff, Palette, Type, KeyRound, Eye, MoveHorizontal, SeparatorVertical, ClipboardCopy, Check, History, Plus, FileInput, Columns3, TableProperties, ChevronLeft, ChevronRight, Building2, CalendarDays } from 'lucide-react'
 
 /* سقوطُ الجلسة يُرجع 401 / 42501 من PostgREST، فيبدو للمستخدم «فشل الحفظ» بلا
    سبب — وهو يرى اسمه في الرأس فيظنّها صلاحيات. نُسمّيه باسمه. */
@@ -1315,7 +1315,7 @@ async function fetchRegistryOnly(sb, { ids = [], iqs = [] }) {
 }
 async function loadRegistryWorkforceBase(sb, exp = null, { only = null } = {}) {
   const noSync = !!only
-  const [reg, sync, exitMap, , , phones] = await Promise.all([
+  const [reg, sync, exitMap, , , phones, follow] = await Promise.all([
     only ? fetchRegistryOnly(sb, only) :
     // مرتّب حسب المنشأة ثم الاسم كي تتجاور صفوف كل منشأة للدمج الرأسي
     fetchAll(sb, 'v_ops_workers_registry', '*', (q) => {
@@ -1334,6 +1334,9 @@ async function loadRegistryWorkforceBase(sb, exp = null, { only = null } = {}) {
     Promise.resolve().then(() => loadCrDocs(sb)).catch(() => null),
     // أرقام العامل على فواتيره (عمود «جوال أبشر») — وتعذّرُها لا يُسقط السجل
     sharedP('wfPhones', () => wfPhonesMap(sb)).catch((e) => { console.warn('[ops] registry: phones', e); return new Map() }),
+    /* «تابع لشخص» (workers.follow_person_id → sync_persons): اسمُه يُعرض في عمود
+       «المكتب» مكان رمز المكتب (طلب المستخدم 2026-09-30) — قلّةٌ من العمّال، فاستعلامٌ صغير */
+    sharedP('wfFollow', () => wfFollowMap(sb)).catch((e) => { console.warn('[ops] registry: follow', e); return new Map() }),
   ])
   const rows = (reg || []).map((r) => {
     const iq = String(r.iqama_number || '').trim()
@@ -1349,6 +1352,8 @@ async function loadRegistryWorkforceBase(sb, exp = null, { only = null } = {}) {
          الأعمدة التشغيلية المحفوظة على صفوفها. ومن لا إقامة له بعدُ (منقولٌ
          ينتظر إصدارها) يُعرَف بمعرّف سجلّه. */
       _id: iq || ('w:' + r.id), worker_id: r.id, _reg: true,
+      // التابع في عمود «المكتب»: رمز المكتب، أو اسم الشخص لمن يتبع شخصاً
+      branch_code: r.branch_code || follow.get(r.id) || null,
       _fe_until: ex.fe ? ymd(ex.fe.valid_until) : '', _fe_no: ex.fe ? (ex.fe.visa_number || '') : '',
       _er_until: ex.er ? ymd(ex.er.valid_until) : '', _er_no: ex.er ? (ex.er.visa_number || '') : '',
       _fe_all: ex.fes || [], _er_all: ex.ers || [],
@@ -1406,13 +1411,76 @@ function loadRegistryExpiring(sb, days) {
   return sharedP('wfRegistryExp:' + exp.join('~'), () => loadRegistryWorkforceBase(sb, exp))
 }
 
+/* قوائم نافذة «عامل» (طلب المستخدم 2026-09-30): الأشخاص (أصحاب الحسابات —
+   `sync_persons`) والجنسيات والمهن. تُجلب مرّةً مع الشيت بلا انتظار: النافذة تُفتح
+   بعده بثوانٍ، والشبكة لا تتأخّر بقائمة مهنٍ لا يحتاجها إلا من يضيف. الخيار نصٌّ
+   (اسمه) كقوائم المحرّك كلها، ويُترجم لمعرّفه عند الحفظ. */
+const WF_FOLLOW_OFFICE = 'مكتب', WF_FOLLOW_PERSON = 'شخص'
+const WF_ADD_REF = { persons: [], personId: new Map(), personColor: new Map(), nats: [], natId: new Map(), occs: [], occId: new Map() }
+const wfNameList = (rows, pick) => {
+  const ids = new Map()
+  for (const r of rows || []) { const n = String(pick(r) || '').trim(); if (n && !ids.has(n)) ids.set(n, r.id) }
+  return [[...ids.keys()], ids]
+}
+function wfLoadAddRef(sb) {
+  // قوائم ثابتة تقريباً: جلبةٌ واحدة للجلسة لا كل دقيقتين (`sharedP`) — المهن ~١٨٠٠ اسم
+  if (WF_ADD_REF.occs.length) return Promise.resolve(WF_ADD_REF)
+  return sharedP('wfAddRef', async () => {
+    const [ps, ns, os] = await Promise.all([
+      // الأشخاص = أصحاب الحسابات (مهدي، حسين، رفعه…) — `sync_persons` لا ملّاك المنشآت
+      fetchAll(sb, 'sync_persons', 'id,name_ar,name_en,color,sort_order', (q) => q.is('deleted_at', null).order('sort_order', { nullsFirst: false }).order('name_ar')).catch(() => []),
+      fetchAll(sb, 'nationalities', 'id,name_ar', (q) => q.order('name_ar')).catch(() => []),
+      fetchAll(sb, 'occupations', 'id,name_ar', (q) => q.order('name_ar')).catch(() => []),
+    ]);
+    [WF_ADD_REF.persons, WF_ADD_REF.personId] = wfNameList(ps.map((p) => ({ id: p.id, n: p.name_ar || p.name_en })), (r) => r.n)
+    for (const p of ps) { const n = String(p.name_ar || p.name_en || '').trim(); if (n && p.color) WF_ADD_REF.personColor.set(n, p.color) };
+    [WF_ADD_REF.nats, WF_ADD_REF.natId] = wfNameList(ns, (r) => r.name_ar);
+    [WF_ADD_REF.occs, WF_ADD_REF.occId] = wfNameList(os, (r) => r.name_ar)
+    return WF_ADD_REF
+  })
+}
+
+/* عمّالٌ يتبعون شخصاً: معرّف العامل → اسم الشخص (ولونُه في WF_ADD_REF.personColor) */
+async function wfFollowMap(sb) {
+  const rows = await fetchAll(sb, 'workers', 'id,follow_person_id,sync_persons!workers_follow_person_id_fkey(name_ar,name_en,color)',
+    (q) => q.not('follow_person_id', 'is', null).is('deleted_at', null))
+  const m = new Map()
+  for (const r of rows) {
+    const p = r.sync_persons || {}
+    const n = String(p.name_ar || p.name_en || '').trim()
+    if (!n) continue
+    m.set(r.id, n)
+    if (p.color) WF_ADD_REF.personColor.set(n, p.color)
+  }
+  return m
+}
+/* عمود «المكتب» في سجل العمالة يحمل التابع: رمز مكتبٍ بلونه واسمه، أو اسم شخصٍ بلونه */
+const wfIsPerson = (v) => { const k = String(v ?? '').split('\n')[0].trim(); return !!k && !SR_REF.branchId.has(k) && (WF_ADD_REF.personId.has(k) || WF_ADD_REF.personColor.has(k)) }
+const wfFollowText = (v) => (wfIsPerson(v) ? String(v).trim() : srBranchText(v))
+const wfFollowBg = (v) => {
+  if (wfIsPerson(v)) return hexTint(WF_ADD_REF.personColor.get(String(v).trim()), 0.22) || null
+  return srBranchBg(branchKey(v))
+}
+
 /* الإضافة من الشيت = عاملٌ حقيقي في جدول العمالة، لا صفٌّ يعيش في الشيت وحده. */
 async function wfRegistryAdd(sb, data, ctx = {}) {
   const ar = ctx.isAr !== false
+  const byOffice = data.follow_kind === WF_FOLLOW_OFFICE, byPerson = data.follow_kind === WF_FOLLOW_PERSON
+  const branchId = byOffice ? (SR_REF.branchId.get(String(data.follow_branch || '').trim()) || null) : null
+  const personId = byPerson ? (WF_ADD_REF.personId.get(String(data.follow_person || '').trim()) || null) : null
+  if (byOffice && !branchId) throw new Error(ar ? 'اختر المكتب' : 'Choose the office')
+  if (byPerson && !personId) throw new Error(ar ? 'اختر الشخص' : 'Choose the person')
+  const pickId = (m, v) => { const k = String(v || '').trim(); return k ? (m.get(k) || null) : null }
   const { error } = await sb.rpc('registry_add_worker', {
     p_iqama: String(data.iqama_number || '').trim() || null,
     p_name_ar: String(data.name_ar || '').trim() || null,
-    p_border: String(data.border_number || '').trim() || null,
+    p_border: null,
+    p_branch_id: branchId,
+    p_person_id: personId,
+    p_nationality_id: pickId(WF_ADD_REF.natId, data.nationality_ar),
+    p_occupation_id: pickId(WF_ADD_REF.occId, data.occupation_ar),
+    p_iqama_expiry: String(data.iqama_expiry_date || '').trim() || null,
+    p_birth_date: String(data.birth_date || '').trim() || null,
   })
   if (error) throw new Error(error.message || String(error))
   opsBustShared()
@@ -1541,10 +1609,20 @@ async function wfPostToWorkers(sb, saved, ctx = {}, cols = WF_SOURCE_COLS) {
       /* الفرع يُختار برمزه ويُخزَّن بمعرّفه. ورمزٌ لا يقابله سجلُّ فرعٍ لا يُكتب
          أصلاً: كتابة null هنا تعني **محو** فرع العامل بسبب رمزٍ لم يُعرَف. */
       if (dbCol === 'branch_id') {
+        /* خانة «المكتب» تحمل التابع: اسمُ شخصٍ (أصحاب الحسابات) يُكتب follow_person_id
+           ويفكّ المكتب، ورمزُ مكتبٍ يُكتب branch_id ويفكّ الشخص — التابع واحدٌ لا اثنان. */
+        const pid = empty ? null : (WF_ADD_REF.personId.get(String(raw).trim()) || null)
+        if (pid) { patch.follow_person_id = pid; patch.branch_id = null; continue }
         const bid = empty ? null : (SR_REF.branchId.get(String(raw).trim()) || null)
         if (!empty && !bid) continue
         patch[dbCol] = bid
+        patch.follow_person_id = null
         continue
+      }
+      /* المهنة تُختار باسمها من القائمة وتُربط بمعرّفها أيضاً — لا اسمٌ بلا مهنة مسجّلة */
+      if (dbCol === 'occupation_ar') {
+        const oid = empty ? null : (WF_ADD_REF.occId.get(String(raw).trim()) || null)
+        if (empty || oid) patch.current_occupation_id = oid
       }
       patch[dbCol] = empty ? null
         : dbCol === 'official_mobile' ? wfNormMobile(raw)
@@ -6651,6 +6729,9 @@ const TR_ST_BG = {
   // بين المنجز والمشكلة، فبينهما لونها.
   [TR_WAIT]: 'rgba(234,179,8,.30)', [TR_ISSUE]: 'rgba(232,114,101,.28)',
 }
+/* لون الحالة يُحكَّم على **السطر الأول** وحده: خانةُ المرحلة تعرض تحت الحالة تاريخَها
+   (`iqmStageFmt`)، فمطابقةُ النصّ كاملاً كانت تُسقط اللون عن كل خانةٍ مؤرَّخة. */
+const trStBg = (v) => TR_ST_BG[String(v ?? '').split('\n')[0].trim()] || null
 const TR_ST_CODE = { [TR_DONE]: 'done', [TR_SKIP]: 'skipped', [TR_CANCEL]: 'cancelled' }
 const TR_ST_AR = { done: TR_DONE, skipped: TR_SKIP, cancelled: TR_CANCEL }
 /* مفاتيح الأعمدة لكل مرحلة + حقولها الإجبارية قبل الترحيل — نفس ما تشترطه
@@ -6986,7 +7067,7 @@ const trStCol = (s) => ({
   options: () => s.opts || [TR_DONE, TR_WAIT, TR_ISSUE],
   /* التاريخ سطرٌ ثانٍ تحت الحالة — يومُ كتابتها في الشيت (كما في مراحل الإقامة) */
   optLabel: iqmStateLabel(s.st), fmt: iqmStageFmt(s.st),
-  bg: (v) => TR_ST_BG[v] || null,
+  bg: trStBg,
   get: (r) => trStoredSt(r, s.key),
 })
 /* أعمدة رخصة العمل — تُقفَل في «نقل فقط» (النظام يتخطّى المرحلة أصلاً) */
@@ -10465,7 +10546,7 @@ const REN_COLS = [
     options: () => [TR_DONE, TR_WAIT, TR_ISSUE],
     strike: (v, r) => depNum(r.prof_change_fee) <= 0,
     cellTip: profNaTip,
-    bg: (v) => TR_ST_BG[v] || null },
+    bg: trStBg },
   phoneCol({ key: 'phone', ar: 'جوال العامل', en: 'Worker mobile', w: 125 }),
   /* مرفق الجواز كما في شيت الإصدار: أوّلُ ورقةٍ تُطلب في المراحل كلها */
   { key: 'passport_file', ar: 'مرفق الجواز', en: 'Passport file', w: 145, kind: 'file', ops: true },
@@ -12844,14 +12925,14 @@ const VIEWS = [
       /* كتلةٌ لكل مرحلة (TR_STAGES + تغيير المهنة + التوصيل)، و«نقل الكفالة» آخِراً
          لحالة المعاملة كلّها — بادئتُها العامّة `tr_` لا تسبق بادئاتِ المراحل. */
       stage: [
-        { ar: 'نقل الكفالة - النقل', en: 'Transfer — Move', prefixes: ['tr_move_'], keys: ['tr_s_move', 'tr_msg_move'] },
-        { ar: 'نقل الكفالة - التأمين', en: 'Transfer — Insurance', prefixes: ['tr_ins_'], keys: ['tr_s_ins', 'tr_msg_ins'] },
-        { ar: 'نقل الكفالة - رخصة العمل', en: 'Transfer — Work permit', prefixes: ['tr_wp_'], keys: ['tr_s_wp', 'tr_msg_wp'] },
-        { ar: 'نقل الكفالة - تغيير المهنة', en: 'Transfer — Profession change',
+        { ar: 'النقل', en: 'Move', prefixes: ['tr_move_'], keys: ['tr_s_move', 'tr_msg_move'] },
+        { ar: 'التأمين', en: 'Insurance', prefixes: ['tr_ins_'], keys: ['tr_s_ins', 'tr_msg_ins'] },
+        { ar: 'رخصة العمل', en: 'Work permit', prefixes: ['tr_wp_'], keys: ['tr_s_wp', 'tr_msg_wp'] },
+        { ar: 'تغيير المهنة', en: 'Profession change',
           keys: ['new_occupation_name_ar', 'tr_prof_state', 'tr_msg_prof'] },
-        { ar: 'نقل الكفالة - التجديد', en: 'Transfer — Renewal', prefixes: ['tr_muq_'],
+        { ar: 'تجديد الإقامة', en: 'Iqama renewal', prefixes: ['tr_muq_'],
           keys: ['tr_s_muq', 'tr_msg_iqama', 'mq_iqama_expiry', 'transfer_kind', 'renew_months', 'actual_dur'] },
-        { ar: 'نقل الكفالة - التوصيل', en: 'Transfer — Delivery', prefixes: ['tr_deliv_'], keys: ['tr_s_deliv'] },
+        { ar: 'التوصيل', en: 'Delivery', prefixes: ['tr_deliv_'], keys: ['tr_s_deliv'] },
         { ar: 'نقل الكفالة', en: 'Sponsorship transfer', prefixes: ['tr_'], keys: ['txn_stage'] },
       ],
     }),
@@ -12995,7 +13076,7 @@ const VIEWS = [
         options: () => [TR_DONE, TR_WAIT, TR_ISSUE],
         strike: (v, r) => depNum(r.prof_change_fee) <= 0,
         cellTip: profNaTip,
-        bg: (v) => TR_ST_BG[v] || null },
+        bg: trStBg },
       /* ما تقوله الفاتورة عن هذه الحسبة: إمّا «نقل فقط»، وإمّا **المدة المتوقعة في
          الإقامة** بنصّها كما في كرت الملخّص المالي — `duration_months/days`
          المجمّدان في الحسبة (492 من 682)، ثم أشهر التجديد لمن لا مدّة له. */
@@ -13232,8 +13313,9 @@ const VIEWS = [
       { ar: 'المتابعة', en: 'Follow-up', keys: ['op_notes', 'op_follow'] },
       { ar: 'المزامنة', en: 'Sync', keys: ['src_synced', 'via_sources', 'registry_origin'] },
     ],
-    /* السجل المحفوظ (جدول العمالة) لا المزامنة — انظر loadRegistryWorkforce */
-    load: (sb) => loadRegistryWorkforce(sb),
+    /* السجل المحفوظ (جدول العمالة) لا المزامنة — انظر loadRegistryWorkforce.
+       وقوائم نافذة «عامل» تُجلب بجانبه بلا انتظار (wfLoadAddRef) */
+    load: (sb) => { wfLoadAddRef(sb).catch(() => {}); return loadRegistryWorkforce(sb) },
     /* ثابتٌ كالإكسل: لا زرّ «تحديث من المزامنة» ولا لقطات أسبوعية */
     noSync: true,
     bulkFetch: WF_BULK_IQAMA_EXP,
@@ -13266,11 +13348,29 @@ const VIEWS = [
     tabHiddenCols: { reg: ['_to_reg'] },
     search: wfSearch,
     addLabel: { ar: 'عامل', en: 'Worker' },
+    /* نافذة «عامل» (طلب المستخدم 2026-09-30) بخطوتين بلا تمرير: (١) «تابع» — مكتبٌ
+       أو شخص (أصحاب الحسابات)، ولكلٍّ قائمته — ثم الاسم فالإقامة؛ (٢) المهنة
+       فالجنسية فانتهاء الإقامة، كلٌّ في صفّ، والارتفاع ثابت (`addHeight`). */
     addFields: [
-      { key: 'name_ar', ar: 'اسم العامل', en: 'Worker', required: true },
-      { key: 'iqama_number', ar: 'رقم الإقامة', en: 'Iqama no.' },
-      { key: 'border_number', ar: 'رقم الحدود (إن لم تصدر الإقامة)', en: 'Border no. (if no iqama yet)' },
+      { key: 'follow_kind', ar: 'تابع', en: 'Belongs to', required: true, kind: 'seg', default: WF_FOLLOW_OFFICE,
+        options: [WF_FOLLOW_OFFICE, WF_FOLLOW_PERSON], optLabel: (o, isAr2) => (isAr2 ? o : (o === WF_FOLLOW_OFFICE ? 'Office' : 'Person')) },
+      { key: 'follow_branch', ar: 'المكتب', en: 'Office', required: true, options: () => SR_REF.branches,
+        optLabel: (o) => srBranchText(o).replace('\n', ' — '), when: (f) => f.follow_kind === WF_FOLLOW_OFFICE },
+      { key: 'follow_person', ar: 'الشخص', en: 'Person', required: true, options: () => WF_ADD_REF.persons,
+        when: (f) => f.follow_kind === WF_FOLLOW_PERSON },
+      // الاسم صفٌّ والإقامة صفٌّ (طلب المستخدم)
+      { key: 'name_ar', ar: 'الاسم', en: 'Name', required: true },
+      { key: 'iqama_number', ar: 'رقم الإقامة', en: 'Iqama no.', required: true },
+      // كلٌّ في صفّه: تاريخ الميلاد فالمهنة فالجنسية (طلب المستخدم 2026-09-30)
+      { key: 'birth_date', ar: 'تاريخ الميلاد', en: 'Birth date', type: 'date', step: 2 },
+      { key: 'occupation_ar', ar: 'المهنة', en: 'Occupation', options: () => WF_ADD_REF.occs, step: 2 },
+      { key: 'nationality_ar', ar: 'الجنسية', en: 'Nationality', options: () => WF_ADD_REF.nats, step: 2 },
+      { key: 'iqama_expiry_date', ar: 'انتهاء الإقامة', en: 'Iqama expiry', type: 'date', step: 2 },
     ],
+    addNext: () => true,
+    addStepLabels: { 1: { ar: 'العامل', en: 'Worker', Icon: UserRound }, 2: { ar: 'بيانات الإقامة', en: 'Iqama details', Icon: IdCard } },
+    // ارتفاعٌ واحد للخطوتين = ارتفاع الأولى (أربعة صفوف) — لا قفز بينهما
+    addHeight: 548,
     addCustom: wfRegistryAdd,
     columns: [
       /* «نقل إلى السجل» (طلب المستخدم 2026-09-26): زرٌّ لكل عاملٍ جديدٍ من المزامنة —
@@ -13303,7 +13403,10 @@ const VIEWS = [
           const fs = r._mq_files || []
           return { ar: fs.find((f) => f.t === 'ع') || null, en: fs.find((f) => f.t === 'EN') || null }
         } }, wfDiff(WFC.name), WFC.iqama, wfDiff(WFC.border),
-      wfDiff(WFC.nationality), wfDiff(WFC.birth_date), wfDiff(WFC.occupation),
+      wfDiff(WFC.nationality), wfDiff(WFC.birth_date),
+      /* المهنة الرسمية قائمةٌ منسدلة من المهن المسجّلة لا نصٌّ حرّ (طلب المستخدم 2026-09-30) —
+         قائمة نافذة «عامل» نفسها (wfLoadAddRef)، ويُكتب معرّفها مع اسمها (wfPostToWorkers) */
+      wfDiff({ ...WFC.occupation, select: true, options: () => WF_ADD_REF.occs }),
       /* انتهاء الإقامة كشيت «تجديد الإقامات»: زرٌّ يجلبه من مقيم بطلب الموظف (لا
          مزامنة تكتبه)، وتُكتب الخانة بيدٍ أيضاً (`typable`) متى تعذّر مقيم. والقيمة
          تُحفظ في سجلّ العامل كأي تعديل (WF_SOURCE_COLS.iqama_expiry_date). */
@@ -13314,7 +13417,11 @@ const VIEWS = [
           : 'اجلبه من مقيم بالزرّ — أو اكتبه بيدك متى تعذّر مقيم') }),
       wfDiff(WFC.work_permit),
       wfDiff(wfPhoneCol(WFC.absher_phone)), WFC.insurance, wfDiff(WFC.passport_no), wfDiff(WFC.passport_exp_full),
-      wfDiff(WFC.salary), WFC.branch,
+      wfDiff(WFC.salary),
+      /* «المكتب» = التابع (طلب المستخدم 2026-09-30): مكتبٌ أو شخص — القائمة المكاتب ثم
+         أصحاب الحسابات، والشخص بلونه. الكتابة العكسية تفرّق بينهما (wfPostToWorkers). */
+      { ...WFC.branch, options: () => [...SR_REF.branches, ...WF_ADD_REF.persons],
+        fmt: (v) => wfFollowText(v), optLabel: (v) => wfFollowText(v), bg: (v) => wfFollowBg(v) },
       WFR.origin, WFR.via, WFR.src, WFR.updated,
       ...OPS_COLS,
     ],
@@ -15825,13 +15932,23 @@ const cellLines = (v) => {
 }
 
 /* optLabel: نصّ معروض يختلف عن القيمة المخزَّنة — القيمة تبقى رمزاً ثابتاً
-   (مفتاح حساب مثلاً) تُبنى منه المفاتيح والمقارنات، والمعروض اسمه المفهوم. */
-function CellSelect({ value, options, onChange, disabled, optBg, optLabel }) {
+   (مفتاح حساب مثلاً) تُبنى منه المفاتيح والمقارنات، والمعروض اسمه المفهوم.
+   القائمة الطويلة (> ٨ خيارات — المهن ~١٨٠٠) تفتح بمربّع بحثٍ مركَّزٍ فوقها
+   (طلب المستخدم 2026-09-30): يطابق الهمزات والتاء المربوطة والياء، وEnter يختار
+   الأول وEsc يغلق. والقائمة أعرض من خليّتها متى ضاقت فلا تُقصّ الأسماء. */
+const CS_SEARCH_MIN = 8
+const CS_MAX_ROWS = 200
+const csFold = (s) => String(s ?? '').toLowerCase().replace(/[أإآٱ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي')
+  .replace(/[ً-ْـ]/g, '').replace(/\s+/g, ' ').trim()
+function CellSelect({ value, options, onChange, disabled, optBg, optLabel, isAr = true }) {
   const lab = (o) => (optLabel ? (optLabel(o) || o) : o)
   const btnRef = useRef(null)
   const popRef = useRef(null)
   const [open, setOpen] = useState(false)
+  const [q, setQ] = useState('')
   const [pos, setPos] = useState({ top: 0, left: 0, width: 0, maxH: 240 })
+  const opts = options || []
+  const searchable = opts.length > CS_SEARCH_MIN
   const openIt = () => {
     if (disabled) return
     const r = btnRef.current?.getBoundingClientRect()
@@ -15839,14 +15956,18 @@ function CellSelect({ value, options, onChange, disabled, optBg, optLabel }) {
       const below = window.innerHeight - r.bottom - 12
       const above = r.top - 12
       const flipUp = below < 150 && above > below
-      const maxH = Math.max(120, Math.min(260, (flipUp ? above : below)))
+      const maxH = Math.max(120, Math.min(searchable ? 320 : 260, (flipUp ? above : below)))
+      /* أعرض من الخليّة الضيّقة (٢٤٠ على الأقل للقائمة الطويلة) ويبقى داخل الشاشة */
+      const width = Math.min(window.innerWidth - 16, Math.max(r.width, searchable ? 240 : 0))
+      const left = Math.max(8, Math.min(r.left + r.width / 2 - width / 2, window.innerWidth - width - 8))
       /* الفتح لأعلى يُرسى بحافّة القائمة **السفلى** على الخليّة (بلاغ المستخدم
          2026-09-25): كان يُحسب من السقف `maxH` فتطفو القائمة القصيرة (خياران أو
          ثلاثة) بعيداً فوق خليّتها — كعلّة `Dropdown` في FormKit وإصلاحها نفسه. */
       setPos(flipUp
-        ? { top: 'auto', bottom: window.innerHeight - r.top + 4, left: r.left, width: r.width, maxH }
-        : { top: r.bottom + 4, bottom: 'auto', left: r.left, width: r.width, maxH })
+        ? { top: 'auto', bottom: window.innerHeight - r.top + 4, left, width, maxH }
+        : { top: r.bottom + 4, bottom: 'auto', left, width, maxH })
     }
+    setQ('')
     setOpen((o) => !o)
   }
   useEffect(() => {
@@ -15858,14 +15979,22 @@ function CellSelect({ value, options, onChange, disabled, optBg, optLabel }) {
     const t = setTimeout(() => document.addEventListener('mousedown', onDoc), 0)
     return () => { clearTimeout(t); document.removeEventListener('mousedown', onDoc) }
   }, [open])
-  const pick = (v) => { onChange(v); setOpen(false) }
+  const fq = csFold(q)
+  const shown = fq ? opts.filter((o) => csFold(lab(o)).includes(fq)) : opts
+  const pick = (v) => { onChange(v); setOpen(false); setQ('') }
   const item = (o, label, sub) => {
-    const base = (!sub && optBg && optBg(o)) || (o === value ? 'rgba(176,125,0,.24)' : 'transparent')
+    const base = (!sub && optBg && optBg(o)) || (o === value ? 'rgba(176,125,0,.16)' : 'transparent')
     return (
       <div key={o || '_empty'} onMouseDown={(e) => e.stopPropagation()} onClick={() => pick(o)}
-        onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(176,125,0,.20)' }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(176,125,0,.14)' }}
         onMouseLeave={(e) => { e.currentTarget.style.background = base }}
-        style={{ padding: '9px 12px', fontSize: 12.5, fontWeight: 600, color: sub ? 'var(--tx3)' : 'var(--tx)', cursor: 'pointer', borderRadius: 7, textAlign: 'center', background: base, boxShadow: o === value ? `inset 0 0 0 1.5px ${C.gold}` : 'none', margin: '1px 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{cellLines(label)}</div>
+        style={{ position: 'relative', padding: '9px 26px', fontSize: 13, fontWeight: 600, lineHeight: 1.35,
+          color: sub ? 'var(--tx4)' : (o === value ? C.gold : 'var(--tx)'), cursor: 'pointer', borderRadius: 7, textAlign: 'center',
+          background: base, margin: '1px 0', whiteSpace: 'normal', overflowWrap: 'anywhere', transition: 'background .12s' }}>
+        {cellLines(label)}
+        {!sub && o === value && <Check size={14} color={C.gold} strokeWidth={3}
+          style={{ position: 'absolute', insetInlineEnd: 9, top: '50%', transform: 'translateY(-50%)' }} />}
+      </div>
     )
   }
   return (
@@ -15877,9 +16006,30 @@ function CellSelect({ value, options, onChange, disabled, optBg, optLabel }) {
         {!disabled && <span aria-hidden style={{ fontSize: 8, color: C.gold, opacity: .85, transition: '.2s', transform: open ? 'rotate(180deg)' : 'none' }}>▼</span>}
       </button>
       {open && ReactDOM.createPortal(
-        <div ref={popRef} style={{ position: 'fixed', top: pos.top, bottom: pos.bottom, left: pos.left, width: pos.width, maxHeight: pos.maxH, overflowY: 'auto', background: 'var(--card-grad2)', border: `1.5px solid ${C.gold}`, borderRadius: 10, boxShadow: '0 14px 44px rgba(0,0,0,.30)', zIndex: 4000, fontFamily: F, padding: 5, boxSizing: 'border-box' }}>
-        {item('', '—', true)}
-        {(options || []).map((o) => item(o, lab(o)))}
+        <div ref={popRef} onMouseDown={(e) => e.stopPropagation()}
+          style={{ position: 'fixed', top: pos.top, bottom: pos.bottom, left: pos.left, width: pos.width, maxHeight: pos.maxH, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--card-grad2)', border: `1px solid ${C.gold}8c`, borderRadius: 12, boxShadow: '0 14px 44px rgba(0,0,0,.28)', zIndex: 4000, fontFamily: F, boxSizing: 'border-box' }}>
+          <style>{`.ox-cs-list::-webkit-scrollbar{width:0;display:none}.ox-cs-list{scrollbar-width:none}
+            .ox-cs-q{border:1px solid ${C.gold}73!important}.ox-cs-q:focus{border-color:${C.gold}!important;box-shadow:0 0 0 1px ${C.gold}33}`}</style>
+          {searchable && (
+            <div style={{ padding: 7, borderBottom: '1px solid var(--bd2)', flexShrink: 0, position: 'relative' }}>
+              <Search size={14} color={C.gold} style={{ position: 'absolute', top: '50%', insetInlineEnd: 18, transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+              <input className="ox-cs-q" value={q} autoFocus onChange={(e) => setQ(e.target.value)}
+                placeholder={isAr ? `بحث في ${opts.length.toLocaleString('en-US')}…` : `Search ${opts.length.toLocaleString('en-US')}…`}
+                onKeyDown={(e) => {
+                  e.stopPropagation()
+                  if (e.key === 'Escape') { setOpen(false); setQ('') }
+                  else if (e.key === 'Enter' && shown.length) pick(shown[0])
+                }}
+                style={{ width: '100%', height: 32, paddingInlineStart: 10, paddingInlineEnd: 32, borderRadius: 8, background: 'var(--fk-input-bg)', fontFamily: F, fontSize: 12.5, fontWeight: 600, color: 'var(--tx)', outline: 'none', boxSizing: 'border-box', textAlign: 'center', transition: '.15s' }} />
+            </div>
+          )}
+          <div className="ox-cs-list" style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 5 }}>
+            {!fq && item('', '—', true)}
+            {shown.slice(0, CS_MAX_ROWS).map((o) => item(o, lab(o)))}
+            {fq && !shown.length && <div style={{ padding: 16, textAlign: 'center', fontSize: 12, color: 'var(--tx5)' }}>{isAr ? 'لا نتائج' : 'No results'}</div>}
+            {shown.length > CS_MAX_ROWS && <div style={{ padding: '8px 6px', textAlign: 'center', fontSize: 11, color: 'var(--tx5)' }}>
+              {`+${(shown.length - CS_MAX_ROWS).toLocaleString('en-US')} — ${isAr ? 'اكتب للبحث' : 'type to search'}`}</div>}
+          </div>
         </div>, document.body)}
     </>
   )
@@ -17072,12 +17222,20 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
      زرّها «التالي» متى قال العرض إن ما كُتب لا يكفي (رقم فاتورةٍ متروك) — وتُفتح
      النافذة دائماً على الأولى. */
   const [addStep, setAddStep] = useState(1)
-  useEffect(() => { if (addOpen) setAddStep(1) }, [addOpen])
+  /* فتح النافذة: الخطوة الأولى، وقيمُ الحقول الافتراضية (`f.default`) لما لم يُكتب بعد —
+     «تابع» يبدأ على «مكتب» (طلب المستخدم 2026-09-30) */
+  useEffect(() => {
+    if (!addOpen) return
+    setAddStep(1)
+    const defs = (view.addFields || []).filter((f) => f.default != null)
+    if (defs.length) setAddForm((s) => { const n = { ...s }; for (const f of defs) if (n[f.key] == null || n[f.key] === '') n[f.key] = f.default; return n })
+  }, [addOpen]) // eslint-disable-line react-hooks/exhaustive-deps
   const addHasStep2 = (view.addFields || []).some((f) => f.step === 2)
   const addGoNext = addStep === 1 && addHasStep2 && !!(view.addNext && view.addNext(addForm))
   const addFieldsNow = (view.addFields || []).filter((f) => (f.step || 1) === (addHasStep2 ? addStep : 1) && (!f.when || f.when(addForm)))
   /* الانتقال للخطوة الثانية بعد إلزاميّ الأولى — وإلا عُرف النقصُ عند «إضافة» وصاحبُه في خطوةٍ خلفه */
   const addNextStep = () => {
+    // addFieldsNow مصفّاةٌ بشرطها (`when`) أصلاً: الحقل المخفيّ لا يُطلب
     const miss = addFieldsNow.find((f) => f.required && !String(addForm[f.key] || '').trim())
     if (miss) { toast && toast(T(`${miss.ar} مطلوب`, `${miss.en} required`), 'error'); return }
     setAddStep(2)
@@ -19131,7 +19289,8 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
   /* ── عمليات الصفوف: إضافة / حذف / ترتيب ─────────────────────────────────── */
   const addPerson = useCallback(async () => {
     if (!sb || busy) return
-    const req = (view.addFields || []).filter((f) => f.required)
+    // الإلزاميّ المخفيّ بشرطه (`when`) لا يُطلب: «المكتب» إلزاميٌّ حين يُختار «مكتب» وحده
+    const req = (view.addFields || []).filter((f) => f.required && (!f.when || f.when(addForm)))
     for (const f of req) if (!String(addForm[f.key] || '').trim()) { toast && toast(T(`${isAr ? f.ar : f.en} مطلوب`, `${isAr ? f.ar : f.en} required`), 'error'); return }
     setBusy(true)
     const key = newKey()
@@ -21532,7 +21691,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
                                 /* بلا `optLabel` خاصّ: القاموس العام يترجم الخيار
                                    في الواجهة الإنجليزية — القيمة المخزَّنة لا تتغيّر */
                                 optLabel={col.optLabel ? (o) => col.optLabel(o, row, isAr) : (o) => optText(o, isAr)}
-                                onChange={(v) => writeCells([{ row, col, text: v }])} disabled={!canEdit} />)
+                                onChange={(v) => writeCells([{ row, col, text: v }])} disabled={!canEdit} isAr={isAr} />)
                           ) : (<>
                           {isEd ? (
                             colType === 'select' ? (
@@ -23155,6 +23314,9 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
       {/* ── نافذة إضافة صف ── */}
       {addOpen && (
         <Modal open onClose={() => setAddOpen(false)} closeOnOverlay lang={lang} accent={C.gold} width={440} scroll Icon={view.addCustom ? FileInput : Plus}
+          /* `view.addHeight`: ارتفاعٌ ثابت للنافذة ذات الخطوتين — لا تقفز بين الخطوة والأخرى
+             (طلب المستخدم 2026-09-30)؛ الأقصر منهما يترك فراغاً والأزرار تبقى في مكانها */
+          height={view.addHeight ? `min(${view.addHeight}px, 95vh)` : undefined}
           /* العنوان هو اسم الزرّ نفسه ما لم يُعرَّف عنوانٌ آخر (`titleAr`)، ولا
              وصفَ تحته إلا أن يُكتب (`subAr`): «استدعاء فاتورة إلى أسبوع العمل»
              وسطرُ شرحٍ تحته كانا يقولان ما تقوله النافذة بنفسها. */
@@ -23172,13 +23334,18 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
             : <ActionButton Icon={Save} disabled={busy} onClick={addPerson}>{busy ? T('...', '...') : T('إضافة', 'Add')}</ActionButton>}>
           {/* الحقول داخل بطاقةٍ معنونة كنوافذ البرنامج (مرجعها «تسجيل دفعة»):
               حقلٌ عارٍ وسط نافذةٍ بيضاء يبدو نصف مصمَّم. */}
-          <ModalSection Icon={addStep === 2 ? Building2 : (view.addCustom ? FileInput : Plus)}
+          <ModalSection Icon={(view.addStepLabels && view.addStepLabels[addStep] && view.addStepLabels[addStep].Icon) || (addStep === 2 ? Building2 : (view.addCustom ? FileInput : Plus))}
             label={(view.addStepLabels && view.addStepLabels[addStep]) ? T(view.addStepLabels[addStep].ar, view.addStepLabels[addStep].en)
-              : addStep === 2 ? T('بلا فاتورة', 'No invoice') : (view.addCustom ? T('الفاتورة', 'Invoice') : T('بيانات الصف', 'Row data'))} style={{ marginTop: 14 }}>
+              : addStep === 2 ? T('بلا فاتورة', 'No invoice') : (view.addCustom ? T('الفاتورة', 'Invoice') : T('بيانات الصف', 'Row data'))}
+            /* بارتفاعٍ ثابت (`addHeight`) يمتدّ الإطار ليملأ النافذة — لا فراغ عارياً تحته */
+            style={{ marginTop: 14, ...(view.addHeight ? { flex: 1 } : {}) }}>
             {/* `f.step`: خطوة الحقل (١ افتراضاً) · `f.when(form)`: إظهارٌ بحسب غيره ·
                 `f.options`: قائمة اختيار · `f.kind === 'facility'`: منتقي منشأة */}
+            {/* شبكةٌ بعمودين: الحقل يأخذ السطر كله، و`f.half` نصفَه بجانب جاره —
+                فتقصر النافذة بلا تمرير (والجوال يطوي العمودين عموداً واحداً) */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px 12px' }}>
             {addFieldsNow.map((f, i) => (
-              <div key={f.key} style={i ? { marginTop: 14 } : undefined}>
+              <div key={f.key} style={{ gridColumn: f.half ? 'auto' : '1 / -1', minWidth: 0 }}>
                 <label style={oxLbl}>{isAr ? f.ar : f.en}</label>
                 {f.kind === 'facility' ? (
                   <AddFacPick sb={sb} isAr={isAr} value={addForm[f.key] || ''} autoFocus={i === 0}
@@ -23188,16 +23355,26 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
                      لبكت المرفقات ويُحفظ رابطُه قيمةً للحقل كخليّة الملف */
                   <AddFileField sb={sb} isAr={isAr} viewKey={viewKey} value={addForm[f.key] || ''}
                     onChange={(v) => setAddForm((s) => ({ ...s, [f.key]: v }))} toast={toast} />
+                ) : f.kind === 'seg' ? (
+                  /* خيارٌ من اثنين أو ثلاثة (مكتب/شخص): أزرارٌ ظاهرة لا قائمة تُفتح.
+                     والحقل التابع لغير المختار مخفيٌّ بشرطه (`when`) فلا يُحفظ. */
+                  <Segmented value={addForm[f.key] || ''}
+                    options={(typeof f.options === 'function' ? f.options(addForm) : f.options).map((o) => ({ v: o, l: f.optLabel ? f.optLabel(o, isAr) : o }))}
+                    onChange={(v) => setAddForm((s) => ({ ...s, [f.key]: v }))} />
                 ) : f.options ? (
                   /* قائمة البرنامج الموحّدة (FormKit) لا `<select>` المتصفّح.
-                     `options` دالّةً حين تُجلب القائمة مع الشيت (أسماء الأشخاص) */
+                     `options` دالّةً حين تُجلب القائمة مع الشيت (أسماء الأشخاص)،
+                     و`f.optLabel` تسميةُ الخيار المعروضة (المكتب: الرمز — الاسم) */
                   <Dropdown value={addForm[f.key] || ''} options={typeof f.options === 'function' ? f.options(addForm) : f.options}
                     searchable={(typeof f.options === 'function' ? f.options(addForm) : f.options).length > 5}
-                    getLabel={(o) => (isAr ? o : optText(o, false))} placeholder={T('اختر…', 'Choose…')}
+                    getLabel={(o) => (f.optLabel ? f.optLabel(o, isAr) : (isAr ? o : optText(o, false)))} placeholder={T('اختر…', 'Choose…')}
                     sheetTitle={isAr ? f.ar : f.en}
                     onChange={(v) => setAddForm((s) => ({ ...s, [f.key]: v }))} />
+                ) : f.type === 'date' ? (
+                  /* تقويم البرنامج (FormKit) لا منتقي المتصفّح — كبقيّة نوافذ البرنامج */
+                  <DateField value={addForm[f.key] || ''} onChange={(v) => setAddForm((s) => ({ ...s, [f.key]: v || '' }))} />
                 ) : (
-                <input className="ox-fld" type={f.type === 'date' ? 'date' : 'text'}
+                <input className="ox-fld" type="text"
                   value={addForm[f.key] || ''} onChange={(e) => setAddForm((s) => ({ ...s, [f.key]: e.target.value }))}
                   dir={f.type === 'date' || f.key === 'id_number' ? 'ltr' : undefined} autoFocus={i === 0}
                   /* Enter = زرّ الإضافة (أو «التالي»): الحقل الواحد لا يُملأ ثم تُقصد الزاوية */
@@ -23205,6 +23382,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
                 )}
               </div>
             ))}
+            </div>
           </ModalSection>
         </Modal>
       )}

@@ -308,6 +308,7 @@ export const TAB_CARDS = {
     C('workers', 'العمالة والجنسيات', 'core', [], true),
     C('iqama', 'صلاحية الإقامات', 'core', [], true),
     C('agents', 'الوسطاء', 'core', [], true),
+    C('muqeem_status', 'مؤشّر اتصال مقيم (الشريط العلوي)', 'core', [], true),
   ],
   // The المنشآت tab detail is the basic registry page (decoupled from Sync Hub);
   // the external-platform cards (GOSI/Qiwa/SBC/Muqeem) live in the Sync Hub view,

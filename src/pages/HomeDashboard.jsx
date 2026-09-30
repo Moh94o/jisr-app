@@ -9,6 +9,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { ResponsiveContainer, AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts'
+import { fmtChartDay, fmtChartMonth } from '../lib/chartDates'
 import { TrendingUp, TrendingDown, Minus, RefreshCw, Wallet, FileText, Users, ShieldAlert, Building2, Banknote, ArrowLeftRight, Info, CalendarRange, X, Ban } from 'lucide-react'
 import { swrGet, swrSet, useLiveRefresh } from '../lib/liveData.js'
 import { branchNick } from '../lib/utils.js'
@@ -81,6 +82,14 @@ const delta = (cur, prev) => (prev > 0 ? (cur - prev) / prev : cur > 0 ? null : 
 const addDays = (iso, d) => { const t = new Date(iso + 'T00:00:00Z'); t.setUTCDate(t.getUTCDate() + d); return t.toISOString().slice(0, 10) }
 const ISO = /^\d{4}-\d{2}-\d{2}$/
 const monthKey = (iso, back) => { const t = new Date(iso.slice(0, 7) + '-01T00:00:00Z'); t.setUTCMonth(t.getUTCMonth() - back); return t.toISOString().slice(0, 7) }
+// آخر نقطة (اليوم/الشهر الجاري) لم تكتمل: تنفصل في سلسلة «…Live» تُرسم من النقطة السابقة إليها
+// بخطٍّ متقطّع باهت، فلا يبدو نقصُها هبوطاً
+const withLive = (rows, keys) => rows.map((r, i) => {
+  const last = i === rows.length - 1, prev = i === rows.length - 2
+  const o = { ...r }
+  for (const k of keys) { o[k + 'Live'] = last || prev ? r[k] : null; if (last) o[k] = null }
+  return o
+})
 
 // ── أنماط مشتركة ──
 const card = { background: 'var(--card-bg)', border: '1px solid var(--bd)', borderRadius: 16, boxShadow: 'var(--shadow-sm)', padding: 18, minWidth: 0 }
@@ -157,7 +166,9 @@ function Legend({ parts, total }) {
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 14px' }}>
       {parts.map((p) => (
         <span key={p.k} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: 'var(--tx3)' }}>
-          <span style={{ width: 9, height: 9, borderRadius: 3, background: p.c }} />
+          {p.line
+            ? <span style={{ width: 16, height: 0, borderTop: `2px ${p.line} ${p.c}` }} />
+            : <span style={{ width: 9, height: 9, borderRadius: 3, background: p.c }} />}
           {p.l}
           <span style={{ ...num, color: 'var(--tx)', fontWeight: 600 }}>{fmt(p.v)}</span>
           {total > 0 && <span style={{ ...num, color: 'var(--tx4)' }}>{pctOf(p.v, total)}%</span>}
@@ -204,10 +215,18 @@ function BarList({ rows, valueFmt = fmt, highlight, onPick, empty, share, fill }
 
 function ChartTip({ active, payload, label, T, fmtLabel }) {
   if (!active || !payload?.length) return null
+  // سلسلة «…Live» تكرّر اسم أصلها: صفٌّ واحد لكل اسم، ويُسقط ما لا قيمة له
+  const seen = new Set()
+  const rows = payload.filter((p) => p.value != null && !seen.has(p.name) && seen.add(p.name))
+  if (!rows.length) return null
+  const live = !!payload[0]?.payload?.live
   return (
-    <div style={{ background: 'var(--modal-portal-bg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '8px 12px', boxShadow: 'var(--shadow-md)', fontFamily: "'Cairo',sans-serif", minWidth: 150 }}>
-      <div style={{ fontSize: 11.5, color: 'var(--tx4)', marginBottom: 4, ...num }}>{fmtLabel ? fmtLabel(label) : label}</div>
-      {payload.map((p) => (
+    <div style={{ background: 'var(--modal-portal-bg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '8px 12px', boxShadow: 'var(--shadow-md)', fontFamily: "'Cairo',sans-serif", minWidth: 150, direction: T('rtl', 'ltr'), textAlign: 'start' }}>
+      <div style={{ fontSize: 11.5, color: 'var(--tx4)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6, ...num }}>
+        {fmtLabel ? fmtLabel(label) : label}
+        {live && <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--accent)', background: 'var(--accent-soft)', borderRadius: 6, padding: '0 6px' }}>{T('جارٍ', 'In progress')}</span>}
+      </div>
+      {rows.map((p) => (
         <div key={p.dataKey} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--tx2)', justifyContent: 'space-between' }}>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ width: 8, height: 8, borderRadius: 2, background: p.color }} />{p.name}</span>
           <span style={{ ...num, fontWeight: 600, color: 'var(--tx)' }}>{fmt(p.value)}</span>
@@ -358,13 +377,13 @@ export default function HomeDashboard({ sb, user, lang = 'ar', onNavigate, logo 
     const daily = Array.from({ length: 30 }, (_, i) => {
       const d = addDays(today, i - 29)
       const o = sumBy(data.daily || [], ['i', 'o'], (r) => r.d === d && inSel(r.b))
-      return { x: d, in: o.i, out: o.o }
+      return { x: d, in: o.i, out: o.o, live: i === 29 }
     })
     const monthly = Array.from({ length: 12 }, (_, i) => {
       const m = monthKey(today, 11 - i)
       const o = sumBy(data.monthly || [], ['i', 'o'], (r) => r.m === m && inSel(r.b))
       const iv = sumBy(data.invMonthly || [], ['n', 'sum'], (r) => r.m === m && inSel(r.b))
-      return { x: m, in: o.i, out: o.o, n: iv.n, sum: iv.sum }
+      return { x: m, in: o.i, out: o.o, n: iv.n, sum: iv.sum, live: i === 11 }
     })
 
     // صفوف المكاتب: كل مكتب حقيقي (والتجريبي إن اختير)، و«بدون مكتب» إن كان له أثر
@@ -687,29 +706,34 @@ export default function HomeDashboard({ sb, user, lang = 'ar', onNavigate, logo 
   const offRows = agg.officeRows
   // ── منحنى الاتجاه ──
   const trendData = trend === 'daily' ? agg.daily : agg.monthly
-  const fmtX = (x) => (trend === 'daily' ? x.slice(5) : x)
+  const trendPlot = withLive(trendData, ['in', 'out'])
+  // الزمن يمشي من اليسار لليمين في اللغتين (الأقدم يساراً)؛ محور القيم يميناً بالعربية
+  const fmtX = (x) => (trend === 'daily' ? fmtChartDay(x, isAr) : fmtChartMonth(x, isAr))
+  const fmtMonthX = (x) => fmtChartMonth(x, isAr)
   const trendCard = show('income') && money && (
     <Section title={T('حركة الدخل', 'Income trend')} icon={TrendingUp}
       right={<Seg small value={trend} onChange={setTrend} options={[['daily', T('آخر 30 يوماً', 'Last 30 days')], ['monthly', T('آخر 12 شهراً', 'Last 12 months')]]} />}>
       <div style={{ display: 'flex', gap: 16, marginBottom: 8 }}>
         <Legend parts={[
-          { k: 'in', l: T('الداخل', 'Received'), v: trendData.reduce((s, r) => s + r.in, 0), c: GOLD },
-          { k: 'out', l: T('الملغى', 'Cancelled'), v: trendData.reduce((s, r) => s + r.out, 0), c: ST.crit },
+          { k: 'in', l: T('الداخل', 'Received'), v: trendData.reduce((s, r) => s + r.in, 0), c: GOLD, line: 'solid' },
+          { k: 'out', l: T('الملغى', 'Cancelled'), v: trendData.reduce((s, r) => s + r.out, 0), c: ST.crit, line: 'dashed' },
         ]} />
       </div>
       <div style={{ flex: 1, minHeight: 180, direction: 'ltr' }}>
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={trendData} margin={{ top: 8, right: 6, left: 6, bottom: 0 }}>
+          <AreaChart data={trendPlot} margin={{ top: 8, right: 6, left: 6, bottom: 0 }}>
             <defs>
               <linearGradient id="hdIn" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={GOLD} stopOpacity={0.28} /><stop offset="100%" stopColor={GOLD} stopOpacity={0.02} /></linearGradient>
               <linearGradient id="hdOut" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={ST.crit} stopOpacity={0.18} /><stop offset="100%" stopColor={ST.crit} stopOpacity={0.01} /></linearGradient>
             </defs>
             <CartesianGrid stroke={GRID} vertical={false} />
-            <XAxis dataKey="x" reversed={isAr} tickFormatter={fmtX} tick={{ fontSize: 10.5, fill: AXIS, fontFamily: 'Cairo' }} tickLine={false} axisLine={{ stroke: GRID }} minTickGap={18} />
-            <YAxis orientation={isAr ? 'right' : 'left'} tickFormatter={compact} tick={{ fontSize: 10.5, fill: AXIS, fontFamily: 'Cairo' }} tickLine={false} axisLine={false} width={44} />
-            <Tooltip wrapperStyle={{ zIndex: 20, outline: 'none' }} content={<ChartTip T={T} />} cursor={{ stroke: 'rgba(120,100,60,.35)', strokeWidth: 1 }} />
+            <XAxis dataKey="x" tickFormatter={fmtX} tick={{ fontSize: 10.5, fill: AXIS, fontFamily: 'Cairo' }} tickLine={false} axisLine={{ stroke: GRID }} minTickGap={18} />
+            <YAxis orientation={isAr ? 'right' : 'left'} domain={[0, 'auto']} tickFormatter={compact} tick={{ fontSize: 10.5, fill: AXIS, fontFamily: 'Cairo' }} tickLine={false} axisLine={false} width={44} />
+            <Tooltip wrapperStyle={{ zIndex: 20, outline: 'none' }} content={<ChartTip T={T} fmtLabel={fmtX} />} cursor={{ stroke: 'rgba(120,100,60,.35)', strokeWidth: 1 }} />
             <Area type="monotone" dataKey="in" name={T('الداخل', 'Received')} stroke={GOLD} strokeWidth={2} fill="url(#hdIn)" activeDot={{ r: 4.5, stroke: 'var(--card-bg)', strokeWidth: 2 }} />
+            <Area type="monotone" dataKey="inLive" name={T('الداخل', 'Received')} stroke={GOLD} strokeOpacity={0.45} strokeWidth={2} strokeDasharray="4 4" fill={GOLD} fillOpacity={0.04} activeDot={{ r: 4.5, stroke: 'var(--card-bg)', strokeWidth: 2 }} />
             <Area type="monotone" dataKey="out" name={T('الملغى', 'Cancelled')} stroke={ST.crit} strokeWidth={2} strokeDasharray="5 3" fill="url(#hdOut)" activeDot={{ r: 4.5, stroke: 'var(--card-bg)', strokeWidth: 2 }} />
+            <Area type="monotone" dataKey="outLive" name={T('الملغى', 'Cancelled')} stroke={ST.crit} strokeOpacity={0.4} strokeWidth={2} strokeDasharray="2 4" fill="none" activeDot={{ r: 4.5, stroke: 'var(--card-bg)', strokeWidth: 2 }} />
           </AreaChart>
         </ResponsiveContainer>
       </div>
@@ -802,10 +826,12 @@ export default function HomeDashboard({ sb, user, lang = 'ar', onNavigate, logo 
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={agg.monthly} margin={{ top: 8, right: 6, left: 6, bottom: 0 }} barCategoryGap="28%">
             <CartesianGrid stroke={GRID} vertical={false} />
-            <XAxis dataKey="x" reversed={isAr} tickFormatter={(x) => x.slice(2)} tick={{ fontSize: 10.5, fill: AXIS, fontFamily: 'Cairo' }} tickLine={false} axisLine={{ stroke: GRID }} />
+            <XAxis dataKey="x" tickFormatter={fmtMonthX} tick={{ fontSize: 10.5, fill: AXIS, fontFamily: 'Cairo' }} tickLine={false} axisLine={{ stroke: GRID }} minTickGap={8} />
             <YAxis orientation={isAr ? 'right' : 'left'} allowDecimals={false} tick={{ fontSize: 10.5, fill: AXIS, fontFamily: 'Cairo' }} tickLine={false} axisLine={false} width={36} />
-            <Tooltip wrapperStyle={{ zIndex: 20, outline: 'none' }} content={<ChartTip T={T} />} cursor={{ fill: 'rgba(176,125,0,.07)' }} />
-            <Bar dataKey="n" name={T('فواتير', 'Invoices')} fill={SERIES[1]} radius={[4, 4, 0, 0]} maxBarSize={30} />
+            <Tooltip wrapperStyle={{ zIndex: 20, outline: 'none' }} content={<ChartTip T={T} fmtLabel={fmtMonthX} />} cursor={{ fill: 'rgba(176,125,0,.07)' }} />
+            <Bar dataKey="n" name={T('فواتير', 'Invoices')} fill={SERIES[1]} radius={[4, 4, 0, 0]} maxBarSize={30}>
+              {agg.monthly.map((r) => <Cell key={r.x} fillOpacity={r.live ? 0.45 : 1} />)}
+            </Bar>
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -1113,21 +1139,23 @@ export default function HomeDashboard({ sb, user, lang = 'ar', onNavigate, logo 
         <div className="mh-card-h"><h3>{T('حركة الدخل', 'Income trend')}</h3></div>
         {mSeg(trend, setTrend, [['daily', T('آخر 30 يوماً', 'Last 30 days')], ['monthly', T('آخر 12 شهراً', 'Last 12 months')]])}
         <div className="mh-legend">
-          <span><i style={{ background: GOLD }} />{T('الداخل', 'Received')} <b>{fmt(trendData.reduce((s, r) => s + r.in, 0))}</b></span>
-          <span><i style={{ background: ST.crit }} />{T('الملغى', 'Cancelled')} <b>{fmt(trendData.reduce((s, r) => s + r.out, 0))}</b></span>
+          <span><i className="ln" style={{ borderColor: GOLD }} />{T('الداخل', 'Received')} <b>{fmt(trendData.reduce((s, r) => s + r.in, 0))}</b></span>
+          <span><i className="ln dash" style={{ borderColor: ST.crit }} />{T('الملغى', 'Cancelled')} <b>{fmt(trendData.reduce((s, r) => s + r.out, 0))}</b></span>
         </div>
         <div className="mh-chart" style={{ height: 176 }}>
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={trendData} margin={{ top: 6, right: 2, left: 2, bottom: 0 }}>
+            <AreaChart data={trendPlot} margin={{ top: 6, right: 2, left: 2, bottom: 0 }}>
               <defs>
                 <linearGradient id="mhIn" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={GOLD} stopOpacity={0.3} /><stop offset="100%" stopColor={GOLD} stopOpacity={0.02} /></linearGradient>
               </defs>
               <CartesianGrid stroke={GRID} vertical={false} />
-              <XAxis dataKey="x" reversed={isAr} tickFormatter={(x) => (trend === 'daily' ? x.slice(8) + '/' + x.slice(5, 7) : x.slice(5) + '/' + x.slice(2, 4))} tick={axisTick} tickLine={false} axisLine={{ stroke: GRID }} minTickGap={22} />
-              <YAxis orientation={isAr ? 'right' : 'left'} tickFormatter={compact} tick={axisTick} tickLine={false} axisLine={false} width={36} />
-              <Tooltip wrapperStyle={{ zIndex: 20, outline: 'none' }} content={<ChartTip T={T} />} cursor={{ stroke: 'rgba(120,100,60,.35)', strokeWidth: 1 }} />
+              <XAxis dataKey="x" tickFormatter={fmtX} tick={axisTick} tickLine={false} axisLine={{ stroke: GRID }} minTickGap={22} />
+              <YAxis orientation={isAr ? 'right' : 'left'} domain={[0, 'auto']} tickFormatter={compact} tick={axisTick} tickLine={false} axisLine={false} width={36} />
+              <Tooltip wrapperStyle={{ zIndex: 20, outline: 'none' }} content={<ChartTip T={T} fmtLabel={fmtX} />} cursor={{ stroke: 'rgba(120,100,60,.35)', strokeWidth: 1 }} />
               <Area type="monotone" dataKey="in" name={T('الداخل', 'Received')} stroke={GOLD} strokeWidth={2} fill="url(#mhIn)" activeDot={{ r: 4.5, stroke: '#fff', strokeWidth: 2 }} />
+              <Area type="monotone" dataKey="inLive" name={T('الداخل', 'Received')} stroke={GOLD} strokeOpacity={0.45} strokeWidth={2} strokeDasharray="4 4" fill={GOLD} fillOpacity={0.04} activeDot={{ r: 4.5, stroke: '#fff', strokeWidth: 2 }} />
               <Area type="monotone" dataKey="out" name={T('الملغى', 'Cancelled')} stroke={ST.crit} strokeWidth={1.6} strokeDasharray="4 3" fill="none" activeDot={{ r: 4, stroke: '#fff', strokeWidth: 2 }} />
+              <Area type="monotone" dataKey="outLive" name={T('الملغى', 'Cancelled')} stroke={ST.crit} strokeOpacity={0.4} strokeWidth={1.6} strokeDasharray="2 4" fill="none" activeDot={{ r: 4, stroke: '#fff', strokeWidth: 2 }} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -1189,10 +1217,12 @@ export default function HomeDashboard({ sb, user, lang = 'ar', onNavigate, logo 
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={agg.monthly} margin={{ top: 6, right: 2, left: 2, bottom: 0 }} barCategoryGap="24%">
               <CartesianGrid stroke={GRID} vertical={false} />
-              <XAxis dataKey="x" reversed={isAr} tickFormatter={(x) => x.slice(5)} tick={axisTick} tickLine={false} axisLine={{ stroke: GRID }} interval={1} />
+              <XAxis dataKey="x" tickFormatter={fmtMonthX} tick={axisTick} tickLine={false} axisLine={{ stroke: GRID }} minTickGap={10} />
               <YAxis orientation={isAr ? 'right' : 'left'} allowDecimals={false} tick={axisTick} tickLine={false} axisLine={false} width={30} />
-              <Tooltip wrapperStyle={{ zIndex: 20, outline: 'none' }} content={<ChartTip T={T} />} cursor={{ fill: 'rgba(176,125,0,.07)' }} />
-              <Bar dataKey="n" name={T('فواتير', 'Invoices')} fill={SERIES[1]} radius={[5, 5, 0, 0]} maxBarSize={22} />
+              <Tooltip wrapperStyle={{ zIndex: 20, outline: 'none' }} content={<ChartTip T={T} fmtLabel={fmtMonthX} />} cursor={{ fill: 'rgba(176,125,0,.07)' }} />
+              <Bar dataKey="n" name={T('فواتير', 'Invoices')} fill={SERIES[1]} radius={[5, 5, 0, 0]} maxBarSize={22}>
+                {agg.monthly.map((r) => <Cell key={r.x} fillOpacity={r.live ? 0.45 : 1} />)}
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>
