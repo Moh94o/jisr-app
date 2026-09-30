@@ -3169,9 +3169,9 @@ const facInfoCard = (r) => {
       /* نطاقُ المنشأة كما في قوى بلونه، وتاريخُ آخر مزامنةٍ له (طلب المستخدم 2026-09-30) —
          فيُعرف أحمرُها من أخضرها ومتى قيل ذلك، دون الخروج إلى شيت النطاقات. */
       /* سطرٌ واحد (طلب المستخدم 2026-09-30): النطاقُ شارةٌ بلونه لا سطرٌ مصبوغٌ كلُّه، وتاريخُ
-         المزامنة بجانبها أهدأ — هو صفةُ النطاق («متى قال قوى ذلك») لا حقلٌ مستقلّ. */
+         المزامنة بجانب اسم الحقل أهدأ — هو صفةُ النطاق («متى قال قوى ذلك») لا حقلٌ مستقلّ. */
       ...((nq) => (nq ? [
-        { ar: 'نطاق قوى', en: 'Qiwa band', noCopy: true, wide: true, v: nq.band || nq.at ? <FacNitaqVal band={nq.band} at={ymd(nq.at)} /> : '' },
+        { ar: 'نطاق قوى', en: 'Qiwa band', noCopy: true, wide: true, labelNote: ymd(nq.at) || '', v: <FacNitaqVal band={nq.band} /> },
       ] : []))(facNitaqOf(hrsd)),
     ],
     /* مرفق السجل التجاري في البطاقة لا في عمود (طلب المستخدم 2026-09-20):
@@ -10411,12 +10411,24 @@ const renBilledMonths = (r) => [r && r.billed_renewal_months, r && r.renewal_mon
    والمقارنة بالأشهر وحدها: `monthsDays` يُخرج أياماً كسراً من التقويم (١٢ شهراً
    و٣ أيام)، فعدُّها زيادةً يصبغ كلَّ صفٍّ أحمر بلا معنى.
    وبلا أحد الطرفين لا لون: غيابُ الخبر ليس حكماً، وتلوينُه يُقرأ حكماً. */
+/* ── هامش ١٤ يوماً (طلب المستخدم 2026-09-30) ─────────────────────────────────
+   المقارنة بالأيام لا بالأشهر المجرّدة: الانتهاء الجديد يُقاس على «الحالي + الأشهر
+   المفوترة»، وما وقع ضمن ١٤ يوماً قبله أو بعده مطابقٌ (أخضر) — «٥ أشهر و٢٧ يوماً»
+   مقابل ستة مفوترة تطابقٌ لا نقص. وما جاوز الهامش زيادةً أحمر، ونقصاً أصفر. */
+const REN_DUR_MARGIN_DAYS = 14
+const renDurGapDays = (r, pend) => {
+  const { from, to } = renDurEnds(r, pend); const billed = renBilledMonths(r)
+  if (!from || !to || !billed) return null
+  const a = new Date(`${String(from).slice(0, 10)}T00:00:00`), b = new Date(`${String(to).slice(0, 10)}T00:00:00`)
+  if (Number.isNaN(+a) || Number.isNaN(+b)) return null
+  return Math.round((b - addMonths(a, billed)) / 86400000)
+}
 const renDurBg = (_v, r) => {
   if (renDurNil(r)) return 'rgba(232,114,101,.22)'   // تاريخٌ جديد لا يزيد على الحالي
-  const act = renActualDur(r); const billed = renBilledMonths(r)
-  if (!act || !billed) return null
-  if (act.m > billed) return 'rgba(232,114,101,.22)'   // أكثر من المفوتر — خسارةُ مكتب
-  if (act.m < billed) return 'rgba(234,179,8,.30)'     // أقلّ من المفوتر — يُراجَع
+  const act = renActualDur(r); const gap = renDurGapDays(r)
+  if (!act || gap == null) return null
+  if (gap > REN_DUR_MARGIN_DAYS) return 'rgba(232,114,101,.22)'    // أكثر من المفوتر — خسارةُ مكتب
+  if (gap < -REN_DUR_MARGIN_DAYS) return 'rgba(234,179,8,.30)'     // أقلّ من المفوتر — يُراجَع
   return 'rgba(46,204,113,.22)'
 }
 const renDurTip = (_v, r, isAr2) => {
@@ -10432,8 +10444,10 @@ const renDurTip = (_v, r, isAr2) => {
   }
   /* والتلميح يقول جهةَ الانحراف لا وقوعَه فقط: «أكثر» و«أقلّ» فعلان مختلفان،
      الأوّل يُراجَع مع من جدّد والثاني يُراجَع مع العميل. */
-  const dir = act.m > billed ? (isAr2 === false ? ' — more than billed' : ' — أكثر من المفوتر')
-    : act.m < billed ? (isAr2 === false ? ' — less than billed' : ' — أقلّ من المفوتر') : ''
+  const gap = renDurGapDays(r) ?? 0
+  const dir = gap > REN_DUR_MARGIN_DAYS ? (isAr2 === false ? ' — more than billed' : ' — أكثر من المفوتر')
+    : gap < -REN_DUR_MARGIN_DAYS ? (isAr2 === false ? ' — less than billed' : ' — أقلّ من المفوتر')
+      : (isAr2 === false ? ` — matches (within ${REN_DUR_MARGIN_DAYS} days)` : ` — مطابق (ضمن هامش ${REN_DUR_MARGIN_DAYS} يوماً)`)
   return isAr2 === false
     ? `Renewed for ${monthsDaysText(act, false)} against ${billed} billed month(s)${dir}`
     : `جُدِّدت ${monthsDaysText(act, true)} مقابل ${billed} ${moU(billed, true)} مفوترة${dir}`
@@ -15391,8 +15405,8 @@ function OxFileVal({ v, isAr, onView }) {
    الفاتورة أخضر بعنوانه ورقمه وخلفيّته (طلب المستخدم 2026-09-22)، فيُميَّز
    عن الرسوم بنظرةٍ لا بقراءة. و`tone` وحدها تصبغ القيمة فقط كما كانت. */
 /* قيمة «نطاق قوى» في بطاقة المنشأة: شارةٌ بلون النطاق (نقطةٌ بلونه الصريح وخلفيّةٌ شفّافة
-   منه — كخلايا شيت النطاقات) ثم تاريخ آخر مزامنةٍ بخطٍّ أهدأ. اللغةُ من اتّجاه الصفحة. */
-function FacNitaqVal({ band, at }) {
+   منه — كخلايا شيت النطاقات) — وتاريخ مزامنته بجانب اسم الحقل (`labelNote`). اللغةُ من اتّجاه الصفحة. */
+function FacNitaqVal({ band }) {
   const clr = nitaqBandColor(band)
   const isAr = SR_REF.isAr !== false
   return (
@@ -15404,11 +15418,6 @@ function FacNitaqVal({ band, at }) {
           {band}
         </span>
       ) : <span style={{ color: 'var(--tx4)' }}>{isAr ? 'بلا نطاق' : 'No band'}</span>}
-      {at && (
-        <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx4)', whiteSpace: 'nowrap' }}>
-          {isAr ? 'مزامنة' : 'Synced'} <bdi style={{ fontFamily: MONO }}>{at}</bdi>
-        </span>
-      )}
     </span>
   )
 }
@@ -22610,7 +22619,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
                 {/* سطرُ الخصم (`disc`) أخضرُ كلُّه — عنواناً ورقماً وخلفيّةً
                     خفيفة: الخصمُ مالٌ يعود لا رسمٌ يخرج، فيُفرَز عن البنود
                     فوقه بنظرةٍ واحدة. وخضرةٌ واحدة في البرنامج (`#2ecc71`). */}
-                <OxRow isAr={isAr} value={v} mono={f.mono} dense labelW={f.wide ? 104 : 92} labelAuto={!!f.who}
+                <OxRow isAr={isAr} value={v} mono={f.mono} dense labelW={f.wide ? 104 : 92} labelAuto={!!(f.who || f.labelNote)}
                   /* `who`: صاحب الحساب في المنصّة — وسمٌ بلونه بجانب اسم الحقل (طلب المستخدم 2026-09-24) */
                   label={f.who ? (
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
@@ -22620,6 +22629,12 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
                           borderRadius: 999, background: f.who.bg || hexTint(f.who.c) || 'var(--accent-soft)', whiteSpace: 'nowrap' }}>
                         {f.who.n}
                       </span>
+                    </span>
+                  ) : f.labelNote ? (
+                    /* `labelNote`: ملاحظةٌ صغيرةٌ بجانب اسم الحقل — تاريخ مزامنة النطاق (طلب المستخدم 2026-09-30) */
+                    <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 7 }}>
+                      {isAr ? f.ar : f.en}
+                      <bdi style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--tx4)', fontFamily: MONO, whiteSpace: 'nowrap' }}>{f.labelNote}</bdi>
                     </span>
                   ) : (isAr ? f.ar : f.en)}
                   tone={f.disc ? '#2ecc71' : f.tone}
