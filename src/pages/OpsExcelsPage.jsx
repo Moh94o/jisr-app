@@ -7670,6 +7670,11 @@ const acClawPending = (r) => !!r && !!r.is_clawback && !r.clawback_settled_at
 function AcRatesPanel({ rows, isAr, layout, persistLayout, canEdit, canExport, writeCells, colDefs, toast, sb }) {
   const T = (a, e) => (isAr ? a : e)
   const [clawTick, setClawTick] = useState(0)
+  /* «مستحقة» تُقرأ من فهرس الدفعات (`WV_INST`) وهو يصل في الخلفية **بعد** الصفوف
+     (`bgIndex`) — والصفوف لا تتبدّل هويّتُها بوصوله، فبلا ختمه في التبعيّات تبقى
+     اللوحة على حساب ما قبل الوصول (تأشيراتٌ مستحقّة تُعدّ «بانتظار السداد») وتخالف
+     الشبكة والكشف المطبوع اللذين يحسبان لحظتَهما. */
+  const instAt = OPS_IDX.at.get('loadVisaInstallments') || 0
   const saved = useMemo(() => (layout && layout.prices) || {}, [layout])
   const [draft, setDraft] = useState(saved)
   const [dirty, setDirty] = useState(false)
@@ -7705,7 +7710,8 @@ function AcRatesPanel({ rows, isAr, layout, persistLayout, canEdit, canExport, w
       c.dueN++; c.dueQty += acQty(r); c.dueAmt += amt
     }
     return m
-  }, [rows, draft])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, draft, instAt])
   const tot = useMemo(() => {
     let dueN = 0, dueQty = 0, dueAmt = 0, paidAmt = 0, waitN = 0, waitAmt = 0
     for (const s of AC_SERVICES) {
@@ -7727,7 +7733,8 @@ function AcRatesPanel({ rows, isAr, layout, persistLayout, canEdit, canExport, w
     if (r.is_clawback || acCancelled(r)) return false
     const s = acState(r)
     return s !== AC_PAID && s !== AC_HOLD && s !== AC_NOT && acDue(r)
-  }), [rows])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [rows, instAt])
   const payable = useMemo(() => targets.filter((r) => acRowAmount(r, draft) > 0), [targets, draft])
   const payTotal = useMemo(() => payable.reduce((a, r) => a + acRowAmount(r, draft), 0), [payable, draft])
   const noAmt = targets.length - payable.length
