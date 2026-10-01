@@ -7830,6 +7830,12 @@ function AcRatesPanel({ rows, isAr, layout, persistLayout, canEdit, canExport, w
     const toPay = elig.filter((r) => acState(r) !== AC_PAID).reduce((t, r) => t + amt(r), 0)
     const paid = elig.filter((r) => acState(r) === AC_PAID).reduce((t, r) => t + amt(r), 0)
     const waitAmt = wait.reduce((t, r) => t + amt(r), 0)
+    /* الاسترداد المعلّق يُخصم في الكشف **كلُّه** من المطلوب (طلب المستخدم 2026-10-02):
+       الورقةُ حسابُ الوسيط كاملاً — ما له وما عليه — لا ما يغطّيه صرفُ اليوم وحده؛
+       فإن زاد الاستردادُ على العمولة ظهر الفرقُ رصيداً عليه يُرحَّل. */
+    const clawAmt = dead.filter(acClawPending).reduce((t, r) => t + acClawAmt(r), 0)
+    const net = toPay - clawAmt
+    const netLabel = net >= 0 ? 'Net to pay now' : 'Owed by agent — carried to next payout'
     const svcRows = AC_SERVICES.map((s) => ({ s, c: st.get(s.code) })).filter((x) => x.c.n > 0)
     const whyWait = (r) => { const s = acState(r); return s === AC_HOLD ? 'On hold' : s === AC_NOT ? 'Marked not eligible' : acDueInfo(r, false).why }
     const html = `<!doctype html><html lang="en" dir="ltr"><head><meta charset="utf-8"><title>Commission statement</title><style>
@@ -7846,12 +7852,12 @@ tr{page-break-inside:avoid}tfoot td{font-weight:600;background:#f7f2e6}.mut{colo
 </style></head><body>
 <div class="top"><div><h1>Agent Commission Statement</h1><div class="mut" style="margin-top:3px">${agents.size === 1 ? esc(agentOf(sorted[0])) : `${num(agents.size)} agents`}</div></div>
 <div class="meta">${period ? `Invoice period: <b>${esc(period)}</b><br>` : ''}Printed: ${esc(todayYmd())}<br>Invoices: ${num(sorted.length)}</div></div>
-<div class="kpis"><div class="kpi"><span>To pay now</span><b>${num(toPay)} SAR</b></div><div class="kpi"><span>Already paid</span><b>${num(paid)} SAR</b></div>
+<div class="kpis">${clawAmt > 0 ? `<div class="kpi"><span>Commission due</span><b>${num(toPay)} SAR</b></div><div class="kpi"><span>Clawback — cancelled invoices</span><b class="no">−${num(clawAmt)} SAR</b></div><div class="kpi"><span>${netLabel}</span><b${net < 0 ? ' class="no"' : ''}>${num(Math.abs(net))} SAR</b></div>` : `<div class="kpi"><span>To pay now</span><b>${num(toPay)} SAR</b></div>`}<div class="kpi"><span>Already paid</span><b>${num(paid)} SAR</b></div>
 <div class="kpi"><span>Not yet eligible</span><b>${num(waitAmt)} SAR</b></div><div class="kpi"><span>Eligible / waiting / cancelled invoices</span><b>${num(elig.length)} / ${num(wait.length)} / ${num(dead.length)}</b></div></div>
 <h2>Commission per service</h2>
 <table><thead><tr><th>Service</th><th class="n">Invoices</th><th class="n">Rate per unit</th><th class="n">Eligible invoices</th><th class="n">Units</th><th class="n">To pay</th><th class="n">Paid</th><th class="n">Not yet eligible</th></tr></thead><tbody>
 ${svcRows.map(({ s, c }) => `<tr><td>${esc(s.en)}</td><td class="n">${num(c.n)}</td><td class="n">${num(depNum(draft[s.code]))}</td><td class="n">${num(c.dueN)}</td><td class="n">${num(c.dueQty)}</td><td class="n">${num(c.dueAmt)}</td><td class="n">${num(c.paidAmt)}</td><td class="n">${num(c.waitAmt)}</td></tr>`).join('')}
-</tbody><tfoot><tr><td colspan="5">Total</td><td class="n">${num(tot.dueAmt)}</td><td class="n">${num(tot.paidAmt)}</td><td class="n">${num(tot.waitAmt)}</td></tr></tfoot></table>
+</tbody><tfoot><tr><td colspan="5">Total</td><td class="n">${num(tot.dueAmt)}</td><td class="n">${num(tot.paidAmt)}</td><td class="n">${num(tot.waitAmt)}</td></tr>${clawAmt > 0 ? `<tr><td colspan="5">Less: clawback of cancelled invoices</td><td class="n no">−${num(clawAmt)}</td><td></td><td></td></tr><tr><td colspan="5">${netLabel}</td><td class="n${net < 0 ? ' no' : ''}">${num(Math.abs(net))}</td><td></td><td></td></tr>` : ''}</tfoot></table>
 <h2>Eligible invoices — commission paid or payable (${num(elig.length)})</h2>
 <table><thead><tr><th>#</th><th>Date</th><th>Office</th><th>Invoice no.</th><th>Invoice status</th><th>Agent</th><th>Client</th><th>Service</th><th class="n">Qty</th><th>Eligible</th><th class="n">Commission</th><th>Payout</th></tr></thead><tbody>
 ${elig.map((r, i) => `<tr><td>${i + 1}</td><td>${esc(ymd(r.invoice_at))}</td><td>${esc(office(r))}</td><td>${esc(r.invoice_no)}</td><td>Active</td><td>${esc(agentOf(r))}</td><td>${esc(clientOf(r))}</td><td>${esc(svcEn(r))}</td><td class="n">${num(acQty(r))}</td><td class="yes">Yes</td><td class="n">${num(amt(r))}</td><td>${acState(r) === AC_PAID ? `Paid ${esc(paidOn(r))}` : 'To pay'}</td></tr>`).join('') || '<tr><td colspan="12" class="mut">None</td></tr>'}
@@ -7860,7 +7866,7 @@ ${elig.map((r, i) => `<tr><td>${i + 1}</td><td>${esc(ymd(r.invoice_at))}</td><td
 <table><thead><tr><th>#</th><th>Date</th><th>Office</th><th>Invoice no.</th><th>Agent</th><th>Client</th><th>Client mobile</th><th>Service</th><th class="n">Qty</th><th class="n">Invoice total</th><th class="n">Remaining</th><th>Eligible</th><th>Reason</th><th class="n">Commission when eligible</th></tr></thead><tbody>
 ${wait.map((r, i) => `<tr><td>${i + 1}</td><td>${esc(ymd(r.invoice_at))}</td><td>${esc(office(r))}</td><td>${esc(r.invoice_no)}</td><td>${esc(agentOf(r))}</td><td>${esc(clientOf(r))}</td><td>${esc(r.client_phone || '')}</td><td>${esc(svcEn(r))}</td><td class="n">${num(acQty(r))}</td><td class="n">${num(depNum(r.invoice_total))}</td><td class="n">${num(Math.max(0, depNum(r.remaining_amount)))}</td><td class="no">No</td><td>${esc(whyWait(r))}</td><td class="n">${num(amt(r))}</td></tr>`).join('') || '<tr><td colspan="14" class="mut">None</td></tr>'}
 </tbody></table>
-${dead.length ? `<h2>Cancelled invoices — no commission (${num(dead.length)})</h2>
+${dead.length ? `<h2>Cancelled invoices — no commission${clawAmt > 0 ? ` · ${num(clawAmt)} SAR clawback deducted above` : ''} (${num(dead.length)})</h2>
 <table><thead><tr><th>#</th><th>Date</th><th>Office</th><th>Invoice no.</th><th>Agent</th><th>Client</th><th>Service</th><th class="n">Qty</th><th>Cancelled on</th><th>Note</th></tr></thead><tbody>
 ${dead.map((r, i) => `<tr><td>${i + 1}</td><td>${esc(ymd(r.invoice_at))}</td><td>${esc(office(r))}</td><td>${esc(r.invoice_no)}</td><td>${esc(agentOf(r))}</td><td>${esc(clientOf(r))}</td><td>${esc(svcEn(r))}</td><td class="n">${num(acQty(r))}</td><td>${esc(ymd(r.cancelled_at))}</td><td>${!r.is_clawback ? '' : r.clawback_waived ? 'Commission paid — clawback waived' : r.clawback_settled_at ? `Commission ${num(acClawAmt(r))} deducted ${esc(ymd(r.clawback_settled_at))}` : `Commission ${num(acClawAmt(r))} to be deducted`}</td></tr>`).join('')}
 </tbody></table>` : ''}
