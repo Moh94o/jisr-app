@@ -4859,6 +4859,32 @@ const OPT_EN = {
   'قيد سجل شركة': 'Company CR registration', 'تجديد سجل شركة': 'Company CR renewal',
   'رخصة البلدية': 'Municipality license', 'شهادة السلامة': 'Safety certificate',
 }
+/* ── اسم الخدمة بالإنجليزية — عرضاً وحده (طلب المستخدم 2026-10-01) ────────────
+   عمود `service_ar` في كل الشيتات يحمل `lookup_items.value_ar`؛ والواجهة
+   الإنجليزية تعرض مقابله من القاموس. المخزَّن عربيٌّ كما هو للفرز والبحث
+   والمقارنات. وما زِيد على الاسم (مدّة التجديد «· 6m») يبقى ذيلاً بعد الترجمة،
+   وما ليس في القاموس يُعرض كما هو. */
+const SVC_EN = {
+  'نقل كفالة': 'Sponsorship transfer', 'نقل الكفالة': 'Sponsorship transfer',
+  'تأشيرة بإقامة 12 شهر': '12-month visa & iqama', 'تأشيرة بإقامة 9 أشهر': '9-month visa & iqama',
+  'تأشيرة بإقامة 6 أشهر': '6-month visa & iqama', 'تأشيرة بإقامة 3 شهور': '3-month visa & iqama',
+  'تأشيرة بإقامة 3 أشهر': '3-month visa & iqama', 'تأشيرة بإقامة': 'Visa & iqama',
+  'تجديد الإقامة': 'Iqama renewal', 'تجديد إقامة': 'Iqama renewal',
+  'طباعة الإقامة': 'Iqama print', 'طباعة إقامة': 'Iqama print',
+  'عقد أجير': 'Ajeer contract', 'عام': 'General service', 'تأمين طبي': 'Medical insurance',
+  'خروج نهائي': 'Final exit', 'خروج وعودة': 'Exit/re-entry visa',
+  'تغيير المهنة': 'Occupation change', 'تحديث بيانات الجواز': 'Passport update',
+  'تعديل الراتب': 'Salary update', 'الموافقة للنقل الخارجي': 'External transfer approval',
+  'الغرفة التجارية': 'Chamber of commerce',
+}
+const SVC_EN_KEYS = Object.keys(SVC_EN).sort((a, b) => b.length - a.length)
+const serviceEn = (v) => {
+  const s = String(v ?? '').trim()
+  if (!s) return ''
+  if (SVC_EN[s]) return SVC_EN[s]
+  const k = SVC_EN_KEYS.find((x) => s.startsWith(x))
+  return k ? SVC_EN[k] + s.slice(k.length) : ''
+}
 /* ── تسميةٌ عربية للعرض وحده (طلب المستخدم 2026-09-24) ─────────────────────
    «تم» في كل قوائم الحالات تُعرض «أنجزت». القيمة المخزَّنة تبقى «تم» — عليها
    تقوم عشرات المقارنات (stageIsDone · renStageOk · رموز الترحيل WKL_ST_CODE/IQ_CODE
@@ -18811,6 +18837,8 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
     if (!isAr && row._fac_en && view.sbcName && col.key === view.sbcName.field) return row._fac_en
     // والجنسية كذلك (طلب المستخدم 2026-09-28): «بنجلاديش» ← «Bangladeshi» — لكل شيت، عرضاً وحده
     if (!isAr && col.key === 'nationality_ar') { const t = nationalityEn(raw); if (t) return t }
+    // واسم الخدمة كذلك (طلب المستخدم 2026-10-01) — لكل شيت يحمل عمود `service_ar`
+    if (!isAr && col.key === 'service_ar') { const t = serviceEn(raw); if (t) return t }
     /* `col.fmt` — تزيين **العرض** وحده: القيمة المخزَّنة تبقى كما هي للفرز
        والبحث والتصدير والتحرير. لزم لأن التجاوز المحفوظ يسبق `col.get` في
        `baseVal`، فما يُضاف للعرض لا موضع له إلا هنا. */
@@ -23452,7 +23480,8 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
           for (const t of (isMulti ? multiToks(v, col.multi) : [v])) counts.set(t, (counts.get(t) || 0) + 1)
         }
         const blankLbl = T('(فارغ)', '(Blank)')
-        const valLbl = (v) => (v === '' ? blankLbl : ((col && (col.select || colTypeMap[col.key] === 'select')) ? optText(v, isAr) : v))
+        const valLbl = (v) => (v === '' ? blankLbl : ((col && (col.select || colTypeMap[col.key] === 'select')) ? optText(v, isAr)
+          : ((!isAr && col && col.key === 'service_ar' && serviceEn(v)) || v)))
         const sortedVals = [...counts.keys()].filter((v) => v !== '').sort((a, b) => { const an = cfNum(a), bn = cfNum(b); if (an !== null && bn !== null) return an - bn; const da = cfDate(a), db = cfDate(b); if (da !== null && db !== null) return da - db; return a.localeCompare(b, 'ar') })
         const allVals = counts.has('') ? ['', ...sortedVals] : sortedVals
         const q = latin(filterDraft.q || '').trim().toLowerCase()
