@@ -167,6 +167,9 @@ const VISA_SERVICES=new Set(['work_visa_permanent','work_visa_9m','work_visa_6m'
 // تأشيرات «بإقامة» بمسار الإقامة الكامل (١٢ شهر و٦ أشهر): ثلاث دفعات + مراحل التأمين/رخصة العمل + توزيع المنشآت.
 // المؤقتة (٣ شهور) خارج هذه المجموعة (مسار دفعتين بلا إقامة لكل تأشيرة). أي تأشيرة «بإقامة» جديدة تُضاف هنا.
 const RESIDENCE_VISA_SERVICES=new Set(['work_visa_permanent','work_visa_9m','work_visa_6m'])
+// دفعتا الإصدار والتوكيل في التأشيرة بإقامة ثابتتان لكل تأشيرة ولا تُعدَّلان (طلب المستخدم 2026-10-01) —
+// والباقي من الإجمالي يذهب لدفعة «عند إصدار الإقامة».
+const VISA_FIXED_INST={issuance:2000,authorization:3000}
 // خدماتٌ يُضاف فيها بند «اشتراك مقيم» حين يكون اشتراك مقيم لمنشأة العامل منتهياً (طلب المستخدم 2026-09-26)
 const MQ_SUB_SVCS=new Set(['iqama_print','exit_reentry_visa','final_exit_visa'])
 // الخدمات التي يُسمح فيها بوسيط على الفاتورة — ما عداها لا وسيط له (قرار المستخدم 2026-09-26)
@@ -426,6 +429,13 @@ const[kafalaInstallments,setKafalaInstallments]=useState([{amount:'',date:''}])
 // Kafala sub-step: after step 4 (pricing) → show payment-plan screen before moving to step 5
 const[kafalaPayStep,setKafalaPayStep]=useState(false)
 const[visaGroups,setVisaGroups]=useState([{id:1,nationality:'',embassy:'',profession:'',gender:'male',count:'1'}])
+// التأشيرة بإقامة: تُثبَّت دفعتا الإصدار والتوكيل في الحالة نفسها (المبلغ × عدد التأشيرات) — فكل ما يقرأ
+// visaInstallments (التحقق، الملخّص، الحفظ) يأخذ القيمة الثابتة بلا تعديلٍ في كل موضع.
+useEffect(()=>{if(!RESIDENCE_VISA_SERVICES.has(selSvc))return
+const n=visaGroups.reduce((a,g)=>a+(parseInt(g.count)||0),0)||1
+const iss=String(VISA_FIXED_INST.issuance*n),au=String(VISA_FIXED_INST.authorization*n)
+setVisaInstallments(p=>(p.issuance===iss&&p.authorization===au)?p:{...p,issuance:iss,authorization:au})
+},[selSvc,visaGroups,visaInstallments.issuance,visaInstallments.authorization])
 const[expandedGroups,setExpandedGroups]=useState(new Set([1]))
 const[kafalaPage,setKafalaPage]=useState(1)// 1=worker data, 2=transfer details
 // Kafala transfer quote search (replaces step 3 fields for kafala_transfer)
@@ -3800,10 +3810,12 @@ const matchesTotal=Math.abs(sumCheck-total)<0.01
 const authBad=hasResidence&&visaInstallments.authorization!==''&&authVal<numVisas*cfg.authorization
 // صندوق عملة بنمط معرض الفورمات (الوحدة + الرقم متوسّط داخل إطار)
 // بلا تلوين أحمر عند النزول تحت الحد — التحقق يبقى (زر «التالي/إصدار» يُعطَّل)، لكن دون حدود/نص أحمر.
-const moneyBox=(val,onCh,ph,bad)=><div style={{display:'flex',direction:'ltr',alignItems:'center',justifyContent:'center',gap:6,border:'1px solid transparent',borderRadius:9,background:'var(--fk-input-bg)',boxShadow:'none',height:42,width:140,padding:'0 10px',flexShrink:0}}>
+const moneyBox=(val,onCh,ph,bad,locked)=><div title={locked?T('مبلغ ثابت لا يُعدَّل','Fixed amount — not editable'):undefined} style={{display:'flex',direction:'ltr',alignItems:'center',justifyContent:'center',gap:6,border:'1px solid transparent',borderRadius:9,background:'var(--fk-input-bg)',boxShadow:'none',height:42,width:140,padding:'0 10px',flexShrink:0,opacity:locked?.75:1}}>
 <span style={{fontSize:12,fontWeight:600,color:C.bentoGold,flexShrink:0}}>{T('ريال','SAR')}</span>
-<input type="text" inputMode="decimal" value={fmtAmt(val)} placeholder={ph} onChange={e=>{const raw=unfmtAmt(e.target.value);if(raw===''||/^\d*\.?\d*$/.test(raw))onCh(raw)}} style={{flex:1,minWidth:0,height:'100%',padding:0,border:'none',background:'transparent',fontFamily:F,fontSize:14,fontWeight:600,color:'var(--tx)',outline:'none',textAlign:'center'}}/>
+<input type="text" inputMode="decimal" value={fmtAmt(val)} placeholder={ph} readOnly={!!locked} tabIndex={locked?-1:undefined} onChange={e=>{if(locked)return;const raw=unfmtAmt(e.target.value);if(raw===''||/^\d*\.?\d*$/.test(raw))onCh(raw)}} style={{flex:1,minWidth:0,height:'100%',padding:0,border:'none',background:'transparent',fontFamily:F,fontSize:14,fontWeight:600,color:'var(--tx)',outline:'none',textAlign:'center',cursor:locked?'default':undefined}}/>
 </div>
+// سطر «لكل تأشيرة» للدفعة الثابتة: 2,000 × N
+const fixedSub=(per)=><div style={{fontSize:10.5,color:'var(--tx4)',fontFamily:F,direction:dir}}><span style={{direction:'ltr',display:'inline-block'}}>{fmtAmt(String(per))}</span> × {numVisas} {T('— ثابت لكل تأشيرة','— fixed per visa')}</div>
 return<div style={{marginTop:18,border:'1.5px solid rgba(176,125,0,.35)',borderRadius:12,padding:'18px 14px 14px',position:'relative'}}>
 <div style={{position:'absolute',top:-9,right:14,background:'var(--modal-bg)',padding:'0 8px',fontSize:12,fontWeight:600,color:C.bentoGold,fontFamily:F}}>{T('الدفعات','Installments')}</div>
 {/* Installment 1 — Issuance */}
@@ -3811,18 +3823,18 @@ return<div style={{marginTop:18,border:'1.5px solid rgba(176,125,0,.35)',borderR
 <div style={{width:26,height:26,borderRadius:'50%',background:'linear-gradient(135deg, rgba(176,125,0,.3), rgba(176,125,0,.12))',border:'1px solid rgba(176,125,0,.4)',color:C.gold,fontSize:11.5,fontWeight:600,fontFamily:F,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,boxShadow:'0 2px 6px rgba(176,125,0,.15), inset 0 1px 0 rgba(255,255,255,.08)'}}>1</div>
 <div style={{flex:1,minWidth:0}}>
 <div style={{fontSize:12.5,fontWeight:600,color:'var(--tx)',fontFamily:F}}>{T('عند إصدار التأشيرة','On visa issuance')}</div>
-<div style={{fontSize:10.5,color:'var(--tx4)',fontFamily:F}}>{T('دفعة واحدة لجميع التأشيرات','One payment for all visas')}</div>
+{hasResidence?fixedSub(VISA_FIXED_INST.issuance):<div style={{fontSize:10.5,color:'var(--tx4)',fontFamily:F}}>{T('دفعة واحدة لجميع التأشيرات','One payment for all visas')}</div>}
 </div>
-{moneyBox(visaInstallments.issuance,(raw)=>setVisaInstallments(p=>({...p,issuance:raw})),fmtAmt(defaultEach.toFixed(2)),false)}
+{moneyBox(visaInstallments.issuance,(raw)=>setVisaInstallments(p=>({...p,issuance:raw})),fmtAmt(defaultEach.toFixed(2)),false,hasResidence)}
 </div>
 {/* Installment 2 — التوكيل المشترك (الدائمة فقط) */}
 {hasResidence&&<div style={{display:'flex',alignItems:'center',gap:8,padding:'5px 0',borderBottom:'1px solid var(--bd)'}}>
 <div style={{width:26,height:26,borderRadius:'50%',background:'linear-gradient(135deg, rgba(176,125,0,.3), rgba(176,125,0,.12))',border:'1px solid rgba(176,125,0,.4)',color:C.gold,fontSize:11.5,fontWeight:600,fontFamily:F,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,boxShadow:'0 2px 6px rgba(176,125,0,.15), inset 0 1px 0 rgba(255,255,255,.08)'}}>2</div>
 <div style={{flex:1,minWidth:0}}>
 <div style={{fontSize:12.5,fontWeight:600,color:'var(--tx)',fontFamily:F}}>{T('عند توكيل التأشيرة','On visa authorization')}</div>
-<div style={{fontSize:10.5,color:'var(--tx4)',fontFamily:F}}>{T('دفعة واحدة لجميع التأشيرات','One payment for all visas')}</div>
+{fixedSub(VISA_FIXED_INST.authorization)}
 </div>
-{moneyBox(visaInstallments.authorization,(raw)=>setVisaInstallments(p=>({...p,authorization:raw})),fmtAmt(defaultEach.toFixed(2)),authBad)}
+{moneyBox(visaInstallments.authorization,(raw)=>setVisaInstallments(p=>({...p,authorization:raw})),fmtAmt(defaultEach.toFixed(2)),authBad,true)}
 </div>}
 {/* الدفعة لكل تأشيرة — إصدار الإقامة (الدائمة) أو التوكيل (المؤقتة) */}
 <div style={{display:'flex',alignItems:'center',gap:8,padding:'5px 0'}}>

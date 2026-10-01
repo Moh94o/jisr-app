@@ -13,7 +13,7 @@ import { Modal, ModalSection, ActionButton, ConfirmDialog, Dropdown, Select, Seg
 import { useIsMobile, MBadge } from '../components/mobile/MobileKit.jsx'
 import { MSheetList, MSheetDetail, buildSpec, toneOfBg, stageState, StageDots, fmtMoney, rangeLabel } from '../components/mobile/sheets/MSheet.jsx'
 import '../styles/m-sheets.css'
-import { Save, UserRound, IdCard, Trash2, Search, RefreshCw, HeartPulse, ShieldOff, X as XIcon, HandCoins, BadgeCheck, ArrowUpDown, Zap, SlidersHorizontal, ListChecks, Pencil, ArrowUpNarrowWide, ArrowDownWideNarrow, Filter, Sigma, Pin, PinOff, Palette, Type, KeyRound, Eye, MoveHorizontal, SeparatorVertical, ClipboardCopy, Check, History, Plus, FileInput, Columns3, TableProperties, ChevronLeft, ChevronRight, Building2, CalendarDays } from 'lucide-react'
+import { Save, UserRound, IdCard, Trash2, Search, RefreshCw, HeartPulse, ShieldOff, X as XIcon, HandCoins, BadgeCheck, ArrowUpDown, Zap, SlidersHorizontal, ListChecks, Pencil, ArrowUpNarrowWide, ArrowDownWideNarrow, Filter, Sigma, Pin, PinOff, Palette, Type, KeyRound, Eye, EyeOff, MoveHorizontal, SeparatorVertical, ClipboardCopy, Check, History, Plus, FileInput, Columns3, TableProperties, ChevronLeft, ChevronRight, Building2, CalendarDays, Printer } from 'lucide-react'
 
 /* سقوطُ الجلسة يُرجع 401 / 42501 من PostgREST، فيبدو للمستخدم «فشل الحفظ» بلا
    سبب — وهو يرى اسمه في الرأس فيظنّها صلاحيات. نُسمّيه باسمه. */
@@ -4810,6 +4810,7 @@ const STAGE_STATES = ['تم', 'في الانتظار', 'مشكلة']
 const OPT_EN = {
   'تم': 'Done', 'في الانتظار': 'Pending', 'في الإنتظار': 'Pending', 'مشكلة': 'Issue',
   'لا يحتاج': 'Not needed', 'ملغاة': 'Cancelled', 'ملغية': 'Cancelled',
+  'يُخصم': 'To deduct', 'خُصم': 'Deducted', 'أُعفي': 'Waived',
   'تم الرفع': 'Uploaded', 'تم رفع الملف': 'File uploaded', 'تم الاسترجاع': 'Recovered',
   'تم التحقق': 'Verified', 'نعم': 'Yes', 'لا': 'No',
   'مستحقة': 'Due', 'مصروفة': 'Paid out', 'موقوفة': 'On hold',
@@ -7413,7 +7414,20 @@ const wvPostIssuance = async (sb, savedRows, { user, isAr, rows }) => {
 const AC_PAID = 'مصروفة'
 const AC_DUE = 'مستحقة'
 const AC_HOLD = 'موقوفة'
-const AC_ST_BG = { [AC_PAID]: 'rgba(46,204,113,.32)', [AC_DUE]: 'rgba(234,179,8,.32)', [AC_HOLD]: 'rgba(232,114,101,.32)' }
+/* «غير مستحقة» بيد الموظف (طلب المستخدم 2026-10-01): حكمٌ صريح بأن العمولة لا تُصرف
+   الآن ولو قال عمود «مستحقة العمولة» نعم — تخرج من «تم الدفع» ومن «لم تُصرف»، وتُعدّ
+   مع المنتظِر. غير «موقوفة»: تلك خارج الحساب كلّه بقرار. */
+const AC_NOT = 'غير مستحقة'
+/* «مؤجلة حتى الدفع بالكامل» (طلب المستخدم 2026-10-01): عمولةٌ تنتظر سداد فاتورتها.
+   وسمُها هو ما **يُعيدها إلى الشاشة** حين تُستحقّ: صفُّها يُثبَّت في كل شهرٍ بعد شهر
+   فاتورته ويعبر فلترَ عمود التاريخ (`weekFilter.keep`) منذ تحلّ عمولتُه حتى تُصرف —
+   فلا تضيع فاتورةُ يوليو التي سُدّدت في أكتوبر خلف عدسة شهرٍ أو فلتر تاريخ. وقبل أن
+   تُستحقّ تبقى في شهرها وحده فلا تزحم الشهور بما لا عملَ فيه بعد. */
+const AC_DEFER = 'مؤجلة حتى الدفع بالكامل'
+// شهرُ الفاتورة «YYYY-MM» لكروت الشهر — عمودُ الـview، وإلا من تاريخ الفاتورة
+const acMonthOf = (r) => String((r && (r.invoice_month || ymd(r.invoice_at))) || '').slice(0, 7)
+// الأحمر لـ«غير مستحقة»، و«موقوفة» رماديٌّ أزرق — حالةٌ معلّقة لا مرفوضة
+const AC_ST_BG = { [AC_PAID]: 'rgba(46,204,113,.32)', [AC_DUE]: 'rgba(234,179,8,.32)', [AC_NOT]: 'rgba(232,114,101,.32)', [AC_HOLD]: 'rgba(100,116,139,.30)', [AC_DEFER]: 'rgba(93,173,226,.30)' }
 
 /* قيمة حقلٍ من حقول العمولة: المكتوب في هذه الحفظة ← المحفوظ في الشيت ← ما في
    سجلّ الوسيط. وتاريخ الصرف يُفترَض اليوم متى قيل «مصروفة» بلا تاريخ — فلا
@@ -7438,10 +7452,29 @@ const acVals = (row, data) => {
 const acPostCommission = async (sb, savedRows, { user, isAr, rows }) => {
   const byId = new Map((rows || []).map((r) => [r._id, r]))
   const nowIso = new Date().toISOString()
-  const held = [], patch = {}
+  const held = [], patch = {}, srcSet = {}
   let posted = 0, paidN = 0
   for (const { id, data } of savedRows) {
     const row = byId.get(id); if (!row) continue
+    /* قرارُ الاسترداد من قائمته المنسدلة: يُكتب في سجلّ الوسيط ثم **يُسقَط من الطبقة**
+       — فالخليّة تعود تُقرأ من السجلّ، ولا تبقى قيمةٌ محفوظة تحجب خصماً يقع لاحقاً
+       من «تم الدفع». */
+    const cl = String((data && data.ac_claw) ?? '').trim()
+    if (cl) {
+      const rest = { ...data }; delete rest.ac_claw
+      if (row.is_clawback && row.service_request_id && row.agent_id) {
+        const upd = cl === AC_CLAW_WAIVE ? { clawback_waived: true, clawback_settled_at: row.clawback_settled_at || nowIso }
+          : cl === AC_CLAW_DONE ? { clawback_waived: false, clawback_settled_at: (!row.clawback_waived && row.clawback_settled_at) || nowIso }
+            : { clawback_waived: false, clawback_settled_at: null }
+        const { data: up, error } = await sb.from('service_request_agents').update(upd)
+          .eq('service_request_id', row.service_request_id).eq('agent_id', row.agent_id).select('service_request_id')
+        if (error) throw error
+        if (!up || !up.length) held.push(isAr ? 'تعذّر حفظ الاسترداد في سجلّ الوسيط — تحقّق من الصلاحيات' : 'Could not write the clawback to the agent record — check permissions')
+        else { Object.assign(row, upd); srcSet[id] = upd; posted++ }
+      }
+      patch[id] = rest
+      continue
+    }
     const v = acVals(row, data)
     /* صفٌّ كُتب فيه شيءٌ آخر (متابعة أو ملاحظة) لا عمولةَ فيه: لا يُنشَأ له سطرٌ
        فارغ في سجلّ الوسيط. */
@@ -7481,7 +7514,7 @@ const acPostCommission = async (sb, savedRows, { user, isAr, rows }) => {
   if (posted) notes.push(isAr ? `سُجّلت ${arCount(posted, 'عمولة', 'عمولتان', 'عمولات', 'عمولة')} في سجلّ الوسيط` : `${enNum(posted)} commission(s) written to the agent record`)
   if (paidN) notes.push(isAr ? `منها ${arCount(paidN, 'واحدة مصروفة', 'اثنتان مصروفتان', 'مصروفة', 'مصروفة')}` : `${enNum(paidN)} marked paid`)
   if (held.length) notes.push([...new Set(held)].join(' · '))
-  return { note: notes.join(' · '), patch, error: held.length > 0 }
+  return { note: notes.join(' · '), patch, srcSet, error: held.length > 0 }
 }
 
 /* حالة الصرف الفعّالة: ما كُتب في الشيت، وإلا «مصروفة» لمن له ختمُ صرفٍ في
@@ -7505,8 +7538,11 @@ const acState = (r) => av(r, 'ac_state') || (r && r.commission_paid_at ? AC_PAID
 const AC_VISA_RE = /^work_visa_/
 const acInvPaid = (r) => depNum(r && r.invoice_total) > 0 && depNum(r && r.remaining_amount) <= 0
 const acInstPaid = (rec) => !!rec && rec.total > 0 && rec.paid >= rec.total
+const acCancelled = (r) => !!r && String(r.invoice_status_code || '') === 'cancelled'
 const acDueInfo = (r, isAr) => {
   if (!r) return { due: false, why: '' }
+  // الملغاة تُعرض للاطّلاع (عمود «الحالة») ولا عمولةَ عليها
+  if (acCancelled(r)) return { due: false, why: isAr ? 'الفاتورة ملغاة — لا عمولة عليها' : 'Invoice cancelled — no commission' }
   if (!AC_VISA_RE.test(String(r.service_code || ''))) {
     const ok = acInvPaid(r)
     return { due: ok,
@@ -7523,6 +7559,20 @@ const acDueInfo = (r, isAr) => {
   return { due: true, why: isAr ? 'دفعتا إصدار التأشيرة والوكالة مسدَّدتان' : 'Issuance and wakalah installments are paid' }
 }
 const acDue = (r) => acDueInfo(r, true).due
+/* أساسُ الاستحقاق مبلغاً — ما يجب سدادُه لتحلّ العمولة وكم سُدّد منه (طلب المستخدم
+   2026-10-01): خليّة «الفاتورة» في هذا الشيت تقيس **هذا** لا الفاتورة كلَّها، فشريطُها
+   يكتمل لحظةَ تستحقّ العمولة. التأشيرة بإقامة ⇒ دفعتا الإصدار والوكالة؛ وغيرها (أو
+   تأشيرةٌ لا دفعةَ وكالةٍ في جدولها) ⇒ الفاتورة كاملة — القاعدة نفسها في `acDueInfo`. */
+const acBasis = (r) => {
+  const whole = { total: depNum(r && r.invoice_total), remaining: Math.max(0, depNum(r && r.remaining_amount)), inst: false }
+  if (!r || !AC_VISA_RE.test(String(r.service_code || ''))) return whole
+  const srId = String(r.service_request_id || '')
+  const first = WV_INST.first.get(srId), wkl = WV_INST.wkl.get(srId)
+  if (!first || !wkl || !(first.total > 0) || !(wkl.total > 0)) return whole
+  const total = first.total + wkl.total
+  const paid = Math.min(first.paid, first.total) + Math.min(wkl.paid, wkl.total)
+  return { total, remaining: Math.max(0, total - paid), inst: true }
+}
 
 /* ── تسعيرة العمولة لكل خدمة + مجموع ما يجب دفعه ────────────────────────────
    طلبُ المستخدم صراحةً: بدل شريط أرقامٍ يقرأه، **خانةٌ لكل خدمة يكتب فيها
@@ -7580,12 +7630,26 @@ const acColAmount = (r) => {
   return v > 0 ? String(v) : ''
 }
 
-function AcRatesPanel({ rows, isAr, layout, persistLayout, canEdit, writeCells, colDefs, toast }) {
+/* ── استرداد العمولة (طلب المستخدم 2026-10-01) ──────────────────────────────
+   فاتورةٌ أُلغيت **بعد** صرف عمولتها: المال خرج ولا فاتورةَ تقابله. فلا يختفي
+   صفُّها مع الملغاة — يبقيه الـview (`is_clawback`) صفّاً أحمر «استرداد» مثبَّتاً في
+   كل شهرٍ حتى يُخصم. والخصم يقع عند «تم الدفع»: يُطرح من مستحقّ **الوسيط نفسه**
+   (لا من غيره)، صفّاً كاملاً بترتيب الإلغاء؛ وما لا يغطّيه مستحقُّ وسيطه الآن
+   يُرحَّل للصرف التالي. ويُختم الخصم في `service_request_agents.clawback_settled_at`. */
+const AC_CLAW_PEND = 'يُخصم', AC_CLAW_DONE = 'خُصم', AC_CLAW_WAIVE = 'أُعفي'
+const AC_CLAW_BG = { [AC_CLAW_PEND]: 'rgba(234,179,8,.32)', [AC_CLAW_DONE]: 'rgba(46,204,113,.32)', [AC_CLAW_WAIVE]: 'rgba(100,116,139,.30)' }
+const acClawAmt = (r) => depNum(r && r.commission_amount)
+const acClawPending = (r) => !!r && !!r.is_clawback && !r.clawback_settled_at
+
+function AcRatesPanel({ rows, isAr, layout, persistLayout, canEdit, canExport, writeCells, colDefs, toast, sb }) {
   const T = (a, e) => (isAr ? a : e)
+  const [clawTick, setClawTick] = useState(0)
   const saved = useMemo(() => (layout && layout.prices) || {}, [layout])
   const [draft, setDraft] = useState(saved)
   const [dirty, setDirty] = useState(false)
   const [payAsk, setPayAsk] = useState(false)
+  const [clawMode, setClawMode] = useState('now')   // 'now' يخصم الاسترداد مع هذا الصرف · 'later' يؤجّله
+  const [clawCap, setClawCap] = useState('')        // سقفُ ما يُخصم الآن — فارغ = كل ما يغطّيه المستحقّ
   /* التخطيط سجلٌّ مشترك قد يُحدَّث من تبويبٍ آخر — تُقبل قيمتُه ما دام الموظف
      لا يكتب الآن، وإلا انتُزع الرقم من تحت أصابعه. */
   useEffect(() => { if (!dirty) setDraft(saved) }, [saved, dirty])
@@ -7604,13 +7668,14 @@ function AcRatesPanel({ rows, isAr, layout, persistLayout, canEdit, writeCells, 
   const st = useMemo(() => {
     const m = new Map(AC_SERVICES.map((s) => [s.code, { n: 0, dueN: 0, dueQty: 0, dueAmt: 0, paidAmt: 0, waitN: 0, waitAmt: 0 }]))
     for (const r of rows) {
+      if (r.is_clawback || acCancelled(r)) continue      // ملغاة أو استرداد: لا عمولةٌ تُحسب
       const c = m.get(acKey(r)); if (!c) continue
       c.n++
       const state = acState(r)
       if (state === AC_HOLD) continue                    // موقوفة بقرار — خارج الحساب كلّه
       const amt = acRowAmount(r, draft)
       if (state === AC_PAID) { c.paidAmt += amt; continue }
-      if (!acDue(r)) { c.waitN++; c.waitAmt += amt; continue }
+      if (state === AC_NOT || !acDue(r)) { c.waitN++; c.waitAmt += amt; continue }
       c.dueN++; c.dueQty += acQty(r); c.dueAmt += amt
     }
     return m
@@ -7633,13 +7698,39 @@ function AcRatesPanel({ rows, isAr, layout, persistLayout, canEdit, writeCells, 
      ⚠️ المبلغ يُكتب في الخليّة ولا يُترك مشتقّاً من التسعيرة: **الصرف واقعةٌ
      بمبلغها**، فتغييرُ التسعيرة الشهرَ القادم لا يجوز أن يُعيد كتابة ما دُفع. */
   const targets = useMemo(() => rows.filter((r) => {
+    if (r.is_clawback || acCancelled(r)) return false
     const s = acState(r)
-    return s !== AC_PAID && s !== AC_HOLD && acDue(r)
+    return s !== AC_PAID && s !== AC_HOLD && s !== AC_NOT && acDue(r)
   }), [rows])
   const payable = useMemo(() => targets.filter((r) => acRowAmount(r, draft) > 0), [targets, draft])
   const payTotal = useMemo(() => payable.reduce((a, r) => a + acRowAmount(r, draft), 0), [payable, draft])
   const noAmt = targets.length - payable.length
   const payAgents = useMemo(() => new Set(payable.map((r) => r.agent_id)), [payable])
+  /* ما يُخصم الآن وما يُرحَّل: لكل وسيطٍ رصيدُ ما يُصرف له في هذه الدفعة، ويُطرح منه
+     استردادُه صفّاً صفّاً (الأقدم إلغاءً أوّلاً) ما دام الرصيد يغطّيه. */
+  const claw = useMemo(() => {
+    const left = new Map()
+    for (const r of payable) left.set(r.agent_id, (left.get(r.agent_id) || 0) + acRowAmount(r, draft))
+    const pend = rows.filter(acClawPending)
+      .sort((a, b) => String(a.cancelled_at || '').localeCompare(String(b.cancelled_at || '')))
+    /* الخصم بيد المستخدم (طلبه 2026-10-01 «أملك الحرية»): `clawMode` = 'later' يصرف
+       العمولة كاملةً ويُبقي الاسترداد كلَّه معلّقاً لصرفٍ قادم؛ و`clawCap` سقفٌ لما
+       يُخصم الآن — يُؤخذ الأقدم فالأقدم ما دام تحت السقف، والباقي يُرحَّل. و`can` ما
+       كان سيُخصم بلا قيد: به تُعرض الخياراتُ ولو اختير التأجيل. */
+    const cap = clawMode === 'later' ? 0 : (depNum(clawCap) > 0 ? depNum(clawCap) : Infinity)
+    const take = [], carry = []
+    let can = 0, took = 0
+    for (const r of pend) {
+      const a = acClawAmt(r), have = left.get(r.agent_id) || 0
+      if (!(a > 0 && have >= a)) { carry.push(r); continue }
+      can += a
+      if (took + a <= cap) { left.set(r.agent_id, have - a); took += a; take.push(r) } else carry.push(r)
+    }
+    const sum = (xs) => xs.reduce((t, r) => t + acClawAmt(r), 0)
+    return { take, carry, takeAmt: sum(take), carryAmt: sum(carry), canAmt: can }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, payable, draft, clawTick, clawMode, clawCap])
+  const netTotal = payTotal - claw.takeAmt
   /* تفصيلُ ما يُدفع بالخدمة — للنافذة: الرقم الكبير مجموعٌ لا يُصدَّق بلا
      مفرداته. و«الوحدات × متوسّط الوحدة» لا «الصفوف × التسعيرة»: صفٌّ كميّتُه
      ثلاثٌ ثلاثُ عمولات، وصفٌّ كُتب مبلغه بيده يخالف تسعيرة خدمته. */
@@ -7662,31 +7753,133 @@ function AcRatesPanel({ rows, isAr, layout, persistLayout, canEdit, writeCells, 
     }
     const res = writeCells(cells) || { ok: 0, bad: 0 }
     setPayAsk(false)
+    /* ختمُ الاسترداد المخصوم — مباشرةً في سجلّ الوسيط (صفُّ الملغاة مجمّدٌ لا تُكتب
+       خلاياه)، ويُعكس على الصفّ نفسه فيتحوّل «يُخصم» إلى «خُصم» بلا إعادة تحميل. */
+    if ((res.ok || 0) > 0 && claw.take.length && sb) {
+      const stamp = new Date().toISOString()
+      const took = claw.take
+      Promise.all(took.map((r) => sb.from('service_request_agents').update({ clawback_settled_at: stamp })
+        .eq('service_request_id', r.service_request_id).eq('agent_id', r.agent_id).select('service_request_id')))
+        .then((out) => {
+          let bad = 0
+          took.forEach((r, i) => { const o = out[i]; if (o && !o.error && (o.data || []).length) r.clawback_settled_at = stamp; else bad++ })
+          setClawTick((n) => n + 1)
+          if (bad && toast) toast(T(`تعذّر ختم خصم ${enNum(bad)} استرداد — تحقّق من الصلاحيات`, `Could not stamp ${enNum(bad)} clawback(s) — check permissions`))
+        })
+    }
     /* الحساب بالصفوف لا بالخلايا: ثلاث خلايا للصفّ الواحد، فقولُ «٣٣ خليّة»
        لا يعني القارئ في شيء. */
     const okRows = Math.round((res.ok || 0) / 3)
     toast && toast(okRows
-      ? T(`سُجّل صرف ${enNum(okRows)} عمولة بمجموع ${enNum(payTotal)} — تُرحَّل لسجلّ الوسيط بعد الحفظ`,
-        `${enNum(okRows)} commissions marked paid (${enNum(payTotal)}) — posting to the agent record on save`)
+      ? T(`سُجّل صرف ${enNum(okRows)} عمولة بمجموع ${enNum(payTotal)}${claw.takeAmt ? ` · خُصم استرداد ${enNum(claw.takeAmt)} فالصافي ${enNum(netTotal)}` : ''} — تُرحَّل لسجلّ الوسيط بعد الحفظ`,
+        `${enNum(okRows)} commissions marked paid (${enNum(payTotal)})${claw.takeAmt ? ` · clawback ${enNum(claw.takeAmt)}, net ${enNum(netTotal)}` : ''} — posting to the agent record on save`)
       : T('لم يُكتب شيء — تحقّق من صلاحية التعديل', 'Nothing written — check your edit permission'))
-  }, [payable, draft, colDefs, writeCells, toast, T, payTotal])
+  }, [payable, draft, colDefs, writeCells, toast, T, payTotal, claw, netTotal, sb])
 
-  const cell = { padding: '7px 10px', fontSize: 12, color: 'var(--tx2)', fontFamily: MONO, textAlign: 'center', whiteSpace: 'nowrap' }
-  const head = { padding: '7px 10px', fontSize: 11, fontWeight: 600, color: 'var(--tx3)', textAlign: 'center', whiteSpace: 'nowrap' }
+  /* ── طباعة كشف العمولة (طلب المستخدم 2026-10-01) ───────────────────────────
+     ورقةٌ **إنجليزية** تُعطى للوسيط مع عمولته: على أيّ فواتير أخذ وكم، وما لم يُستحقّ
+     بعدُ ومن عملاؤه ليتواصل معهم. تتبع المعروض بعد التصفية (`rows`) والتسعيرة
+     المكتوبة (`draft`) — عينُ ما تحسبه اللوحة، لا حساباً ثانياً. */
+  const printStatement = useCallback(() => {
+    const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]))
+    const num = (n) => esc(enNum(n))
+    const svcEn = (r) => (AC_SERVICES.find((s) => s.code === acKey(r)) || {}).en || r.service_ar || ''
+    const office = (r) => { const c = String(r.branch_code || '').trim(); const n = String(SR_REF.branchLabelEn.get(c) || '').replace(/\s*\[\d+\]\s*$/, '').trim(); return n ? `${c} · ${n}` : c }
+    const agentOf = (r) => r.agent_name_en || r.agent_name || ''
+    const clientOf = (r) => r.client_name_en || r.client_name || ''
+    const sorted = [...rows].sort((a, b) => String(a.invoice_at || '').localeCompare(String(b.invoice_at || '')))
+    const elig = [], wait = [], dead = []
+    for (const r of sorted) {
+      if (r.is_clawback || acCancelled(r)) { dead.push(r); continue }
+      const s = acState(r)
+      if (s === AC_PAID) elig.push(r)
+      else if (s === AC_HOLD || s === AC_NOT || !acDue(r)) wait.push(r)
+      else elig.push(r)
+    }
+    const amt = (r) => acRowAmount(r, draft)
+    const paidOn = (r) => ymd(av(r, 'ac_paid_date')) || ymd(r.commission_paid_at)
+    const agents = new Set(sorted.map((r) => r.agent_id))
+    const months = sorted.map(acMonthOf).filter(Boolean).sort()
+    const period = !months.length ? '' : months[0] === months[months.length - 1] ? months[0] : `${months[0]} → ${months[months.length - 1]}`
+    const toPay = elig.filter((r) => acState(r) !== AC_PAID).reduce((t, r) => t + amt(r), 0)
+    const paid = elig.filter((r) => acState(r) === AC_PAID).reduce((t, r) => t + amt(r), 0)
+    const waitAmt = wait.reduce((t, r) => t + amt(r), 0)
+    const svcRows = AC_SERVICES.map((s) => ({ s, c: st.get(s.code) })).filter((x) => x.c.n > 0)
+    const whyWait = (r) => { const s = acState(r); return s === AC_HOLD ? 'On hold' : s === AC_NOT ? 'Marked not eligible' : acDueInfo(r, false).why }
+    const html = `<!doctype html><html lang="en" dir="ltr"><head><meta charset="utf-8"><title>Commission statement</title><style>
+@page{size:A4 landscape;margin:10mm}
+*{box-sizing:border-box}body{font-family:Cairo,Tajawal,'Segoe UI',Arial,sans-serif;color:#1c1a16;font-size:10.5px;margin:0}
+h1{font-size:17px;margin:0;font-weight:600}h2{font-size:12.5px;margin:16px 0 6px;font-weight:600;color:#7a5a00}
+.top{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #b07d00;padding-bottom:8px}
+.meta{font-size:10.5px;color:#555;line-height:1.7;text-align:right}
+.kpis{display:flex;gap:8px;margin-top:10px}.kpi{flex:1;border:1px solid #d9cfb8;border-radius:6px;padding:7px 10px}
+.kpi b{display:block;font-size:15px;font-weight:600;margin-top:2px}.kpi span{font-size:9.5px;color:#666}
+table{width:100%;border-collapse:collapse}th,td{border:1px solid #d9cfb8;padding:4px 6px;text-align:left;vertical-align:top}
+th{background:#f1eada;font-weight:600;font-size:9.5px;white-space:nowrap}td.n,th.n{text-align:right;white-space:nowrap}
+tr{page-break-inside:avoid}tfoot td{font-weight:600;background:#f7f2e6}.mut{color:#777}.yes{color:#1e7d43;font-weight:600}.no{color:#b3261e;font-weight:600}
+</style></head><body>
+<div class="top"><div><h1>Agent Commission Statement</h1><div class="mut" style="margin-top:3px">${agents.size === 1 ? esc(agentOf(sorted[0])) : `${num(agents.size)} agents`}</div></div>
+<div class="meta">${period ? `Invoice period: <b>${esc(period)}</b><br>` : ''}Printed: ${esc(todayYmd())}<br>Invoices: ${num(sorted.length)}</div></div>
+<div class="kpis"><div class="kpi"><span>To pay now</span><b>${num(toPay)} SAR</b></div><div class="kpi"><span>Already paid</span><b>${num(paid)} SAR</b></div>
+<div class="kpi"><span>Not yet eligible</span><b>${num(waitAmt)} SAR</b></div><div class="kpi"><span>Eligible / waiting / cancelled invoices</span><b>${num(elig.length)} / ${num(wait.length)} / ${num(dead.length)}</b></div></div>
+<h2>Commission per service</h2>
+<table><thead><tr><th>Service</th><th class="n">Invoices</th><th class="n">Rate per unit</th><th class="n">Eligible invoices</th><th class="n">Units</th><th class="n">To pay</th><th class="n">Paid</th><th class="n">Not yet eligible</th></tr></thead><tbody>
+${svcRows.map(({ s, c }) => `<tr><td>${esc(s.en)}</td><td class="n">${num(c.n)}</td><td class="n">${num(depNum(draft[s.code]))}</td><td class="n">${num(c.dueN)}</td><td class="n">${num(c.dueQty)}</td><td class="n">${num(c.dueAmt)}</td><td class="n">${num(c.paidAmt)}</td><td class="n">${num(c.waitAmt)}</td></tr>`).join('')}
+</tbody><tfoot><tr><td colspan="5">Total</td><td class="n">${num(tot.dueAmt)}</td><td class="n">${num(tot.paidAmt)}</td><td class="n">${num(tot.waitAmt)}</td></tr></tfoot></table>
+<h2>Eligible invoices — commission paid or payable (${num(elig.length)})</h2>
+<table><thead><tr><th>#</th><th>Date</th><th>Office</th><th>Invoice no.</th><th>Invoice status</th><th>Agent</th><th>Client</th><th>Service</th><th class="n">Qty</th><th>Eligible</th><th class="n">Commission</th><th>Payout</th></tr></thead><tbody>
+${elig.map((r, i) => `<tr><td>${i + 1}</td><td>${esc(ymd(r.invoice_at))}</td><td>${esc(office(r))}</td><td>${esc(r.invoice_no)}</td><td>Active</td><td>${esc(agentOf(r))}</td><td>${esc(clientOf(r))}</td><td>${esc(svcEn(r))}</td><td class="n">${num(acQty(r))}</td><td class="yes">Yes</td><td class="n">${num(amt(r))}</td><td>${acState(r) === AC_PAID ? `Paid ${esc(paidOn(r))}` : 'To pay'}</td></tr>`).join('') || '<tr><td colspan="12" class="mut">None</td></tr>'}
+</tbody><tfoot><tr><td colspan="10">Total</td><td class="n">${num(toPay + paid)}</td><td></td></tr></tfoot></table>
+<h2>Not yet eligible — please follow up with these clients (${num(wait.length)})</h2>
+<table><thead><tr><th>#</th><th>Date</th><th>Office</th><th>Invoice no.</th><th>Agent</th><th>Client</th><th>Client mobile</th><th>Service</th><th class="n">Qty</th><th class="n">Invoice total</th><th class="n">Remaining</th><th>Eligible</th><th>Reason</th><th class="n">Commission when eligible</th></tr></thead><tbody>
+${wait.map((r, i) => `<tr><td>${i + 1}</td><td>${esc(ymd(r.invoice_at))}</td><td>${esc(office(r))}</td><td>${esc(r.invoice_no)}</td><td>${esc(agentOf(r))}</td><td>${esc(clientOf(r))}</td><td>${esc(r.client_phone || '')}</td><td>${esc(svcEn(r))}</td><td class="n">${num(acQty(r))}</td><td class="n">${num(depNum(r.invoice_total))}</td><td class="n">${num(Math.max(0, depNum(r.remaining_amount)))}</td><td class="no">No</td><td>${esc(whyWait(r))}</td><td class="n">${num(amt(r))}</td></tr>`).join('') || '<tr><td colspan="14" class="mut">None</td></tr>'}
+</tbody></table>
+${dead.length ? `<h2>Cancelled invoices — no commission (${num(dead.length)})</h2>
+<table><thead><tr><th>#</th><th>Date</th><th>Office</th><th>Invoice no.</th><th>Agent</th><th>Client</th><th>Service</th><th class="n">Qty</th><th>Cancelled on</th><th>Note</th></tr></thead><tbody>
+${dead.map((r, i) => `<tr><td>${i + 1}</td><td>${esc(ymd(r.invoice_at))}</td><td>${esc(office(r))}</td><td>${esc(r.invoice_no)}</td><td>${esc(agentOf(r))}</td><td>${esc(clientOf(r))}</td><td>${esc(svcEn(r))}</td><td class="n">${num(acQty(r))}</td><td>${esc(ymd(r.cancelled_at))}</td><td>${!r.is_clawback ? '' : r.clawback_waived ? 'Commission paid — clawback waived' : r.clawback_settled_at ? `Commission ${num(acClawAmt(r))} deducted ${esc(ymd(r.clawback_settled_at))}` : `Commission ${num(acClawAmt(r))} to be deducted`}</td></tr>`).join('')}
+</tbody></table>` : ''}
+</body></html>`
+    const iframe = document.createElement('iframe')
+    iframe.style.cssText = 'position:fixed;right:-9999px;bottom:0;width:0;height:0;border:0'
+    document.body.appendChild(iframe)
+    const doc = iframe.contentWindow.document
+    doc.open(); doc.write(html); doc.close()
+    const cleanup = () => { try { document.body.removeChild(iframe) } catch { /* أُزيل */ } }
+    setTimeout(() => {
+      try { iframe.contentWindow.focus(); iframe.contentWindow.onafterprint = () => setTimeout(cleanup, 100); iframe.contentWindow.print() }
+      catch { cleanup() }
+    }, 400)
+    setTimeout(cleanup, 60000)
+  }, [rows, draft, st, tot])
+
+  const cell = { padding: '6px 10px', fontSize: 12.5, color: 'var(--tx2)', fontFamily: MONO, textAlign: 'center', whiteSpace: 'nowrap' }
+  const head = { padding: '8px 10px', fontSize: 11, fontWeight: 600, color: 'var(--tx3)', textAlign: 'center', whiteSpace: 'nowrap', background: 'var(--card-grad2)' }
+  /* عائلة الخدمة: نقطةٌ بلونها أوّل السطر وفاصلٌ أثقل بين عائلةٍ وأخرى — ثماني خدماتٍ
+     تُقرأ ثلاثَ مجموعات لا قائمةً واحدة. والصفر «—» باهتة: لوحةُ شهرٍ فارغ لا تصير
+     جداراً من الأصفار، وما فيه رقمٌ يبرز وحده. */
+  const famOf = (code) => (code === 'transfer' ? 't' : code.startsWith('iqama_renewal') ? 'r' : 'v')
+  const FAM_DOT = { t: C.gold, r: '#5dade2', v: '#2ecc71' }
+  const nz = (n) => (n ? enNum(n) : <span style={{ color: 'var(--tx4)', opacity: 0.6 }}>—</span>)
+  const shown = AC_SERVICES.filter((s) => !s.spare || st.get(s.code).n > 0)
   return (
-    <div style={{ border: '1px solid var(--bd)', background: 'var(--sf)', borderRadius: 12, padding: '12px 14px', marginTop: 12 }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
-        <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx)' }}>{T('عمولة كل خدمة', 'Commission per service')}</span>
-        <span style={{ fontSize: 11, color: 'var(--tx4)' }}>
-          {T('اكتب عمولة الواحدة فتُضرب في كمية الفاتورة · لا تدهس مبلغاً مكتوباً في خليّة العمولة · والحساب على المعروض بعد التصفية',
-            'Enter the per-unit commission; it is multiplied by the invoice quantity, never overrides an amount typed in a row, and follows the current filter')}
+    <div style={{ border: '1px solid var(--bd)', background: 'var(--sf)', borderRadius: 14, padding: '14px 16px', marginTop: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+        <span style={{ width: 34, height: 34, borderRadius: 10, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: 'rgba(176,125,0,.13)', color: C.gold2 }}>
+          <HandCoins size={17} strokeWidth={2} />
         </span>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--tx)' }}>{T('عمولة كل خدمة', 'Commission per service')}</div>
+          <div style={{ fontSize: 11, color: 'var(--tx4)', marginTop: 1 }}>
+            {T('عمولة الواحدة × كمية الفاتورة · بحسب المعروض بعد التصفية', 'Per-unit commission × invoice quantity · follows the current filter')}
+          </div>
+        </div>
       </div>
-      <div style={{ overflowX: 'auto' }}>
+      <div style={{ overflowX: 'auto', border: '1px solid var(--bd)', borderRadius: 10 }}>
         <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: 620 }}>
           <thead>
             <tr style={{ borderBottom: '1px solid var(--bd)' }}>
-              <th style={{ ...head, textAlign: isAr ? 'right' : 'left' }}>{T('الخدمة', 'Service')}</th>
+              <th style={{ ...head, textAlign: isAr ? 'right' : 'left', paddingInlineStart: 14 }}>{T('الخدمة', 'Service')}</th>
               <th style={head}>{T('عمولة الواحدة', 'Per unit')}</th>
               <th style={head}>{T('مستحقة', 'Due')}</th>
               <th style={head}>{T('الكمية', 'Qty')}</th>
@@ -7696,13 +7889,21 @@ function AcRatesPanel({ rows, isAr, layout, persistLayout, canEdit, writeCells, 
             </tr>
           </thead>
           <tbody>
-            {AC_SERVICES.filter((s) => !s.spare || st.get(s.code).n > 0).map((s) => {
+            {shown.map((s, i) => {
               const c = st.get(s.code)
+              const fam = famOf(s.code)
+              const last = i === shown.length - 1
+              const famEnd = !last && famOf(shown[i + 1].code) !== fam
               return (
-                <tr key={s.code} style={{ borderBottom: '1px solid var(--bd2)', opacity: c.n ? 1 : 0.5 }}>
-                  <td style={{ ...cell, fontFamily: F, textAlign: isAr ? 'right' : 'left', color: 'var(--tx)' }}>
-                    {isAr ? s.ar : s.en}
-                    <span style={{ marginInlineStart: 6, fontSize: 10.5, color: 'var(--tx4)', fontFamily: MONO }}>{enNum(c.n)}</span>
+                <tr key={s.code} style={{ borderBottom: last ? 'none' : famEnd ? '1.5px solid var(--bd)' : '1px solid var(--bd2)' }}>
+                  <td style={{ ...cell, fontFamily: F, textAlign: isAr ? 'right' : 'left', color: c.n ? 'var(--tx)' : 'var(--tx3)', paddingInlineStart: 14 }}>
+                    <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: FAM_DOT[fam],
+                      marginInlineEnd: 8, verticalAlign: 'middle', opacity: c.n ? 1 : 0.45 }} />
+                    <span style={{ verticalAlign: 'middle', fontWeight: c.n ? 600 : 400 }}>{isAr ? s.ar : s.en}</span>
+                    {c.n > 0 && (
+                      <span style={{ marginInlineStart: 8, padding: '1px 7px', borderRadius: 999, fontSize: 10.5, fontFamily: MONO,
+                        color: 'var(--tx3)', background: 'var(--fk-input-bg)', verticalAlign: 'middle' }}>{enNum(c.n)}</span>
+                    )}
                   </td>
                   <td style={{ ...cell, padding: '5px 6px' }}>
                     <input className="ox-fld" inputMode="decimal" disabled={!canEdit}
@@ -7710,32 +7911,59 @@ function AcRatesPanel({ rows, isAr, layout, persistLayout, canEdit, writeCells, 
                       onChange={(e) => { setDirty(true); setDraft((d) => ({ ...d, [s.code]: e.target.value })) }}
                       onBlur={() => commit(draft)}
                       onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); commit(draft); e.currentTarget.blur() } }}
-                      style={{ width: 92, height: 30, textAlign: 'center', fontFamily: MONO, fontSize: 12.5, direction: 'ltr' }} />
+                      style={{ width: 84, height: 30, textAlign: 'center', fontFamily: MONO, fontSize: 12.5, fontWeight: 600, direction: 'ltr' }} />
                   </td>
-                  <td style={cell}>{enNum(c.dueN)}</td>
-                  <td style={cell}>{enNum(c.dueQty)}</td>
-                  <td style={{ ...cell, color: c.dueAmt ? C.gold2 : 'var(--tx4)', fontWeight: 600 }}>{enNum(c.dueAmt)}</td>
-                  <td style={{ ...cell, color: c.paidAmt ? '#2ecc71' : 'var(--tx4)' }}>{enNum(c.paidAmt)}</td>
-                  <td style={{ ...cell, color: 'var(--tx4)' }}>{c.waitN ? `${enNum(c.waitAmt)} · ${enNum(c.waitN)}` : '—'}</td>
+                  <td style={cell}>{nz(c.dueN)}</td>
+                  <td style={cell}>{nz(c.dueQty)}</td>
+                  <td style={cell}>
+                    {c.dueAmt
+                      ? <span style={{ display: 'inline-block', padding: '2px 10px', borderRadius: 999, fontWeight: 600, color: C.gold2, background: 'rgba(176,125,0,.12)' }}>{enNum(c.dueAmt)}</span>
+                      : nz(0)}
+                  </td>
+                  <td style={{ ...cell, color: '#2ecc71', fontWeight: c.paidAmt ? 600 : 400 }}>{nz(c.paidAmt)}</td>
+                  <td style={{ ...cell, color: 'var(--tx3)' }}>{c.waitN ? `${enNum(c.waitAmt)} · ${enNum(c.waitN)}` : nz(0)}</td>
                 </tr>
               )
             })}
           </tbody>
         </table>
       </div>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 14, flexWrap: 'wrap', marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--bd)' }}>
-        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx2)' }}>{T('الإجمالي المطلوب دفعه', 'Total to pay')}</span>
-        <span style={{ fontSize: 20, fontWeight: 600, fontFamily: MONO, color: C.gold2 }}>{enNum(tot.dueAmt)}</span>
-        <span style={{ fontSize: 11, color: 'var(--tx4)' }}>
-          {T(`عن ${enNum(tot.dueN)} فاتورة · ${enNum(tot.dueQty)} وحدة`, `${enNum(tot.dueN)} invoices · ${enNum(tot.dueQty)} units`)}
-        </span>
-        <span style={{ flex: 1 }} />
-        <span style={{ fontSize: 11.5, color: 'var(--tx3)' }}>
-          {T('مصروف', 'Paid')} <b style={{ fontFamily: MONO, fontWeight: 600, color: '#2ecc71' }}>{enNum(tot.paidAmt)}</b>
-        </span>
-        <span style={{ fontSize: 11.5, color: 'var(--tx3)' }}>
-          {T('بانتظار السداد', 'Awaiting payment')} <b style={{ fontFamily: MONO, fontWeight: 600, color: 'var(--tx2)' }}>{enNum(tot.waitAmt)}</b>
-        </span>
+      {/* شريط الخلاصة: الإجمالي (عنوانٌ فوق رقمه) ← رقمان صغيران يفصلهما خطّ ← الزرّان
+          مجموعةً واحدة لا تنكسر — فإن ضاق العرض نزلت المجموعةُ كلُّها سطراً لا زرٌّ وحده. */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px 18px', flexWrap: 'wrap', marginTop: 12, padding: '12px 16px', borderRadius: 12,
+        background: 'rgba(176,125,0,.06)', border: '1px solid rgba(176,125,0,.18)' }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx3)' }}>{T('الإجمالي المطلوب دفعه', 'Total to pay')}</div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 2, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 24, fontWeight: 600, fontFamily: MONO, color: C.gold2, lineHeight: 1.1, letterSpacing: '-.5px' }}>{enNum(tot.dueAmt)}</span>
+            <span style={{ fontSize: 11, color: 'var(--tx4)' }}>
+              {T(`${enNum(tot.dueN)} فاتورة · ${enNum(tot.dueQty)} وحدة`, `${enNum(tot.dueN)} invoices · ${enNum(tot.dueQty)} units`)}
+            </span>
+          </div>
+        </div>
+        {claw.takeAmt > 0 && (
+          <span title={T('فواتير أُلغيت بعد صرف عمولتها — تُخصم من مستحقّ الوسيط نفسه', 'Invoices cancelled after their commission was paid — deducted from the same agent')}
+            style={{ fontSize: 11.5, color: 'var(--tx3)' }}>
+            {T('يُخصم استرداد', 'Clawback')} <b style={{ fontFamily: MONO, fontWeight: 600, color: C.red }}>−{enNum(claw.takeAmt)}</b>
+            {' · '}{T('الصافي', 'Net')} <b style={{ fontFamily: MONO, fontWeight: 600, fontSize: 15, color: C.gold2 }}>{enNum(netTotal)}</b>
+          </span>
+        )}
+        {claw.carryAmt > 0 && (
+          <span title={T('لا مستحقَّ لوسيطها يغطّيها في المعروض — تبقى مثبَّتةً حتى تُخصم من صرفٍ قادم', 'No payable for their agent covers them in this view — pinned until a later payout')}
+            style={{ fontSize: 11.5, color: C.red }}>
+            {T(`استرداد مرحَّل ${enNum(claw.carryAmt)} · ${enNum(claw.carry.length)}`, `Clawback carried ${enNum(claw.carryAmt)} · ${enNum(claw.carry.length)}`)}
+          </span>
+        )}
+        {[
+          { l: T('مصروف', 'Paid'), v: tot.paidAmt, c: '#2ecc71' },
+          { l: T('بانتظار السداد', 'Awaiting payment'), v: tot.waitAmt, c: 'var(--tx2)' },
+        ].map((f) => (
+          <div key={f.l} style={{ paddingInlineStart: 18, borderInlineStart: '1px solid rgba(176,125,0,.22)' }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx3)', whiteSpace: 'nowrap' }}>{f.l}</div>
+            <div style={{ fontSize: 15, fontWeight: 600, fontFamily: MONO, color: f.v ? f.c : 'var(--tx4)', marginTop: 4 }}>{enNum(f.v)}</div>
+          </div>
+        ))}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginInlineStart: 'auto', flexShrink: 0 }}>
         {/* الزرّ يبقى ظاهراً ومعطَّلاً حين لا شيء يُدفع، ويقول سببَه في تلميحه —
             زرٌّ يختفي يترك المستخدم يبحث عمّا لم يعد موجوداً. */}
         {/* الزرّ بلغة أزرار الصفحة نفسها (`.ox-btn`) لا بلغة نوافذ FormKit:
@@ -7744,6 +7972,13 @@ function AcRatesPanel({ rows, isAr, layout, persistLayout, canEdit, writeCells, 
             المزامنة» وأعلى قليلاً لأنه يُخرج مالاً.
             والتلميح على الغلاف لا على الزرّ: الزرّ المعطَّل لا يستقبل حدث
             المرور في بعض المتصفّحات. */}
+        {canExport && (
+          <button className="ox-btn" disabled={!rows.length} onClick={printStatement}
+            title={T('كشفٌ بالإنجليزية للوسيط: عمولة كل خدمة وفواتير المعروض', 'English statement for the agent: per-service commission and the shown invoices')}>
+            <Printer size={15} strokeWidth={2.1} />
+            <span>{T('طباعة الكشف', 'Print statement')}</span>
+          </button>
+        )}
         {canEdit && (
           <span title={payable.length ? '' : (noAmt
             ? T('صفوفٌ مستحقّة بلا مبلغ — اكتب تسعيرة خدمتها أوّلاً', 'Due rows have no amount — set their service rate first')
@@ -7755,6 +7990,7 @@ function AcRatesPanel({ rows, isAr, layout, persistLayout, canEdit, writeCells, 
             </button>
           </span>
         )}
+        </div>
       </div>
       {noAmt > 0 && (
         <div style={{ marginTop: 6, fontSize: 11, color: C.gold2 }}>
@@ -7778,11 +8014,50 @@ function AcRatesPanel({ rows, isAr, layout, persistLayout, canEdit, writeCells, 
             <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--tx3)' }}>{T('المطلوب صرفه', 'Amount to pay')}</div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 2 }}>
-                <span style={{ fontSize: 30, fontWeight: 600, fontFamily: MONO, color: C.gold2, lineHeight: 1.05, letterSpacing: '-.5px', direction: 'ltr' }}>{enNum(payTotal)}</span>
+                <span style={{ fontSize: 30, fontWeight: 600, fontFamily: MONO, color: C.gold2, lineHeight: 1.05, letterSpacing: '-.5px', direction: 'ltr' }}>{enNum(netTotal)}</span>
                 <span style={{ fontSize: 12, color: 'var(--tx3)' }}>{T('ريال', 'SAR')}</span>
               </div>
+              {claw.takeAmt > 0 && (
+                <div style={{ marginTop: 5, fontSize: 11.5, color: 'var(--tx3)' }}>
+                  {T('العمولات', 'Commissions')} <bdi style={{ fontFamily: MONO }}>{enNum(payTotal)}</bdi>
+                  {' − '}{T(`استرداد ${enNum(claw.take.length)} ملغاة`, `${enNum(claw.take.length)} cancelled`)} <bdi style={{ fontFamily: MONO, color: C.red }}>{enNum(claw.takeAmt)}</bdi>
+                </div>
+              )}
             </div>
           </div>
+
+          {/* الاسترداد قرارُ المستخدم في كل صرف: يُخصم الآن (كلّه أو حتى سقف) أو يُؤجَّل */}
+          {claw.canAmt > 0 && (
+            <div style={{ marginTop: 10, padding: '10px 12px', borderRadius: 10, border: '1px solid var(--bd)', background: 'var(--card-grad2)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <span style={{ flex: 1, minWidth: 120, fontSize: 12, fontWeight: 600, color: 'var(--tx2)' }}>
+                  {T('استرداد الملغاة', 'Cancelled clawback')} <bdi style={{ fontFamily: MONO, color: C.red }}>{enNum(claw.canAmt)}</bdi>
+                </span>
+                {[['now', T('اخصم الآن', 'Deduct now')], ['later', T('أجّل الخصم', 'Defer')]].map(([k, l]) => (
+                  <button key={k} type="button" onClick={() => setClawMode(k)}
+                    style={{ height: 30, padding: '0 12px', borderRadius: 8, cursor: 'pointer', fontFamily: F, fontSize: 12, fontWeight: 600,
+                      border: `1.5px solid ${clawMode === k ? C.gold : 'var(--bd)'}`,
+                      background: clawMode === k ? 'rgba(176,125,0,.14)' : 'transparent',
+                      color: clawMode === k ? C.gold2 : 'var(--tx3)' }}>{l}</button>
+                ))}
+              </div>
+              {clawMode === 'now' ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, fontSize: 11.5, color: 'var(--tx3)' }}>
+                  <span>{T('اخصم حتى مبلغ', 'Deduct up to')}</span>
+                  <input className="ox-fld" inputMode="decimal" value={clawCap} placeholder={T('الكل', 'All')}
+                    onChange={(e) => setClawCap(e.target.value)}
+                    style={{ width: 92, height: 30, textAlign: 'center', fontFamily: MONO, fontSize: 12.5, direction: 'ltr' }} />
+                  {claw.canAmt > claw.takeAmt && (
+                    <span>{T('يُرحَّل', 'Carried')} <bdi style={{ fontFamily: MONO, color: C.red }}>{enNum(claw.canAmt - claw.takeAmt)}</bdi></span>
+                  )}
+                </div>
+              ) : (
+                <div style={{ marginTop: 8, fontSize: 11.5, color: 'var(--tx3)' }}>
+                  {T('تُصرف العمولة كاملةً، ويبقى الاسترداد معلّقاً يُخصم من صرفٍ قادم', 'The commission is paid in full; the clawback stays pending for a later payout')}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* ثلاث حقائق في صفٍّ واحد بدل أسطرٍ متتابعة يختلط فيها الوسمُ بقيمته */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 10 }}>
@@ -11366,8 +11641,26 @@ const VIEWS = [
     hintEn: 'Agent commissions, month by month',
     /* لوحةٌ فوق الشبكة بدل شريط الشرائح: تسعيرة كل خدمة ومجموع ما يُدفع. */
     panel: AcRatesPanel,
+    statsOneRow: true,   // الكروت في صفٍّ واحد (طلب المستخدم 2026-10-01)
+    /* بلا شريط الأدوات العلوي (تحديث من المزامنة · لقطة الأسبوع · تسمية العرض · شارة الفلتر)
+       بطلب المستخدم 2026-10-01: الشيت شهريٌّ يُقاد بعدسة الشهر تحته، لا بلقطات الأسابيع. */
+    noTopTools: true,
+    /* الشيت يُراجَع شهراً بشهر: عدسةُ شهرٍ بتاريخ الفاتورة تفتح على الشهر الحالي،
+       وثلاثة أزرار (الحالي · الماضي · قبل الماضي) + أسهم + «كل الشهور». الجدول
+       والكروت واللوحة كلّها تتبع الشهر المعروض وأيَّ فلترةٍ فوقه. */
+    weekFilter: { ar: 'شهر الفاتورة', en: 'Invoice month', unit: 'month', quick: 3, hideNoDate: true,
+      /* صفُّ الاسترداد يقع في شهر **الإلغاء** لا شهر الفاتورة، ويبقى مثبَّتاً من شهر الإلغاء فصاعداً
+         حتى يُخصم (`keep`) — فلا يُنسى مالٌ خرج. */
+      col: 'invoice_at',   // فلترةُ عمود التاريخ أو الفرزُ به تغلب العدسة
+      get: (r) => (r.is_clawback ? (r.cancelled_at || r.invoice_at) : r.invoice_at),
+      /* والمؤجَّلة التي حلّت عمولتُها تُثبَّت من شهر فاتورتها فصاعداً حتى تُصرف. */
+      keep: (r) => (acClawPending(r) ? (r.cancelled_at || true)
+        : (!r.is_clawback && acState(r) === AC_DEFER && acDue(r)) ? (r.invoice_at || true) : null) },
     derive: acDerive,
     afterSave: acPostCommission,
+    // «الاسترداد» يُختار لصفّ الملغاة المصروفة وحده — في غيره لا استردادَ يُقرَّر
+    cellLocked: (row, col, ctx) => ((col.key === 'ac_claw' && !row.is_clawback)
+      ? ((ctx || {}).isAr !== false ? 'لا استرداد في هذا الصفّ — للفاتورة الملغاة بعد صرف عمولتها وحدها' : 'No clawback on this row — only for invoices cancelled after payout') : null),
     /* لا صفَّ إجماليات (`agg`) في هذا الشيت: لوحةُ «عمولة كل خدمة» تحته تقول
        الأرقام مفصَّلةً بالخدمة ومقسَّمةً على مستحقٍّ ومصروفٍ ومنتظِر — فصفُّ
        الـΣ فوقها مجموعٌ أخرس يزاحمها ويُقرأ مرّتين. ومن أراد إجمالي عمودٍ بعينه
@@ -11388,23 +11681,59 @@ const VIEWS = [
     },
     search: (r) => [r.invoice_no, r.agent_name, r.agent_phone, r.agent_id_number, r.client_name,
       r.facility_ar, r.service_ar, r.request_ref_no, r.invoice_month, r.unified_number],
+    /* صفّ الكتل فوق الرؤوس — كشيت «تجديد الإقامات» (`view.bands`؛ طلب المستخدم
+       2026-10-01). عمودٌ بلا كتلة (أعمدة المستخدم المضافة) يبقى فوقه فراغ. */
+    bands: [
+      { ar: 'الفاتورة', en: 'Invoice', keys: ['invoice_at', 'branch_code', 'invoice_no', 'inv_state', 'inv_live', 'invoice_month'] },
+      { ar: 'الوسيط', en: 'Agent', keys: ['agent_name', 'agent_assumed', 'agent_phone', 'agent_id_number'] },
+      { ar: 'الخدمة', en: 'Service', keys: ['service_quantity', 'service_ar'] },
+      { ar: 'العميل والمنشأة', en: 'Client & facility', keys: ['client_name', 'facility_ar'] },
+      { ar: 'العمولة', en: 'Commission', keys: ['ac_due', 'ac_amount', 'ac_state', 'ac_paid_date', 'ac_ref', 'ac_claw'] },
+      { ar: 'حالة الفاتورة والمعاملة', en: 'Invoice & request status', keys: ['invoice_status_ar',
+        'request_status_ar', 'request_ref_no', 'invoice_total', 'paid_amount', 'remaining_amount', 'src'] },
+      { ar: 'المتابعة', en: 'Follow-up', keys: ['op_follow', 'op_notes'] },
+    ],
     columns: [
       branchCol({ key: 'branch_code', ar: 'المكتب', en: 'Office', w: 150 }),
       // الرقم بابٌ إلى فاتورته كما في بقيّة الشيتات (`_id` هنا هو معرّفها)
       { key: 'invoice_no', ar: 'رقم الفاتورة', en: 'Invoice no.', w: 120, kind: 'mono', readOnly: true,
         tap: invInfoCard, tapTip: { ar: 'اعرض بطاقة الفاتورة', en: 'Show the invoice card' } },
       /* الفاتورة في خليّة واحدة مرسومة (`kind:'pay'`) — هي نفسها خليّة شيت نقل
-         الكفالة: الإجمالي وشارة النسبة وشريط التحصيل والمتبقّي في لمحة. */
+         الكفالة: الإجمالي وشارة النسبة وشريط التحصيل والمتبقّي في لمحة. والمقيس
+         **أساسُ الاستحقاق** (`acBasis`) لا الفاتورة كلّها دائماً. */
       { key: 'inv_state', ar: 'الفاتورة', en: 'Invoice', w: 195, kind: 'pay',
-        pay: (r) => ({ total: depNum(r.invoice_total), remaining: depNum(r.remaining_amount) }),
+        pay: (r) => { const b = acBasis(r); return { total: b.total, remaining: b.remaining } },
+        cellTip: (_v, r, isAr2) => (acBasis(r).inst
+          ? (isAr2 !== false ? `أساس الاستحقاق: دفعتا إصدار التأشيرة والوكالة — إجمالي الفاتورة ${enNum(depNum(r.invoice_total))}` : `Basis: issuance + wakalah installments — invoice total ${enNum(depNum(r.invoice_total))}`)
+          : (isAr2 !== false ? 'أساس الاستحقاق: سداد الفاتورة كاملةً' : 'Basis: the invoice paid in full')),
         get: (r, isAr2) => {
-          const tot = depNum(r.invoice_total)
+          const b = acBasis(r)
+          const tot = b.total
           if (!tot) return r.payment_state || ''
-          const rem = depNum(r.remaining_amount)
+          const rem = b.remaining
           const pct = Math.round(((tot - rem) / tot) * 100)
           return `${enNum(tot)} · ${pct}%${rem > 0 ? ` · ${isAr2 ? 'متبقّي' : 'due'} ${enNum(rem)}` : ''}`
         } },
-      { key: 'agent_name', ar: 'الوسيط', en: 'Agent', w: 190, kind: 'text' },
+      /* الوسيط الافتراضي (`service_request_agents.is_assumed`): رُبط آلياً بالترجيح لا
+         بالتأكيد — خليّتُه صفراء وتلميحُها يقول ذلك، وعمودُ «إدخال الوسيط» بجانبها
+         يُفرز ويُصفّى به. العلامة تسقط من نفسها متى غُيّر الوسيط من الفاتورة. */
+      /* حالة الفاتورة بجانبها (طلب المستخدم 2026-10-01): «نشطة» أو «ملغاة» — والملغاة
+         صارت تُعرض في الشيت (صفٌّ أحمر مجمّد خارج الكروت واللوحة) كي تُعرَف، بعد أن
+         كان الـview يُسقطها. */
+      { key: 'inv_live', ar: 'الحالة', en: 'Status', w: 95, kind: 'text', auto: true, source: 'sync', readOnly: true,
+        get: (r, isAr2) => (acCancelled(r) ? (isAr2 !== false ? 'ملغاة' : 'Cancelled') : (isAr2 !== false ? 'نشطة' : 'Active')),
+        /* تاريخ الإلغاء سطراً ثانياً تحت «ملغاة» (طلب المستخدم 2026-10-01) — عرضٌ وحده
+           (`fmt`) فتبقى قيمةُ العمود «ملغاة» للفلترة والفرز. */
+        fmt: (v, r) => { const d = acCancelled(r) ? ymd(r.cancelled_at) : ''; return d ? `${v}\n${d}` : null },
+        bgOverCancel: true,
+        bg: (_v, r) => (acCancelled(r) ? 'rgba(232,114,101,.34)' : 'rgba(46,204,113,.20)') },
+      { key: 'agent_name', ar: 'الوسيط', en: 'Agent', w: 190, kind: 'text',
+        bg: (_v, r) => (r.agent_assumed ? 'rgba(234,179,8,.22)' : null),
+        cellTip: (_v, r, isAr2) => (r.agent_assumed
+          ? (isAr2 !== false ? 'وسيط افتراضي — أُدخل آلياً بالترجيح، غير مؤكَّد' : 'Assumed agent — auto-assigned, not confirmed') : null) },
+      { key: 'agent_assumed', ar: 'إدخال الوسيط', en: 'Agent entry', w: 110, kind: 'text', readOnly: true,
+        get: (r, isAr2) => (r.agent_assumed ? (isAr2 !== false ? 'افتراضي' : 'Assumed') : ''),
+        bg: (_v, r) => (r.agent_assumed ? 'rgba(234,179,8,.22)' : null) },
       phoneCol({ key: 'agent_phone', ar: 'جوال الوسيط', en: 'Agent mobile', w: 130 }),
       { key: 'invoice_at', ar: 'تاريخ الفاتورة', en: 'Invoice date', w: 115, kind: 'date', get: (r) => ymd(r.invoice_at) },
       /* «الشهر» عمودٌ قائم بذاته لا اشتقاقٌ يُقرأ من التاريخ بالعين: به وحده
@@ -11415,15 +11744,15 @@ const VIEWS = [
          (`invoices.service_quantity`) لا من الطلب — الصفّ هنا فاتورة. ٢٧٥ فاتورة
          كميّتها أكثر من واحد، والعمولة تُحسب عليها لا على الفاتورة وحدها. */
       { key: 'service_quantity', ar: 'الكمية', en: 'Qty', w: 80, kind: 'num' },
-      { key: 'service_ar', ar: 'الخدمة', en: 'Service', w: 170, kind: 'text' },
-      /* مدّة التجديد بجانب الخدمة: عمولةُ «تجديد الإقامة» تختلف بها، فلوحةُ
-         الأسفل تُقسّمه أربعة أسطر — وبلا هذا العمود لا يُعرف أيُّ صفٍّ في أيّ
-         سطر. تفرغ لغير التجديد: لكلّ تأشيرةٍ مدّتُها في اسمها. */
-      { key: 'renewal_months', ar: 'مدة التجديد', en: 'Renewal term', w: 105, kind: 'text',
+      /* مدّة التجديد داخل خليّة الخدمة («تجديد الإقامة 6 أشهر») لا عمودٌ بجانبها
+         (طلب المستخدم 2026-10-01): عمولةُ التجديد تختلف بها، ولوحةُ الأسفل تُقسّمه
+         بها — ولكلّ تأشيرةٍ مدّتُها في اسمها أصلاً. */
+      { key: 'service_ar', ar: 'الخدمة', en: 'Service', w: 190, kind: 'text',
         get: (r, isAr2) => {
+          const svc = r.service_ar || ''
           const m = depNum(r.renewal_months)
-          if (!m || String(r.service_code || '') !== 'iqama_renewal') return ''
-          return isAr2 !== false ? `${m} ${moU(m, true)}` : `${m}m`
+          if (!m || String(r.service_code || '') !== 'iqama_renewal') return svc
+          return isAr2 !== false ? `${svc} ${m} ${moU(m, true)}` : `${svc} · ${m}m`
         } },
       { key: 'client_name', ar: 'العميل', en: 'Client', w: 180, kind: 'text' },
       { key: 'facility_ar', ar: 'المنشأة', en: 'Facility', w: 200, kind: 'text' },
@@ -11432,20 +11761,42 @@ const VIEWS = [
          مكتوبٌ في تلميح الخليّة: أي دفعةٍ ينتظرها الصفّ بالضبط. */
       { key: 'ac_due', ar: 'مستحقة العمولة', en: 'Commission due', w: 130, kind: 'text',
         auto: true, source: 'formula', sectionStart: true,
-        get: (r, isAr2) => (acDueInfo(r, isAr2 !== false).due ? (isAr2 !== false ? 'نعم' : 'Yes') : (isAr2 !== false ? 'لا' : 'No')),
-        cellTip: (_v, r, isAr2) => acDueInfo(r, isAr2 !== false).why,
-        bg: (_v, r) => (acDue(r) ? 'rgba(46,204,113,.26)' : 'rgba(232,114,101,.22)') },
+        get: (r, isAr2) => (r.is_clawback ? (isAr2 !== false ? 'استرداد' : 'Clawback')
+          : acDueInfo(r, isAr2 !== false).due ? (isAr2 !== false ? 'نعم' : 'Yes') : (isAr2 !== false ? 'لا' : 'No')),
+        cellTip: (_v, r, isAr2) => (r.is_clawback && r.clawback_waived
+          ? (isAr2 !== false ? 'الفاتورة أُلغيت بعد صرف عمولتها — أُعفي الوسيط من ردّها' : 'Invoice cancelled after its commission was paid — clawback waived')
+          : r.is_clawback
+          ? (isAr2 !== false ? 'الفاتورة أُلغيت بعد صرف عمولتها — تُخصم من صرفٍ قادم للوسيط نفسه' : 'Invoice cancelled after its commission was paid — deducted from the agent’s next payout')
+          : acDueInfo(r, isAr2 !== false).why),
+        bg: (_v, r) => ((!r.is_clawback && acDue(r)) ? 'rgba(46,204,113,.26)' : 'rgba(232,114,101,.22)') },
       /* المبلغ: ما في سجلّ الوسيط، وإلا تسعيرةُ الخدمة × الكمية (لوحة الأعلى).
          ويبقى قابلاً للكتابة — ما يُكتب في الخليّة يغلب التسعيرة ويُرحَّل. */
-      { key: 'ac_amount', ar: 'العمولة', en: 'Commission', w: 110, kind: 'num', ops: true,
-        get: (r) => acColAmount(r) },
-      { key: 'ac_state', ar: 'حالة الصرف', en: 'Payout', w: 120, kind: 'text', ops: true, select: true,
-        options: () => [AC_DUE, AC_PAID, AC_HOLD],
+      { key: 'ac_state', ar: 'حالة الصرف', en: 'Payout', w: 175, kind: 'text', ops: true, select: true,
+        options: () => [AC_DUE, AC_PAID, AC_NOT, AC_DEFER, AC_HOLD],
         get: (r) => (r.commission_paid_at ? AC_PAID : ''),
         bg: (v) => AC_ST_BG[v] || null },
       { key: 'ac_paid_date', ar: 'تاريخ الصرف', en: 'Paid on', w: 115, kind: 'date', ops: true,
         get: (r) => ymd(r.commission_paid_at) },
+      // «العمولة» بعد تاريخ الصرف (طلب المستخدم 2026-10-01): الحالة ثم يومُها ثم مبلغُها
+      { key: 'ac_amount', ar: 'العمولة', en: 'Commission', w: 110, kind: 'num', ops: true,
+        get: (r) => acColAmount(r) },
       { key: 'ac_ref', ar: 'مرجع الصرف', en: 'Payout ref', w: 150, kind: 'text', ops: true },
+      /* الاسترداد: يُملأ لصفّ الملغاة المصروفة وحده — «يُخصم 300» حتى يقع الخصم عند
+         «تم الدفع»، ثم «خُصم 2026-11-02». */
+      /* قائمةٌ منسدلة (طلب المستخدم 2026-10-01): القرار في الاسترداد بيد المستخدم صفّاً
+         صفّاً — «يُخصم» معلّقٌ يدخل في «تم الدفع» · «خُصم» وقع · «أُعفي» لا يُطالَب به
+         الوسيط والعمولة تبقى مصروفة. تعمل على صفّ الملغاة المجمّد (`overCancel`) وحده،
+         وتُرحَّل إلى سجلّ الوسيط (`acPostCommission`) فلا تبقى قيمةً في الشيت. والمبلغ
+         وتاريخ الخصم في تلميح الخليّة. */
+      { key: 'ac_claw', ar: 'الاسترداد', en: 'Clawback', w: 140, kind: 'text', ops: true, select: true,
+        options: () => [AC_CLAW_PEND, AC_CLAW_DONE, AC_CLAW_WAIVE],
+        overCancel: (r) => !!r.is_clawback,
+        get: (r) => (!r.is_clawback ? '' : r.clawback_waived ? AC_CLAW_WAIVE : r.clawback_settled_at ? AC_CLAW_DONE : AC_CLAW_PEND),
+        cellTip: (v, r, isAr2) => (!r.is_clawback ? null
+          : v === AC_CLAW_WAIVE ? (isAr2 !== false ? `أُعفي الوسيط من ردّ ${enNum(acClawAmt(r))}` : `Clawback of ${enNum(acClawAmt(r))} waived`)
+          : v === AC_CLAW_DONE ? (isAr2 !== false ? `خُصم ${enNum(acClawAmt(r))}${r.clawback_settled_at ? ` في ${ymd(r.clawback_settled_at)}` : ''}` : `${enNum(acClawAmt(r))} deducted${r.clawback_settled_at ? ` on ${ymd(r.clawback_settled_at)}` : ''}`)
+            : (isAr2 !== false ? `يُخصم ${enNum(acClawAmt(r))} من صرفٍ قادم للوسيط نفسه` : `${enNum(acClawAmt(r))} to deduct from the agent’s next payout`)),
+        bg: (v) => AC_CLAW_BG[v] || null, bgOverCancel: true },
       /* بقيّة أرقام الفاتورة وحالتها: تُقرأ عند المراجعة ولا تُصرف عليها عمولة
          بذاتها — تأتي بعد كتلة العمولة لا قبلها. */
       { key: 'invoice_status_ar', ar: 'حالة الفاتورة', en: 'Invoice status', w: 120, kind: 'text', sectionStart: true },
@@ -16037,7 +16388,9 @@ function CellSelect({ value, options, onChange, disabled, optBg, optLabel, isAr 
       const flipUp = below < 150 && above > below
       const maxH = Math.max(120, Math.min(searchable ? 320 : 260, (flipUp ? above : below)))
       /* أعرض من الخليّة الضيّقة (٢٤٠ على الأقل للقائمة الطويلة) ويبقى داخل الشاشة */
-      const width = Math.min(window.innerWidth - 16, Math.max(r.width, searchable ? 240 : 0))
+      /* والقصيرة ١٥٠ على الأقل: في عمودٍ ضيّق (٨٨) كانت «مستحقة» تنكسر سطرين
+         «مستحـ/قة» (بلاغ المستخدم 2026-10-01). */
+      const width = Math.min(window.innerWidth - 16, Math.max(r.width, searchable ? 240 : 150))
       const left = Math.max(8, Math.min(r.left + r.width / 2 - width / 2, window.innerWidth - width - 8))
       /* الفتح لأعلى يُرسى بحافّة القائمة **السفلى** على الخليّة (بلاغ المستخدم
          2026-09-25): كان يُحسب من السقف `maxH` فتطفو القائمة القصيرة (خياران أو
@@ -16376,11 +16729,21 @@ const VIEW_STATS = {
   // «الأشخاص» بلا كروت بقرار المستخدم — مصفوفةٌ فارغة **صراحةً** لا حذفُ السطر:
   // الحذف يُسقطه على الاحتياطي (كرت «عدد الصفوف») فتعود الكروت من حيث لا يُقصد.
   persons: [],
-  /* «عمولات الوسطاء» بلا كروت: لوحةُ «عمولة كل خدمة» فوق الشبكة تحمل أرقامه
-     كلَّها (المستحق والكمية والمطلوب والمصروف) — وكرتُ «عدد الصفوف» وحده فوقها
-     سطرٌ يأكل ارتفاعاً ولا يقول شيئاً. ومصفوفةٌ فارغة **صراحةً** لا حذفُ السطر:
-     الحذف يُسقطه على الاحتياطي فيعود الكرت من حيث لا يُقصد. */
-  agent_commissions: [],
+  /* الكروت تُحسب من **المعروض** — الشهر المختار في العدسة (`weekFilter`) وأيّ فلترةٍ
+     أو بحثٍ فوقه — فلا شهرَ مثبَّتاً فيها: تبديلُ الشهر يبدّلها كلَّها. */
+  agent_commissions: [
+    SC('group', 'ملخّص الفترة المعروضة', 'Shown period', { items: [
+      SC('rows', 'الفواتير', 'Invoices'),
+      /* المبلغان لا العدد: كم عمولةً **حلّ أجلُها** وكم **لم يحلّ بعد** (طلب المستخدم
+         2026-10-01) — ومجموعُهما إجمالي عمولات المعروض. */
+      SC('sumif', 'عمولات مستحقة', 'Due', { k: 'ac_amount', on: 'ac_due', v: YES, money: true, tone: 'ok' }),
+      SC('sumif', 'غير مستحقة بعد', 'Not yet due', { k: 'ac_amount', on: 'ac_due', v: ['لا', 'No'], money: true, tone: 'warn' }),
+      SC('sumif', 'مصروفة', 'Paid', { k: 'ac_amount', on: 'ac_state', v: [AC_PAID], money: true, tone: 'ok' }),
+      SC('pred', 'لم تُصرف', 'Unpaid', { tone: 'bad', need: ['ac_due', 'ac_state'],
+        fn: (v) => YES.includes(v('ac_due')) && ![AC_PAID, AC_HOLD, AC_NOT].includes(v('ac_state')) }),
+    ] }),
+    SC('dist', 'الوسطاء الأغلب', 'Top agents', { k: 'agent_name', max: 5, noRest: true, grow: 3, words: 2, hideable: true }),
+  ],
   // «المنشآت» بلا كروت بقرار المستخدم — مصفوفةٌ فارغة **صراحةً** لا حذفُ السطر:
   // الحذف يُسقطه على الاحتياطي (كرت «عدد الصفوف») فتعود الكروت من حيث لا يُقصد.
   companies: [],
@@ -16900,8 +17263,20 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
   const weekSpan = Math.max(1, (weekFilter && weekFilter.span) || 1)
   const weekFrom = useMemo(() => ((!weekFSel || weekFSel === 'all' || weekFSel === 'nodate')
     ? weekFSel : perShift(weekFSel, -(weekSpan - 1), weekUnit)), [weekFSel, weekSpan, weekUnit])
+  /* `weekFilter.col`: عمودُ التاريخ الذي تقوم عليه العدسة. متى صفّى المستخدم ذلك العمود
+     أو فرز به **بيده** غلب اختيارُه العدسةَ (طلب المستخدم 2026-10-01): من يطلب «من
+     تاريخ كذا» أو «الأقدم أوّلاً» يسأل عن الملف كلّه لا عن شهرٍ اختاره زرّ. تعود العدسة
+     بمسح الفلتر/الفرز. (الفرز المشترك في `layout` لا يُعدّ — هو ليس اختيارَ هذا المستخدم.) */
+  const weekColOff = useMemo(() => {
+    const k = weekFilter && weekFilter.col
+    if (!k) return false
+    const f = (prefs.filters || {})[k]
+    const filt = !!f && ((Array.isArray(f.values) && f.values.length > 0) || (Array.isArray(f.conds) && f.conds.length > 0) || (!!f.text && String(f.text).trim() !== ''))
+    return filt || !!(prefs.sort && prefs.sort.key === k)
+  }, [weekFilter, prefs])
   const weekOk = useCallback((r) => {
     if (!weekFilter) return true
+    if (weekColOff) return true
     if (r._blank || r._manual) return true
     /* `weekFilter.tabs`: تبويباتٌ تسري عليها الأسبوعيّة وحدها. تبويبُ الفجوة
        (تأشيرات قوى بلا فواتير) كشفُ متأخّراتٍ لا عملُ أسبوع — تصفيتُه أسبوعياً
@@ -16929,7 +17304,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
       if (kw && kw <= weekFSel) return true
     }
     return false
-  }, [weekFilter, weekFSel, weekFrom, weekRowWs, weekUnit])
+  }, [weekFilter, weekFSel, weekFrom, weekRowWs, weekUnit, weekColOff])
   /* عدد الصفوف بلا تاريخ — على زرّها، فالرقم نفسه خبر: «كم تأشيرةً لا فاتورة
      لها أصلاً» سؤالٌ يُجاب قبل فتح الزرّ. ومع `hideNoDate` لا زرّ أصلاً. */
   /* `noDateBtn:false`: عرضٌ يُبقي صفوفه بلا تاريخ في «كل الأسابيع» ولا يفرد لها
@@ -17727,6 +18102,12 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
         return o
       }))
     }
+    /* `srcSet`: `{ معرّف الصفّ: { عمود: قيمة } }` — أثرٌ كتب في المصدر قيماً يقرؤها
+       `col.get` من صفّ المصدر (استرداد العمولة في سجلّ الوسيط). تُنسخ إلى الصفّ المحمَّل،
+       وإلا عادت الخليّة تعرض القديم حتى إعادة التحميل — `allRows` نُسخٌ مشتقّة، فتعديلُ
+       الصفّ في الأثر نفسه لا يبقى. */
+    const ss = res.srcSet && typeof res.srcSet === 'object' ? res.srcSet : null
+    if (ss && Object.keys(ss).length) setSyncRows((prev) => prev.map((r) => (ss[r._id] ? { ...r, ...ss[r._id] } : r)))
     const posted = hasPatch || !!res.quietOk || rm.length > 0
     /* ⚠️ `quietOk` بلا `patch` (سجلّ العمالة) لا شيء يُطبَّق على الطبقة — كان
        `Object.entries(undefined)` هنا يُسقط شيت «البيانات الأساسية» بعد كل حفظ
@@ -18231,6 +18612,9 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
     const now = new Date()
     return searched.filter((row) => activeFilterKeys.every((k) => {
       const col = colDefs.get(k); if (!col) return true
+      /* المثبَّت (`weekFilter.keep`) يعبر فلترَ عمود تاريخ العدسة كما يعبر العدسة نفسها:
+         «من بعد 2026-08-02» لا يُخفي عملاً مفتوحاً أقدم منه. */
+      if (weekFilter && weekFilter.col === k && weekFilter.keep && weekFilter.keep(row)) return true
       const f = colFilters[k]
       const v = String(valOf(row, col) ?? '')
       // 1) نص قديم (توافق)
@@ -18249,7 +18633,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
       }
       return true
     }))
-  }, [searched, activeFilterKeys, colFilters, colDefs, valOf, familyOf])
+  }, [searched, activeFilterKeys, colFilters, colDefs, valOf, familyOf, weekFilter])
 
   // فرز حسب عمود (يتجاوز الترتيب اليدوي أثناء تفعيله)
   const filteredBase = useMemo(() => {
@@ -18378,11 +18762,13 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
   /* ── صفُّ الفاتورة الملغاة مجمّدٌ في كل شيت (قرار المستخدم 2026-09-30) ────────
      يبقى كما هو ولا تُعدَّل فيه خليّة — لا للمدير العام ولا بفكّ الصفوف ولا بزرّ
      العمود (الجلب/الطوابير/الرسائل). الكاشف نفسه الذي يصبغه أحمر. */
-  const cancelWhy = useCallback((row) => ((row && (view.rowCancel || wvInvCancelled)(row))
+  /* استثناءٌ واحد: `col.overCancel(row)` — عمودٌ عملُه **على** الملغاة نفسها (استرداد
+     عمولتها في شيت العمولات): تجميدُه يمنع القرار الوحيد الذي يُتَّخذ في هذا الصفّ. */
+  const cancelWhy = useCallback((row, col) => ((row && (view.rowCancel || wvInvCancelled)(row) && !(col && col.overCancel && col.overCancel(row)))
     ? T('الفاتورة ملغاة — الصفّ مجمّد لا يُعدَّل', 'Invoice cancelled — the row is frozen') : null), [view, T])
   const cellLockWhy = useCallback((row, col) => {
     if (!row || !col) return null
-    const cw = cancelWhy(row)
+    const cw = cancelWhy(row, col)
     if (cw) return cw
     /* قفلُ الصلاحية يُقال هنا لا في `isEditable` وحدها: هذا الطريق يعطي الخليّة
        غسلتَها الرمادية وتلميحَها معاً — فيُقرأ المنعُ من الشبكة، ولا يبقى
@@ -18494,7 +18880,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
       const ownWhy = cellOwnWhy(row, col)
       if (ownWhy) { bad++; if (!rejects.includes(ownWhy)) rejects.push(ownWhy); continue }
       // والفاتورة الملغاة تُرفض في الطريقين معاً — الزرّ لا يتجاوز التجميد
-      const cw = cancelWhy(row)
+      const cw = cancelWhy(row, col)
       if (cw) { bad++; if (!rejects.includes(cw)) rejects.push(cw); continue }
       if (!viaButton && !isEditable(row, col)) { bad++; continue }
       /* `col.coerce` يُسوّي القيمة قبل كل شيء (أرقام عربية ← لاتينية مثلاً)،
@@ -20058,6 +20444,14 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
     return out
   }, [hasTotals, COLS, aggMap, filtered, valOf])
 
+  /* كرتٌ يُطوى ويُعاد (`hideable` في تعريفه) — اختيارُ المستخدم على جهازه لا في
+     التخطيط المشترك: طيُّ موظّفٍ كرتاً لا يطويه على غيره. */
+  const [statHide, setStatHide] = useState(() => { try { return JSON.parse(localStorage.getItem('ox_stat_hide') || '{}') || {} } catch { return {} } })
+  const toggleStat = useCallback((k) => setStatHide((h) => {
+    const n = { ...h }; if (n[k]) delete n[k]; else n[k] = 1
+    try { localStorage.setItem('ox_stat_hide', JSON.stringify(n)) } catch { /* تخزينٌ محجوب — يبقى للجلسة */ }
+    return n
+  }), [])
   /* ── كروت الإحصاء: الحساب ─────────────────────────────────────────────────
      محرّكٌ واحد لكل الأنواع المعرَّفة في `VIEW_STATS` (انظر شرحها فوق الملف).
      يمرّ على `filtered` مرّةً واحدة لكل كرت — قوائم الكروت أربعة أو خمسة، فالكلفة
@@ -20078,7 +20472,15 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
     const live = filtered.filter((r) => !isCancel(r))
     const nCancelled = filtered.length - live.length
     const wkNow = weekStartOf()
+    /* `d.mo` + `d.moOf(row)` نظيرُه الشهري: ٠ الشهر الجاري، −١ السابق — و`moOf`
+       يُرجع «YYYY-MM» (أو تاريخاً يبدأ بها). `d.mos` مصفوفةُ إزاحاتٍ لكرتٍ يجمع
+       عدّة أشهر معاً («الوسطاء الأغلب» في الشهرين). */
+    const moKey = (n) => { const x = new Date(); x.setDate(1); x.setMonth(x.getMonth() + n); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}` }
     const rowsOfWk = (d) => {
+      if ((d.mo != null || d.mos) && d.moOf) {
+        const want = new Set((d.mos || [d.mo]).map(moKey))
+        return live.filter((r) => want.has(String(d.moOf(r) || '').slice(0, 7)))
+      }
       if (d.wk == null || !d.wkOf) return live
       const target = weekShift(wkNow, d.wk)
       return live.filter((r) => { const t = d.wkOf(r); return !!t && weekStartOf(t) === target })
@@ -20143,9 +20545,12 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
         }
         const arr = [...cnt.entries()].sort((a, b) => b[1] - a[1])
         const max = d.max || 5
-        const items = arr.slice(0, max).map(([v, n]) => ({ ar: v, en: optText(v, false), val: n, tone: d.tone }))
+        /* `d.words`: اسمٌ طويل يُختصر إلى أوّل كلماته («مد ماجارول») كي لا يُقصّ بنقاط —
+           والاسم الكامل يبقى في تلميح الكرت (`full`). */
+        const brief = (v) => (d.words ? String(v).trim().split(/\s+/).slice(0, d.words).join(' ') : v)
+        const items = arr.slice(0, max).map(([v, n]) => ({ ar: brief(v), en: brief(optText(v, false)), full: d.words ? v : null, val: n, tone: d.tone }))
         const rest = arr.slice(max).reduce((a, [, n]) => a + n, 0)
-        if (rest) items.push({ ar: 'أخرى', en: 'Other', val: rest })
+        if (rest && !d.noRest) items.push({ ar: 'أخرى', en: 'Other', val: rest })
         if (items.length) out.push({ ...d, type: 'group', items, val: 0, rowsTotal: live.length, bar: true })
         continue
       }
@@ -20734,7 +21139,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
           زرّ «تحديث من المزامنة» (لا مصدر يُجلب منه) ولا منتقي لقطات الأسبوع (لا
           شيء يتغيّر بين أسبوعٍ وآخر) — وبسقوطهما يسقط صفّ الأدوات كلّه إلا أن
           يكون للجدول **نطاقاتٌ** تُختار. */}
-      {!isEmptyView && (!forceView || withTools) && (sheetTools || !forceView || tabDefs.length > 1) && <div style={{ display: 'flex', gap: 12, marginBottom: 34, alignItems: 'center', flexWrap: 'wrap' }}>
+      {!isEmptyView && !view.noTopTools && (!forceView || withTools) && (sheetTools || !forceView || tabDefs.length > 1) && <div style={{ display: 'flex', gap: 12, marginBottom: 34, alignItems: 'center', flexWrap: 'wrap' }}>
         {/* منتقي الجدول يسقط وحده في تبويب الجدول — التبويب هو المنتقي */}
         {!forceView && <div className="ox-field" style={{ minWidth: 190, flex: '0 0 auto' }}>
           <Dropdown value={viewKey} onChange={(k) => setViewKey(k)} options={allViews} searchable
@@ -20841,7 +21246,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
                 disabled={weekFSel === 'all' || weekFSel === 'nodate' || (weekBounds && weekFSel <= weekBounds.min)}
                 onClick={() => setWeekFSel(perShift(weekFSel, -(weekUnit === 'day' ? weekSpan : 1), weekUnit))}><span aria-hidden style={{ fontSize: 15, lineHeight: 1 }}>→</span></button>
               <span className="ox-wk-rg">
-                {weekFSel === 'all' ? T('الملف كاملاً', 'Whole file')
+                {weekColOff ? T('حسب عمود التاريخ', 'By the date column') : weekFSel === 'all' ? T('الملف كاملاً', 'Whole file')
                   : weekFSel === 'nodate' ? T('بلا تاريخ فاتورة', 'No invoice date')
                     : perLabel(weekFrom, isAr, weekSpan, weekUnit)}
               </span>
@@ -20853,13 +21258,25 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
             {/* مجموعةٌ ثانية منفصلة: التنقّل شيء، والقفز إلى عرضٍ بعينه شيءٌ
                 آخر — فصلُهما يقول ذلك (بطلب المستخدم). */}
             <div className="ox-wk">
-              <button data-on={weekFSel === perStartOf(undefined, weekUnit) ? '1' : '0'}
+              {/* `weekFilter.quick`: أزرارٌ بعدد الفترات الأخيرة (الجاري · الماضي · قبل الماضي)
+                  بدل زرّ «هذا الشهر» وحده — شيتٌ يُراجَع شهراً بشهر يُقفَز فيه بنقرةٍ
+                  لا بسهمٍ يُعدّ (طلب المستخدم 2026-10-01). */}
+              {weekFilter.quick > 1 && Array.from({ length: weekFilter.quick }, (_, qi) => {
+                const ws = perShift(perStartOf(undefined, weekUnit), -qi, weekUnit)
+                const mo = weekUnit === 'month'
+                const lbl = qi === 0 ? (mo ? T('الشهر الحالي', 'This month') : T('هذا الأسبوع', 'This week'))
+                  : qi === 1 ? (mo ? T('الشهر الماضي', 'Last month') : T('الأسبوع الماضي', 'Last week'))
+                    : qi === 2 ? T('قبل الماضي', 'Before last') : perLabel(ws, isAr, 1, weekUnit)
+                return <button key={qi} data-on={!weekColOff && weekFSel === ws ? '1' : '0'} title={perLabel(ws, isAr, 1, weekUnit)}
+                  onClick={() => setWeekFSel(ws)}>{lbl}</button>
+              })}
+              {!(weekFilter.quick > 1) && <button data-on={weekFSel === perStartOf(undefined, weekUnit) ? '1' : '0'}
                 title={weekUnit === 'month' ? T('ارجع إلى الشهر الجاري', 'Back to the current month') : weekUnit === 'day' ? T('ارجع إلى آخر فترة', 'Back to the latest range') : T('ارجع إلى الأسبوع الجاري', 'Back to the current week')}
                 onClick={() => setWeekFSel(perStartOf(undefined, weekUnit))}>{weekSpan > 1
                   ? (weekUnit === 'month' ? T(weekSpan === 2 ? 'آخر شهرين' : `آخر ${enNum(weekSpan)} أشهر`, `Last ${weekSpan} months`)
                     : weekUnit === 'day' ? T(`آخر ${enNum(weekSpan)} يوم`, `Last ${weekSpan} days`)
                     : T(weekSpan === 2 ? 'آخر أسبوعين' : `آخر ${enNum(weekSpan)} أسابيع`, `Last ${weekSpan} weeks`))
-                  : (weekUnit === 'month' ? T('هذا الشهر', 'This month') : weekUnit === 'day' ? T('اليوم', 'Today') : T('هذا الأسبوع', 'This week'))}</button>
+                  : (weekUnit === 'month' ? T('هذا الشهر', 'This month') : weekUnit === 'day' ? T('اليوم', 'Today') : T('هذا الأسبوع', 'This week'))}</button>}
               {/* تسميةُ الزرّ من العرض متى سمّاه (`weekFilter.allAr`): عرضٌ يجمع
                   في «الكل» صفوفاً لا أسبوع لها أصلاً لا يصفه «كل الأسابيع» —
                   «كل الفترات» يقول ما يقع فعلاً. */}
@@ -21043,14 +21460,32 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
               // مقامُ كل مرحلةٍ صفوفُها التي تسري عليها (`it.den`) — وإلا عددُ المعروض كلِّه
               const denOf = (it) => (s.ofRows ? Number(it.den ?? s.rowsTotal ?? 0) : 0)
               const canBar = s.bar && !s.ofRows && total > 0 && s.items.every((it) => !it.money)
+              const hideKey = s.hideable ? `${view.key}:${s.en}` : ''
+              /* المطويّ: زرٌّ نحيل باسم الكرت يعيده — لا يختفي فيُبحث عنه */
+              if (hideKey && statHide[hideKey]) return (
+                <button key={i} className="ox-btn" onClick={() => toggleStat(hideKey)}
+                  title={T('إظهار الكرت', 'Show this card')}
+                  style={{ alignSelf: 'stretch', height: 'auto', flex: '0 0 auto', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5 }}>
+                  <Eye size={14} strokeWidth={2} />{isAr ? s.ar : s.en}
+                </button>
+              )
               return (
                 <div key={i} title={(isAr ? s.ar : s.en) + ': ' + s.items.map((it) => (denOf(it)
                   ? `${isAr ? it.ar : it.en} ${enNum(Math.max(0, denOf(it) - it.val))} / ${enNum(denOf(it))}` + (it.val ? T(` (المتبقي ${enNum(it.val)})`, ` (${enNum(it.val)} left)`) : '')
-                  : `${isAr ? it.ar : it.en} ${fmtVal(it)}`)).join(' · ')}
-                  style={{ ...cardSty, flex: oneRow ? `${s.items.length} 1 0` : `${s.items.length} 1 ${s.items.length * 130}px` }}>
+                  : `${it.full || (isAr ? it.ar : it.en)} ${fmtVal(it)}`)).join(' · ')}
+                  style={{ ...cardSty, flex: oneRow ? `${s.grow ?? s.items.length} 1 0` : `${s.items.length} 1 ${s.items.length * 130}px` }}>
                   {accent(C.gold, false)}
-                  <span style={{ fontSize: 12, color: 'var(--tx3)', fontWeight: 600, whiteSpace: 'nowrap',
-                    overflow: 'hidden', textOverflow: 'ellipsis' }}>{isAr ? s.ar : s.en}</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                    <span style={{ flex: 1, fontSize: 12, color: 'var(--tx3)', fontWeight: 600, whiteSpace: 'nowrap',
+                      overflow: 'hidden', textOverflow: 'ellipsis' }}>{isAr ? s.ar : s.en}</span>
+                    {hideKey && (
+                      <button type="button" onClick={() => toggleStat(hideKey)} title={T('إخفاء الكرت', 'Hide this card')} aria-label={T('إخفاء الكرت', 'Hide this card')}
+                        style={{ flexShrink: 0, width: 22, height: 22, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                          border: 'none', background: 'transparent', color: 'var(--tx4)', cursor: 'pointer', borderRadius: 6, padding: 0 }}>
+                        <EyeOff size={14} strokeWidth={2} />
+                      </button>
+                    )}
+                  </span>
                   <span style={{ display: 'flex', alignItems: 'stretch', minWidth: 0, flex: 1 }}>
                     {s.items.map((it, j) => {
                       const shown = fmtVal(it)
@@ -21066,7 +21501,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
                           justifyContent: 'flex-end',
                           ...(j > 0 ? { borderInlineStart: '1px solid var(--bd)', paddingInlineStart: oneRow ? 10 : 12, marginInlineStart: oneRow ? 10 : 12 } : {}) }}>
                           <span style={{ display: 'flex', alignItems: 'baseline', gap: 4, minWidth: 0 }}>
-                            <span style={{ fontSize: shown.length > 8 ? 18 : 22, fontWeight: 600, color: den > 0 ? C.gold : toneClr(it.tone),
+                            <span style={{ fontSize: (oneRow && s.items.length >= 5 && !it.money && shown.length >= 3) ? 16 : (shown.length > 8 || (oneRow && it.money && shown.length > 4)) ? 18 : 22, fontWeight: 600, color: den > 0 ? C.gold : toneClr(it.tone),
                               lineHeight: 1, letterSpacing: '-.4px', direction: 'ltr', fontVariantNumeric: 'tabular-nums',
                               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {den > 0
@@ -21981,8 +22416,8 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
           كبقيّة إعدادات الشيت. وموضعُها تحت الجدول بطلب المستخدم: الشبكة هي
           العمل، واللوحة خلاصتُه — والخلاصة تُقرأ بعد المقروء لا قبله. */}
       {!loading && !loadErr && view.panel && allRows.length > 0 && (
-        <view.panel rows={filtered} isAr={isAr} layout={layout} persistLayout={persistLayout} canEdit={canEdit}
-          writeCells={writeCells} colDefs={colDefs} toast={toast} />
+        <view.panel rows={filtered} isAr={isAr} layout={layout} persistLayout={persistLayout} canEdit={canEdit} canExport={canExport}
+          writeCells={writeCells} colDefs={colDefs} toast={toast} sb={sb} />
       )}
 
       {/* ── قائمة السياق (كليك يمين) ── */}

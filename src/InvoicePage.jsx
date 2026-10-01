@@ -785,7 +785,7 @@ const INVOICE_SELECT = `
           iqama_renewal_applications(duration_months,deleted_at,worker:worker_id(id,name_ar,name_en,phone,iqama_number,photo_path,iqama_expiry_date,nationality_ar,nationality:nationality_id(code,name_ar,flag_url),current_facility:current_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),facility:worker_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),
           other_applications(worker_phone,details,worker:worker_id(id,name_ar,name_en,phone,iqama_number,photo_path,iqama_expiry_date,nationality_ar,birth_date,nationality:nationality_id(code,name_ar,flag_url),current_facility:current_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),facility:worker_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),
           supplier_payroll_applications(worker_phone,total_amount,unpaid_salaries_count,worker:worker_id(id,name_ar,name_en,phone,iqama_number,photo_path,iqama_expiry_date,nationality_ar,nationality:nationality_id(code,name_ar,flag_url),current_facility:current_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),facility:worker_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),
-          service_request_agents(agent:agent_id(id,name_ar,name_en,id_number,phone,nationality_id,edit_log,nationality:nationality_id(code,name_ar,flag_url)))
+          service_request_agents(is_assumed,agent:agent_id(id,name_ar,name_en,id_number,phone,nationality_id,edit_log,nationality:nationality_id(code,name_ar,flag_url)))
         )
       `
 
@@ -2065,6 +2065,11 @@ const HeroMeta = ({ isAr, T, qty, showQty, serviceFull, durLabel, invoiceNo, bra
 }
 
 /* ═════════════ Full-page detail ═════════════ */
+/* أزرار تعبئة مراحل المعاملة من صفحة الفاتورة (التأشيرة · الإقامة · التأمين · رخصة
+   العمل · النقل…) — أُخفيت بطلب المستخدم 2026-10-01: الإدخال صار من «جداول العمل»
+   لكل الخدمات، فبابان لنفس البيانات يتخالفان. شارات «تم…» تبقى للقراءة. */
+const STAGE_ENTRY_FROM_INVOICE = false
+
 function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user }) {
   // Keep a local copy of the invoice so we can re-fetch its totals after a
   // payment/refund/cancel without leaving the detail page. invProp is the
@@ -2646,7 +2651,7 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user }) {
             <div className="minv-hero-warn">{overdueCount} {T(overdueCount === 1 ? 'دفعة متأخرة' : 'دفعات متأخرة', overdueCount === 1 ? 'overdue payment' : 'overdue payments')}</div>
           )}
         </div>
-        {stageActions.length > 0 && (
+        {STAGE_ENTRY_FROM_INVOICE && stageActions.length > 0 && (
           <div className="minv-stage">
             <div className="minv-stage-lbl">{T('الخطوة التالية في المعاملة','Next transaction step')}</div>
             <div className="minv-stage-row">{stageActions}</div>
@@ -2681,7 +2686,7 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user }) {
             </svg>
             <div style={{ fontSize: 22, fontWeight: 600, color: C.gold, letterSpacing: '-.2px' }}>{T('تفاصيل الفاتورة','Invoice Details')}</div>
           </div>
-          {stageActions.length > 0 && (
+          {STAGE_ENTRY_FROM_INVOICE && stageActions.length > 0 && (
             <div style={{ display: 'flex', gap: 8, flexWrap: 'nowrap', minWidth: 220 }}>
               {stageActions}
             </div>
@@ -9942,6 +9947,13 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
             <div style={cardHeader}>
               <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
               <span style={cardTitle}>{T('الوسيط','Agent')}</span>
+              {/* وسيط افتراضي: رُبط آلياً بالترجيح (is_assumed) — العلامة تسقط متى غُيّر الوسيط */}
+              {!!agent && !!inv.service_request?.service_request_agents?.[0]?.is_assumed && (
+                <span title={T('أُدخل هذا الوسيط آلياً بالترجيح — غير مؤكَّد','This agent was auto-assigned — not confirmed')}
+                  style={{ fontSize: 11, fontWeight: 600, color: '#c08a12', background: 'rgba(234,179,8,.16)', border: '1px solid rgba(234,179,8,.4)', borderRadius: 999, padding: '2px 10px', whiteSpace: 'nowrap' }}>
+                  {T('افتراضي — غير مؤكَّد','Assumed — unconfirmed')}
+                </span>
+              )}
               {fl
                 ? <img src={fl} alt={nat?.name_ar || ''} title={nat?.name_ar || ''} style={{ width: 22, height: 16, objectFit: 'cover', borderRadius: 2, flexShrink: 0 }} />
                 : (em ? <span title={nat?.name_ar || ''} style={{ fontSize: 16, lineHeight: 1, flexShrink: 0 }}>{em}</span> : null)}

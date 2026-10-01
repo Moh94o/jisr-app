@@ -286,9 +286,13 @@ export const Dropdown = ({ value, onChange, options, placeholder, getKey, getLab
       const maxH = Math.max(120, Math.min(260, flipUp ? above : below))
       /* الفتح لأعلى يُرسى بحافّة القائمة **السفلى** على الحقل: كان يُحسب من
          السقف `maxH` فتطفو القائمة القصيرة (خياران) بعيداً فوق حقلها. */
+      /* القائمة ١٥٠ على الأقل ولو ضاق زرّها (قائمةٌ داخل خليّة جدول): دونها تنكسر
+         الخيارات القصيرة سطرين. تتوسّط زرّها وتبقى داخل الشاشة. */
+      const width = Math.min(window.innerWidth - 16, Math.max(r.width, 150))
+      const left = Math.max(8, Math.min(r.left + r.width / 2 - width / 2, window.innerWidth - width - 8))
       setPos(flipUp
-        ? { top: 'auto', bottom: window.innerHeight - r.top + 4, left: r.left, width: r.width, maxH }
-        : { top: r.bottom + 4, bottom: 'auto', left: r.left, width: r.width, maxH })
+        ? { top: 'auto', bottom: window.innerHeight - r.top + 4, left, width, maxH }
+        : { top: r.bottom + 4, bottom: 'auto', left, width, maxH })
     }
     setQ('')
     setOpen(o => !o)
