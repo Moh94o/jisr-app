@@ -7583,10 +7583,21 @@ const AC_NOT = 'غير مستحقة'
    فلا تضيع فاتورةُ يوليو التي سُدّدت في أكتوبر خلف عدسة شهرٍ أو فلتر تاريخ. وقبل أن
    تُستحقّ تبقى في شهرها وحده فلا تزحم الشهور بما لا عملَ فيه بعد. */
 const AC_DEFER = 'مؤجلة حتى الدفع بالكامل'
+/* «مؤجلة حتى دفع العمولة القادمة» (طلب المستخدم 2026-10-02): عمولةٌ حلّت لكنها لا تُصرف
+   مع صرف شهرها بل مع الصرف التالي. فهي خارج «تم الدفع» ما دام شهرُ فاتورتها هو آخر
+   شهور المعروض (`acNextWait`)، وصفُّها يُثبَّت في كل شهرٍ بعده (`weekFilter.keep`) — وهناك
+   يسبقها شهرٌ أحدث فتدخل الصرف من تلقائها، بلا تبديل حالتها بيد. */
+const AC_NEXT = 'مؤجلة حتى دفع العمولة القادمة'
+/* «لم تُصرف» (طلب المستخدم 2026-10-02): قولٌ صريح بأن العمولة لم تُدفع — يغلب ختمَ صرفٍ
+   في سجلّ الوسيط (الفراغ «—» يعود إليه فيُقرأ «مصروفة») ويمحوه عند الترحيل. وفي الحساب
+   كأيّ صفٍّ غير مصروف: يدخل «تم الدفع» متى حلّت عمولتُه. */
+const AC_UNPAID = 'لم تُصرف'
+const acTopMonth = (rows) => (rows || []).reduce((m, r) => { if (r.is_clawback) return m; const x = acMonthOf(r); return x > m ? x : m }, '')
+const acNextWait = (r, top) => acState(r) === AC_NEXT && acMonthOf(r) >= (top || '')
 // شهرُ الفاتورة «YYYY-MM» لكروت الشهر — عمودُ الـview، وإلا من تاريخ الفاتورة
 const acMonthOf = (r) => String((r && (r.invoice_month || ymd(r.invoice_at))) || '').slice(0, 7)
 // الأحمر لـ«غير مستحقة»، و«موقوفة» رماديٌّ أزرق — حالةٌ معلّقة لا مرفوضة
-const AC_ST_BG = { [AC_PAID]: 'rgba(46,204,113,.32)', [AC_DUE]: 'rgba(234,179,8,.32)', [AC_NOT]: 'rgba(232,114,101,.32)', [AC_HOLD]: 'rgba(100,116,139,.30)', [AC_DEFER]: 'rgba(93,173,226,.30)' }
+const AC_ST_BG = { [AC_PAID]: 'rgba(46,204,113,.32)', [AC_DUE]: 'rgba(234,179,8,.32)', [AC_NOT]: 'rgba(232,114,101,.32)', [AC_HOLD]: 'rgba(100,116,139,.30)', [AC_DEFER]: 'rgba(93,173,226,.30)', [AC_NEXT]: 'rgba(155,89,182,.28)', [AC_UNPAID]: 'rgba(230,126,34,.28)' }
 
 /* قيمة حقلٍ من حقول العمولة: المكتوب في هذه الحفظة ← المحفوظ في الشيت ← ما في
    سجلّ الوسيط. وتاريخ الصرف يُفترَض اليوم متى قيل «مصروفة» بلا تاريخ — فلا
@@ -7830,6 +7841,7 @@ function AcRatesPanel({ rows, isAr, layout, persistLayout, canEdit, canExport, w
 
   /* الحساب على الصفوف **المُصفّاة** — فالشهر الذي يُصفّى هو الذي يُدفع عنه.
      ويُعاد مع كل ضغطة مفتاح (`draft`) فيرى الموظف أثر الرقم قبل أن يُحفظ. */
+  const topMonth = useMemo(() => acTopMonth(rows), [rows])
   const st = useMemo(() => {
     const m = new Map(AC_SERVICES.map((s) => [s.code, { n: 0, dueN: 0, dueQty: 0, dueAmt: 0, paidAmt: 0, waitN: 0, waitAmt: 0 }]))
     for (const r of rows) {
@@ -7840,12 +7852,12 @@ function AcRatesPanel({ rows, isAr, layout, persistLayout, canEdit, canExport, w
       if (state === AC_HOLD) continue                    // موقوفة بقرار — خارج الحساب كلّه
       const amt = acRowAmount(r, draft)
       if (state === AC_PAID) { c.paidAmt += amt; continue }
-      if (state === AC_NOT || !acDue(r)) { c.waitN++; c.waitAmt += amt; continue }
+      if (state === AC_NOT || acNextWait(r, topMonth) || !acDue(r)) { c.waitN++; c.waitAmt += amt; continue }
       c.dueN++; c.dueQty += acQty(r); c.dueAmt += amt
     }
     return m
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, draft, instAt])
+  }, [rows, draft, instAt, topMonth])
   const tot = useMemo(() => {
     let dueN = 0, dueQty = 0, dueAmt = 0, paidAmt = 0, waitN = 0, waitAmt = 0
     for (const s of AC_SERVICES) {
@@ -7866,9 +7878,9 @@ function AcRatesPanel({ rows, isAr, layout, persistLayout, canEdit, canExport, w
   const targets = useMemo(() => rows.filter((r) => {
     if (r.is_clawback || acCancelled(r)) return false
     const s = acState(r)
-    return s !== AC_PAID && s !== AC_HOLD && s !== AC_NOT && acDue(r)
+    return s !== AC_PAID && s !== AC_HOLD && s !== AC_NOT && !acNextWait(r, topMonth) && acDue(r)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [rows, instAt])
+  }), [rows, instAt, topMonth])
   const payable = useMemo(() => targets.filter((r) => acRowAmount(r, draft) > 0), [targets, draft])
   const payTotal = useMemo(() => payable.reduce((a, r) => a + acRowAmount(r, draft), 0), [payable, draft])
   const noAmt = targets.length - payable.length
@@ -7970,7 +7982,7 @@ function AcRatesPanel({ rows, isAr, layout, persistLayout, canEdit, canExport, w
       if (r.is_clawback || acCancelled(r)) { dead.push(r); continue }
       const s = acState(r)
       if (s === AC_PAID) elig.push(r)
-      else if (s === AC_HOLD || s === AC_NOT || !acDue(r)) wait.push(r)
+      else if (s === AC_HOLD || s === AC_NOT || acNextWait(r, topMonth) || !acDue(r)) wait.push(r)
       else elig.push(r)
     }
     const amt = (r) => acRowAmount(r, draft)
@@ -8030,7 +8042,7 @@ function AcRatesPanel({ rows, isAr, layout, persistLayout, canEdit, canExport, w
       phone10(a0.agent_phone || '') ? `${L('الجوال', 'Mobile')}: <bdi>${esc(phone10(a0.agent_phone))}</bdi>` : ''].filter(Boolean).join(' &nbsp;·&nbsp; ')}</div>`).join('')
     const none = (n) => `<tr><td colspan="${n}" class="mut">${L('لا يوجد', 'None')}</td></tr>`
     const svcRows = AC_SERVICES.map((s) => ({ s, c: st.get(s.code) })).filter((x) => x.c.n > 0)
-    const whyWait = (r) => { const s = acState(r); return s === AC_HOLD ? L('موقوفة', 'On hold') : s === AC_NOT ? L('عُلّمت غير مستحقة', 'Marked not eligible') : acDueInfo(r, ar).why }
+    const whyWait = (r) => { const s = acState(r); return s === AC_HOLD ? L('موقوفة', 'On hold') : s === AC_NOT ? L('عُلّمت غير مستحقة', 'Marked not eligible') : (acNextWait(r, topMonth) && acDue(r)) ? L('مؤجلة حتى دفع العمولة القادمة', 'Deferred to the next payout') : acDueInfo(r, ar).why }
     const deadNote = (r) => (!r.is_clawback ? ''
       : r.clawback_waived ? L('صُرفت العمولة — أُعفي من ردّها', 'Commission paid — clawback waived')
         : r.clawback_settled_at ? L(`خُصمت العمولة ${num(acClawAmt(r))} في ${esc(ymd(r.clawback_settled_at))}`, `Commission ${num(acClawAmt(r))} deducted ${esc(ymd(r.clawback_settled_at))}`)
@@ -8080,7 +8092,7 @@ ${dead.map((r, i) => `<tr><td>${i + 1}</td><td>${esc(ymd(r.invoice_at))}</td><td
       catch { cleanup() }
     }, 400)
     setTimeout(cleanup, 60000)
-  }, [rows, draft, st, tot, colFilters])
+  }, [rows, draft, st, tot, colFilters, topMonth])
 
   const cell = { padding: '6px 10px', fontSize: 12.5, color: 'var(--tx2)', fontFamily: MONO, textAlign: 'center', whiteSpace: 'nowrap' }
   const head = { padding: '8px 10px', fontSize: 11, fontWeight: 600, color: 'var(--tx3)', textAlign: 'center', whiteSpace: 'nowrap', background: 'var(--card-grad2)' }
@@ -11973,7 +11985,7 @@ const VIEWS = [
       get: (r) => (r.is_clawback ? (r.cancelled_at || r.invoice_at) : r.invoice_at),
       /* والمؤجَّلة التي حلّت عمولتُها تُثبَّت من شهر فاتورتها فصاعداً حتى تُصرف. */
       keep: (r) => (acClawPending(r) ? (r.cancelled_at || true)
-        : (!r.is_clawback && acState(r) === AC_DEFER && acDue(r)) ? (r.invoice_at || true) : null) },
+        : (!r.is_clawback && [AC_DEFER, AC_NEXT].includes(acState(r)) && acDue(r)) ? (r.invoice_at || true) : null) },
     derive: acDerive,
     afterSave: acPostCommission,
     // «الاسترداد» يُختار لصفّ الملغاة المصروفة وحده — في غيره لا استردادَ يُقرَّر
@@ -12097,7 +12109,7 @@ const VIEWS = [
       /* المبلغ: ما في سجلّ الوسيط، وإلا تسعيرةُ الخدمة × الكمية (لوحة الأعلى).
          ويبقى قابلاً للكتابة — ما يُكتب في الخليّة يغلب التسعيرة ويُرحَّل. */
       { key: 'ac_state', ar: 'حالة الصرف', en: 'Payout', w: 175, kind: 'text', ops: true, select: true,
-        options: () => [AC_DUE, AC_PAID, AC_NOT, AC_DEFER, AC_HOLD],
+        options: () => [AC_DUE, AC_PAID, AC_UNPAID, AC_NOT, AC_DEFER, AC_NEXT, AC_HOLD],
         get: (r) => (r.commission_paid_at ? AC_PAID : ''),
         bg: (v) => AC_ST_BG[v] || null },
       { key: 'ac_paid_date', ar: 'تاريخ الصرف', en: 'Paid on', w: 115, kind: 'date', ops: true,
