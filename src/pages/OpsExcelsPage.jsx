@@ -451,8 +451,12 @@ async function applySbcName(sb, rows, cfg) {
    أوّلها ويعرضها كما هي.
    ⚠️ يُعرَّف هنا — قبل `WFC` — لأن أعمدتها تُبنى منه لحظة تحميل الملف. وجسدُه
    يشير إلى دوالّ أسفله، وذلك سليم: لا تُستدعى إلا وقت الرسم. */
+/* `filterKey`: هويّةُ قيمة الخليّة **بلا لغة** — يُطابَق بها فلترُ العمود المحفوظ. نصّ خليّة المكتب
+   سطران (الرمز ثم الاسم) والاسم يتبدّل مع لغة الواجهة، فكان فلترٌ حُفظ بالعربية يُفرغ الجدول
+   كلَّه في الإنجليزية (بلاغ المستخدم 2026-10-02). السطر الأول (الرمز) ثابتٌ في اللغتين. */
+const branchFilterKey = (v) => String(v ?? '').split('\n')[0].trim()
 const branchCol = (base) => ({
-  kind: 'text', w: 150, ...base,
+  kind: 'text', w: 150, filterKey: branchFilterKey, ...base,
   get: (r) => srBranchText(r[base.key]),
   bg: (v, r) => srBranchBg(String(r[base.key] || '').split(/[،,]/)[0].trim()),
   /* لونُ المكتب هويّةٌ لا حكم — يبقى ثابتاً ولو احمرّ صفُّ الفاتورة الملغاة
@@ -472,7 +476,7 @@ const branchKey = (v) => String(v ?? '').split('\n')[0].split(/[،,]/)[0].trim()
    فلو كان `get` يُخرج السطرين لصار المخزَّن سطرين لا رمزاً. والسطران يعودان في
    `fmt` (تزيين عرضٍ يشمل التجاوز) و`optLabel` (خيارات القائمة). */
 const branchSelectCol = (base) => ({
-  kind: 'text', w: 150, ...base,
+  kind: 'text', w: 150, filterKey: branchFilterKey, ...base,
   get: (r) => String(r[base.key] ?? '').trim(),
   fmt: (v) => srBranchText(v),
   /* ⚠️ كل إشارةٍ لِما هو مُعرَّف أسفل الملف تبقى **داخل دالّة**: هذا المصنع
@@ -6508,7 +6512,9 @@ const colExpand = (src) => {
         ...r, _id: `${r.id}:v:${v.id}`, _kind: 'iqama', _visa: v, _seat: i + 1, _seats: persons.length,
         _seq: out.length, _head: head,
         ...INV_NULL,
-        ...(head ? { _deferred: deferred, _persons: persons.length, _shared_due: sharedDue, _orphan_iqama: orphan } : {}),
+        ...(head ? { _deferred: deferred, _persons: persons.length, _shared_due: sharedDue, _orphan_iqama: orphan,
+          // حصص إصدار الإقامة لأشخاص الكتلة — يقرؤها «المطلوب» ليضمّ حصّة من استُخدمت تأشيرته (colDueNow)
+          _iq_parts: persons.map((x, j) => ({ b: x.b, due: shares[j] })) } : {}),
         ...(head ? { total_amount: r.total_amount, paid_amount: r.paid_amount,
           remaining_amount: r.remaining_amount, service_quantity: r.service_quantity,
           note_public: r.note_public, ladder: r.ladder, overdue_amount: r.overdue_amount,
@@ -6526,6 +6532,15 @@ const colExpand = (src) => {
   return out
 }
 const colIsPerson = (r) => !!(r && r._kind === 'iqama')
+/* ── «المطلوب» يضمّ إصدار الإقامة **متى استُخدمت التأشيرة** (طلب المستخدم 2026-10-02) ──────────
+   دفعةُ إصدار الإقامة تحلّ بدخول العامل، ودخولُه = حالة التأشيرة «مستخدمة» في قوى برقم حدودها
+   (`qiwa_visa_border_numbers.status = 3`). فمطلوبُ الفاتورة = شريحتها المشتركة الجارية + حصص
+   إصدار الإقامة لمن استُخدمت تأشيراتهم وحدهم؛ ومن لم يدخل بعدُ حصّتُه غير مطلوبة الآن.
+   يُحسب وقت الرسم لا في `colExpand`: فهرس قوى يُحمَّل في الخلفية وقد يصل بعد الصفوف. */
+const colVisaUsed = (b) => { const q = qiwaVisaStatusOf(b); return !!q && q.code === 3 }
+const colUsedIqDue = (r) => (Array.isArray(r && r._iq_parts) ? r._iq_parts : [])
+  .reduce((a, x) => a + (colVisaUsed(x.b) ? depNum(x.due) : 0), 0)
+const colDueNow = (r) => depNum(r && r._shared_due) + colUsedIqDue(r)
 /* اسم العامل من حيث يوجد: ما كُتب على التأشيرة أوّلاً — فهو اسم هذه المعاملة —
    وإلا اسمُه في سجلّ العمالة (`workers`) متى عُرف برقم إقامته أو حدوده. تأشيرةٌ
    تُطلب قبل أن يُسمّى عاملُها، ثم يُسمّى عند إصدار إقامته في سجلٍّ آخر — فقراءةُ
@@ -6748,6 +6763,26 @@ const colDaysBg = (v) => (String(v ?? '').trim() === '' ? null : colBandOf(depNu
 
 /* الوعد: أحمر إن فات موعده، أخضر إن كان اليوم. هذان وحدهما يستدعيان تدخّلاً،
    والوعد المستقبلي بلا خلفية كي لا يغرق العمود في ألوان لا تُقرأ. */
+/* ── بطاقات التحصيل = بطاقات شيتات المعاملات نفسها (طلب المستخدم 2026-10-02) ────────────────
+   العميل والوسيط والمنشأة وإقامة العامل كانت تفتح بطاقةً مبسّطة (`kind:'open'`) تخصّ هذا الشيت؛
+   صارت تفتح بطاقة `col.tap` التي يعرفها الموظف من إصدار التأشيرات ونقل الكفالات وتجديد الإقامات
+   (رأسٌ بالاسم · أسطرٌ تُنسخ · مرفق السجل التجاري). الصفّ هنا يسمّي حقوله بغير أسمائها هناك،
+   فيُعاد تسميتها للبطاقة — والبطاقة واحدة. */
+const colFacCard = (r) => (r ? facInfoCard({ ...r, unified_number: r.facility_unified,
+  gosi_number: r.facility_gosi, hrsd_number: r.facility_hrsd }) : null)
+const colWorkerCard = (r) => (r ? workerInfoCard({
+  worker_name: colWorkerName(r), iqama_number: colWho(r, 'iq'),
+  iqama_expiry: av(r, '_iqama_expiry') || colWho(r, 'iqe'),
+  phone: ((colReg(r) || {}).ph || {}).v,
+  // رقما التأشيرة والحدود لخدمات التأشيرة وحدها — لا حدود في نقل كفالةٍ ولا تجديد
+  ...(colIsVisaSvc(r) && r._visa ? { visa_number: r._visa.vn, border_number: r._visa.b } : {}),
+}) : null)
+const colAgentCard = (r) => {
+  const name = String((r && r.agent_name) || '').trim(), ph = phone10(r && r.agent_phone)
+  if (!name && !ph) return null
+  return { ar: 'بيانات الوسيط', en: 'Agent details', hero: name || ph, heroAr: 'الوسيط', heroEn: 'Agent',
+    rows: [{ ar: 'الجوال', en: 'Mobile', v: ph, mono: true }] }
+}
 const colPromiseBg = (v) => {
   const d = ymd(v); if (!d) return null
   const t = todayYmd()
@@ -6789,6 +6824,21 @@ const colPlanDateBg = (v, r) => {
   if (cur < 0 || i < cur) return null
   return colPromiseBg(d)
 }
+/* ── الوعد الموفّى **يختفي من خانتيه** (طلب المستخدم 2026-10-02) ──────────────────
+   متى وصل من الفاتورة ما يغطّي المبلغ الموعود منذ تاريخه، تُعرض خانتا المبلغ والتاريخ فارغتين:
+   الوعد انتهى، وإن بقي على الفاتورة متبقٍّ فالخانتان جاهزتان لوعدٍ جديد به. القيمة المخزَّنة
+   لا تُمحى — «الالتزام بالوعد» يبقى يقول «أوفى»، والتلميح يذكر الوعد السابق. */
+const colPlanCovered = (r, dk) => {
+  const d = ymd(av(r, dk)); if (!d || !r) return false
+  const { ps, cur } = colPlan(r)
+  const i = ps.findIndex((x) => x.d === d)
+  return i >= 0 && (cur < 0 || i < cur)
+}
+const colPlanTip = (dk, ak) => (_v, r, isAr2) => (colPlanCovered(r, dk)
+  ? (isAr2 === false
+    ? `Previous promise kept (${enNum(depNum(av(r, ak)))} on ${ymd(av(r, dk))}) — enter a new one for what remains`
+    : `وُفّي بالوعد السابق (${depNum(av(r, ak)) ? enNum(depNum(av(r, ak))) + ' · ' : ''}${ymd(av(r, dk))}) — اكتب وعداً جديداً بالمتبقي`)
+  : null)
 const colKept = (r, isAr) => {
   const { ps, got, cur } = colPlan(r)
   if (!ps.length) return ''
@@ -12090,6 +12140,19 @@ const VIEWS = [
   {
     key: 'collections',
     ar: 'تحصيل الفواتير', en: 'Collections',
+    /* زرّ «جلب انتهاء الإقامة للكل» كشيتات المعاملات (طلب المستخدم 2026-10-02) — يكتب في عمود
+       «انتهاء الإقامة» (`_iqama_expiry`). رقم الإقامة من صاحب الصفّ (`colWho`): عامل التأشيرة
+       في صفّ الشخص، وعامل الحسبة في صفّ فاتورة النقل والتجديد. */
+    bulkFetch: (() => {
+      const iq = (r) => String(colWho(r, 'iq') || '').replace(/\D/g, '')
+      return { ...WF_BULK_IQAMA_EXP, col: '_iqama_expiry',
+        eligible: (r) => /^[12]\d{9}$/.test(iq(r)),
+        key: (r) => `${r._id || r.id || ''}:${iq(r)}`,
+        run: async (r) => {
+          const p = await muqeemProbe(iq(r))
+          return p.status === 'ok' ? { status: 'ok', val: ymd(p.result.iqamaExpiryGregorian || '') } : p
+        } }
+    })(),
     /* خانات نافذة «الخروج النهائي وعقد قوى»: أعمدةٌ للتخزين والنوع لا للعرض. */
     hiddenCols: ['col_exit_visa_no', 'col_exit_expiry', 'col_exit_file', 'col_qiwa_file'],
     /* صفّ الكتل فوق الرؤوس — كشيت «تجديد الإقامات» (`view.bands`؛ طلب المستخدم
@@ -12145,16 +12208,22 @@ const VIEWS = [
     autoSet: (r, ctx) => (((ctx || {}).col === 'col_state' && String((ctx || {}).val || '').trim())
       ? { col_contact_at: todayYmd() } : null),
     async load(sb) {
-      /* الترتيب بالمتبقّي نازلاً **لا** بالمطلوب: الصفوف تُبسَط بعد الجلب، ويجب
+      /* الترتيب على مستوى **الفاتورة** لا الصفّ: الصفوف تُبسَط بعد الجلب، ويجب
          أن يبقى صفُّ الفاتورة ملاصقاً لصفوف أشخاصه — فرزٌ بمطلوب الصفّ يبعثرهم.
          والمِرقاة `id` مع المتبقّي كي لا يتأرجح المتساوون بين صفحةٍ وأختها. */
       const [src, , exitMap] = await Promise.all([
         fetchAll(sb, 'v_ops_collections', '*',
           /* `UNLINKED-…` حاويةُ ترحيلٍ لا فاتورة: أقساطُ بابل التي لم تُعرف فاتورتها جُمعت تحتها
              (`UNLINKED-BABEL`) — ليست ديناً يُحصَّل، فلا تدخل الجدول ولا «المطلوب» (طلب المستخدم 2026-10-02). */
-          (q) => q.not('invoice_no', 'like', 'UNLINKED-%').order('remaining_amount', { ascending: false, nullsFirst: false }).order('id')),
+          /* الترتيب **بتاريخ الفاتورة، الأحدث أولاً** (طلب المستخدم 2026-10-02) — كان بالمتبقّي نازلاً.
+             والمِرقاة `id` تُبقي المتساوين في التاريخ ثابتين بين صفحةٍ وأختها. */
+          (q) => q.not('invoice_no', 'like', 'UNLINKED-%').order('invoice_at', { ascending: false, nullsFirst: false }).order('id')),
         loadWorkerReg(sb),                     // سجلّ العامل — عمودا «العامل» و«جوال العامل»
         sharedP('wfExit', () => wfExitMap(sb)), // عمودا «خروج وعودة» و«خروج نهائي» — مصدر «متأخّرات العمالة» نفسه
+        loadQiwaVisaStatus(sb),                // حالة استخدام التأشيرة برقم الحدود — يقرؤها «المطلوب» (colDueNow)
+        loadClientCards(sb),                   // بطاقة العميل خلف اسمه (جوالاته وهويّته)
+        loadFacNums(sb),                       // بطاقة المنشأة خلف رقمها الموحّد
+        loadCrDocs(sb),                        // مرفق السجل التجاري في تلك البطاقة
       ])
       /* تأشيرات مقيم السارية برقم إقامة صاحب الصفّ — كما يُلحقها السجل بصفوفه
          (`_er_all`/`_fe_all`) فيعمل `exitYesCol` هنا بلا تعديل. */
@@ -12183,7 +12252,14 @@ const VIEWS = [
           const rem = depNum(r.remaining_amount)
           return `${enNum(tot)} · ${Math.round(((tot - rem) / tot) * 100)}% · ${isAr2 ? 'متبقّي' : 'due'} ${enNum(rem)}`
         } },
-      { key: 'service_ar', ar: 'الخدمة', en: 'Service', w: 170, kind: 'text' },
+      /* «تجديد الإقامة» تُكتب بمدّتها — «تجديد الإقامة 6 أشهر» (طلب المستخدم 2026-10-02) — كما تحمل
+         «تأشيرة بإقامة 6 أشهر» مدّتها في اسمها. المدّة من طلب التجديد ثم الحسبة (`renewal_months`). */
+      { key: 'service_ar', ar: 'الخدمة', en: 'Service', w: 170, kind: 'text',
+        get: (r, isAr2) => {
+          const base = String(r.service_ar || ''), n = depNum(r.renewal_months)
+          if (r.service_code !== 'iqama_renewal' || !n) return base
+          return isAr2 === false ? `${serviceEn(base) || base} ${n} ${moU(n, false)}` : `${base} ${n} ${moU(n, true)}`
+        } },
       { key: 'service_quantity', ar: 'الكمية', en: 'Qty', w: 80, kind: 'num' },
       { key: 'total_amount', ar: 'الإجمالي', en: 'Total', w: 110, kind: 'num' },
       { key: 'paid_amount', ar: 'المدفوع', en: 'Paid', w: 110, kind: 'num' },
@@ -12198,8 +12274,15 @@ const VIEWS = [
          لا في صفٍّ مستقلّ يعيد قول ما يقوله الدمج. ولفاتورةٍ بلا أشخاص (نقل
          كفالة · تجديد) هي كلُّ مطالبتها. */
       { key: '_shared_due', ar: 'المطلوب على الفاتورة', en: 'Due — invoice', w: 155, kind: 'num',
-        get: (r) => (depNum(r._shared_due) > 0 ? Math.round(depNum(r._shared_due)) : ''),
-        fg: (v) => (depNum(v) > 0 ? C.red : undefined) },
+        get: (r) => (colDueNow(r) > 0 ? Math.round(colDueNow(r)) : ''),
+        fg: (v) => (depNum(v) > 0 ? C.red : undefined),
+        cellTip: (_v, r, isAr2) => {
+          const iq = colUsedIqDue(r); if (!(iq > 0)) return null
+          const sh = depNum(r._shared_due)
+          return isAr2 === false
+            ? `Iqama issuance for used visas: ${enNum(Math.round(iq))}${sh > 0 ? ` + shared tranche ${enNum(Math.round(sh))}` : ''}`
+            : `إصدار إقامة لتأشيراتٍ مستخدمة: ${enNum(Math.round(iq))}${sh > 0 ? ` + الشريحة المشتركة ${enNum(Math.round(sh))}` : ''}`
+        } },
       notesCol({ key: 'note_public', ar: 'ملاحظة', en: 'Note', w: 200 }),
 
       /* ── المطالبة: ما يُطلب في هذا الصفّ ومِن أجل مَن ─────────────────────
@@ -12215,13 +12298,13 @@ const VIEWS = [
          الصفوف (اسم العامل غير مكتوبٍ على التأشيرة)، فأخفاه المستخدمون أو حذفوه —
          والإخفاء والحذف يُحفظان بالمفتاح في تخطيط كلٍّ منهم، فيبقى العمود غائباً
          مهما امتلأ. مفتاحٌ جديد = عمودٌ جديد يظهر للجميع في موضعه من التعريف. */
-      { key: '_worker_name', ar: 'اسم العامل', en: 'Worker name', w: 185, kind: 'open', noCopy: true,
+      { key: '_worker_name', ar: 'اسم العامل', en: 'Worker name', w: 185, kind: 'text',
         get: (r, isAr2) => colWorkerText(r, isAr2),
-        open: (r) => openWorkerCard(r),
-        openTip: { ar: 'بطاقة العامل — الاسم وأرقام هويّته', en: 'Worker card — name & identity numbers' },
+        tap: colWorkerCard, tapTip: { ar: 'اعرض بطاقة العامل (الاسم · انتهاء الإقامة · الجوال)', en: 'Show the worker card (name · expiry · mobile)' },
         cellTip: (v, r, isAr2) => colWorkerTip(r, isAr2) },
       { key: '_iqama_no', ar: 'رقم إقامة العامل', en: 'Worker iqama no.', w: 140, kind: 'mono',
-        get: (r) => colWho(r, 'iq') },
+        get: (r) => colWho(r, 'iq'),
+        tap: colWorkerCard, tapTip: { ar: 'اعرض بطاقة العامل (الاسم · انتهاء الإقامة · الجوال)', en: 'Show the worker card (name · expiry · mobile)' } },
       /* جوالُه بجانب اسمه: المحصِّل يتّصل بالعميل غالباً، لكنّ عاملاً بعينه قد
          يكون هو الطريق الوحيد لبلوغه (العميل هو نفس العامل، أو الوسيط لا يردّ).
          من سجلّ العمالة برقم إقامته وإلا رقم حدوده — يفرغ لمن لا سجلّ له بعد. */
@@ -12359,19 +12442,15 @@ const VIEWS = [
       /* الاسم في الخليّة والجوال في البطاقة — وإن لم يُسجَّل اسمٌ فالجوال في
          الخليّة: خانةٌ فارغة تقول «لا أحد هنا» وللصفّ رقمٌ يُتَّصل به. وعمودا
          الجوال باقيان لمن يريد الرقم بلا فتح بطاقة (ولمن ينسخ عموداً كاملاً). */
-      { key: 'client_name', ar: 'العميل', en: 'Client', w: 190, kind: 'open', sectionStart: true,
+      { key: 'client_name', ar: 'العميل', en: 'Client', w: 190, kind: 'text', sectionStart: true,
         get: (r) => partyText(r, 'client'),
-        open: (r) => openPartyCard(r, 'client'),
-        noCopy: true,
-        openTip: { ar: 'بطاقة العميل — الاسم والجوال', en: 'Client card — name & mobile' },
+        tap: clientInfoCard, tapTip: { ar: 'اعرض بيانات العميل (الجوال · الهوية)', en: 'Show client details (mobile · ID)' },
         cellTip: (v, r, isAr2) => (String(r.client_name || '').trim() ? ''
           : (isAr2 === false ? 'no name on file — mobile shown' : 'لا اسم مسجَّل — الرقم بدلاً منه')) },
       phoneCol({ key: 'client_phone', ar: 'جوال العميل', en: 'Client mobile', w: 130 }),
-      { key: 'agent_name', ar: 'الوسيط', en: 'Agent', w: 160, kind: 'open',
+      { key: 'agent_name', ar: 'الوسيط', en: 'Agent', w: 160, kind: 'text',
         get: (r) => partyText(r, 'agent'),
-        open: (r) => openPartyCard(r, 'agent'),
-        noCopy: true,
-        openTip: { ar: 'بطاقة الوسيط — الاسم والجوال', en: 'Agent card — name & mobile' },
+        tap: colAgentCard, tapTip: { ar: 'اعرض بيانات الوسيط (الجوال)', en: 'Show agent details (mobile)' },
         cellTip: (v, r, isAr2) => (String(r.agent_name || '').trim() ? ''
           : (isAr2 === false ? 'no name on file — mobile shown' : 'لا اسم مسجَّل — الرقم بدلاً منه')) },
       phoneCol({ key: 'agent_phone', ar: 'جوال الوسيط', en: 'Agent mobile', w: 130 }),
@@ -12379,10 +12458,9 @@ const VIEWS = [
          أيقونةَ نسخٍ بجانبه ونقرةً تفتح البطاقة. والبحث يبقى بالاسم أيضاً (`search`
          تشمل `facility_ar`) فلا يُفقد من يبحث بما يحفظ. ويفرغ لفاتورةٍ بلا منشأة
          مربوطة — وهي الأغلب: 186 صفّاً من 1478 لها منشأة. */
-      { key: 'facility_ar', ar: 'المنشأة', en: 'Facility', w: 165, kind: 'open',
+      { key: 'facility_ar', ar: 'المنشأة', en: 'Facility', w: 165, kind: 'mono',
         get: (r) => r.facility_unified || '',
-        open: (r) => openFacCard(r),
-        openTip: { ar: 'بطاقة المنشأة — الاسم وأرقامها الثلاثة', en: 'Facility card — name & its three numbers' },
+        tap: colFacCard, tapTip: { ar: 'اعرض بيانات المنشأة (الاسم · التأمينات · الموارد)', en: 'Show facility details (name · GOSI · HRSD)' },
         cellTip: (v, r) => r.facility_ar || '' },
 
       /* ── الكمية وحالة التشغيل — على صفّ الفاتورة وحده ────────────────────────
@@ -12435,11 +12513,17 @@ const VIEWS = [
       { key: 'col_state', ar: 'حالة التحصيل', en: 'Collection state', w: 150, kind: 'text', ops: true, sectionStart: true,
         select: true, options: () => COL_STATES, bg: (v) => COL_STATE_BG[v] || null },
       /* خطة الدفع — حتى ثلاث دفعات (`COL_PLAN`). الأولى على مفتاحَي الوعد القديمين. */
-      ...[['', 'الأولى', '1st'], ['_2', 'الثانية', '2nd'], ['_3', 'الثالثة', '3rd']].flatMap(([sfx, ar, en]) => [
-        { key: 'col_promise_date' + sfx, ar: `تاريخ الدفعة ${ar}`, en: `${en} payment date`, w: 150, kind: 'date', ops: true,
-          bg: colPlanDateBg },
-        { key: 'col_promise_amount' + sfx, ar: `مبلغ الدفعة ${ar}`, en: `${en} payment amount`, w: 135, kind: 'num', ops: true },
-      ]),
+      /* التسمية «المبلغ الموعود» لا «الدفعة» (طلب المستخدم 2026-10-02): هو وعدُ العميل لا قسطُ الفاتورة.
+         والتاريخ أحمر متى فات موعدُه ولم يُوفَّ (`colPlanDateBg`)، والموفّى تُفرَغ خانتاه (`colPlanCovered`). */
+      ...[['', '', ''], ['_2', ' الثاني', ' (2nd)'], ['_3', ' الثالث', ' (3rd)']].flatMap(([sfx, ar, en]) => {
+        const dk = 'col_promise_date' + sfx, ak = 'col_promise_amount' + sfx
+        return [
+          { key: dk, ar: `تاريخ المبلغ الموعود${ar}`, en: `Promised date${en}`, w: 165, kind: 'date', ops: true,
+            bg: colPlanDateBg, fmt: (_v, r) => (colPlanCovered(r, dk) ? '' : null), cellTip: colPlanTip(dk, ak) },
+          { key: ak, ar: `المبلغ الموعود${ar}`, en: `Promised amount${en}`, w: 135, kind: 'num', ops: true,
+            fmt: (_v, r) => (colPlanCovered(r, dk) ? '' : null), cellTip: colPlanTip(dk, ak) },
+        ]
+      }),
       /* سجلّ المصداقية: يُقارن ما وصل **بعد** تاريخ الوعد بما وُعد به. محسوب
          لا مُدخَل — فلا يُجمَّل. */
       { key: '_kept', ar: 'الالتزام بالوعد', en: 'Promise kept?', w: 165, kind: 'text', readOnly: true,
@@ -16127,17 +16211,21 @@ function CellHistory({ sb, viewKey, rowKey, colKey, isAr, stamp, onView }) {
   useEffect(() => {
     let dead = false
     setRows(null); setErr('')
+    /* `rowKey` مفتاحٌ أو قائمة مفاتيح: خليّةُ «عمود المجموعة» (`view.groupCols`) تُخزَّن بمفتاح
+       مجموعتها (`inv__<id>` · `fac__<id>`) لا بمفتاح صفّها — وقد كُتبت قبل ذلك بمفتاح الصفّ.
+       فيُقرأ السجلّ بالمفتاحين معاً، وإلا بدت خليّةٌ عُدّلت للتوّ بلا سجلّ (بلاغ المستخدم 2026-10-02). */
+    const keys = (Array.isArray(rowKey) ? rowKey : [rowKey]).filter(Boolean)
     ;(async () => {
       const { data, error } = await sb.from('ops_sheet_cell_history')
         .select('id,op,old_value,new_value,by_name,by_id,at')
-        .eq('view_key', viewKey).eq('row_key', rowKey).eq('col_key', colKey)
+        .eq('view_key', viewKey).in('row_key', keys).eq('col_key', colKey)
         .order('at', { ascending: false }).order('id', { ascending: false }).limit(5000)
       if (dead) return
       if (error) setErr(error.message || String(error))
       else setRows(data || [])
     })()
     return () => { dead = true }
-  }, [sb, viewKey, rowKey, colKey])
+  }, [sb, viewKey, Array.isArray(rowKey) ? rowKey.join('|') : rowKey, colKey])   // eslint-disable-line react-hooks/exhaustive-deps
 
   if (err) return <div style={{ fontSize: 12.5, color: C.red, padding: '10px 2px' }}>{T('تعذّر جلب السجلّ: ', 'Could not load the log: ') + err}</div>
   if (rows == null) return <div style={{ fontSize: 12.5, color: 'var(--tx4)', padding: '10px 2px' }}>{T('يُجلب السجلّ…', 'Loading the log…')}</div>
@@ -18718,10 +18806,15 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
     return m
   }, [allRows, view])
 
+  /* ⚠️ جدولٌ له ترتيبٌ معرَّف (`view.rowRank`) **لا يحتكم إلى الترتيب اليدوي المحفوظ** (بلاغ المستخدم
+     2026-10-02): سحبُ صفٍّ واحد كان يحفظ `sort_order` لكل الصفوف المعروضة يومها (2,688 في
+     «إصدار التأشيرات»)، فتتجمّد في أماكنها — وكل فاتورةٍ جديدة بلا ترتيبٍ محفوظ تنزل **بعدها
+     جميعاً**: أحدثُ الشهر في أسفل جدولٍ مرتَّبٍ بالأحدث أولاً. الترتيب اليدوي يبقى للجداول
+     التي لا ترتيب معرَّفاً لها (القوائم اليدوية)، وهناك معناه واضح. */
   const ordered = useMemo(() => {
-    const eff = (r) => (r._sort == null ? 1e6 + (nameRank.get(r._id) || 0) : r._sort)
+    const eff = (r) => ((view.rowRank || r._sort == null) ? 1e6 + (nameRank.get(r._id) || 0) : r._sort)
     return [...allRows].sort((a, b) => (eff(a) - eff(b)) || ((nameRank.get(a._id) || 0) - (nameRank.get(b._id) || 0)))
-  }, [allRows, nameRank])
+  }, [allRows, nameRank, view])
 
   const hiddenCount = useMemo(() => allRows.reduce((a, r) => a + (r._hidden ? 1 : 0), 0), [allRows])
   // صفوف محذوفة نهائياً (تُستبعد كلياً حتى من قائمة «المحذوفة») — تُخزَّن في layout
@@ -18948,7 +19041,12 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
       // 1) نص قديم (توافق)
       if (f.text && String(f.text).trim() !== '' && !latin(v).toLowerCase().includes(latin(f.text).trim().toLowerCase())) return false
       // 2) قائمة القيم المسموحة — والعمود متعدّد القيم (`col.multi`) يُطابَق بمفرداته
-      if (Array.isArray(f.values) && f.values.length && !(col.multi ? multiMatch(v, col.multi, f) : f.values.includes(v))) return false
+      /* المطابقة **لا تتعلّق بلغة الواجهة**: الفلتر يُحفظ بنصّ الخليّة كما عُرض يومها، والنصّ
+         يتبدّل مع اللغة في أعمدةٍ كثيرة (المكتب · نعم/لا · الحالات…). فيُقبَل الصفّ إن طابق
+         نصَّه الحالي، أو هويّتَه بلا لغة (`col.filterKey`)، أو نصَّه **باللغة الأخرى**. */
+      if (Array.isArray(f.values) && f.values.length && !(col.multi ? multiMatch(v, col.multi, f) : (f.values.includes(v)
+        || (col.filterKey && f.values.some((x) => col.filterKey(x) === col.filterKey(v)))
+        || (col.get && !formulaMap[col.key] && f.values.includes(String(col.get(row, !isAr) ?? '')))))) return false
       // 3) الشروط
       if (Array.isArray(f.conds) && f.conds.length) {
         const fam = familyOf(col)
@@ -18961,7 +19059,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
       }
       return true
     }))
-  }, [searched, activeFilterKeys, colFilters, colDefs, valOf, familyOf, weekFilter])
+  }, [searched, activeFilterKeys, colFilters, colDefs, valOf, familyOf, weekFilter, isAr, formulaMap])
 
   // فرز حسب عمود (يتجاوز الترتيب اليدوي أثناء تفعيله)
   const filteredBase = useMemo(() => {
@@ -20222,6 +20320,8 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
 
   /* ترقيم قائمة صفوف مُرتّبة وحفظها دفعة واحدة. */
   const persistOrder = useCallback(async (list) => {
+    // جدولٌ مرتَّبٌ تلقائياً: الترتيب اليدوي لا أثر له فيه (انظر `ordered`) — يُقال ذلك بدل حفظٍ صامت
+    if (view.rowRank) { toast && toast(T('ترتيب هذا الجدول تلقائي — لا يُعاد ترتيب صفوفه يدوياً', 'This sheet is ordered automatically — rows cannot be reordered by hand'), 'error'); return }
     setBusy(true)
     const nowIso = new Date().toISOString()
     const payload = list.map((r, idx) => ({
@@ -23566,7 +23666,8 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
               {fact(T('آخر من مسّها', 'Last touched by'), m && m.at ? `${m.u || T('مستخدم', 'user')} · ${stampWhen(m.at)}` : '')}
             </ModalSection>
             <ModalSection Icon={History} label={T('سجلّ التغييرات', 'Change log')}>
-              <CellHistory sb={sb} viewKey={ovKey} rowKey={row._id} colKey={col.key} isAr={isAr} stamp={m} onView={setFileView} />
+              <CellHistory sb={sb} viewKey={ovKey} colKey={col.key} isAr={isAr} stamp={m} onView={setFileView}
+                rowKey={(row._gkey && isGroupCol(col.key)) ? [row._gkey, row._id] : row._id} />
             </ModalSection>
           </Modal>
         )
@@ -23863,10 +23964,14 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
         // البحث يطابق النصّ المعروض، فكتابة «فارغ» تجد الخيار كما تجد أي قيمة
         const shown = q ? allVals.filter((v) => latin(valLbl(v)).toLowerCase().includes(q)) : allVals
         const isAll = !isMulti && filterDraft.values === null
-        const selSet = isAll ? null : new Set(filterDraft.values || [])
+        /* قيمٌ حُفظت بلغةٍ أخرى تُردّ إلى نظيرتها في القائمة الحالية (بالهويّة `filterKey`)،
+           فتظهر محدَّدةً وتُزال بضغطة — لا فلتر قائمٌ وخاناتُه كلّها فارغة. */
+        const fkOf = col && col.filterKey
+        const normVals = (vals) => (fkOf ? (vals || []).map((x) => (allVals.includes(x) ? x : (allVals.find((a) => fkOf(a) === fkOf(x)) ?? x))) : (vals || []))
+        const selSet = isAll ? null : new Set(normVals(filterDraft.values))
         const isChecked = (v) => isAll || selSet.has(v)
         const toggle = (v) => setFilterDraft((d) => {
-          const base = d.values === null ? (isMulti ? [] : allVals.slice()) : (d.values || [])
+          const base = d.values === null ? (isMulti ? [] : allVals.slice()) : normVals(d.values)
           const s = new Set(base); s.has(v) ? s.delete(v) : s.add(v); const arr = [...s]
           return { ...d, values: !isMulti && arr.length === allVals.length ? null : arr }
         })

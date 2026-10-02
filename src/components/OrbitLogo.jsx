@@ -7,11 +7,13 @@ import { Logo } from './Logo.jsx'
    وأخفت). الحركة بـrequestAnimationFrame على خصائص الـSVG مباشرةً بلا إعادة رسمٍ لـReact. */
 
 const G = '#B07D00', GD = '#7E5A00'
+// نصف قطر الرسم أكبر من الجسم: الزائد هالةٌ شفّافة تذوب فيها حافّةُ النقطة
+const DOT_SOFT = 1.7
 
 /* الوحدات: a/b نسبةٌ من نصف مساحة الرسم R، ونصف قطر الجسم `r` نسبةٌ من قطر الوسام */
 const HALO = {
   id: 'halo', lines: [],
-  bodies: Array.from({ length: 30 }, (_, i) => ({ a: 0.9, b: 0.3, tilt: -10, period: 10, phase: (i / 30) * Math.PI * 2, r: 0.02 })),
+  bodies: Array.from({ length: 36 }, (_, i) => ({ a: 0.9, b: 0.3, tilt: -10, period: 12, phase: (i / 36) * Math.PI * 2, r: 0.02 })),
 }
 
 // نقطةٌ على مدارٍ بيضاويّ مائل
@@ -44,13 +46,18 @@ function OrbitScene({ d, size }) {
         const [x, y] = pos(b, th, R, c)
         const depth = Math.sin(th)
         const front = depth > 0
-        const k = (0.7 + 0.4 * (depth + 1) / 2) * (0.35 + 0.65 * b.fade)
+        /* العمق **متّصلٌ** لا درجتان (بلاغ المستخدم 2026-10-02: النقاط تبدو متقطّعة عند الأمام
+           والخلف): كانت الشفافية تقفز من .42 إلى 1 لحظة عبور النقطة طرفَي المدار. الآن الحجم
+           والشفافية يتبعان منحنىً ناعماً (smoothstep) من أبعد الخلف إلى أقرب الأمام، فلا يُرى
+           موضعُ التبديل بين الطبقتين — وهو يقع عند الطرفين خارج الوسام أصلاً. */
+        const z = (depth + 1) / 2, e = z * z * (3 - 2 * z)
+        const k = (0.62 + 0.58 * e) * (0.35 + 0.65 * b.fade)
         const tw = b.twinkle ? 0.55 + 0.45 * Math.sin(t * 3 + b.phase * 5) : 1
-        const op = (front ? 1 : 0.42) * b.fade * tw
+        const op = (0.3 + 0.7 * e) * b.fade * tw
         for (const [node, on] of [[el.back, !front], [el.front, front]]) {
           if (!node) continue
           node.setAttribute('cx', x.toFixed(2)); node.setAttribute('cy', y.toFixed(2))
-          node.setAttribute('r', (b.r * size * k).toFixed(2))
+          node.setAttribute('r', (b.r * size * k * DOT_SOFT).toFixed(2))
           node.style.opacity = on ? op : 0
         }
       })
@@ -66,7 +73,13 @@ function OrbitScene({ d, size }) {
   const layer = (front) => (
     <svg width={S} height={S} viewBox={`0 0 ${S} ${S}`} style={{ position: 'absolute', inset: 0, overflow: 'visible', pointerEvents: 'none', zIndex: front ? 3 : 1 }}>
       <defs>
-        <radialGradient id={u + (front ? 'f' : 'b')} cx="38%" cy="35%" r="70%"><stop offset="0" stopColor="#FFEBB0"/><stop offset=".55" stopColor={G}/><stop offset="1" stopColor={GD}/></radialGradient>
+        {/* نقطةٌ بحافّةٍ ناعمة: لبٌّ لامع ثم ذهبٌ يذوب إلى شفافية — يُغني عن `drop-shadow` لكل
+            نقطة (36 مرشِّحاً يُعاد حسابها كل إطار كانت تُثقل الحركة فتتقطّع). */}
+        <radialGradient id={u + (front ? 'f' : 'b')} cx="50%" cy="50%" r="50%">
+          <stop offset="0" stopColor="#FFF3C8"/><stop offset=".32" stopColor="#E3B955"/>
+          <stop offset=".58" stopColor={G}/><stop offset=".72" stopColor={GD} stopOpacity=".55"/>
+          <stop offset="1" stopColor={G} stopOpacity="0"/>
+        </radialGradient>
       </defs>
       {d.lines.map((o, i) => (
         <path key={i} d={half(o, front)} fill="none" stroke={G} strokeLinecap="round"
@@ -75,7 +88,7 @@ function OrbitScene({ d, size }) {
       ))}
       {dots.map((b, i) => (
         <circle key={i} r={0} fill={`url(#${u}${front ? 'f' : 'b'})`}
-          style={{ opacity: 0, filter: front && b.lagK === 0 ? 'drop-shadow(0 0 4px rgba(221,176,74,.85))' : undefined }}
+          style={{ opacity: 0 }}
           ref={(n) => { refs.current[i] = refs.current[i] || {}; refs.current[i][front ? 'front' : 'back'] = n }} />
       ))}
     </svg>
