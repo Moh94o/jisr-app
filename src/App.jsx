@@ -1234,8 +1234,8 @@ return<div style={{display:'flex',alignItems:'center',gap:8,minWidth:0,overflow:
 {/* فاصل مرن: يدفع كل المحتوى لليسار */}
 <div style={{flex:1,minWidth:0}}/>
 {/* اليسار: ثلاث شرائح متناسقة — المستخدم · التاريخ · الأوامر */}
-{/* شريحة اتصال مقيم — optIn من الصلاحيات (الرئيسية ← مؤشّر اتصال مقيم)؛ المدير العام يراها دائماً */}
-{cardVisible(user,'home','muqeem_status')&&<MuqeemStatusPill lang={lang}/>}
+{/* شريحة اتصال مقيم — تظهر لكل المستخدمين (طلب المستخدم 2026-10-02): كانت optIn من الصلاحيات */}
+<MuqeemStatusPill lang={lang}/>
 {/* شريحة المستخدم — أفاتار + اسم/مكتب، تنقر تفتح الملف الشخصي */}
 {(()=>{
 const nm=(lang==='en'?(user?.person?.name_en||user?.person?.name_ar):(user?.person?.name_ar||user?.person?.name_en))||'';

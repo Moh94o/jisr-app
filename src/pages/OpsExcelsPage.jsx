@@ -12988,6 +12988,7 @@ const VIEWS = [
   {
     key: 'iqama_issuance',
     bulkFetch: txnBulkIqamaExp('iqama_expiry'),
+    statsOneRow: true,   // كروت الإحصاء في صفٍّ واحد (طلب المستخدم 2026-10-02)
     /* صفّ الكتل فوق الرؤوس — انظر txnBands */
     bands: txnBands({
       svc: ['iqama_months'],
@@ -13369,19 +13370,20 @@ const VIEWS = [
   {
     key: 'iqama_renewal',
     bulkFetch: txnBulkIqamaExp('iqama_expiry'),
+    statsOneRow: true,   // كروت الإحصاء في صفٍّ واحد (طلب المستخدم 2026-10-02)
     /* صفّ الكتل فوق الرؤوس — انظر txnBands */
     bands: txnBands({
       svc: ['iqama_number', 'billed_months', 'iqama_expiry_gregorian', 'expected_expiry_date'],
       who: { ar: 'العامل', en: 'Worker', keys: ['worker_name', 'nationality_ar', 'occupation_ar', 'phone', 'passport_file'] },
       /* كتلةٌ لكل مرحلة (طلب المستخدم 2026-09-24): سدادُها وحالتُها وحقولُها ومرفقاتها */
       stage: [
-        { ar: 'التجديد - التأمين', en: 'Renewal — Insurance', prefixes: ['insurance_'],
+        { ar: 'التأمين', en: 'Insurance', prefixes: ['insurance_'],
           keys: ['ren_msg_insurance', 'iqm_done_ren_insurance'] },
-        { ar: 'التجديد - رخصة العمل', en: 'Renewal — Work permit', prefixes: ['work_permit_'],
+        { ar: 'رخصة العمل', en: 'Work permit', prefixes: ['work_permit_'],
           keys: ['ren_msg_permit', 'iqm_done_ren_permit'] },
-        { ar: 'التجديد - تغيير المهنة', en: 'Renewal — Profession change',
+        { ar: 'تغيير المهنة', en: 'Profession change',
           keys: ['new_occupation_name_ar', 'ren_prof_state', 'ren_msg_prof'] },
-        { ar: 'التجديد - الإقامة', en: 'Renewal — Iqama',
+        { ar: 'الإقامة', en: 'Iqama',
           keys: ['ren_msg_iqama', 'iqm_done_ren_iqama', 'iqama_status_ar', 'iqama_expiry', 'iqama_occupation_ar', 'ren_dur',
             'iqama_amount', 'iqama_file', 'iqama_muqeem_file'] },
       ],
@@ -13482,6 +13484,7 @@ const VIEWS = [
   {
     key: 'transfer_txn',
     bulkFetch: txnBulkIqamaExp('mq_iqama_expiry'),
+    statsOneRow: true,   // كروت الإحصاء في صفٍّ واحد (طلب المستخدم 2026-10-02)
     /* صفّ الكتل فوق الرؤوس — انظر txnBands */
     bands: txnBands({
       who: { ar: 'العامل', en: 'Worker', keys: ['worker_name', 'iqama_number', 'iqama_expiry_gregorian', 'nationality', 'phone', 'occupation_name_ar'] },
@@ -21637,7 +21640,9 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
                 <div key={i} title={(isAr ? s.ar : s.en) + ': ' + s.items.map((it) => (denOf(it)
                   ? `${isAr ? it.ar : it.en} ${enNum(Math.max(0, denOf(it) - it.val))} / ${enNum(denOf(it))}` + (it.val ? T(` (المتبقي ${enNum(it.val)})`, ` (${enNum(it.val)} left)`) : '')
                   : `${it.full || (isAr ? it.ar : it.en)} ${fmtVal(it)}`)).join(' · ')}
-                  style={{ ...cardSty, flex: oneRow ? `${s.grow ?? s.items.length} 1 0` : `${s.items.length} 1 ${s.items.length * 130}px` }}>
+                  /* في الصفّ الواحد: كرتُ المجموعة (المراحل) لا يُعصَر — له حدٌّ أدنى بعدد خاناته، والكروت
+                     المفردة هي التي تتقلّص حوله (بلاغ المستخدم 2026-10-02: انضغطت المراحل وهي الأهمّ). */
+                  style={{ ...cardSty, ...(oneRow ? { flex: `${s.grow ?? s.items.length} 1 ${s.items.length * 96}px`, minWidth: s.items.length <= 4 ? s.items.length * 88 : 0 } : { flex: `${s.items.length} 1 ${s.items.length * 130}px` }) }}>
                   {accent(C.gold, false)}
                   <span style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
                     <span style={{ flex: 1, fontSize: 12, color: 'var(--tx3)', fontWeight: 600, whiteSpace: 'nowrap',
@@ -21715,7 +21720,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
             const pct = isCount && pctBase > 0 ? Math.round((s.val * 100) / pctBase) : null
             return (
               <div key={i} title={(isAr ? s.ar : s.en) + ': ' + shown + (pct !== null ? ` (${pct}% ${T('من المعروض', 'of shown rows')})` : '')}
-                style={{ ...cardSty, flex: '1 1 150px' }}>
+                style={{ ...cardSty, flex: oneRow ? '1 1 0' : '1 1 150px' }}>
                 {accent(clr, !!s.tone)}
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
                   <span style={{ flex: 1, fontSize: 12, color: 'var(--tx3)', fontWeight: 600, whiteSpace: 'nowrap',
