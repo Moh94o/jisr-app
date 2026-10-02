@@ -706,7 +706,10 @@ export default function HomeDashboard({ sb, user, lang = 'ar', onNavigate, logo 
   const offRows = agg.officeRows
   // ── منحنى الاتجاه ──
   const trendData = trend === 'daily' ? agg.daily : agg.monthly
-  const trendPlot = withLive(trendData, ['in', 'out'])
+  // الصافي = الداخل − الملغى لكل نقطة (طلب المستخدم 2026-10-02) — خطٌّ ثالث بلا تعبئة
+  const trendPlot = withLive(trendData.map((r) => ({ ...r, net: r.in - r.out })), ['in', 'out', 'net'])
+  const NET = SERIES[2]
+  const trendNet = trendData.reduce((s, r) => s + r.in - r.out, 0)
   // الزمن يمشي من اليسار لليمين في اللغتين (الأقدم يساراً)؛ محور القيم يميناً بالعربية
   const fmtX = (x) => (trend === 'daily' ? fmtChartDay(x, isAr) : fmtChartMonth(x, isAr))
   const fmtMonthX = (x) => fmtChartMonth(x, isAr)
@@ -717,6 +720,7 @@ export default function HomeDashboard({ sb, user, lang = 'ar', onNavigate, logo 
         <Legend parts={[
           { k: 'in', l: T('الداخل', 'Received'), v: trendData.reduce((s, r) => s + r.in, 0), c: GOLD, line: 'solid' },
           { k: 'out', l: T('الملغى', 'Cancelled'), v: trendData.reduce((s, r) => s + r.out, 0), c: ST.crit, line: 'dashed' },
+          { k: 'net', l: T('الصافي', 'Net'), v: trendNet, c: NET, line: 'solid' },
         ]} />
       </div>
       <div style={{ flex: 1, minHeight: 180, direction: 'ltr' }}>
@@ -734,6 +738,8 @@ export default function HomeDashboard({ sb, user, lang = 'ar', onNavigate, logo 
             <Area type="monotone" dataKey="inLive" name={T('الداخل', 'Received')} stroke={GOLD} strokeOpacity={0.45} strokeWidth={2} strokeDasharray="4 4" fill={GOLD} fillOpacity={0.04} activeDot={{ r: 4.5, stroke: 'var(--card-bg)', strokeWidth: 2 }} />
             <Area type="monotone" dataKey="out" name={T('الملغى', 'Cancelled')} stroke={ST.crit} strokeWidth={2} strokeDasharray="5 3" fill="url(#hdOut)" activeDot={{ r: 4.5, stroke: 'var(--card-bg)', strokeWidth: 2 }} />
             <Area type="monotone" dataKey="outLive" name={T('الملغى', 'Cancelled')} stroke={ST.crit} strokeOpacity={0.4} strokeWidth={2} strokeDasharray="2 4" fill="none" activeDot={{ r: 4.5, stroke: 'var(--card-bg)', strokeWidth: 2 }} />
+            <Area type="monotone" dataKey="net" name={T('الصافي', 'Net')} stroke={NET} strokeWidth={2} fill="none" activeDot={{ r: 4.5, stroke: 'var(--card-bg)', strokeWidth: 2 }} />
+            <Area type="monotone" dataKey="netLive" name={T('الصافي', 'Net')} stroke={NET} strokeOpacity={0.45} strokeWidth={2} strokeDasharray="4 4" fill="none" activeDot={{ r: 4.5, stroke: 'var(--card-bg)', strokeWidth: 2 }} />
           </AreaChart>
         </ResponsiveContainer>
       </div>
@@ -1141,6 +1147,7 @@ export default function HomeDashboard({ sb, user, lang = 'ar', onNavigate, logo 
         <div className="mh-legend">
           <span><i className="ln" style={{ borderColor: GOLD }} />{T('الداخل', 'Received')} <b>{fmt(trendData.reduce((s, r) => s + r.in, 0))}</b></span>
           <span><i className="ln dash" style={{ borderColor: ST.crit }} />{T('الملغى', 'Cancelled')} <b>{fmt(trendData.reduce((s, r) => s + r.out, 0))}</b></span>
+          <span><i className="ln" style={{ borderColor: NET }} />{T('الصافي', 'Net')} <b>{fmt(trendNet)}</b></span>
         </div>
         <div className="mh-chart" style={{ height: 176 }}>
           <ResponsiveContainer width="100%" height="100%">
@@ -1156,6 +1163,8 @@ export default function HomeDashboard({ sb, user, lang = 'ar', onNavigate, logo 
               <Area type="monotone" dataKey="inLive" name={T('الداخل', 'Received')} stroke={GOLD} strokeOpacity={0.45} strokeWidth={2} strokeDasharray="4 4" fill={GOLD} fillOpacity={0.04} activeDot={{ r: 4.5, stroke: '#fff', strokeWidth: 2 }} />
               <Area type="monotone" dataKey="out" name={T('الملغى', 'Cancelled')} stroke={ST.crit} strokeWidth={1.6} strokeDasharray="4 3" fill="none" activeDot={{ r: 4, stroke: '#fff', strokeWidth: 2 }} />
               <Area type="monotone" dataKey="outLive" name={T('الملغى', 'Cancelled')} stroke={ST.crit} strokeOpacity={0.4} strokeWidth={1.6} strokeDasharray="2 4" fill="none" activeDot={{ r: 4, stroke: '#fff', strokeWidth: 2 }} />
+              <Area type="monotone" dataKey="net" name={T('الصافي', 'Net')} stroke={NET} strokeWidth={1.8} fill="none" activeDot={{ r: 4, stroke: '#fff', strokeWidth: 2 }} />
+              <Area type="monotone" dataKey="netLive" name={T('الصافي', 'Net')} stroke={NET} strokeOpacity={0.45} strokeWidth={1.8} strokeDasharray="4 4" fill="none" activeDot={{ r: 4, stroke: '#fff', strokeWidth: 2 }} />
             </AreaChart>
           </ResponsiveContainer>
         </div>

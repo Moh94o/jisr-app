@@ -627,7 +627,7 @@ const OFFICE_SHEET_KEYS=['persons','offices'];
 /* قسم «السعودة»: المزامنة ثم الإدخال (طلب المستخدم 2026-09-24) */
 const SAUDI_SHEET_KEYS=['saudization','saudization_entry'];
 /* جداولُ تحت قسم «المالية» بجوار صفحاته (طلب المستخدم 2026-09-24) — تُعرض بمحرّك الجداول نفسه */
-const FIN_SHEET_KEYS=['collections','worker_overdue','recoveries'];
+const FIN_SHEET_KEYS=['collections','worker_overdue','recoveries','deposits'];
 /* «الخدمات» بهذا الترتيب (طلب المستخدم 2026-09-26، والمستندات آخرها)، ثم بقيّة جداول المجموعة */
 const SVC_FIRST_KEYS=['svc_chamber','svc_ajeer','svc_exit_reentry','svc_final_exit','svc_ext_transfer','svc_profession','svc_medical','svc_salary','svc_passport','svc_documents'];
 /* الجداول التي لها قسمٌ خاصّ فتسقط من «الخدمات» */

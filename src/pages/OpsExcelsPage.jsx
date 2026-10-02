@@ -13,7 +13,7 @@ import { Modal, ModalSection, ActionButton, ConfirmDialog, Dropdown, Select, Seg
 import { useIsMobile, MBadge } from '../components/mobile/MobileKit.jsx'
 import { MSheetList, MSheetDetail, buildSpec, toneOfBg, stageState, StageDots, fmtMoney, rangeLabel } from '../components/mobile/sheets/MSheet.jsx'
 import '../styles/m-sheets.css'
-import { Save, UserRound, IdCard, Trash2, Search, RefreshCw, HeartPulse, ShieldOff, X as XIcon, HandCoins, BadgeCheck, ArrowUpDown, Zap, SlidersHorizontal, ListChecks, Pencil, ArrowUpNarrowWide, ArrowDownWideNarrow, Filter, Sigma, Pin, PinOff, Palette, Type, KeyRound, Eye, EyeOff, MoveHorizontal, SeparatorVertical, ClipboardCopy, Check, History, Plus, FileInput, Columns3, TableProperties, ChevronLeft, ChevronRight, Building2, CalendarDays, Printer } from 'lucide-react'
+import { Save, UserRound, IdCard, Trash2, Search, RefreshCw, HeartPulse, ShieldOff, X as XIcon, HandCoins, BadgeCheck, ArrowUpDown, Zap, SlidersHorizontal, ListChecks, Pencil, ArrowUpNarrowWide, ArrowDownWideNarrow, Filter, Sigma, Pin, PinOff, Palette, Type, KeyRound, Eye, EyeOff, MoveHorizontal, SeparatorVertical, ClipboardCopy, Check, History, Plus, FileInput, Columns3, TableProperties, ChevronLeft, ChevronRight, Building2, CalendarDays, Printer, FileText, SaudiRiyal } from 'lucide-react'
 
 /* سقوطُ الجلسة يُرجع 401 / 42501 من PostgREST، فيبدو للمستخدم «فشل الحفظ» بلا
    سبب — وهو يرى اسمه في الرأس فيظنّها صلاحيات. نُسمّيه باسمه. */
@@ -2442,6 +2442,105 @@ function FilesCell({ files, isAr, onView, label }) {
           </a>
         )
       })}
+    </span>
+  )
+}
+
+/* خلية الحوالات البنكية ليومٍ في «متابعة الإيداعات»: رقمٌ لكل حوالة بمبلغها —
+   يفتح ملفها إن أُرفق، وباهتٌ صامت إن لم يُرفق — ثم مجموع اليوم متى
+   تعدّدت الحوالات (الحوالة الواحدة مبلغُها هو المجموع، فلا يُكرَّر). */
+function DepTransfersCell({ list, total, isAr, onView, onCopy }) {
+  const [open, setOpen] = useState(null)      // الحوالة المفتوحة بطاقتُها
+  const [copied, setCopied] = useState(false)
+  const [closeHov, setCloseHov] = useState(false)
+  const items = Array.isArray(list) ? list.filter((t) => t && Number(t.a)) : []
+  if (!items.length) return <span style={{ fontFamily: MONO, color: 'var(--tx4)' }}>{depMoney(total)}</span>
+  /* أرقامٌ لا أزرار: كل مبلغٍ أزرق تحته خطّ ذهبي، وبين المبالغ «+» ثم «= المجموع».
+     ضغطة المبلغ تفتح بطاقة الحوالة: رقم فاتورتها (يُنسخ) وملفها (طلب المستخدم 2026-10-02). */
+  const num = { fontFamily: MONO, fontSize: 12.5, fontWeight: 600, color: 'var(--tx)', whiteSpace: 'nowrap' }
+  const sign = { fontFamily: MONO, fontSize: 12.5, color: 'var(--tx3)' }
+  const T = (ar, en) => (isAr ? ar : en)
+  const ref = open ? String(open.i || '').trim() : ''
+  const file = open ? (Array.isArray(open.f) ? open.f : []).find((x) => x && x.u) : null
+  const btn = { height: 36, padding: '0 16px', borderRadius: 9, border: '1px solid rgba(176,125,0,.5)', background: 'rgba(176,125,0,.12)',
+    color: '#B07D00', fontSize: 13, fontWeight: 600, fontFamily: F, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'nowrap', overflow: 'hidden' }}>
+      {items.map((t, i) => (
+        <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          {i > 0 && <span style={sign}>+</span>}
+          <span title={T('اعرض رقم الفاتورة وملف الحوالة', 'Show invoice number and transfer file')}
+            onClick={(e) => { e.stopPropagation(); setCopied(false); setCloseHov(false); setOpen(t) }}
+            style={{ ...num, color: '#5dade2', borderBottom: '1.5px solid #B07D00', lineHeight: 1.35, cursor: 'pointer' }}>{enNum(t.a)}</span>
+        </span>
+      ))}
+      {items.length > 1 && <span title={T('مجموع حوالات اليوم', 'Day total')} style={num}><span style={sign}>=</span> {enNum(total)}</span>}
+      {open && ReactDOM.createPortal(
+        <div onClick={(e) => { e.stopPropagation(); setOpen(null) }} onMouseDown={(e) => e.stopPropagation()}
+          style={{ position: 'fixed', inset: 0, zIndex: 9990, background: 'rgba(0,0,0,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div onClick={(e) => e.stopPropagation()} dir={isAr ? 'rtl' : 'ltr'}
+            style={{ width: 'min(380px,100%)', borderRadius: 14, border: '1px solid rgba(176,125,0,.45)', background: 'var(--sf)',
+              boxShadow: '0 12px 48px rgba(0,0,0,.35)', padding: 20, fontFamily: F, display: 'flex', flexDirection: 'column', gap: 14, position: 'relative' }}>
+            {/* زرّ الإغلاق نفسه الذي في نوافذ FormKit (إنشاء فاتورة…): أعلى الطرف المقابل للعنوان */}
+            <button type="button" onClick={() => setOpen(null)} title={T('إغلاق', 'Close')}
+              onMouseEnter={() => setCloseHov(true)} onMouseLeave={() => setCloseHov(false)}
+              style={{ position: 'absolute', top: 16, insetInlineEnd: 16, width: 36, height: 36, borderRadius: 10, padding: 0,
+                background: closeHov ? 'rgba(192,57,43,.15)' : 'var(--bd2)', border: `1px solid ${closeHov ? C.red + '66' : 'var(--bd)'}`,
+                color: closeHov ? C.red : 'var(--tx3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: '.15s' }}>
+              <XIcon size={14} />
+            </button>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
+              <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--tx)' }}>{T('حوالة بنكية', 'Bank transfer')}</span>
+              <span style={{ fontFamily: MONO, fontSize: 16, fontWeight: 600, color: '#5dade2', direction: 'ltr', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                <SaudiRiyal size={15} strokeWidth={2.2} />{enNum(open.a)}</span>
+            </div>
+            <div>
+              <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--tx3)', marginBottom: 6 }}>{T('رقم الفاتورة', 'Invoice number')}</div>
+              {ref ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ flex: 1, minWidth: 0, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 12px', borderRadius: 9,
+                    border: '1px solid var(--bd)', background: 'var(--fk-input-bg)', fontFamily: MONO, fontSize: 14, fontWeight: 600, color: 'var(--tx)',
+                    direction: 'ltr', userSelect: 'all', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'copy', position: 'relative' }}
+                    /* بلا زرّ نسخ منفصل (طلب المستخدم 2026-10-02): أيقونة نسخ داخل الخانة
+                       يساراً، وضغطة الخانة كلّها تنسخ الرقم */
+                    title={T('اضغط للنسخ', 'Click to copy')}
+                    onClick={() => Promise.resolve(onCopy ? onCopy(ref) : false).then((ok) => setCopied(ok ? 'ok' : 'fail'))}>
+                    {ref}
+                    <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', display: 'inline-flex', userSelect: 'none',
+                      color: copied === 'ok' ? '#2ecc71' : '#B07D00' }}>
+                      {copied === 'ok' ? <Check size={15} strokeWidth={2.4} /> : <ClipboardCopy size={15} strokeWidth={2} />}
+                    </span>
+                  </span>
+                </div>
+              ) : <div style={{ fontSize: 12.5, color: 'var(--tx3)' }}>{T('لا رقم فاتورة', 'No invoice number')}</div>}
+            </div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+              {file
+                ? <a href={file.u} target="_blank" rel="noopener noreferrer" style={{ ...btn, textDecoration: 'none', flex: 1, justifyContent: 'center', position: 'relative', boxSizing: 'border-box' }}
+                    onClick={(e) => { fvOpen(e, onView, file.u, file.n, file.m); setOpen(null) }}>{T('ملف الحوالة', 'Transfer file')}
+                    <FileText size={15} strokeWidth={2} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)' }} /></a>
+                : <span style={{ alignSelf: 'center', marginInlineEnd: 'auto', fontSize: 12.5, color: 'var(--tx3)' }}>{T('لا ملف مرفق', 'No file attached')}</span>}
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
+    </span>
+  )
+}
+
+/* أيقونة نسخ صامتة: تنسخ النصّ وتنقلب علامة صحّ خضراء لحظةً — بلا إشعار
+   (طلب المستخدم 2026-10-02). `onCopy` هو `writeClipboard` الصفحة. */
+function CopyTick({ text, onCopy, label }) {
+  const [ok, setOk] = useState(false)
+  return (
+    <span title={label}
+      onClick={(e) => {
+        e.stopPropagation()
+        Promise.resolve(onCopy ? onCopy(text) : false).then((done) => { if (done) { setOk(true); setTimeout(() => setOk(false), 1600) } })
+      }}
+      style={{ display: 'inline-flex', verticalAlign: 'middle', marginInlineStart: 8, cursor: 'pointer', color: ok ? '#2ecc71' : '#B07D00' }}>
+      {ok ? <Check size={14} strokeWidth={2.4} /> : <ClipboardCopy size={14} strokeWidth={2} />}
     </span>
   )
 }
@@ -5027,7 +5126,10 @@ const depDateSpine = (endYmd) => {
 // تاريخ اليوم محلياً بصيغة YYYY-MM-DD — يُقرأ عند كل استدعاء فينتقل الافتراضي
 // لليوم التالي وحده عند تغيّر اليوم، بلا إعادة تحميل
 const todayYmd = () => { const p = (n) => String(n).padStart(2, '0'); const d = new Date(); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}` }
-const depToday = todayYmd
+/* «اليوم» في الإيداعات = **يوم العمل**: يبدأ 5 فجراً بتوقيت الرياض كبقيّة البرنامج
+   (`businessDayKey` في سجل الفواتير) — الرياض UTC+3، فيوم العمل = UTC − ساعتين.
+   العرضان `v_ops_office_deposits*` يحسبان `pay_date` بالقاعدة نفسها. */
+const depToday = () => new Date(Date.now() - 2 * 3600 * 1000).toISOString().slice(0, 10)
 
 /* السلسلة المتتابعة لكل مكتب. تقرأ «المودع» من الـoverlay ومن التعديلات غير
    المحفوظة معاً، فالمتبقّي والمرحّل يتحدّثان لحظة الكتابة لا بعد الحفظ. */
@@ -5084,53 +5186,9 @@ const depDerive = (rows, edits) => {
   DEP_REF.calc = calc
 }
 
-/* ملخّص المكتب. الأعمدة المتتابعة (المرحّل/الإجمالي/المتبقي) لا يصحّ جمعها
-   عمودياً — المبلغ غير المدفوع يتكرّر في كل يوم تالٍ فيتضاعف الناتج مرات.
-   الرقم الصحيح للمتبقي هو رصيد آخر يوم = مجموع المستحق − مجموع المودع. */
-const depSummary = (rows, isAr) => {
-  let due = 0, paid = 0, bank = 0, late = 0, adj = 0
-  let dutyDays = 0, clearedDays = 0
-  for (const r of rows) {
-    due += depNum(r.dep_due)
-    bank += depNum(r.dep_bank)
-    const c = DEP_REF.calc.get(r._id)
-    if (!c) continue
-    adj += c.adj
-    paid += c.paid
-    // «أيام بلا إيداع» = يوم **حصّل فيه المكتب نقداً** ولم يُودِع شيئاً. الشرط على
-    // مستحق اليوم نفسه لا على الإجمالي: الإجمالي يحمل المتأخّر مرحّلاً، فكانت
-    // الأيام الفارغة اللاحقة (وكل أيام المدى المستقبلية) تُعدّ متأخرة بلا معنى.
-    if (depNum(r.dep_due) > 0) {
-      dutyDays++                          // يوم عليه واجب إيداع
-      if (c.rem <= 0) clearedDays++       // أُقفل بالكامل في حينه
-      if (c.paid <= 0) late++
-    }
-  }
-  const out = Math.round((due - paid - adj) * 100) / 100
-  const duty = dutyDays ? Math.round((clearedDays / dutyDays) * 100) : 100
-  /* سلسلة الأيام النظيفة = كم يوماً مضى منذ آخر يوم أُقفل وعليه متأخّر. تُحسب
-     رجوعاً من آخر يوم: أي متأخّر قائم يكسر السلسلة فوراً (لأنه يُرحَّل يومياً). */
-  const sorted = [...rows].sort((a, b) => String(b.dep_date).localeCompare(String(a.dep_date)))
-  let streak = 0
-  for (const r of sorted) {
-    const c = DEP_REF.calc.get(r._id)
-    if (!c || c.rem > 0) break
-    streak++
-  }
-  return [
-    { label: isAr ? 'إجمالي المستحق' : 'Total due', value: enNum(due) },
-    { label: isAr ? 'إجمالي المودع' : 'Total deposited', value: enNum(paid) },
-    ...(adj ? [{ label: isAr ? 'تسويات' : 'Adjustments', value: enNum(adj), tone: 'warn' }] : []),
-    { label: isAr ? 'المتبقي الآن' : 'Outstanding now', value: enNum(out), tone: out > 0 ? 'bad' : 'good' },
-    { label: isAr ? 'نسبة الالتزام' : 'Compliance', value: enNum(duty) + '%',
-      tone: duty >= 95 ? 'good' : duty >= 80 ? 'warn' : 'bad' },
-    { label: isAr ? 'أيام متتالية بلا متأخرات' : 'Clean-day streak', value: enNum(streak),
-      tone: streak >= 7 ? 'good' : streak ? 'warn' : 'bad' },
-    { label: isAr ? 'حوالات بنكية' : 'Bank transfers', value: enNum(bank) },
-    { label: isAr ? 'أيام بلا إيداع' : 'Days with no deposit', value: enNum(late), tone: late ? 'warn' : 'good' },
-  ]
-}
 const depGet = (r, k) => { const c = DEP_REF.calc.get(r && r._id); return c ? c[k] : undefined }
+// قيمةٌ من صفّ **اليوم** بين الصفوف المعروضة (مكتب التبويب المختار) — `null` إن غاب
+const depToday1 = (rows, pick) => { const t = depToday(); const r = rows.find((x) => x.dep_date === t); return r ? (Number(pick(r)) || 0) : null }
 /* لون الحالة من **الحرف الأول** لا من النص كاملاً — النص يحمل عدد أيام التأخير
    («✗ لم يتم · ٤ أيام») فمطابقة النص الكامل كانت ستكسر التلوين. */
 const DEP_STATUS_BG = {
@@ -5155,6 +5213,7 @@ const DEP_ADJ_REASONS = [
   'دفعة سُجّلت بأثر رجعي',
   'خطأ إسناد فرع',
   'حوالة بنكية غير مسجّلة',
+  'تعديل للفاتورة',
   'مصروف/خصم من المكتب',
   'فاتورة ملغاة أو مرتجعة',
   'أخرى',
@@ -6331,7 +6390,10 @@ const colBktAr = (b, isAr) => (isAr === false ? colBkt(b).en : colBkt(b).ar)
 const COL_VISA_BKTS = new Set(['issue', 'wakala', 'iqama'])
 const colIsPackage = (r) => depNum(r && r.visa_count) > 0
   || (Array.isArray(r && r.visas) && r.visas.length > 0)
-  || depNum(r && r.rem_iqama) > 0      // باقةٌ لم تُسجَّل تأشيراتها بعد (26 فاتورة)
+  /* باقةٌ لم تُسجَّل تأشيراتها بعد — **لخدمات التأشيرة وحدها**: قسطُ «عند إصدار/تجديد الإقامة»
+     على فاتورة نقل كفالةٍ أو تجديدٍ يُصنَّف `iqama` بنصّه وليس فيه تأشيرةٌ تُسجَّل أصلاً
+     (بلاغ المستخدم 2026-10-02 — فاتورة نقلٍ قيل عنها «إقامات بلا تأشيرات مسجَّلة»). */
+  || (depNum(r && r.rem_iqama) > 0 && /^work_visa/.test(String((r && r.service_code) || '')))
 /* خدمةُ **تأشيرةٍ بإقامة** وحدها لها تأشيرات: `work_visa_*` (دائمة · 3 · 6 · 9 ·
    12 شهراً). وما عداها — نقل كفالة · تجديد إقامة · أجير · خروج وعودة · عام —
    لا رقم حدود لها ولا تأشيرة ولا وكالة ولا تاريخ دخول، بشهادة البيانات: صفر
@@ -6342,6 +6404,8 @@ const colIsVisaSvc = (r) => /^work_visa/.test(String((r && r.service_code) || ''
 const colVisaOnlyBg = (v, r) => ((colIsVisaSvc(r) || String(v ?? '').trim()) ? null : NA_BG)
 const colBktKey = (r) => {
   const b = (r && r.shared_bucket) || 'none'
+  // متبقّي قسط الإقامة على خدمةٍ بلا تأشيرات (نقل/تجديد) ولا شريحة مشتركة غيره = «الباقي»
+  if (b === 'none' && depNum(r && r._plain_iqama) > 0) return 'rest'
   return (COL_VISA_BKTS.has(b) && !colIsPackage(r)) ? 'rest' : b
 }
 /* ── هل بلغ السلّم شرائح الإقامة؟ ────────────────────────────────────────────
@@ -6399,8 +6463,13 @@ const colExpand = (src) => {
     const each = freeN ? Math.max(remIq - linkSum * k, 0) / freeN : 0
     const shares = linked.map((x) => (x == null ? each : x * k))
     const assigned = shares.reduce((a, x) => a + x, 0)
-    const orphan = Math.max(remIq - assigned, 0)
-    const sharedDue = depNum(r.shared_due) + orphan
+    /* ما لم يحمله صفُّ شخص: على **خدمة تأشيرة** هو «إقامات بلا تأشيرات مسجَّلة» (نقصُ تسجيل)،
+       وعلى غيرها (نقل كفالة · تجديد…) هو بقيّةُ الفاتورة العاديّة — لا تأشيرات تُنتظر. المال
+       في الحالين على صفّ الفاتورة ومطلوبُه واحد؛ الفرق في التسمية والعمود وحدهما. */
+    const loose = Math.max(remIq - assigned, 0)
+    const orphan = colIsVisaSvc(r) ? loose : 0
+    const plainIq = loose - orphan
+    const sharedDue = depNum(r.shared_due) + loose
     const deferred = Math.max(depNum(r.remaining_amount) - depNum(r.shared_due) - remIq, 0)
     /* ── لا صفَّ للفاتورة متى كان لها أشخاص ──────────────────────────────────
        الدمج نفسه يقول «فاتورة واحدة»: الفرع ورقمها وخدمتها وكميتها وإجماليها
@@ -6430,7 +6499,7 @@ const colExpand = (src) => {
       out.push({
         ...r, _id: r.id, _kind: 'inv', _visa: null, _seq: out.length, _head: true,
         _due: 0, _shared_due: sharedDue,
-        _orphan_iqama: orphan, _persons: persons.length, _deferred: deferred,
+        _orphan_iqama: orphan, _plain_iqama: plainIq, _persons: persons.length, _deferred: deferred,
       })
     }
     persons.forEach((v, i) => {
@@ -10038,7 +10107,7 @@ const WKL_MSG_CHAMBER = wklMsgSpec(WKL_FEES[1], 'الغرفة التجارية')
    الصفّ عاملٌ لا تأشيرة، وأعمدة المراحل كتلةٌ خامسة باسم الشيت. عمودٌ لا كتلة له
    (الملاحظات · الاستدعاء · المصدر) يبقى فوقه فراغ. */
 const BAND_INV_KEYS = ['invoice_no', 'invoice_at', 'branch_code', 'request_ref_no', 'client_name', 'client_phone',
-  'agent_name', 'agent_phone', 'inv_state', 'wakalah_inst', 'iqama_inst', 'invoice_status_ar', 'request_status_ar']
+  'agent_name', 'agent_phone', 'inv_state', 'ren_due', 'wakalah_inst', 'iqama_inst', 'invoice_status_ar', 'request_status_ar']
 const BAND_FAC_KEYS = ['facility_ar', 'unified_number', 'gosi_number', 'hrsd_number', 'sadad_request',
   'absher_balance', 'absher_topup', 'cr_document', 'o_unified', 'o_hrsd']
 const txnBands = ({ svc = [], who, stage }) => [
@@ -10822,6 +10891,44 @@ const renBilledMonths = (r) => [r && r.billed_renewal_months, r && r.renewal_mon
    رقمُ رسمٍ واحد لا مدّةُ الخدمة ولا مدّةُ رخصة العمل (قرار المستخدم 2026-10-02). */
 const renReqMonths = (r) => [r && r.renewal_months, r && r.expected_duration_months, r && r.billed_renewal_months]
   .map(depNum).find((n) => n > 0) || 0
+/* ── «مستحقة التجديد» (طلب المستخدم 2026-10-02) ──────────────────────────────
+   قاعدةٌ لكل مدّة: إمّا **سداد الفاتورة كاملةً** أو **حدٌّ أدنى للمدفوع**. تُحرَّر من زرّ
+   «قواعد التجديد» فوق الشبكة وتُخزَّن في `layout.renewRules` للشيت (سجلٌّ واحد يراه
+   الجميع) — `{ '3': {mode:'full'}, '6': {mode:'min', v:'7000'} }`. مدّةٌ بلا قاعدة لا
+   حكم لها (خانةٌ فارغة)، والفاتورة المسدَّدة كاملةً مستحقّةٌ دائماً. */
+const REN_DUE_MONTHS = [3, 6, 9, 12]
+/* الخانة **تُكتب** (قائمة: نعم · لا · حسب القاعدة) وما كُتب فيها يغلب القاعدة — للحالات
+   الاستثنائية (طلب المستخدم 2026-10-02). «حسب القاعدة» يعيد الحكم للقاعدة؛ هو خيارٌ لا مسحٌ
+   لأن مسح الخانة في المحرّك علامةٌ تُفرغها مهما كان تحتها. */
+const REN_DUE_AUTO = 'حسب القاعدة'
+const renDue = (r) => {
+  const ov = r && r._ops ? r._ops.ren_due : null
+  if (ov === 'نعم') return true
+  if (ov === 'لا') return false
+  return renDueRule(r)
+}
+const renDueRule = (r) => {
+  const rule = (REN_REF.dueRules || {})[String(renReqMonths(r))]
+  if (!rule) return null
+  const tot = depNum(r.invoice_total ?? r.calc_total)
+  if (!tot) return null
+  const rem = depNum(r.remaining_amount)
+  if (rem <= 0) return true
+  return rule.mode === 'min' ? (depNum(rule.v) > 0 && (tot - rem) >= depNum(rule.v)) : false
+}
+const renDueTip = (_v, r, isAr2) => {
+  const m = renReqMonths(r), rule = (REN_REF.dueRules || {})[String(m)]
+  const ov = r && r._ops ? r._ops.ren_due : null
+  if (ov === 'نعم' || ov === 'لا') {
+    const d = renDueRule(r), by = d == null ? '' : (d ? 'نعم' : 'لا')
+    return isAr2 === false ? 'Set manually — overrides the rule' : `مُدخَل يدوياً — يغلب القاعدة${by ? ` (القاعدة تقول: ${by})` : ''}`
+  }
+  if (!m) return null
+  if (!rule) return isAr2 === false ? `No rule set for ${m} months` : `لا قاعدة مضبوطة لمدّة ${m} ${moU(m, true)}`
+  return rule.mode === 'min'
+    ? (isAr2 === false ? `${m} months: at least ${enNum(depNum(rule.v))} paid` : `${m} ${moU(m, true)}: المدفوع ${enNum(depNum(rule.v))} على الأقل`)
+    : (isAr2 === false ? `${m} months: invoice paid in full` : `${m} ${moU(m, true)}: الفاتورة مدفوعة كاملةً`)
+}
 /* الأحمر لحالتين لا ثالثة (قرار المستخدم 2026-09-21):
      · **لم يُجدَّد** — الانتهاء الجديد لا يتجاوز الحالي، فلا تجديد وقع.
      · **أكثر من المفوتر** — الشهر الزائد رسمُه حكوميٌّ دفعه المكتب ولم يُفوتَر،
@@ -11047,6 +11154,15 @@ const REN_COLS = [
       const pct = Math.round(((tot - rem) / tot) * 100)
       return `${enNum(tot)} · ${pct}%${rem > 0 ? ` · ${isAr2 === false ? 'due' : 'متبقّي'} ${enNum(rem)}` : ''}`
     } },
+  /* نعم (أخضر) / لا (أصفر) بحسب قاعدة مدّة الفاتورة — انظر renDue */
+  { key: 'ren_due', ar: 'مستحقة التجديد', en: 'Renewal due', w: 125, kind: 'text', ops: true, select: true,
+    options: () => ['نعم', 'لا', REN_DUE_AUTO],
+    // بلا إدخال: حكمُ القاعدة. والمُدخَل («نعم»/«لا») يغلبها — انظر renDue
+    get: (r) => { const d = renDueRule(r); return d == null ? '' : (d ? 'نعم' : 'لا') },
+    // «حسب القاعدة» تُعرض بحكم القاعدة نفسه لا بنصّها
+    fmt: (v, r) => { if (v !== REN_DUE_AUTO) return null; const d = renDueRule(r); return d == null ? '' : (d ? 'نعم' : 'لا') },
+    bg: (v, r) => { const d = v === 'نعم' ? true : v === 'لا' ? false : renDue(r); return d == null ? null : (d ? 'rgba(46,204,113,.32)' : 'rgba(234,179,8,.32)') },
+    cellTip: renDueTip },
 
   /* ═══ (3) المراحل الثلاث — بلا كشفٍ طبي ═══ */
   { key: 'insurance_status_ar', ar: 'التأمين', en: 'Insurance', w: 120, kind: 'text', sectionStart: true,
@@ -12034,7 +12150,9 @@ const VIEWS = [
          والمِرقاة `id` مع المتبقّي كي لا يتأرجح المتساوون بين صفحةٍ وأختها. */
       const [src, , exitMap] = await Promise.all([
         fetchAll(sb, 'v_ops_collections', '*',
-          (q) => q.order('remaining_amount', { ascending: false, nullsFirst: false }).order('id')),
+          /* `UNLINKED-…` حاويةُ ترحيلٍ لا فاتورة: أقساطُ بابل التي لم تُعرف فاتورتها جُمعت تحتها
+             (`UNLINKED-BABEL`) — ليست ديناً يُحصَّل، فلا تدخل الجدول ولا «المطلوب» (طلب المستخدم 2026-10-02). */
+          (q) => q.not('invoice_no', 'like', 'UNLINKED-%').order('remaining_amount', { ascending: false, nullsFirst: false }).order('id')),
         loadWorkerReg(sb),                     // سجلّ العامل — عمودا «العامل» و«جوال العامل»
         sharedP('wfExit', () => wfExitMap(sb)), // عمودا «خروج وعودة» و«خروج نهائي» — مصدر «متأخّرات العمالة» نفسه
       ])
@@ -13369,6 +13487,9 @@ const VIEWS = [
      (`renPostStages`) — المكان الذي تكتب فيه صفحةُ الفاتورة نفسها. */
   {
     key: 'iqama_renewal',
+    /* بلا أدوات الجدول (تحديث من المزامنة · لقطات الأسبوع · تسمية العرض) — طلب المستخدم 2026-10-02 */
+    noSheetTools: true,
+    dueRules: true,      // زرّ «قواعد التجديد» + عمود «مستحقة التجديد»
     bulkFetch: txnBulkIqamaExp('iqama_expiry'),
     statsOneRow: true,   // كروت الإحصاء في صفٍّ واحد (طلب المستخدم 2026-10-02)
     /* صفّ الكتل فوق الرؤوس — انظر txnBands */
@@ -14606,35 +14727,44 @@ const VIEWS = [
   {
     key: 'deposits',
     ar: 'متابعة الإيداعات', en: 'Deposit tracking',
-    hintAr: 'متابعة الإيداعات اليومية',
-    hintEn: 'Daily deposit tracking',
+    hintAr: 'نقد كل مكتب يوماً بيوم: المحصَّل والمودَع والمتبقي — اليوم يبدأ 5 فجراً بتوقيت الرياض',
+    hintEn: 'Office cash day by day: collected, deposited and outstanding — the day starts at 5 AM Riyadh time',
     // كل مكتب جدوله المستقل (أزرار فوق الشبكة) بدل خلط الفروع في جدول واحد —
     // فلا دمج رأسي ولا عمود مكتب مكرَّر في كل صف؛ هوية المكتب في الزر المختار.
     tabs: { key: (r) => r.branch_code || '', label: (r) => r.branch_name || r.branch_code || '' },
     derive: depDerive,
-    summary: depSummary,
+    /* بلا أدوات الجدول (تحديث من المزامنة · لقطات الأسبوع · تسمية العرض) —
+       طلب المستخدم 2026-10-02؛ بقيّة صفّ الأدوات تبقى. */
+    noSheetTools: true,
+    /* بلا صفّ المجموع في آخر الجدول (طلب المستخدم 2026-10-02) */
+    noTotals: true,
+    /* صفّ عناوين فوق رؤوس الأعمدة يجمعها مجموعاتٍ (طلب المستخدم 2026-10-02) */
+    bands: [
+      { ar: 'اليوم', en: 'Day', keys: ['dep_date', 'dep_dayname'] },
+      { ar: 'الحوالات البنكية', en: 'Bank transfers', keys: ['dep_bank'] },
+      { ar: 'المستحق', en: 'Due', keys: ['dep_due', 'dep_carry', 'dep_total'] },
+      { ar: 'الإيداع', en: 'Deposit', keys: ['dep_paid', 'dep_receipt', 'dep_bank_sms'] },
+      { ar: 'التسوية', en: 'Adjustment', keys: ['dep_adjust', 'dep_adjust_reason', 'dep_docs'] },
+      { ar: 'النتيجة', en: 'Outcome', keys: ['dep_ok', 'dep_rem', 'dep_status', 'dep_notes'] },
+    ],
     /* تفصيل الخلية القابلة للفتح: الدفعات التي كوّنت مستحق ذلك اليوم. مُتحقَّق
        أن مجموع سطور «نقد» يساوي رقم الشيت تماماً. */
     drillLoad: async (sb, row, isAr) => {
       const { data, error } = await sb.from('v_ops_office_deposit_lines')
-        .select('amount,method_ar,method_code,receipt_no,invoice_no,service_ar,client_name,facility_ar,created_by_name,paid_at')
+        .select('amount,method_ar,method_code,invoice_no,service_ar,client_name,facility_ar,created_by_name,paid_at')
         .eq('branch_code', row.branch_code).eq('pay_date', row.dep_date)
         .order('paid_at', { ascending: true })
       if (error) throw error
       const lines = data || []
-      const cash = lines.filter((l) => l.method_code === 'cash').reduce((a, l) => a + Number(l.amount || 0), 0)
       return {
-        title: (isAr ? 'تفصيل مستحق ' : 'Due breakdown ') + row.dep_date + ' — ' + (row.branch_name || row.branch_code),
-        note: isAr
-          ? `${enNum(lines.length)} دفعة · منها نقد ${enNum(cash)} ريال (وهو المبلغ المستحق في الشيت)`
-          : `${enNum(lines.length)} payments · cash ${enNum(cash)} SAR (the sheet's due figure)`,
+        // U+2066…U+2069 يعزلان التاريخ يسار-لليمين: بدونهما يقلبه سياق العربية «01-10-2026»
+        title: (isAr ? 'تفصيل مستحق ' : 'Due breakdown ') + String.fromCharCode(0x2066) + row.dep_date + String.fromCharCode(0x2069) + ' — ' + (row.branch_name || row.branch_code),
         columns: [
-          { key: 'invoice_no', ar: 'الفاتورة', en: 'Invoice', mono: true },
+          { key: 'invoice_no', ar: 'الفاتورة', en: 'Invoice', mono: true, copy: true },
           { key: 'client_name', ar: 'العميل', en: 'Client' },
           { key: 'service_ar', ar: 'الخدمة', en: 'Service' },
           { key: 'amount', ar: 'المبلغ', en: 'Amount', num: true },
           { key: 'method_ar', ar: 'الطريقة', en: 'Method' },
-          { key: 'receipt_no', ar: 'رقم السند', en: 'Receipt', mono: true },
           { key: 'created_by_name', ar: 'سجّلها', en: 'Recorded by' },
         ],
         rows: lines,
@@ -14643,7 +14773,7 @@ const VIEWS = [
     async load(sb) {
       const [agg, ovKeys] = await Promise.all([
         fetchAll(sb, 'v_ops_office_deposits',
-          'branch_id,branch_code,branch_name_ar,pay_date,cash_total,bank_total,bank_files',
+          'branch_id,branch_code,branch_name_ar,pay_date,cash_total,bank_total,bank_transfers',
           (q) => q.gte('pay_date', DEP_START)),
         // مفاتيح الإدخال المحفوظ فقط (لا حمولة) — لتحديد نهاية المدى بأمان
         sb.from('ops_sheet_rows').select('row_key').eq('view_key', 'deposits'),
@@ -14655,7 +14785,9 @@ const VIEWS = [
       let end = depToday()
       for (const a of agg) if (a.pay_date > end) end = a.pay_date
       for (const o of (ovKeys.data || [])) { const d = String(o.row_key).split('|')[1]; if (d && d > end) end = d }
-      const days = depDateSpine(end)
+      // الأحدث أولاً: آخر يوم في أعلى الجدول (طلب المستخدم 2026-10-02). السلسلة
+      // المتتابعة لا تتأثّر — `depDerive` يرتّب تصاعدياً بنفسه قبل الحساب.
+      const days = depDateSpine(end).reverse()
       const out = []
       for (const [code, name] of [...offices.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
         for (const d of days) {
@@ -14666,7 +14798,8 @@ const VIEWS = [
             dep_date: d.ymd, dep_dow: d.dow,
             dep_due: a ? Number(a.cash_total) : 0,
             dep_bank: a ? Number(a.bank_total) : 0,
-            bank_files: (a && a.bank_files) || [],
+            // كل حوالة بمبلغها ورقم فاتورتها وملفاتها: [{a, i, f:[{n,u,m}]}]
+            bank_transfers: (a && a.bank_transfers) || [],
           })
         }
       }
@@ -14678,16 +14811,23 @@ const VIEWS = [
       { key: 'dep_date', ar: 'التاريخ', en: 'Date', w: 120, kind: 'date', auto: true, source: 'sync' },
       { key: 'dep_dayname', ar: 'اليوم', en: 'Day', w: 95, kind: 'text', auto: true, source: 'sync',
         get: (r, isAr) => (isAr ? DEP_DAYS_AR : DEP_DAYS_EN)[r.dep_dow] || '' },
-      { key: 'dep_bank', ar: 'حوالة بنكية', en: 'Bank transfer', w: 120, kind: 'num', auto: true, source: 'invoice',
-        get: (r) => depMoney(depNum(r.dep_bank)) },
-      // إيصالات الحوالة المرفقة بالدفعة نفسها. `get` يُرجع الأسماء نصّاً كي يعمل
-      // البحث والتصدير، بينما الخلية تُرسَّم روابط من `row.bank_files`.
-      { key: 'dep_bank_files', ar: 'ملفات الحوالة', en: 'Transfer files', w: 130, kind: 'files', auto: true, source: 'invoice',
-        get: (r) => (r.bank_files || []).map((f) => f && f.n).filter(Boolean).join(' · ') },
+      /* كل حوالةٍ مبلغٌ يُفتح ملفُها بضغطة، ومجموع اليوم بعدها متى تعدّدت (طلب
+         المستخدم 2026-10-02 — حلّ محلّ عمودَي «حوالة بنكية» و«ملفات الحوالة»).
+         `get` يبقى مجموع اليوم: عليه الفرز والجمع والتصدير. */
+      { key: 'dep_bank', ar: 'حوالة بنكية', en: 'Bank transfer', w: 210, kind: 'num', auto: true, source: 'invoice',
+        get: (r) => depMoney(depNum(r.dep_bank)),
+        render: (r, raw, isAr, ctx = {}) => <DepTransfersCell list={r.bank_transfers} total={depNum(r.dep_bank)} isAr={isAr} onView={ctx.view} onCopy={ctx.copy} /> },
       // قابل للفتح: الرقم تلقائي، فلا بد أن يكون قابلاً للتدقيق بضغطة
       { key: 'dep_due', ar: 'المبلغ المستحق', en: 'Amount due', w: 130, kind: 'num', auto: true, source: 'invoice',
         drill: (r) => depNum(r.dep_due) > 0,
-        get: (r) => depMoney(depNum(r.dep_due)) },
+        /* بلا عدسة: المبلغ نفسه يُضغط وتحته خطّ ذهبي (طلب المستخدم 2026-10-02) */
+        drillLink: true,
+        get: (r) => depMoney(depNum(r.dep_due)),
+        render: (r, raw, isAr, ctx = {}) => (ctx.drill
+          ? <span title={isAr ? 'اعرض تفصيل هذا الرقم' : 'Show how this number is made up'}
+              onClick={(e) => { e.stopPropagation(); ctx.drill() }}
+              style={{ direction: 'ltr', cursor: 'pointer', borderBottom: '1.5px solid #B07D00', lineHeight: 1.35 }}>{depMoney(depNum(r.dep_due))}</span>
+          : <span style={{ direction: 'ltr' }}>{depMoney(depNum(r.dep_due))}</span>) },
       { key: 'dep_carry', ar: 'مرحّل من أمس', en: 'Carried over', w: 125, kind: 'num', auto: true, source: 'formula',
         get: (r) => depMoney(depGet(r, 'carry')) },
       { key: 'dep_total', ar: 'إجمالي المستحق', en: 'Total due', w: 135, kind: 'num', auto: true, source: 'formula',
@@ -14705,7 +14845,9 @@ const VIEWS = [
       // محضر، مراسلة، أي إثبات آخر. عدّة ملفات لكل يوم.
       { key: 'dep_docs', ar: 'مرفقات', en: 'Attachments', w: 150, kind: 'multifile', ops: true },
       { key: 'dep_ok', ar: 'تم الإيداع؟', en: 'Deposited?', w: 105, kind: 'text', auto: true, source: 'formula',
-        get: (r) => depGet(r, 'ok') || '—' },
+        get: (r) => depGet(r, 'ok') || '—',
+        // «نعم» أخضر · «لا» أصفر · يوم بلا مستحق («—») بلا لون (طلب المستخدم 2026-10-02)
+        bg: (v) => (v === 'نعم' ? 'rgba(46,204,113,.32)' : v === 'لا' ? 'rgba(234,179,8,.32)' : null) },
       { key: 'dep_rem', ar: 'المتبقي', en: 'Remaining', w: 115, kind: 'num', auto: true, source: 'formula',
         get: (r) => depMoney(depGet(r, 'rem')),
         // المتأخّر أحمر والفائض أخضر — الرقم وحده لا يقول أيّهما
@@ -17021,22 +17163,31 @@ const VIEW_STATS = {
      فلا تُشترى ثانيةً — والمرحلة مقضيّة. */
   iqama_renewal: [
     SC('rows', 'التجديدات', 'Renewals'),
+    // الكرت الثاني (طلب المستخدم 2026-10-02): **المستحقّة** لا غير المستحقّة — ما حان العمل عليه
+    SC('pred', 'مستحقة التجديد', 'Due for renewal', { tone: 'ok', need: ['ren_due'],
+      fn: (_v, r) => renDue(r) === true,
+      // كم منها أُنجزت مراحلُه كلّها
+      sub: SC('pred', 'أُنجزت', 'Done', { tone: 'ok', tipAr: 'مستحقّة أُنجزت مراحلها بالكامل', tipEn: 'Due invoices with every stage done',
+        need: REN_STAGES.map((g) => g.st), fn: (v, r) => renDue(r) === true && renAllDone(v) }) }),
     /* الكرت يعدّ **ما لم يُنجَز** بعدُ في كل مرحلة — لا ما أُنجز: الشيت طابورُ
        عمل، والسؤال عنه «كم بقي» لا «كم مضى». و«لا يحتاج» مقضيّةٌ فلا تُعدّ باقيةً. */
+    /* غير مستحقّة التجديد (قاعدة مدّتها لم تتحقّق — renDue) تخرج من المراحل بسطاً ومقاماً
+       حتى تصير مستحقّة: لا عمل عليها بعد، فعدُّها «باقية» يضخّم الطابور (طلب المستخدم
+       2026-10-02). ولها كرتُها قبل المراحل. */
     SC('group', 'المراحل', 'Stages', { ofRows: true, items: REN_STAGES.map((g) => (
-      SC('pred', g.ar, g.en, { need: [g.st], fn: (v) => !renStageOk(v(g.st)), tone: 'warn' })
+      SC('pred', g.ar, g.en, { need: [g.st], fn: (v, r) => renDue(r) !== false && !renStageOk(v(g.st)), tone: 'warn',
+        na: (r) => renDue(r) === false })
     )) }),
-    SC('pred', 'أُنجزت بالكامل', 'Fully done', { tone: 'ok',
-      need: REN_STAGES.map((g) => g.st), fn: renAllDone }),
+    /* وبقيّة كروت العمل تستثني غير المستحقّة كذلك (طلب المستخدم 2026-10-02) — عدا
+       «التجديدات» (عددُ المعروض كلِّه) و«لم تصل المعاملة» (إنذارُ ترحيلٍ لا عملٌ باقٍ). */
+    /* كرت «أُنجزت بالكامل» أُزيل (طلب المستخدم 2026-10-02): رقمُه صار شارةً في كرت «مستحقة التجديد». */
     /* الإقامة المنتهية على صفٍّ لم تُجدَّد إقامتُه بعد: بعد التجديد يبقى عمود
        «انتهاء الإقامة الحالية» ماضياً بطبعه (هو ما قبل التجديد)، فعدُّه إنذاراً
        يُبقي الكرت أحمر إلى الأبد. */
     SC('pred', 'إقامة منتهية لم تُجدَّد', 'Expired, not renewed', { tone: 'bad',
       need: ['iqama_expiry_gregorian', 'iqama_status_ar'],
-      fn: (v) => !renStageOk(v('iqama_status_ar')) && dateIsPast(v('iqama_expiry_gregorian')) }),
-    SC('pred', 'مرحلة متعثّرة', 'Stage blocked', { tone: 'bad',
-      need: REN_STAGES.map((g) => g.st),
-      fn: (v) => REN_STAGES.some((g) => String(v(g.st) ?? '').split('\n')[0].trim() === 'مشكلة') }),
+      fn: (v, r) => renDue(r) !== false && !renStageOk(v('iqama_status_ar')) && dateIsPast(v('iqama_expiry_gregorian')) }),
+    /* كرت «مرحلة متعثّرة» أُزيل من هذا الشيت بطلب المستخدم (2026-10-02). */
     /* ── «لم تصل المعاملة» (2026-09-22) ──────────────────────────────────────
        مرحلةٌ خُتمت في الشيت وبقيت بصمتُها غير مكتوبة = لم تُرحَّل. كان هذا
        يُقال في تنبيهٍ عابرٍ وقتَ الحفظ ثم لا أثرَ له، فيقرأ المُعقّب «تم» في
@@ -17056,7 +17207,7 @@ const VIEW_STATS = {
        العمودين وقفلهما). */
     SC('pred', 'تغيير مهنة معلّق', 'Profession change pending', { tone: 'warn', hideZero: true,
       need: ['ren_prof_state'],
-      fn: (v, r) => depNum(r && r.prof_change_fee) > 0 && String(v('ren_prof_state') ?? '').trim() !== TR_DONE }),
+      fn: (v, r) => renDue(r) !== false && depNum(r && r.prof_change_fee) > 0 && String(v('ren_prof_state') ?? '').trim() !== TR_DONE }),
     /* ⚠️ كرت «عليها متبقّي» أُزيل بطلب المستخدم (2026-09-21) — وكان يقرأ صفراً
        والحقيقة ٢٩ من ٣٨ في نافذة الأسبوعين: بُني على `r.remaining_amount` من
        الصفّ الخام، ولم يصل. فمن أعاده فليبنِه على عمودٍ في الشيت لا على حقلٍ
@@ -17192,12 +17343,17 @@ const VIEW_STATS = {
     SC('filled', 'لها فاتورة', 'With invoice', { k: 'sc_invoice_no' }),
     SC('sum', 'إجمالي الفواتير', 'Total invoiced', { k: 'sc_invoice_amount', money: true }),
   ],
+  /* كروت **اليوم** للمكتب المعروض (طلب المستخدم 2026-10-02): كلُّها من صفّ اليوم
+     وحده. جمعُ الأعمدة المتتابعة (الإجمالي/المتبقي) عمودياً كان يضاعف المتأخّر
+     بعدد الأيام — «المتبقي الآن» الصحيح هو رصيد صفّ اليوم. يسقط الكرت إن غاب
+     صفّ اليوم عن المعروض (بحثٌ أو فلتر). */
   deposits: [
-    SC('rows', 'الإيداعات', 'Deposits'),
-    SC('sum', 'إجمالي المستحق', 'Total due', { k: 'dep_total', money: true }),
-    SC('sum', 'المودَع', 'Deposited', { k: 'dep_paid', money: true, tone: 'ok' }),
-    SC('sum', 'المتبقّي', 'Remaining', { k: 'dep_rem', money: true, tone: 'bad' }),
-    SC('uniq', 'البنوك', 'Banks', { k: 'dep_bank' }),
+    SC('fn', 'نقد اليوم', 'Cash today', { money: true, fn: (R) => depToday1(R, (r) => depNum(r.dep_due)) }),
+    SC('fn', 'مرحّل من أمس', 'Carried over', { money: true, fn: (R) => depToday1(R, (r) => depGet(r, 'carry')) }),
+    SC('fn', 'أُودِع اليوم', 'Deposited today', { money: true, tone: 'ok', fn: (R) => depToday1(R, (r) => depGet(r, 'paid')) }),
+    SC('fn', 'المتبقّي الآن', 'Outstanding now', { money: true, tone: 'bad', fn: (R) => depToday1(R, (r) => depGet(r, 'rem')) }),
+    SC('fn', 'أيام التأخير', 'Days overdue', { tone: 'bad', hideZero: true, fn: (R) => depToday1(R, (r) => depGet(r, 'lateDays')) }),
+    SC('fn', 'حوالات اليوم', 'Transfers today', { money: true, fn: (R) => depToday1(R, (r) => depNum(r.dep_bank)) }),
   ],
   sadad: [
     SC('rows', 'الحركات', 'Entries'),
@@ -17347,7 +17503,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
      عليه — الموظّف يفتح جدوله ويُدخل، ولا يُحدّث مصدره ولا يتجوّل في لقطات
      الأسابيع ولا يعيد تسميته. وتسقط كلّها عن الجدول الذي لا يُزامَن
      (`view.noSync`) حتى عن المدير العام: لا مصدر ولا لقطات أصلاً. */
-  const sheetTools = isGM && !view.noSync
+  const sheetTools = isGM && !view.noSync && !view.noSheetTools
   /* ── طبقة التجاوز المشتركة (`view.overlayKey`) ─────────────────────────────
      الأصل أن لكل شيتٍ طبقتَه في `ops_sheet_rows` بمفتاحه. لكنّ شيتين على
      **الصفوف نفسها** (إصدار الإقامات وشيتُه الأسبوعي) لو كتب كلٌّ في طبقته
@@ -17643,6 +17799,8 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
 
   const [priceModal, setPriceModal] = useState(false)  // نافذة تسعيرة الأغراض
   const [priceDraft, setPriceDraft] = useState({})
+  const [dueModal, setDueModal] = useState(false)      // نافذة قواعد «مستحقة التجديد»
+  const [dueDraft, setDueDraft] = useState({})
   const [colModal, setColModal] = useState(false)   // نافذة إضافة عمود
   const [colName, setColName] = useState('')
   const [renameCol, setRenameCol] = useState(null)  // { key, name } نافذة إعادة تسمية
@@ -18532,7 +18690,11 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
      القيمة المُرجَعة غير مستعملة؛ المطلوب أثر التشغيل نفسه قبل رسم الخلايا. */
   // ctx: اليوم والمجموعة المفتوحان — يحتاجهما العرض ليعرف ما سيأخذه الصف الجاهز
   // (تاريخه ومجموعته) قبل أن يُكتب فيه شيء
-  useMemo(() => { view.derive && view.derive(allRows, edits, { day: daySel, tab: tabSel, prices: layout.prices || {}, all: allRows._all || allRows }) },
+  useMemo(() => {
+    // قواعد «مستحقة التجديد» تُقرأ من الخلايا عبر REN_REF — تُحدَّث قبل الرسم
+    if (view.dueRules) REN_REF.dueRules = layout.renewRules || {}
+    view.derive && view.derive(allRows, edits, { day: daySel, tab: tabSel, prices: layout.prices || {}, all: allRows._all || allRows })
+  },
     [view, allRows, edits, daySel, tabSel, layout])
 
   const nameRank = useMemo(() => {
@@ -18582,7 +18744,8 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
      فتحة بلا أن يضبطه كل مستخدمٍ بيده على أعمدةٍ معناها واحد لا يختلف (الإجمالي
      والمدفوع والمتبقّي والمطلوب). وتفضيل المستخدم يعلوها: إلغاؤه يُخزَّن `''`
      فوق التعريف لا حذفاً منه — والحذف كان يُعيد الافتراضي فيبدو الزرّ معطّلاً. */
-  const aggMap = useMemo(() => ({ ...(view.agg || {}), ...(layout.agg || {}) }), [layout, view])
+  /* `view.noTotals` — جدولٌ بلا صفّ مجموع ولا علامة Σ في رؤوسه، مهما حُفظ في التخطيط */
+  const aggMap = useMemo(() => (view.noTotals ? {} : { ...(view.agg || {}), ...(layout.agg || {}) }), [layout, view])
   const numFmtMap = useMemo(() => layout.numFmt || {}, [layout])    // { key: 'thousands'|'currency'|'percent'|'int' }
   const edgeMap = useMemo(() => layout.sectionEdge || {}, [layout])  // { key: 'start'|'end'|'none' }
   const srcMap = useMemo(() => layout.srcMap || {}, [layout])        // { key: مفتاح في COL_SRC }
@@ -20660,7 +20823,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
          الخانة الواحدة متى غاب عمودُها. */
       if (d.type === 'pred') { if ((d.need || []).some((k) => !colDefs.has(k))) return null }
       // كل نوعٍ عدا `rows` يلزمه عمودٌ موجود في هذا الجدول
-      else if (d.type !== 'rows' && !colDefs.has(d.k)) return null
+      else if (d.type !== 'rows' && d.type !== 'fn' && !colDefs.has(d.k)) return null
       if (d.type === 'sumif' && !colDefs.has(d.on)) return null
       /* مرشّح استثناء عام (`d.not = {k, v[]}`): يُسقط من العدّ صفوفاً بقيمة عمودٍ
          آخر — «لم تصدر» بلا الفواتير الملغية مثلاً. عمودُه الغائب لا يُرشّح. */
@@ -20690,6 +20853,9 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
         // «هذا الشهر» بالتقويم الميلادي — القيمة الفعّالة قد تكون ISO كاملاً أو YYYY-MM-DD، وكلاهما يقبله Date
         case 'month': { const now = new Date(); for (const r of R) { const t = cell(r, d.k); if (!t) continue; const dt = new Date(t); if (!isNaN(dt) && dt.getFullYear() === now.getFullYear() && dt.getMonth() === now.getMonth()) val++ } break }
         case 'sumif': for (const r of R) { if (!d.v.includes(cell(r, d.on))) continue; const n = num(r, d.k); if (n !== null) val += n } break
+        /* `fn`: رقمٌ يحسبه التعريف نفسه من الصفوف المعروضة — لِما لا يُشتقّ من عمودٍ
+           واحد (قيمةُ صفّ اليوم وحده). `null` يُسقط الكرت. */
+        case 'fn': { const v = d.fn(R); if (v == null) return null; val = v; break }
         default: return null
       }
       /* `hideZero`: خانةٌ لا تنطبق على شيءٍ في المعروض تسقط بدل أن تقول صفراً —
@@ -20740,7 +20906,9 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
         continue
       }
       const val = calc(d)
-      if (val !== null) out.push({ ...d, val, liveTotal: live.length, ...(d.type === 'rows' ? { cancelled: nCancelled } : {}) })
+      /* `d.sub`: رقمٌ ثانٍ صغير بجانب رقم الكرت (شارةٌ كشارة «ملغاة») — تعريفُ كرتٍ كامل يُحسب بالحاسبة نفسها */
+      if (val !== null) out.push({ ...d, val, liveTotal: live.length, ...(d.type === 'rows' ? { cancelled: nCancelled } : {}),
+        ...(d.sub ? { subVal: calc(d.sub) } : {}) })
     }
     return out
   }, [view, filtered, colDefs, valOf])
@@ -20917,7 +21085,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
     const raw = dispOf(row, col)
     if (col.render && !editable) {
       const canPost = !!(view.repostable && view.repostable(row))
-      return col.render(row, raw, isAr, { post: canPost ? () => repostRow(row) : null, card: openCard, sb })
+      return col.render(row, raw, isAr, { post: canPost ? () => repostRow(row) : null, card: openCard, sb, view: setFileView, copy: writeClipboard })
     }
     switch (col.kind) {
       case 'photo': return <PhotoCell path={raw} name={row.name_ar || row.name_en} size={44} onOpen={setFileView} />
@@ -21343,7 +21511,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
         </div>}
         {/* «جدول جديد» شأن صفحة «جداول العمل» لا شأن تبويب جدولٍ بعينه */}
         {!forceView && canNewSheet && <button className="ox-btn" onClick={() => { setSheetName({ ar: '', en: '' }); setSheetModal(true) }} title={T('أنشئ جدولاً مخصّصاً من الصفر', 'Create a blank custom sheet')} style={{ height: 40 }}>＋ {T('جدول جديد', 'New sheet')}</button>}
-        {isGM && canRename && <button className="ox-btn" onClick={() => { const n = effName(view); setSheetName({ ar: n.ar, en: n.en === n.ar ? '' : n.en }); setSheetModal('rename') }} title={T('غيّر اسم هذا العرض', 'Rename this view')} style={{ height: 40 }}>✎ {T('تسمية العرض', 'Rename view')}</button>}
+        {isGM && canRename && !view.noSheetTools && <button className="ox-btn" onClick={() => { const n = effName(view); setSheetName({ ar: n.ar, en: n.en === n.ar ? '' : n.en }); setSheetModal('rename') }} title={T('غيّر اسم هذا العرض', 'Rename this view')} style={{ height: 40 }}>✎ {T('تسمية العرض', 'Rename view')}</button>}
         {canEdit && view.custom && <button className="ox-btn" onClick={() => setConfirmAsk({
           message: T('حذف هذا الجدول وكل صفوفه نهائياً؟', 'Delete this sheet and all its rows?'),
           onYes: () => deleteSheet(viewKey),
@@ -21351,7 +21519,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
         {/* تبويبات نطاق الجدول — هنا لا في صفٍّ تحته: سؤالها «أيّ شيء أرى» هو
             سؤال منتقي الجدول والأسبوع نفسه، فمكانها معهما. يفصلها خطٌّ رأسيّ عن
             أزرار الجدول (جديد/تسمية/حذف) لأنها مجموعةٌ أخرى داخل الصفّ نفسه. */}
-        {tabDefs.length > 1 && (
+        {tabDefs.length > 1 && !view.noSheetTools && (
           <span aria-hidden style={{ width: 1, height: 24, background: 'var(--bd)', margin: '0 3px', flexShrink: 0 }} />
         )}
         {tabDefs.length > 1 && tabDefs.map((t) => {
@@ -21562,6 +21730,13 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
             {T(view.chiQueue.label.ar, view.chiQueue.label.en)}
           </button>
         )}
+        {isGM && view.dueRules && (
+          <button className="ox-btn" onClick={() => { setDueDraft({ ...(layout.renewRules || {}) }); setDueModal(true) }}
+            title={T('متى تُعدّ الفاتورة مستحقّة التجديد — قاعدةٌ لكل مدّة', 'When an invoice counts as due for renewal — a rule per duration')}>
+            <ListChecks size={15} strokeWidth={2.1} />
+            {T('قواعد التجديد', 'Renewal rules')}
+          </button>
+        )}
         {canEdit && view.priceBook && (
           <button className="ox-btn" onClick={() => { setPriceDraft({ ...(layout.prices || {}) }); setPriceModal(true) }}
             title={T('سعر كل غرض — ثابت أو نطاق', 'Price per purpose — fixed or a range')}>
@@ -21615,9 +21790,12 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
         /* `view.statsOneRow`: الكروت كلّها في صفٍّ واحد لا تلتفّ — تتقلّص معاً
            بنسبة عناصرها، وأسماؤها تُقصّ بنقاطٍ لا تنكسر (طلب المستخدم 2026-09-25).
            الجوال له مساره (`mStats`) فلا يمسّه هذا. */
+        /* ⚠️ صار «صفّاً واحداً ما اتّسع» (بلاغ المستخدم 2026-10-02: الكروت مقصوصة): `nowrap` كان
+           يعصر الكرت المفرد حتى يُقصّ اسمُه ورقمُه كلّما زاد كرت. الآن لكل كرتٍ حدٌّ أدنى يُقرأ
+           عنده، واسمُه ينكسر سطرين بدل أن يُقصّ — فإن ضاق العرض عن الجميع نزل الزائد سطراً. */
         const oneRow = !!view.statsOneRow
         return (
-        <div style={{ display: 'flex', flexWrap: oneRow ? 'nowrap' : 'wrap', gap: oneRow ? 10 : 12, marginBottom: 20 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: oneRow ? 10 : 12, marginBottom: 20 }}>
           {stats.map((s, i) => {
             if (s.type === 'group') {
               const total = s.items.reduce((a, it) => a + it.val, 0)
@@ -21720,11 +21898,15 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
             const pct = isCount && pctBase > 0 ? Math.round((s.val * 100) / pctBase) : null
             return (
               <div key={i} title={(isAr ? s.ar : s.en) + ': ' + shown + (pct !== null ? ` (${pct}% ${T('من المعروض', 'of shown rows')})` : '')}
-                style={{ ...cardSty, flex: oneRow ? '1 1 0' : '1 1 150px' }}>
+                style={{ ...cardSty, ...(oneRow
+                  ? { flex: '1 1 104px', minWidth: ((s.type === 'rows' && s.cancelled > 0) || s.subVal != null) ? 136 : 104, padding: '11px 13px' }
+                  : { flex: '1 1 150px' }) }}>
                 {accent(clr, !!s.tone)}
-                <span style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-                  <span style={{ flex: 1, fontSize: 12, color: 'var(--tx3)', fontWeight: 600, whiteSpace: 'nowrap',
-                    overflow: 'hidden', textOverflow: 'ellipsis' }}>{isAr ? s.ar : s.en}</span>
+                <span style={{ display: 'flex', alignItems: oneRow ? 'flex-start' : 'center', gap: 6, minWidth: 0 }}>
+                  <span style={{ flex: 1, fontSize: oneRow ? 11.5 : 12, color: 'var(--tx3)', fontWeight: 600, overflow: 'hidden',
+                    ...(oneRow
+                      ? { display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', lineHeight: 1.4, whiteSpace: 'normal' }
+                      : { whiteSpace: 'nowrap', textOverflow: 'ellipsis' }) }}>{isAr ? s.ar : s.en}</span>
                   {pct !== null && (
                     <span style={{ flexShrink: 0, fontSize: 10.5, fontWeight: 600, color: clr, background: toneSoft(s.tone),
                       borderRadius: 999, padding: '2px 8px', direction: 'ltr', fontVariantNumeric: 'tabular-nums',
@@ -21733,7 +21915,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
                 </span>
                 {/* الرقم أولاً ثم «ريال» — صفٌّ عاديّ فيقعان «914,161 ريال» في الاتجاهين */}
                 <span style={{ display: 'flex', alignItems: 'baseline', gap: 5, minWidth: 0, marginTop: 'auto' }}>
-                  <span style={{ fontSize: shown.length > 9 ? 22 : shown.length > 6 ? 26 : 30,
+                  <span style={{ fontSize: shown.length > 9 ? 22 : (shown.length > 6 || oneRow) ? 26 : 30,
                     fontWeight: 600, color: clr, lineHeight: 1, letterSpacing: '-.5px', direction: 'ltr',
                     textAlign: isAr ? 'right' : 'left', fontVariantNumeric: 'tabular-nums',
                     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{shown}</span>
@@ -21743,6 +21925,13 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
                     <span style={{ flexShrink: 0, marginInlineStart: 'auto', fontSize: 11.5, fontWeight: 600, color: C.red,
                       background: 'rgba(232,114,101,.12)', borderRadius: 999, padding: '2px 9px', whiteSpace: 'nowrap' }}>
                       {T('ملغاة', 'Cancelled')} <bdi style={{ fontVariantNumeric: 'tabular-nums' }}>{enNum(s.cancelled)}</bdi>
+                    </span>
+                  )}
+                  {s.sub && s.subVal != null && (
+                    <span title={T(s.sub.tipAr || s.sub.ar, s.sub.tipEn || s.sub.en)}
+                      style={{ flexShrink: 0, marginInlineStart: 'auto', fontSize: 11.5, fontWeight: 600, color: toneClr(s.sub.tone),
+                        background: toneSoft(s.sub.tone), borderRadius: 999, padding: '2px 9px', whiteSpace: 'nowrap' }}>
+                      {T(s.sub.ar, s.sub.en)} <bdi style={{ fontVariantNumeric: 'tabular-nums' }}>{enNum(s.subVal)}</bdi>
                     </span>
                   )}
                 </span>
@@ -22260,7 +22449,8 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
                                والتحرير تبقى على نصّ `get` كما هو. */
                             : (col.render && !isEd) ? col.render(row, raw, isAr, { mSpan, mSpanH, h: mSpan ? mSpanH : rowHOf(r), tap: col.tap ? () => openTapCard(col, row) : null,
                               // `post`: أثرُ الصفّ (`view.afterSave`) بضغطةٍ من الخليّة — ما تفعله قائمة الصفّ
-                              post: (view.repostable && view.repostable(row)) ? () => repostRow(row) : null, card: openCard, sb })
+                              post: (view.repostable && view.repostable(row)) ? () => repostRow(row) : null, card: openCard, sb, view: setFileView, copy: writeClipboard,
+                              drill: (col.drill && col.drill(row)) ? () => openDrill(row, col) : null })
                             : col.kind === 'photo' ? (
                             <PhotoCell path={raw} name={row.name_ar || row.name_en} size={rowH} onOpen={setFileView} />
                           ) : col.kind === 'bmk' ? (
@@ -22521,7 +22711,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
                               style={{ position: 'absolute', insetInlineEnd: 4, top: '50%', transform: 'translateY(-50%)',
                                 fontSize: 11, lineHeight: '11px', cursor: 'pointer', color: C.blue, opacity: .8 }}>⧉</span>
                           )}
-                          {col.drill && !isEd && col.drill(row) && (
+                          {col.drill && !col.drillLink && !isEd && col.drill(row) && (
                             <span title={T('اعرض تفصيل هذا الرقم', 'Show how this number is made up')}
                               onClick={(e) => { e.stopPropagation(); openDrill(row, col) }}
                               style={{ position: 'absolute', top: 1, insetInlineEnd: 2, fontSize: 9.5, lineHeight: '10px',
@@ -23105,8 +23295,13 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
                       {drill.columns.map((c) => (
                         <td key={c.key} style={{ padding: '7px 10px', borderBottom: '1px solid var(--bd2)', color: 'var(--tx)',
                           fontFamily: (c.mono || c.num) ? MONO : F, whiteSpace: 'nowrap',
-                          textAlign: c.num ? 'end' : 'start' }}>
+                          /* الرقم تحت عنوانه (بداية العمود) كبقيّة الأعمدة — طلب المستخدم 2026-10-02 */
+                          textAlign: 'start' }}>
                           {c.num ? enNum(r[c.key]) : (r[c.key] ?? '—')}
+                          {/* `c.copy`: أيقونة نسخ بجانب القيمة — رقمٌ يُلصق في مكانٍ آخر */}
+                          {c.copy && r[c.key] != null && r[c.key] !== '' && (
+                            <CopyTick text={String(r[c.key])} onCopy={writeClipboard} label={T('نسخ', 'Copy')} />
+                          )}
                         </td>
                       ))}
                     </tr>
@@ -23387,6 +23582,45 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
             onKeyDown={(e) => { if (e.key === 'Enter' && colName.trim()) { addColumn(colName); setColModal(false) } }} />
         </Modal>
       )}
+
+      {/* ── نافذة قواعد «مستحقة التجديد» ── */}
+      {dueModal && view.dueRules && (() => {
+        const cur = (m) => dueDraft[m] || {}
+        const modeOf = (m) => cur(m).mode || ''
+        const upd = (m, patch) => setDueDraft((d) => ({ ...d, [m]: { ...(d[m] || {}), ...patch } }))
+        const save = () => {
+          // مدّةٌ بلا اختيار (أو «حدّ أدنى» بلا مبلغ) تبقى بلا قاعدة — لا بقاعدة صفر
+          const clean = {}
+          for (const m of REN_DUE_MONTHS) {
+            const v = cur(m)
+            if (v.mode === 'full') clean[m] = { mode: 'full' }
+            else if (v.mode === 'min' && depNum(v.v) > 0) clean[m] = { mode: 'min', v: String(v.v).trim() }
+          }
+          persistLayout({ ...layout, renewRules: clean })
+          setDueModal(false)
+        }
+        const modeBtn = (m, md, lbl) => (
+          <button className="ox-btn" style={{ height: 32, padding: '0 12px', ...(modeOf(m) === md ? { background: 'var(--accent-soft)', color: 'var(--accent)', borderColor: 'var(--accent-bd)' } : {}) }}
+            onClick={() => upd(m, { mode: modeOf(m) === md ? '' : md })}>{lbl}</button>
+        )
+        return (
+          <Modal open onClose={() => setDueModal(false)} closeOnOverlay lang={lang} accent={C.gold} width={560} scroll Icon={ListChecks}
+            title={T('قواعد استحقاق التجديد', 'Renewal-due rules')}
+            subtitle={T('لكل مدّة: ما يجب أن يكون مدفوعاً من الفاتورة حتى تُعدّ مستحقّة التجديد', 'Per duration: what must be paid on the invoice before it counts as due for renewal')}
+            footerStart={<ActionButton variant="ghost" Icon={Trash2} onClick={() => setDueDraft({})}>{T('تفريغ الكل', 'Clear all')}</ActionButton>}
+            footer={<ActionButton Icon={Save} onClick={save}>{T('حفظ', 'Save')}</ActionButton>}>
+            {REN_DUE_MONTHS.map((m) => (
+              <div key={m} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 2px', borderBottom: '1px solid var(--bd2)', flexWrap: 'wrap' }}>
+                <span style={{ flex: '1 1 90px', fontSize: 13, fontWeight: 600, color: 'var(--tx2)' }}>{enNum(m)} {moU(m, isAr)}</span>
+                {modeBtn(m, 'full', T('كامل الفاتورة', 'Paid in full'))}
+                {modeBtn(m, 'min', T('حدّ أدنى للمدفوع', 'Minimum paid'))}
+                <input className="ox-fld" type="number" dir="ltr" style={{ width: 130, height: 32, visibility: modeOf(m) === 'min' ? 'visible' : 'hidden' }}
+                  placeholder={T('المبلغ', 'Amount')} value={cur(m).v || ''} onChange={(e) => upd(m, { v: e.target.value })} />
+              </div>
+            ))}
+          </Modal>
+        )
+      })()}
 
       {/* ── نافذة تسعيرة الأغراض ── */}
       {priceModal && view.priceBook && (() => {

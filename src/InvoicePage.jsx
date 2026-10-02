@@ -160,6 +160,17 @@ const canEditDone = (user, at) => isGM(user) || withinEditWindow(at)
 // حقلاً في نافذة «تعديل تفاصيل الخدمة»، بنوعٍ يتبع أعلامه: opts ⇒ قائمة · date ⇒ تاريخ ·
 // money ⇒ مبلغ · months ⇒ مدة بالأشهر · wide ⇒ نص طويل · غير ذلك ⇒ نص. هكذا تختلف حقول
 // النافذة باختلاف الخدمة تلقائياً، وتبقى مطابقةً لما يعرضه الكرت بلا قائمة موازية.
+/* قيم قوائم تفاصيل الخدمة بالإنجليزية: `opts` في txnServices تحمل العربية وحدها، فتُترجَم
+   عند العرض بالواجهة الإنجليزية (طلب المستخدم 2026-10-02). قيمةٌ ليست هنا تبقى كما هي. */
+const SVC_OPT_EN = {
+  'مفردة': 'Single', 'متعددة': 'Multiple',
+  'تمديد الانتهاء': 'Extend expiry', 'تجديد (جواز جديد)': 'Renewal (new passport)',
+  'إنشاء خروج نهائي': 'Create final exit', 'إلغاء خروج نهائي': 'Cancel final exit',
+  'تصديق مطبوعات': 'Printed certification', 'طلب مفتوح': 'Open request',
+  'السجل التجاري': 'Commercial register', 'ملف مقيم': 'Muqeem file', 'بوليصة التأمين': 'Insurance policy',
+  'صورة إقامة': 'Iqama copy', 'عقد عمل': 'Work contract', 'تعريف بالراتب': 'Salary certificate', 'أخرى': 'Other',
+  'عربي': 'Arabic', 'إنجليزي': 'English',
+}
 const SVC_DETAIL_SKIP = new Set(['chamber_subtype', 'chamber_text', 'chamber_file'])  // للغرفة قسمها الخاص
 // خدمات قيمها مجمّدة من الحسبة/التأشيرة — لا تُعدَّل حقولها من هنا.
 const SVC_FIELDS_FROZEN = new Set(['transfer', 'iqama_renewal', 'iqama_issuance', 'work_visa'])
@@ -768,7 +779,7 @@ const INVOICE_SELECT = `
         service_type:service_type_id(code,value_ar,value_en),
         status:status_id(code,value_ar,value_en),
         branch:branch_id(id,branch_code,name_ar,phone,city:city_id(name_ar)),
-        agent:agent_id(id,name_ar,name_en,id_number,phone,nationality_id,edit_log,nationality:nationality_id(code,name_ar,flag_url)),
+        agent:agent_id(id,name_ar,name_en,id_number,phone,nationality_id,edit_log,nationality:nationality_id(code,name_ar,name_en,flag_url)),
         transfer_calculation(transfer_only,stage_data,deleted_at,office_fee,office_fee_net,expected_duration_months,billed_renewal_months,renewal_months,worker_name,phone,change_profession,prof_change_fee),
         iqama_renewal_calculation(pricing_model,stage_data,deleted_at,office_fee,office_fee_net,expected_duration_months,billed_renewal_months,renewal_months,worker_name,phone,change_profession,prof_change_fee),
         service_request:service_request_id(
@@ -778,14 +789,14 @@ const INVOICE_SELECT = `
           canceller:cancelled_by(person:person_id(name_ar,name_en)),
           accountant:accountant_by(person:person_id(name_ar,name_en)),
           status:status_id(code,value_ar,value_en),
-          client:client_id(id,name_ar,name_en,phone,id_number,nationality_id,edit_log,nationality:nationality_id(code,name_ar,flag_url)),
+          client:client_id(id,name_ar,name_en,phone,id_number,nationality_id,edit_log,nationality:nationality_id(code,name_ar,name_en,flag_url)),
           visa_applications(id,border_number,visa_type:visa_type_id(code,value_ar,value_en),iqama_issuance_applications(id,deleted_at,iqama_number,stage_data,medical_status,insurance_status,work_permit_status,iqama_print_status,iqama_delivery_status,iqama_delivery_date)),
-          transfer_applications(worker:worker_id(id,name_ar,name_en,phone,iqama_number,photo_path,iqama_expiry_date,nationality_ar,nationality:nationality_id(code,name_ar,flag_url),current_facility:current_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),facility:main_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),
-          ajeer_applications(worker:worker_id(id,name_ar,name_en,phone,iqama_number,photo_path,iqama_expiry_date,nationality_ar,nationality:nationality_id(code,name_ar,flag_url),current_facility:current_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),facility:main_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),
-          iqama_renewal_applications(duration_months,deleted_at,worker:worker_id(id,name_ar,name_en,phone,iqama_number,photo_path,iqama_expiry_date,nationality_ar,nationality:nationality_id(code,name_ar,flag_url),current_facility:current_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),facility:worker_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),
-          other_applications(worker_phone,details,worker:worker_id(id,name_ar,name_en,phone,iqama_number,photo_path,iqama_expiry_date,nationality_ar,birth_date,nationality:nationality_id(code,name_ar,flag_url),current_facility:current_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),facility:worker_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),
-          supplier_payroll_applications(worker_phone,total_amount,unpaid_salaries_count,worker:worker_id(id,name_ar,name_en,phone,iqama_number,photo_path,iqama_expiry_date,nationality_ar,nationality:nationality_id(code,name_ar,flag_url),current_facility:current_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),facility:worker_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),
-          service_request_agents(is_assumed,agent:agent_id(id,name_ar,name_en,id_number,phone,nationality_id,edit_log,nationality:nationality_id(code,name_ar,flag_url)))
+          transfer_applications(worker:worker_id(id,name_ar,name_en,phone,iqama_number,photo_path,iqama_expiry_date,nationality_ar,nationality:nationality_id(code,name_ar,name_en,flag_url),current_facility:current_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),facility:main_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),
+          ajeer_applications(worker:worker_id(id,name_ar,name_en,phone,iqama_number,photo_path,iqama_expiry_date,nationality_ar,nationality:nationality_id(code,name_ar,name_en,flag_url),current_facility:current_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),facility:main_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),
+          iqama_renewal_applications(duration_months,deleted_at,worker:worker_id(id,name_ar,name_en,phone,iqama_number,photo_path,iqama_expiry_date,nationality_ar,nationality:nationality_id(code,name_ar,name_en,flag_url),current_facility:current_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),facility:worker_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),
+          other_applications(worker_phone,details,worker:worker_id(id,name_ar,name_en,phone,iqama_number,photo_path,iqama_expiry_date,nationality_ar,birth_date,nationality:nationality_id(code,name_ar,name_en,flag_url),current_facility:current_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),facility:worker_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),
+          supplier_payroll_applications(worker_phone,total_amount,unpaid_salaries_count,worker:worker_id(id,name_ar,name_en,phone,iqama_number,photo_path,iqama_expiry_date,nationality_ar,nationality:nationality_id(code,name_ar,name_en,flag_url),current_facility:current_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),facility:worker_facility_id(id,name_ar,unified_number,hrsd_number,gosi_number)),
+          service_request_agents(is_assumed,agent:agent_id(id,name_ar,name_en,id_number,phone,nationality_id,edit_log,nationality:nationality_id(code,name_ar,name_en,flag_url)))
         )
       `
 
@@ -840,6 +851,8 @@ const SC_CARD = {
 
 function StatsCards({ T, periodStats, svcToday, mode = 'real' }) {
   const isMobile = useIsMobile()
+  // الواجهة الإنجليزية: العناوين والأرقام تبدأ من اليسار (طلب المستخدم 2026-10-02)
+  const en = T('ع', 'e') === 'e'
   if (mode === 'hidden') return null   // GM hid the stat strip for this user
   const z = mode === 'zero'            // show the cards but always zeroed
   const ps = periodStats
@@ -882,9 +895,9 @@ function StatsCards({ T, periodStats, svcToday, mode = 'real' }) {
       {/* بطل «نقدًا» — شريط جانبي: لوحة أيقونة على اليسار + المحتوى على اليمين */}
       <div style={{ ...SC_CARD, position: 'relative', overflow: 'hidden', minHeight: 190, display: 'flex' }}>
         <div style={{ position: 'absolute', insetInlineEnd: -50, top: -50, width: 150, height: 150, borderRadius: '50%', background: `radial-gradient(circle, ${C.gold}18 0%, transparent 70%)`, pointerEvents: 'none' }} />
-        <div style={{ position: 'relative', flex: 1, padding: '16px 34px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', textAlign: 'right' }}>
+        <div style={{ position: 'relative', flex: 1, padding: '16px 34px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', textAlign: en ? 'left' : 'right' }}>
           <span style={{ fontSize: 24, color: 'var(--tx)', fontWeight: 600, letterSpacing: '.2px' }}>{T('نقدًا', 'Cash')}</span>
-          <div style={{ direction: 'ltr', textAlign: 'right' }}>
+          <div style={{ direction: 'ltr', textAlign: en ? 'left' : 'right' }}>
             <span style={{ fontSize: 46, fontWeight: 600, color: C.gold, letterSpacing: '-1.5px', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{num(cashSum)}</span>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -892,7 +905,7 @@ function StatsCards({ T, periodStats, svcToday, mode = 'real' }) {
             {/* الصافي النقدي — النقد بعد خصم ما خرج فعلاً للعميل، بشكل «تاق» مثل تاق حالة المعاملة */}
             {(() => { const netColor = netCash < 0 ? C.red : '#27a046'; return (
               <span title={T('ما استقرّ في الصندوق = «نقدًا» − الخارج نقدًا (المرتجعات + المسدَّد على الفواتير المُلغاة ضمن الفترة).', 'What is left in the box = “Cash” − cash out (refunds + amounts paid on invoices cancelled within the period).')}
-                style={{ alignSelf: 'flex-start', direction: 'rtl', display: 'inline-flex', alignItems: 'center', gap: 6, borderInlineStart: '3px solid ' + netColor, background: netColor + '10', padding: '5px 11px', color: netColor, flexShrink: 0, cursor: 'help' }}>
+                style={{ alignSelf: 'flex-start', direction: en ? 'ltr' : 'rtl', display: 'inline-flex', alignItems: 'center', gap: 6, borderInlineStart: '3px solid ' + netColor, background: netColor + '10', padding: '5px 11px', color: netColor, flexShrink: 0, cursor: 'help' }}>
                 <span style={{ fontSize: 12, fontWeight: 600 }}>{T('الصافي النقدي', 'Net Cash')}</span>
                 <span style={{ fontSize: 15, fontWeight: 600, direction: 'ltr', fontVariantNumeric: 'tabular-nums' }}>{num(netCash)}</span>
                 <span style={{ fontSize: 10.5, fontWeight: 600, opacity: .85 }}>{T('ريال', 'SAR')}</span>
@@ -918,7 +931,7 @@ function StatsCards({ T, periodStats, svcToday, mode = 'real' }) {
                 <span style={{ fontSize: 13, color: 'var(--tx2)', fontWeight: 600 }}>{s.label}</span>
                 <span style={{ fontSize: 12, color: s.cnt > 0 ? C.gold : 'var(--tx4)', fontWeight: 600 }}>({num(s.cnt)})</span>
               </div>
-              <div style={{ direction: 'ltr', textAlign: 'right' }}>
+              <div style={{ direction: 'ltr', textAlign: en ? 'left' : 'right' }}>
                 <span style={{ fontSize: 22, fontWeight: 600, color: s.c, fontVariantNumeric: 'tabular-nums', lineHeight: 1, letterSpacing: '-.5px' }}>{num(s.val)}</span>
               </div>
             </div>
@@ -1552,10 +1565,7 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
                 <div style={fLbl}>{T('نوع الخدمة','Service Type')}</div>
                 <FKDropdown multi selectedKeys={serviceType} onChange={arr => { setServiceType(arr); setPage(0) }} placeholder={T('الكل','All')} getKey={o => o.v} getLabel={o => o.l} options={serviceTypeOptions} />
               </div>
-              <div>
-                <div style={fLbl}>{T('حالة المعاملة','Transaction Status')}</div>
-                <FKDropdown multi selectedKeys={reqStage} onChange={arr => { setReqStage(arr); setPage(0) }} placeholder={T('الكل','All')} getKey={o => o.v} getLabel={o => o.l} options={stageOptions} />
-              </div>
+              {/* حقلا «حالة المعاملة» و«الوسيط» أُزيلا من كرت التصفية بطلب المستخدم (2026-10-02) */}
               <div>
                 <div style={fLbl}>{T('حالة السداد','Pay Status')}</div>
                 <FKDropdown multi selectedKeys={payFilter} onChange={arr => { setPayFilter(arr); setPage(0) }} placeholder={T('الكل','All')} getKey={o => o.v} getLabel={o => o.l} options={[
@@ -1579,13 +1589,6 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
                   { v: 'created_asc',   l: T('تاريخ الإصدار — الأقدم أولاً','Issue date — Oldest first') },
                 ]} />
               </div>
-              {/* فلتر الوسيط — يظهر للمدير العام فقط */}
-              {isGM(user) && (
-              <div>
-                <div style={fLbl}>{T('الوسيط','Agent')}</div>
-                <FKDropdown value={agentFilter} onChange={v => { setAgentFilter(v); setPage(0) }} placeholder={T('الكل','All')} getKey={o => o.v} getLabel={o => o.l} options={[{ v: '', l: T('الكل','All') }, ...agents.map(a => ({ v: a.id, l: isAr ? (a.name_ar || a.name_en) : (a.name_en || a.name_ar) }))]} />
-              </div>
-              )}
             </div>
   )
 
@@ -1645,24 +1648,25 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
       {!isMobile && (<>
       {/* Filter row — بحث ذكي شامل + اختيار حقل محدد */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 18, alignItems: 'center', flexWrap: 'wrap' }}>
+        {/* الأيقونة في الطرف المقابل لبداية النصّ: يساراً بالعربية ويميناً بالإنجليزية (طلب المستخدم 2026-10-02) */}
         {/* الظل على الحاوية (لا على الحقل) كي لا يُلغيه :focus عبر قاعدة input:focus{box-shadow:none} العامة */}
         <div style={{ flex: '1 1 280px', position: 'relative', borderRadius: 12 }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', top: '50%', left: 14, transform: 'translateY(-50%)', color: q ? C.gold : 'var(--tx4)', transition: 'color .18s' }}><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', top: '50%', [T('left', 'right')]: 14, transform: 'translateY(-50%)', color: q ? C.gold : 'var(--tx4)', transition: 'color .18s' }}><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
           <input
             placeholder={T('ابحث برقم الفاتورة، رقم الطلب، الاسم، الإقامة، الحدود، التأشيرة، الهوية، أو الجوال…', 'Search by invoice no, request no, name, iqama, border no, visa no, ID, or phone…')}
             value={q}
             onChange={e => { setQ(e.target.value); setPage(0) }}
-            style={{ width: '100%', height: 44, padding: '0 14px 0 38px', borderRadius: 12, background: 'var(--search-bg)', border: '1px solid transparent', color: 'var(--tx)', fontSize: 13, fontFamily: F, boxSizing: 'border-box' }}
+            style={{ width: '100%', height: 44, padding: T('0 14px 0 38px', '0 38px 0 14px'), borderRadius: 12, background: 'var(--search-bg)', border: '1px solid transparent', color: 'var(--tx)', fontSize: 13, fontFamily: F, boxSizing: 'border-box' }}
           />
         </div>
         {/* سند القبض الورقي — بحث مباشر برقم السند (بجانب البحث الشامل) */}
         <div style={{ flex: '0 1 150px', minWidth: 120, position: 'relative', borderRadius: 12 }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', top: '50%', left: 14, transform: 'translateY(-50%)', color: slipQ ? C.gold : 'var(--tx4)', transition: 'color .18s' }}><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M8 7h8M8 11h8M8 15h5"/></svg>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', top: '50%', [T('left', 'right')]: 14, transform: 'translateY(-50%)', color: slipQ ? C.gold : 'var(--tx4)', transition: 'color .18s' }}><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M8 7h8M8 11h8M8 15h5"/></svg>
           <input
             type="text" inputMode="numeric" value={slipQ}
             onChange={e => { setSlipQ(e.target.value); setPage(0) }}
             placeholder={T('سند القبض','Receipt')}
-            style={{ width: '100%', height: 44, padding: '0 14px 0 38px', borderRadius: 12, background: 'var(--search-bg)', border: '1px solid transparent', color: 'var(--tx)', fontSize: 13, fontFamily: F, boxSizing: 'border-box' }}
+            style={{ width: '100%', height: 44, padding: T('0 14px 0 38px', '0 38px 0 14px'), borderRadius: 12, background: 'var(--search-bg)', border: '1px solid transparent', color: 'var(--tx)', fontSize: 13, fontFamily: F, boxSizing: 'border-box' }}
           />
         </div>
         {(() => {
@@ -2360,7 +2364,7 @@ function InvoiceDetailPage({ sb, inv: invProp, onBack, isAr, T, toast, user }) {
         const _hasW = [_sr?.transfer_applications, _sr?.ajeer_applications, _sr?.iqama_renewal_applications, _sr?.supplier_payroll_applications, _sr?.other_applications].some(_pickW)
         const _cliId = String(_sr?.client?.id_number || '').replace(/\D/g, '')
         if (!_hasW && _cliId.length === 10 && ['transfer', 'iqama_renewal'].includes(baseSvcCode(code))) {
-          const WSEL = 'id,name_ar,name_en,phone,iqama_number,photo_path,iqama_expiry_date,nationality_ar,nationality:nationality_id(code,name_ar,flag_url),current_facility:current_facility_id(id,name_ar,name_en,unified_number,hrsd_number,gosi_number)'
+          const WSEL = 'id,name_ar,name_en,phone,iqama_number,photo_path,iqama_expiry_date,nationality_ar,nationality:nationality_id(code,name_ar,name_en,flag_url),current_facility:current_facility_id(id,name_ar,name_en,unified_number,hrsd_number,gosi_number)'
           const [wp, wt] = await Promise.all([
             sb.from('workers').select(WSEL).eq('iqama_number', _cliId).is('deleted_at', null).limit(1),
             sb.from('temproryworkers').select(WSEL).eq('iqama_number', _cliId).is('deleted_at', null).limit(1),
@@ -5549,6 +5553,7 @@ const ReceiptVouchersCard = ({ imgs, isAr, T, invId, canOpenReceipt }) => {
 }
 
 const ClientRows = ({ inv, T, user }) => {
+  const en = T('ع', 'e') === 'e'   // واجهة إنجليزية: الاسم والأرقام تبدأ من اليسار (طلب المستخدم 2026-10-02)
   // When client_id is null but the request has a worker (workerIsClient at create time),
   // fall back to the worker as the displayed party.
   const sr = inv.service_request
@@ -5584,17 +5589,17 @@ const ClientRows = ({ inv, T, user }) => {
           </span>
         )}
       </span>
-      <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, direction: 'ltr' }}>
+      <span style={{ display: 'flex', flexDirection: en ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 6, direction: 'ltr' }}>
         <CopyBtn text={primary} />
         <span style={{ fontSize: 14, color: 'var(--tx1)', fontWeight: 600, lineHeight: 1.4, direction: isLatinName ? 'ltr' : 'rtl' }}>{primary}</span>
       </span>
-      {secondary && <div style={{ fontSize: 11, color: 'var(--tx4)', fontFamily: 'monospace', fontWeight: 500, direction: 'ltr', textAlign: 'right' }}>{secondary}</div>}
+      {secondary && <div style={{ fontSize: 11, color: 'var(--tx4)', fontFamily: 'monospace', fontWeight: 500, direction: 'ltr', textAlign: en ? 'left' : 'right' }}>{secondary}</div>}
     </div>
   )
   const cellTile = (f, i) => (
     <div key={i} style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
       <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{f.label}</span>
-      <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, direction: 'ltr' }}>
+      <span style={{ display: 'flex', flexDirection: en ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 6, direction: 'ltr' }}>
         <CopyBtn text={f.value} />
         <span style={{ fontSize: 13, color: 'var(--tx2)', fontWeight: 600, wordBreak: 'break-word', direction: f.mono ? 'ltr' : 'rtl', ...(f.mono ? { fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' } : {}) }}>{f.value}</span>
       </span>
@@ -5628,7 +5633,8 @@ const ClientRows = ({ inv, T, user }) => {
 // the invoice "العامل ومنشأته" card matches the transaction facility card design.
 // onOpen — when provided, the whole card becomes a clickable link to the worker/facility
 // detail page (copy buttons inside stopPropagation, so they never trigger navigation).
-const EntityHero = ({ icon, primary, secondary, latin, cells, onOpen, openTitle }) => (
+/* `en`: واجهة إنجليزية — الاسم والقيم تبدأ من اليسار (طلب المستخدم 2026-10-02) */
+const EntityHero = ({ icon, primary, secondary, latin, cells, onOpen, openTitle, en = false }) => (
   <div
     role={onOpen ? 'button' : undefined} tabIndex={onOpen ? 0 : undefined} title={onOpen ? openTitle : undefined}
     onClick={onOpen || undefined}
@@ -5639,11 +5645,11 @@ const EntityHero = ({ icon, primary, secondary, latin, cells, onOpen, openTitle 
     <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
       <div style={{ width: 48, height: 48, borderRadius: 12, background: 'rgba(176,125,0,.1)', border: '1.5px solid rgba(176,125,0,.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{icon}</div>
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
-        <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, direction: 'ltr' }}>
+        <span style={{ display: 'flex', flexDirection: en ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 6, direction: 'ltr' }}>
           <CopyBtn text={primary} />
-          <span data-hero-name style={{ minWidth: 0, fontSize: 15.5, fontWeight: 600, color: C.gold, letterSpacing: '-.2px', direction: latin ? 'ltr' : 'rtl', textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textUnderlineOffset: 3 }}>{primary}</span>
+          <span data-hero-name style={{ minWidth: 0, fontSize: 15.5, fontWeight: 600, color: C.gold, letterSpacing: '-.2px', direction: latin ? 'ltr' : 'rtl', textAlign: en ? 'left' : 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textUnderlineOffset: 3 }}>{primary}</span>
         </span>
-        {secondary && <span style={{ fontSize: 11, color: 'var(--tx5)', fontWeight: 600, direction: 'ltr', textAlign: 'right', opacity: .7 }}>{secondary}</span>}
+        {secondary && <span style={{ fontSize: 11, color: 'var(--tx5)', fontWeight: 600, direction: 'ltr', textAlign: en ? 'left' : 'right', opacity: .7 }}>{secondary}</span>}
       </div>
     </div>
     {cells.length > 0 && (
@@ -5655,7 +5661,7 @@ const EntityHero = ({ icon, primary, secondary, latin, cells, onOpen, openTitle 
               <span style={{ minWidth: 0, fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.label}</span>
               <CopyBtn text={c.value} />
             </span>
-            <span title={c.value || undefined} style={{ minWidth: 0, fontSize: 12, color: c.value ? 'var(--tx2)' : 'var(--tx4)', fontWeight: 600, direction: c.value && !c.text ? 'ltr' : 'rtl', textAlign: 'right', fontFamily: c.value && !c.text ? 'monospace' : undefined, fontVariantNumeric: 'tabular-nums', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.value || '—'}</span>
+            <span title={c.value || undefined} style={{ minWidth: 0, fontSize: 12, color: c.value ? 'var(--tx2)' : 'var(--tx4)', fontWeight: 600, direction: c.value && !c.text ? 'ltr' : 'rtl', textAlign: en ? 'left' : 'right', fontFamily: c.value && !c.text ? 'monospace' : undefined, fontVariantNumeric: 'tabular-nums', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.value || '—'}</span>
           </div>
         ))}
       </div>
@@ -5684,7 +5690,7 @@ const WorkerRows = ({ worker, facility, T, user }) => {
   const wCells = [
     { label: T('الإقامة','Iqama'), value: w.iqama_number, vis: fieldVisible(user, 'invoices', 'worker_iqama_number') },
     { label: T('انتهاء الإقامة','Iqama expiry'), value: w.iqama_expiry_date ? String(w.iqama_expiry_date).slice(0, 10) : null, vis: fieldVisible(user, 'invoices', 'worker_iqama_expiry') },
-    { label: T('الجنسية','Nationality'), value: w.nationality?.name_ar || w.nationality_ar || null, text: true, vis: fieldVisible(user, 'invoices', 'worker_nationality') },
+    { label: T('الجنسية','Nationality'), value: T(w.nationality?.name_ar, w.nationality?.name_en) || w.nationality?.name_ar || w.nationality_ar || null, text: true, vis: fieldVisible(user, 'invoices', 'worker_nationality') },
     { label: T('الجوال','Phone'), value: fmtPhone(w.phone), vis: fieldVisible(user, 'invoices', 'worker_phone') },
   ].filter(f => f.value && f.vis !== false)
   const f = facility
@@ -5710,9 +5716,9 @@ const WorkerRows = ({ worker, facility, T, user }) => {
   const openFacility = f?.id ? () => { try { window.dispatchEvent(new CustomEvent('app-navigate-facility', { detail: { id: f.id } })) } catch {} } : undefined
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <EntityHero icon={wIcon} primary={wPrimary} secondary={wSecondary} latin={isLatinName} cells={wCells} onOpen={openWorker} openTitle={T('فتح صفحة العامل','Open worker page')} />
+      <EntityHero icon={wIcon} primary={wPrimary} secondary={wSecondary} latin={isLatinName} cells={wCells} onOpen={openWorker} openTitle={T('فتح صفحة العامل','Open worker page')} en={T('ع', 'e') === 'e'} />
       {f && (fPrimary || fCells.some(c => c.value)) && (
-        <EntityHero icon={<Building2 size={24} color={C.gold} strokeWidth={1.8} />} primary={fPrimary} secondary={fSecondary} latin={false} cells={fCells} onOpen={openFacility} openTitle={T('فتح صفحة المنشأة','Open facility page')} />
+        <EntityHero icon={<Building2 size={24} color={C.gold} strokeWidth={1.8} />} primary={fPrimary} secondary={fSecondary} latin={false} cells={fCells} onOpen={openFacility} openTitle={T('فتح صفحة المنشأة','Open facility page')} en={T('ع', 'e') === 'e'} />
       )}
     </div>
   )
@@ -5720,6 +5726,7 @@ const WorkerRows = ({ worker, facility, T, user }) => {
 
 // Broker/agent rows — mirrors ClientRows so the agent renders in its own card identical to the client card.
 const BrokerRows = ({ agent, T, user }) => {
+  const en = T('ع', 'e') === 'e'   // واجهة إنجليزية: الاسم والأرقام تبدأ من اليسار (طلب المستخدم 2026-10-02)
   const a = agent
   if (!a) return null
   const primary = a.name_ar || a.name_en
@@ -5734,17 +5741,17 @@ const BrokerRows = ({ agent, T, user }) => {
   const nameTile = (
     <div style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
       <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{T('الاسم','Name')}</span>
-      <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, direction: 'ltr' }}>
+      <span style={{ display: 'flex', flexDirection: en ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 6, direction: 'ltr' }}>
         <CopyBtn text={primary} />
         <span style={{ fontSize: 14, color: 'var(--tx1)', fontWeight: 600, lineHeight: 1.4, direction: isLatinName ? 'ltr' : 'rtl' }}>{primary}</span>
       </span>
-      {secondary && <div style={{ fontSize: 11, color: 'var(--tx4)', fontFamily: 'monospace', fontWeight: 500, direction: 'ltr', textAlign: 'right' }}>{secondary}</div>}
+      {secondary && <div style={{ fontSize: 11, color: 'var(--tx4)', fontFamily: 'monospace', fontWeight: 500, direction: 'ltr', textAlign: en ? 'left' : 'right' }}>{secondary}</div>}
     </div>
   )
   const cellTile = (f, i) => (
     <div key={i} style={{ background: 'var(--inputBg)', border: '1px solid var(--bd)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
       <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{f.label}</span>
-      <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, direction: 'ltr' }}>
+      <span style={{ display: 'flex', flexDirection: en ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 6, direction: 'ltr' }}>
         <CopyBtn text={f.value} />
         <span style={{ fontSize: 13, color: 'var(--tx2)', fontWeight: 600, wordBreak: 'break-word', direction: f.mono ? 'ltr' : 'rtl', ...(f.mono ? { fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' } : {}) }}>{f.value}</span>
       </span>
@@ -6032,9 +6039,9 @@ const TransactionRows = ({ inv, isAr, T, svc, payT, data, user }) => {
         if (!f.src || !f.src.startsWith('d:')) continue
         let v = dt[f.src.slice(2)]
         if (v == null || v === '') continue
-        if (f.opts) v = f.opts[v] || v
+        if (f.opts) { v = f.opts[v] || v; if (!isAr) v = SVC_OPT_EN[v] || v }
         if (f.date) v = date(v)
-        else if (f.months && !isNaN(Number(v))) { const n = Number(v); v = n + ' ' + (n >= 3 && n <= 10 ? T('أشهر','months') : T('شهر','month')) }
+        else if (f.months && !isNaN(Number(v))) { const n = Number(v); v = n + ' ' + (n >= 3 && n <= 10 ? T('أشهر','months') : T('شهر', n === 1 ? 'month' : 'months')) }
         else if (f.money && !isNaN(Number(v))) v = num(v) + (f.noUnit ? '' : ' ' + T('ريال','SAR'))
         else if (f.suffix) v = String(v) + f.suffix
         target.push({ label: T(f.l_ar, f.l_en), value: v, mono: !!f.mono, gold: !!f.money })
@@ -6059,19 +6066,19 @@ const TransactionRows = ({ inv, isAr, T, svc, payT, data, user }) => {
         <span style={{ fontSize: 14, color: C.gold, fontWeight: 600, lineHeight: 1.4 }}>{svcName}</span>
         {/* خدمة عامة: نعرض الوصف المُدخل للفاتورة (يختلف بين الفواتير) بدل اسم العميل المكرَّر — الاسم يظهر أصلاً في كرت العميل. */}
         {workerName && !isZeroSvc(code, inv?.total_amount) && !SELF_PARTY_DONE_SVCS.includes(code) && code !== 'general' && (
-          <span style={{ fontSize: 13, color: 'var(--tx)', fontWeight: 600, lineHeight: 1.5, direction: 'rtl', marginTop: 4 }}>{workerName}</span>
+          <span style={{ fontSize: 13, color: 'var(--tx)', fontWeight: 600, lineHeight: 1.5, direction: isAr ? 'rtl' : 'ltr', marginTop: 4 }}>{workerName}</span>
         )}
         {/* نوع التصديق ونص الطلب صارا يُعرضان أسفل (بعد splCells) — مثل التأمين الطبي */}
         {/* طباعة الإقامة: سبب الطلب المُدخل في النموذج */}
         {code === 'iqama_print' && d?.details?.print_reason && (
-          <span style={{ fontSize: 12.5, color: 'var(--tx)', fontWeight: 600, lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word', direction: 'rtl', marginTop: 4 }}>
+          <span style={{ fontSize: 12.5, color: 'var(--tx)', fontWeight: 600, lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word', direction: isAr ? 'rtl' : 'ltr', marginTop: 4 }}>
             <span style={{ color: 'var(--tx4)', fontWeight: 600 }}>{T('السبب','Reason')}: </span>{d.details.print_reason}
           </span>
         )}
         {code === 'exit_reentry_visa' ? (
-          <span style={{ fontSize: 12.5, color: 'var(--tx)', fontWeight: 600, lineHeight: 1.5, whiteSpace: 'pre-wrap', wordBreak: 'break-word', direction: 'rtl', marginTop: 4 }}>{erOpLabel}</span>
+          <span style={{ fontSize: 12.5, color: 'var(--tx)', fontWeight: 600, lineHeight: 1.5, whiteSpace: 'pre-wrap', wordBreak: 'break-word', direction: isAr ? 'rtl' : 'ltr', marginTop: 4 }}>{erOpLabel}</span>
         ) : descVis && d?.description && d.description !== svcName && (
-          <span style={{ fontSize: 12.5, color: 'var(--tx)', fontWeight: 600, lineHeight: 1.5, whiteSpace: 'pre-wrap', wordBreak: 'break-word', direction: 'rtl', marginTop: 4 }}>{d.description}</span>
+          <span style={{ fontSize: 12.5, color: 'var(--tx)', fontWeight: 600, lineHeight: 1.5, whiteSpace: 'pre-wrap', wordBreak: 'break-word', direction: isAr ? 'rtl' : 'ltr', marginTop: 4 }}>{d.description}</span>
         )}
         {/* رواتب سبلاير: حقول الطلب (الأشهر + الإجمالي) مدمجة داخل كرت اسم الخدمة بفاصل علوي. */}
         {splCells.length > 0 && (
@@ -6079,9 +6086,9 @@ const TransactionRows = ({ inv, isAr, T, svc, payT, data, user }) => {
             {splCells.map((c, i) => (
               <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{c.label}</span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 6, direction: c.mono ? 'ltr' : 'rtl', ...(c.mono ? { justifyContent: 'flex-end' } : {}) }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6, direction: (c.mono || !isAr) ? 'ltr' : 'rtl', ...(c.mono && isAr ? { justifyContent: 'flex-end' } : {}) }}>
                   {c.mono && <CopyBtn text={c.value} />}
-                  <span style={{ fontSize: 13, color: c.color || (c.gold ? C.gold : 'var(--tx2)'), fontWeight: 600, direction: c.mono ? 'ltr' : 'rtl', whiteSpace: 'pre-wrap', wordBreak: 'break-word', ...(c.mono ? { fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' } : {}) }}>{c.value}</span>
+                  <span style={{ fontSize: 13, color: c.color || (c.gold ? C.gold : 'var(--tx2)'), fontWeight: 600, direction: (c.mono || !isAr) ? 'ltr' : 'rtl', whiteSpace: 'pre-wrap', wordBreak: 'break-word', ...(c.mono ? { fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' } : {}) }}>{c.value}</span>
                 </span>
               </div>
             ))}
@@ -6089,12 +6096,12 @@ const TransactionRows = ({ inv, isAr, T, svc, payT, data, user }) => {
         )}
         {/* الغرفة التجارية: نص الطلب يُعرض أسفل «نوع التصديق» */}
         {code === 'other' && chamberTextVis && d?.details?.chamber_text && (
-          <span style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600, lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word', direction: 'rtl', marginTop: 6 }}>{d.details.chamber_text}</span>
+          <span style={{ fontSize: 12, color: 'var(--tx2)', fontWeight: 600, lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word', direction: isAr ? 'rtl' : 'ltr', marginTop: 6 }}>{d.details.chamber_text}</span>
         )}
         {/* ملف المطبوعات المرفق — رابط نصّي بسيط، أسفل «نوع التصديق» */}
         {d?.details?.chamber_file?.url && (
           <a href={d.details.chamber_file.url} target="_blank" rel="noopener noreferrer"
-            style={{ marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 6, alignSelf: 'flex-start', color: C.gold, fontSize: 12.5, fontWeight: 600, textDecoration: 'underline', textUnderlineOffset: 3, direction: 'rtl' }}>
+            style={{ marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 6, alignSelf: 'flex-start', color: C.gold, fontSize: 12.5, fontWeight: 600, textDecoration: 'underline', textUnderlineOffset: 3, direction: isAr ? 'rtl' : 'ltr' }}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
             <span>{T('عرض ملف المطبوعات المرفق','View attached printout')}</span>
           </a>
@@ -6111,9 +6118,9 @@ const TransactionRows = ({ inv, isAr, T, svc, payT, data, user }) => {
           {extraCells.map((c, i) => (
             <div key={i} style={boxStyle}>
               <span style={{ fontSize: 9.5, color: 'var(--tx4)', fontWeight: 600 }}>{c.label}</span>
-              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, direction: 'ltr' }}>
+              <span style={{ display: 'flex', flexDirection: isAr ? 'row' : 'row-reverse', alignItems: 'center', justifyContent: 'flex-end', gap: 6, direction: 'ltr' }}>
                 {c.mono && <CopyBtn text={c.value} />}
-                <span style={{ fontSize: 13, color: c.color || (c.gold ? C.gold : 'var(--tx2)'), fontWeight: 600, wordBreak: 'break-word', direction: c.mono ? 'ltr' : 'rtl', ...(c.mono ? { fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' } : {}) }}>{c.value}</span>
+                <span style={{ fontSize: 13, color: c.color || (c.gold ? C.gold : 'var(--tx2)'), fontWeight: 600, wordBreak: 'break-word', direction: (c.mono || !isAr) ? 'ltr' : 'rtl', ...(c.mono ? { fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' } : {}) }}>{c.value}</span>
               </span>
             </div>
           ))}
@@ -6182,7 +6189,7 @@ const FinancialSummaryCard = ({ inv, data, isAr, T, total, paid, remaining, pct,
           )}
         </div>
         {visTotal && (
-        <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', justifyContent: 'flex-end', gap: 6, marginTop: 2 }}>
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', justifyContent: isAr ? 'flex-end' : 'flex-start', gap: 6, marginTop: 2 }}>
           <span style={{ fontSize: 32, fontWeight: 600, color: '#000', direction: 'ltr', fontVariantNumeric: 'tabular-nums', letterSpacing: '-1px' }}>{num(total)}</span>
           <span style={{ fontSize: 13, fontWeight: 600, color: '#000' }}>{SAR(T)}</span>
         </div>
@@ -6602,6 +6609,27 @@ const fmtLineLabel = (label, T = (a) => a, svcCode = null) => {
   if (raw === 'رسوم خروج نهائي') return T('الرسوم', 'Fees')
   // تغيير المهنة: بند «رسوم مكتب» يُعرض «رسوم السعودة» (التخزين يبقى «رسوم مكتب»).
   if (svcCode === 'profession_change' && (raw === 'رسوم مكتب' || raw === 'رسوم المكتب')) return T('رسوم السعودة', 'Saudization Fee')
+  /* الواجهة الإنجليزية: البنود تُخزَّن نصّاً عربياً، فتُترجَم هنا بالقاموس نفسه الذي تطبع به
+     الفاتورة الإنجليزية (`fmtPriceLabel` في invoicePrint.js). بندٌ حرّ كتبه الموظف يبقى كما أُدخل. */
+  if (T('ع', 'e') === 'e') {
+    const s = raw
+    if (s.includes('خروج وعودة')) return `Exit / Re-entry (${s.includes('تمديد') ? 'Extension' : 'Issuance'}-${s.includes('متعددة') ? 'Multiple' : 'Single'})`
+    if (s.includes('رسوم مكتب') || s.includes('رسوم المكتب')) return 'Office Fee'
+    if (s.includes('رسم تغيير المهنة')) return 'Occupation Change Fee'
+    if (s.includes('تعديل الراتب')) return 'Salary Adjustment Fee'
+    if (s === 'رسوم') return 'Fees'
+    if (s.includes('نقل الكفالة') || s.includes('رسوم النقل')) return 'Sponsorship Transfer'
+    if (s.includes('تجديد الإقامة') || s.includes('تجديد الاقامة')) return 'Iqama Renewal'
+    if (s.includes('رخصة العمل')) return 'Work Permit'
+    if (s.includes('طباعة الإقامة') || s.includes('طباعة الاقامة')) return 'Iqama Print'
+    if (s.includes('التأمين الطبي') || s.includes('تأمين طبي')) return 'Medical Insurance'
+    if (s.includes('غرامة')) return 'Renewal Late Fine'
+    if (s === 'رسوم أساسية' || s.includes('رسوم عقد أجير') || s.includes('رسوم العقد')) return 'Contract Fee'
+    if (s.includes('معامل السعودة')) { const x = s.match(/×[ ]*[0-9]+/); return 'Saudization Factor' + (x ? ' ' + x[0] : '') }
+    if (s.includes('تصديق طلب مفتوح')) return 'Open Request Certification'
+    if (s.includes('تصديق المطبوعات') || s.includes('تصديق مطبوعات')) return 'Printed Certification'
+    return raw
+  }
   const m = raw.match(/^(إصدار|تمديد)\s+خروج وعودة\s*\(([^)]+)\)\s*$/)
   return m ? `${T('خروج وعودة', 'Exit / Re-entry')} (${T(m[1], m[1] === 'إصدار' ? 'Issue' : 'Extend')}-${m[2].trim()})` : raw
 }
@@ -6944,7 +6972,7 @@ function WorkerPickModal({ sb, toast, T, isAr, srId, currentWorker, editorId, ed
     let alive = true
     const t = setTimeout(async () => {
       const pattern = `%${needle.replace(/[%,]/g, '')}%`
-      const SEL = 'id,name_ar,name_en,iqama_number,iqama_expiry_date,phone,nationality:nationality_id(code,name_ar,flag_url),current_occupation:current_occupation_id(name_ar),current_facility:current_facility_id(id,name_ar,name_en,unified_number,hrsd_number,gosi_number)'
+      const SEL = 'id,name_ar,name_en,iqama_number,iqama_expiry_date,phone,nationality:nationality_id(code,name_ar,name_en,flag_url),current_occupation:current_occupation_id(name_ar),current_facility:current_facility_id(id,name_ar,name_en,unified_number,hrsd_number,gosi_number)'
       const orFilter = `name_ar.ilike.${pattern},name_en.ilike.${pattern},iqama_number.ilike.${pattern},phone.ilike.${pattern}`
       // نبحث في العُمّال الدائمين (workers) والمؤقتين (temproryworkers) معاً — كلاهما يُخزَّن في worker_id بنفس الشكل.
       const [wp, wt] = await Promise.all([
@@ -10201,7 +10229,11 @@ const InvoiceDetailLayout = ({ user, inv, data, isAr, T, svc, payT, total, paid,
                 const d = det[0] || {}
                 const rows = [
                   [T('رقم الإقامة', 'Iqama No'), mk(d.worker?.iqama_number), true, null, true],
-                  [T('الوصف', 'Description'), mk(d.description), false],
+                  /* الوصف يُملأ تلقائياً باسم الخدمة العربي — بالواجهة الإنجليزية يُعرض اسمها
+                     الإنجليزي. وصفٌ كتبه الموظف بيده (يخالف اسم الخدمة) يبقى كما أُدخل. */
+                  [T('الوصف', 'Description'), mk((!isAr && inv?.service_type?.value_en
+                    && String(d.description || '').trim() === String(inv.service_type.value_ar || '').trim())
+                    ? inv.service_type.value_en : d.description), false],
                 ].filter(r => r[1])
                 if (rows.length) groups.push({ title: null, rows })
               }

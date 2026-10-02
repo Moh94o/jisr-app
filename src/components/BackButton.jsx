@@ -25,6 +25,10 @@ export default function BackButton({ onClick, onBack, label = 'رجوع', title,
         ? (isAr ? (from.label.ar || from.label.en) : (from.label.en || from.label.ar))
         : (isAr ? 'الصفحة السابقة' : 'previous page'))
     : label
+  /* اتجاه السهم يتبع لغة الزرّ: «رجوع» في العربية نحو اليمين (→)، و«Back» في الإنجليزية نحو
+     اليسار (←). يُقرأ من النصّ المعروض نفسه لا من `isAr`: أكثر الصفحات لا تمرّره فيبقى على
+     افتراضه العربي والنصّ إنجليزي (بلاغ المستخدم 2026-10-02). */
+  const ltr = !/[؀-ۿ]/.test(String(text || ''))
   const click = from ? () => { if (!navBack(navKind, navId)) handle?.() } : handle
   // زر الرجوع في الجوال = هذا الزر (تفاصيلُ مفتوحة ترجع إلى قائمتها أو سياقها السابق)
   useBackHandler(!!click, () => click?.())
@@ -34,7 +38,7 @@ export default function BackButton({ onClick, onBack, label = 'رجوع', title,
       style={{ cursor: 'pointer', fontFamily: F, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', transition: '.2s', height: 38, padding: '0 16px', borderRadius: 10, gap: 8, background: 'transparent', border: '1px dashed var(--bd)', color: 'var(--tx3)', fontSize: 12, fontWeight: 600, boxShadow: '0 2px 7px rgba(0,0,0,.12), inset 0 1px 0 rgba(176,125,0,.1)' }}
       onMouseEnter={e => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.background = 'var(--card-grad2)'; e.currentTarget.style.color = 'var(--tx)' }}
       onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--bd)'; e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--tx3)' }}>
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={ltr ? { transform: 'scaleX(-1)' } : undefined}><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>
       <span>{text}</span>
     </button>
   )
