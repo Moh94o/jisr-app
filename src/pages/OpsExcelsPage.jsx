@@ -1221,6 +1221,20 @@ const WF_BULK_IQAMA_EXP = {
     return p.status === 'ok' ? { status: 'ok', val: ymd(p.result.iqamaExpiryGregorian || '') } : p
   },
 }
+/* الزرّ نفسه في شيتات المعاملات (طلب المستخدم 2026-10-02): نقل الكفالة · تجديد الإقامات ·
+   إصدار الإقامات — يكتب في عمود «انتهاء الإقامة» المجلوب من مقيم في كلٍّ منها (`col`).
+   ورقم الإقامة بالقيمة **الفعّالة** (`av`): في الإصدار يُكتب في الشيت نفسه فيعيش في طبقة
+   التجاوز. والملغاة خارجه — صفُّها مجمّد لا تُكتب خلاياه. */
+const txnBulkIqamaExp = (col) => {
+  const iq = (r) => av(r, 'iqama_number').replace(/\D/g, '')
+  return { ...WF_BULK_IQAMA_EXP, col,
+    eligible: (r) => /^[12]\d{9}$/.test(iq(r)) && String(r.invoice_status_code || '') !== 'cancelled',
+    key: (r) => `${r._id || r.id || ''}:${iq(r)}`,
+    run: async (r) => {
+      const p = await muqeemProbe(iq(r))
+      return p.status === 'ok' ? { status: 'ok', val: ymd(p.result.iqamaExpiryGregorian || '') } : p
+    } }
+}
 // العروض التي تتغذّى على المحمّل المشترك — يستهدفها التسخين المسبق عند فتح الصفحة
 const WF_VIEW_KEYS = new Set(['permanent_workers'])
 
@@ -7667,7 +7681,7 @@ const AC_CLAW_BG = { [AC_CLAW_PEND]: 'rgba(234,179,8,.32)', [AC_CLAW_DONE]: 'rgb
 const acClawAmt = (r) => depNum(r && r.commission_amount)
 const acClawPending = (r) => !!r && !!r.is_clawback && !r.clawback_settled_at
 
-function AcRatesPanel({ rows, isAr, layout, persistLayout, canEdit, canExport, writeCells, colDefs, toast, sb }) {
+function AcRatesPanel({ rows, isAr, layout, persistLayout, canEdit, canExport, writeCells, colDefs, toast, sb, colFilters }) {
   const T = (a, e) => (isAr ? a : e)
   const [clawTick, setClawTick] = useState(0)
   /* «مستحقة» تُقرأ من فهرس الدفعات (`WV_INST`) وهو يصل في الخلفية **بعد** الصفوف
@@ -7679,6 +7693,7 @@ function AcRatesPanel({ rows, isAr, layout, persistLayout, canEdit, canExport, w
   const [draft, setDraft] = useState(saved)
   const [dirty, setDirty] = useState(false)
   const [payAsk, setPayAsk] = useState(false)
+  const [printAsk, setPrintAsk] = useState(false)   // قائمة لغة الكشف فوق زرّ الطباعة
   const [clawMode, setClawMode] = useState('now')   // 'now' يخصم الاسترداد مع هذا الصرف · 'later' يؤجّله
   const [clawCap, setClawCap] = useState('')        // سقفُ ما يُخصم الآن — فارغ = كل ما يغطّيه المستحقّ
   /* التخطيط سجلٌّ مشترك قد يُحدَّث من تبويبٍ آخر — تُقبل قيمتُه ما دام الموظف
@@ -7810,16 +7825,26 @@ function AcRatesPanel({ rows, isAr, layout, persistLayout, canEdit, canExport, w
   }, [payable, draft, colDefs, writeCells, toast, T, payTotal, claw, netTotal, sb])
 
   /* ── طباعة كشف العمولة (طلب المستخدم 2026-10-01) ───────────────────────────
-     ورقةٌ **إنجليزية** تُعطى للوسيط مع عمولته: على أيّ فواتير أخذ وكم، وما لم يُستحقّ
+     ورقةٌ (عربية أو إنجليزية) تُعطى للوسيط مع عمولته: على أيّ فواتير أخذ وكم، وما لم يُستحقّ
      بعدُ ومن عملاؤه ليتواصل معهم. تتبع المعروض بعد التصفية (`rows`) والتسعيرة
      المكتوبة (`draft`) — عينُ ما تحسبه اللوحة، لا حساباً ثانياً. */
-  const printStatement = useCallback(() => {
+  const printStatement = useCallback((pl) => {
+    /* لغة الكشف يختارها المستخدم عند الطباعة (طلبه 2026-10-02): `pl` = 'ar' | 'en' —
+       النصوص والاتّجاه وأسماء الخدمة والوسيط والعامل وسبب الانتظار كلُّها تتبعها. */
+    const ar = pl === 'ar'
+    const L = (a, e) => (ar ? a : e)
     const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]))
     const num = (n) => esc(enNum(n))
-    const svcEn = (r) => (AC_SERVICES.find((s) => s.code === acKey(r)) || {}).en || r.service_ar || ''
-    const office = (r) => { const c = String(r.branch_code || '').trim(); const n = String(SR_REF.branchLabelEn.get(c) || '').replace(/\s*\[\d+\]\s*$/, '').trim(); return n ? `${c} · ${n}` : c }
-    const agentOf = (r) => r.agent_name_en || r.agent_name || ''
-    const clientOf = (r) => r.client_name_en || r.client_name || ''
+    const svcOf = (r) => { const s = AC_SERVICES.find((x) => x.code === acKey(r)); return (s && (ar ? s.ar : s.en)) || r.service_ar || '' }
+    const office = (r) => {
+      const c = String(r.branch_code || '').trim()
+      const n = String((ar ? SR_REF.branchLabel.get(c) : SR_REF.branchLabelEn.get(c)) || '').replace(/\s*\[\d+\]\s*$/, '').trim()
+      return n ? `${c} · ${n}` : c
+    }
+    const agentOf = (r) => (ar ? (r.agent_name || r.agent_name_en) : (r.agent_name_en || r.agent_name)) || ''
+    const workerOf = (r) => (ar ? (r.worker_name || r.client_name) : (r.worker_name_en || r.client_name_en || r.worker_name || r.client_name)) || ''
+    const clientOf = (r) => (ar ? (r.client_name || r.client_name_en) : (r.client_name_en || r.client_name)) || ''
+    const phoneOf = (r) => phone10(r.worker_phone || r.client_phone || '')
     const sorted = [...rows].sort((a, b) => String(a.invoice_at || '').localeCompare(String(b.invoice_at || '')))
     const elig = [], wait = [], dead = []
     for (const r of sorted) {
@@ -7831,9 +7856,42 @@ function AcRatesPanel({ rows, isAr, layout, persistLayout, canEdit, canExport, w
     }
     const amt = (r) => acRowAmount(r, draft)
     const paidOn = (r) => ymd(av(r, 'ac_paid_date')) || ymd(r.commission_paid_at)
-    const agents = new Set(sorted.map((r) => r.agent_id))
     const months = sorted.map(acMonthOf).filter(Boolean).sort()
-    const period = !months.length ? '' : months[0] === months[months.length - 1] ? months[0] : `${months[0]} → ${months[months.length - 1]}`
+    /* الفترة **من ← إلى** بتاريخين كاملين دائماً (طلب المستخدم 2026-10-02) — ليُعرف المدى
+       المحسوب بالضبط: «بين تاريخين» بطرفيها كما كُتبا، والخيار الجاهز («هذا الشهر» · «آخر
+       30 يوم»…) بحدَّيه كما يحسبهما `evalDatePreset`، وبلا فلترةٍ بالتاريخ أوّلُ شهور
+       المعروض إلى آخر يومٍ في آخرها (عدسة الشهر). */
+    const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    const presetRange = (k) => {
+      const n = new Date(), y = n.getFullYear(), m = n.getMonth(), d = n.getDate()
+      const at = (off) => iso(new Date(y, m, d + off))
+      if (k === 'today') return [at(0), at(0)]
+      if (k === 'this_week') { const w = new Date(weekStartOf(new Date(y, m, d)) + 'T00:00:00'); return [iso(w), iso(new Date(w.getFullYear(), w.getMonth(), w.getDate() + 6))] }
+      if (k === 'this_month') return [iso(new Date(y, m, 1)), iso(new Date(y, m + 1, 0))]
+      if (k === 'this_year') return [`${y}-01-01`, `${y}-12-31`]
+      if (k === 'last7') return [at(-7), at(0)]
+      if (k === 'last30') return [at(-30), at(0)]
+      if (k === 'next7') return [at(0), at(7)]
+      if (k === 'next30') return [at(0), at(30)]
+      if (k === 'past') return ['', at(-1)]
+      if (k === 'future') return [at(1), '']
+      return null
+    }
+    const dc = (((colFilters || {}).invoice_at || {}).conds || []).filter(condUsable)
+      .find((c) => ['between', 'eq', 'after', 'before', 'preset'].includes(c.op))
+    const dv = (v) => ymd(v) || String(v ?? '').trim()
+    let pr = null
+    if (dc && dc.op === 'preset') pr = presetRange(dc.a)
+    else if (dc && dc.op === 'eq') pr = [dv(dc.a), dv(dc.a)]
+    else if (dc && dc.op === 'between') pr = [dv(dc.a), dv(dc.b)].sort((x, y2) => (x && y2 ? x.localeCompare(y2) : 0))
+    if (!pr && months.length) {
+      const [ly, lm] = months[months.length - 1].split('-').map(Number)
+      pr = [`${months[0]}-01`, iso(new Date(ly, lm, 0))]
+    }
+    const period = dc && dc.op === 'after' ? L(`بعد ${dv(dc.a)}`, `After ${dv(dc.a)}`)
+      : dc && dc.op === 'before' ? L(`قبل ${dv(dc.a)}`, `Before ${dv(dc.a)}`)
+        : !pr ? '' : pr[0] && pr[1] ? L(`من ${pr[0]} إلى ${pr[1]}`, `${pr[0]} → ${pr[1]}`)
+          : pr[0] ? L(`من ${pr[0]}`, `From ${pr[0]}`) : L(`حتى ${pr[1]}`, `Until ${pr[1]}`)
     const toPay = elig.filter((r) => acState(r) !== AC_PAID).reduce((t, r) => t + amt(r), 0)
     const paid = elig.filter((r) => acState(r) === AC_PAID).reduce((t, r) => t + amt(r), 0)
     const waitAmt = wait.reduce((t, r) => t + amt(r), 0)
@@ -7842,40 +7900,54 @@ function AcRatesPanel({ rows, isAr, layout, persistLayout, canEdit, canExport, w
        فإن زاد الاستردادُ على العمولة ظهر الفرقُ رصيداً عليه يُرحَّل. */
     const clawAmt = dead.filter(acClawPending).reduce((t, r) => t + acClawAmt(r), 0)
     const net = toPay - clawAmt
-    const netLabel = net >= 0 ? 'Net to pay now' : 'Owed by agent — carried to next payout'
+    const netLabel = net >= 0 ? L('الصافي المطلوب دفعه', 'Net to pay now') : L('على الوسيط — يُرحَّل للصرف القادم', 'Owed by agent — carried to next payout')
+    const SAR = L('ريال', 'SAR')
+    /* ترويسة الوسيط (طلب المستخدم 2026-10-02): اسمه ورقم إقامته وجواله — سطرٌ لكل وسيطٍ
+       في المعروض، واحداً كان أو أكثر. */
+    const agentRows = [...new Map(sorted.map((r) => [r.agent_id, r])).values()]
+      .sort((a, b) => agentOf(a).localeCompare(agentOf(b)))
+    const agentHead = agentRows.map((a0) => `<div>${[`<b>${esc(agentOf(a0))}</b>`,
+      a0.agent_id_number ? `${L('رقم الإقامة', 'Iqama no.')}: <bdi>${esc(a0.agent_id_number)}</bdi>` : '',
+      phone10(a0.agent_phone || '') ? `${L('الجوال', 'Mobile')}: <bdi>${esc(phone10(a0.agent_phone))}</bdi>` : ''].filter(Boolean).join(' &nbsp;·&nbsp; ')}</div>`).join('')
+    const none = (n) => `<tr><td colspan="${n}" class="mut">${L('لا يوجد', 'None')}</td></tr>`
     const svcRows = AC_SERVICES.map((s) => ({ s, c: st.get(s.code) })).filter((x) => x.c.n > 0)
-    const whyWait = (r) => { const s = acState(r); return s === AC_HOLD ? 'On hold' : s === AC_NOT ? 'Marked not eligible' : acDueInfo(r, false).why }
-    const html = `<!doctype html><html lang="en" dir="ltr"><head><meta charset="utf-8"><title>Commission statement</title><style>
+    const whyWait = (r) => { const s = acState(r); return s === AC_HOLD ? L('موقوفة', 'On hold') : s === AC_NOT ? L('عُلّمت غير مستحقة', 'Marked not eligible') : acDueInfo(r, ar).why }
+    const deadNote = (r) => (!r.is_clawback ? ''
+      : r.clawback_waived ? L('صُرفت العمولة — أُعفي من ردّها', 'Commission paid — clawback waived')
+        : r.clawback_settled_at ? L(`خُصمت العمولة ${num(acClawAmt(r))} في ${esc(ymd(r.clawback_settled_at))}`, `Commission ${num(acClawAmt(r))} deducted ${esc(ymd(r.clawback_settled_at))}`)
+          : L(`تُخصم العمولة ${num(acClawAmt(r))}`, `Commission ${num(acClawAmt(r))} to be deducted`))
+    const end = ar ? 'left' : 'right', start = ar ? 'right' : 'left'
+    const html = `<!doctype html><html lang="${ar ? 'ar' : 'en'}" dir="${ar ? 'rtl' : 'ltr'}"><head><meta charset="utf-8"><title>${L('كشف عمولة الوسيط', 'Commission statement')}</title><style>
 @page{size:A4 landscape;margin:10mm}
 *{box-sizing:border-box}body{font-family:Cairo,Tajawal,'Segoe UI',Arial,sans-serif;color:#1c1a16;font-size:10.5px;margin:0}
 h1{font-size:17px;margin:0;font-weight:600}h2{font-size:12.5px;margin:16px 0 6px;font-weight:600;color:#7a5a00}
 .top{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #b07d00;padding-bottom:8px}
-.meta{font-size:10.5px;color:#555;line-height:1.7;text-align:right}
+.meta{font-size:10.5px;color:#555;line-height:1.7;text-align:${end}}
 .kpis{display:flex;gap:8px;margin-top:10px}.kpi{flex:1;border:1px solid #d9cfb8;border-radius:6px;padding:7px 10px}
 .kpi b{display:block;font-size:15px;font-weight:600;margin-top:2px}.kpi span{font-size:9.5px;color:#666}
-table{width:100%;border-collapse:collapse}th,td{border:1px solid #d9cfb8;padding:4px 6px;text-align:left;vertical-align:top}
-th{background:#f1eada;font-weight:600;font-size:9.5px;white-space:nowrap}td.n,th.n{text-align:right;white-space:nowrap}
+table{width:100%;border-collapse:collapse}th,td{border:1px solid #d9cfb8;padding:4px 6px;text-align:${start};vertical-align:top}
+th{background:#f1eada;font-weight:600;font-size:9.5px;white-space:nowrap}td.n,th.n{text-align:${end};white-space:nowrap}td.p{direction:ltr;text-align:${start};white-space:nowrap}
 tr{page-break-inside:avoid}tfoot td{font-weight:600;background:#f7f2e6}.mut{color:#777}.yes{color:#1e7d43;font-weight:600}.no{color:#b3261e;font-weight:600}
 </style></head><body>
-<div class="top"><div><h1>Agent Commission Statement</h1><div class="mut" style="margin-top:3px">${agents.size === 1 ? esc(agentOf(sorted[0])) : `${num(agents.size)} agents`}</div></div>
-<div class="meta">${period ? `Invoice period: <b>${esc(period)}</b><br>` : ''}Printed: ${esc(todayYmd())}<br>Invoices: ${num(sorted.length)}</div></div>
-<div class="kpis">${clawAmt > 0 ? `<div class="kpi"><span>Commission due</span><b>${num(toPay)} SAR</b></div><div class="kpi"><span>Clawback — cancelled invoices</span><b class="no">−${num(clawAmt)} SAR</b></div><div class="kpi"><span>${netLabel}</span><b${net < 0 ? ' class="no"' : ''}>${num(Math.abs(net))} SAR</b></div>` : `<div class="kpi"><span>To pay now</span><b>${num(toPay)} SAR</b></div>`}<div class="kpi"><span>Already paid</span><b>${num(paid)} SAR</b></div>
-<div class="kpi"><span>Not yet eligible</span><b>${num(waitAmt)} SAR</b></div><div class="kpi"><span>Eligible / waiting / cancelled invoices</span><b>${num(elig.length)} / ${num(wait.length)} / ${num(dead.length)}</b></div></div>
-<h2>Commission per service</h2>
-<table><thead><tr><th>Service</th><th class="n">Invoices</th><th class="n">Rate per unit</th><th class="n">Eligible invoices</th><th class="n">Units</th><th class="n">To pay</th><th class="n">Paid</th><th class="n">Not yet eligible</th></tr></thead><tbody>
-${svcRows.map(({ s, c }) => `<tr><td>${esc(s.en)}</td><td class="n">${num(c.n)}</td><td class="n">${num(depNum(draft[s.code]))}</td><td class="n">${num(c.dueN)}</td><td class="n">${num(c.dueQty)}</td><td class="n">${num(c.dueAmt)}</td><td class="n">${num(c.paidAmt)}</td><td class="n">${num(c.waitAmt)}</td></tr>`).join('')}
-</tbody><tfoot><tr><td colspan="5">Total</td><td class="n">${num(tot.dueAmt)}</td><td class="n">${num(tot.paidAmt)}</td><td class="n">${num(tot.waitAmt)}</td></tr>${clawAmt > 0 ? `<tr><td colspan="5">Less: clawback of cancelled invoices</td><td class="n no">−${num(clawAmt)}</td><td></td><td></td></tr><tr><td colspan="5">${netLabel}</td><td class="n${net < 0 ? ' no' : ''}">${num(Math.abs(net))}</td><td></td><td></td></tr>` : ''}</tfoot></table>
-<h2>Eligible invoices — commission paid or payable (${num(elig.length)})</h2>
-<table><thead><tr><th>#</th><th>Date</th><th>Office</th><th>Invoice no.</th><th>Invoice status</th><th>Agent</th><th>Client</th><th>Service</th><th class="n">Qty</th><th>Eligible</th><th class="n">Commission</th><th>Payout</th></tr></thead><tbody>
-${elig.map((r, i) => `<tr><td>${i + 1}</td><td>${esc(ymd(r.invoice_at))}</td><td>${esc(office(r))}</td><td>${esc(r.invoice_no)}</td><td>Active</td><td>${esc(agentOf(r))}</td><td>${esc(clientOf(r))}</td><td>${esc(svcEn(r))}</td><td class="n">${num(acQty(r))}</td><td class="yes">Yes</td><td class="n">${num(amt(r))}</td><td>${acState(r) === AC_PAID ? `Paid ${esc(paidOn(r))}` : 'To pay'}</td></tr>`).join('') || '<tr><td colspan="12" class="mut">None</td></tr>'}
-</tbody><tfoot><tr><td colspan="10">Total</td><td class="n">${num(toPay + paid)}</td><td></td></tr></tfoot></table>
-<h2>Not yet eligible — please follow up with these clients (${num(wait.length)})</h2>
-<table><thead><tr><th>#</th><th>Date</th><th>Office</th><th>Invoice no.</th><th>Agent</th><th>Client</th><th>Client mobile</th><th>Service</th><th class="n">Qty</th><th class="n">Invoice total</th><th class="n">Remaining</th><th>Eligible</th><th>Reason</th><th class="n">Commission when eligible</th></tr></thead><tbody>
-${wait.map((r, i) => `<tr><td>${i + 1}</td><td>${esc(ymd(r.invoice_at))}</td><td>${esc(office(r))}</td><td>${esc(r.invoice_no)}</td><td>${esc(agentOf(r))}</td><td>${esc(clientOf(r))}</td><td>${esc(r.client_phone || '')}</td><td>${esc(svcEn(r))}</td><td class="n">${num(acQty(r))}</td><td class="n">${num(depNum(r.invoice_total))}</td><td class="n">${num(Math.max(0, depNum(r.remaining_amount)))}</td><td class="no">No</td><td>${esc(whyWait(r))}</td><td class="n">${num(amt(r))}</td></tr>`).join('') || '<tr><td colspan="14" class="mut">None</td></tr>'}
+<div class="top"><div><h1>${L('كشف عمولة الوسيط', 'Agent Commission Statement')}</h1><div style="margin-top:4px;font-size:11.5px;line-height:1.7">${agentHead}</div></div>
+<div class="meta">${period ? `${L('فترة الفواتير', 'Invoice period')}: <b>${esc(period)}</b><br>` : ''}${L('تاريخ الطباعة', 'Printed')}: ${esc(todayYmd())}<br>${L('الفواتير', 'Invoices')}: ${num(sorted.length)}</div></div>
+<div class="kpis">${clawAmt > 0 ? `<div class="kpi"><span>${L('العمولة المستحقة', 'Commission due')}</span><b>${num(toPay)} ${SAR}</b></div><div class="kpi"><span>${L('استرداد — فواتير ملغاة', 'Clawback — cancelled invoices')}</span><b class="no">−${num(clawAmt)} ${SAR}</b></div><div class="kpi"><span>${netLabel}</span><b${net < 0 ? ' class="no"' : ''}>${num(Math.abs(net))} ${SAR}</b></div>` : `<div class="kpi"><span>${L('المطلوب دفعه الآن', 'To pay now')}</span><b>${num(toPay)} ${SAR}</b></div>`}<div class="kpi"><span>${L('مصروف سابقاً', 'Already paid')}</span><b>${num(paid)} ${SAR}</b></div>
+<div class="kpi"><span>${L('لم تُستحقّ بعد', 'Not yet eligible')}</span><b>${num(waitAmt)} ${SAR}</b></div><div class="kpi"><span>${L('فواتير: مستحقة / منتظرة / ملغاة', 'Eligible / waiting / cancelled invoices')}</span><b>${num(elig.length)} / ${num(wait.length)} / ${num(dead.length)}</b></div></div>
+<h2>${L('عمولة كل خدمة', 'Commission per service')}</h2>
+<table><thead><tr><th>${L('الخدمة', 'Service')}</th><th class="n">${L('الفواتير', 'Invoices')}</th><th class="n">${L('عمولة الواحدة', 'Rate per unit')}</th><th class="n">${L('فواتير مستحقة', 'Eligible invoices')}</th><th class="n">${L('الكمية', 'Units')}</th><th class="n">${L('المطلوب', 'To pay')}</th><th class="n">${L('مصروف', 'Paid')}</th><th class="n">${L('لم تُستحقّ بعد', 'Not yet eligible')}</th></tr></thead><tbody>
+${svcRows.map(({ s, c }) => `<tr><td>${esc(ar ? s.ar : s.en)}</td><td class="n">${num(c.n)}</td><td class="n">${num(depNum(draft[s.code]))}</td><td class="n">${num(c.dueN)}</td><td class="n">${num(c.dueQty)}</td><td class="n">${num(c.dueAmt)}</td><td class="n">${num(c.paidAmt)}</td><td class="n">${num(c.waitAmt)}</td></tr>`).join('')}
+</tbody><tfoot><tr><td colspan="5">${L('الإجمالي', 'Total')}</td><td class="n">${num(tot.dueAmt)}</td><td class="n">${num(tot.paidAmt)}</td><td class="n">${num(tot.waitAmt)}</td></tr>${clawAmt > 0 ? `<tr><td colspan="5">${L('يُخصم: استرداد الفواتير الملغاة', 'Less: clawback of cancelled invoices')}</td><td class="n no">−${num(clawAmt)}</td><td></td><td></td></tr><tr><td colspan="5">${netLabel}</td><td class="n${net < 0 ? ' no' : ''}">${num(Math.abs(net))}</td><td></td><td></td></tr>` : ''}</tfoot></table>
+<h2>${L('فواتير مستحقة — عمولتها مصروفة أو تُصرف', 'Eligible invoices — commission paid or payable')} (${num(elig.length)})</h2>
+<table><thead><tr><th>#</th><th>${L('التاريخ', 'Date')}</th><th>${L('المكتب', 'Office')}</th><th>${L('رقم الفاتورة', 'Invoice no.')}</th><th>${L('الوسيط', 'Agent')}</th><th>${L('العميل', 'Client')}</th><th>${L('جوال العميل', 'Client mobile')}</th><th>${L('العامل', 'Worker')}</th><th>${L('جوال العامل', 'Worker mobile')}</th><th>${L('الخدمة', 'Service')}</th><th class="n">${L('الكمية', 'Qty')}</th><th class="n">${L('العمولة', 'Commission')}</th><th>${L('الصرف', 'Payout')}</th></tr></thead><tbody>
+${elig.map((r, i) => `<tr><td>${i + 1}</td><td>${esc(ymd(r.invoice_at))}</td><td>${esc(office(r))}</td><td>${esc(r.invoice_no)}</td><td>${esc(agentOf(r))}</td><td>${esc(clientOf(r))}</td><td class="p">${esc(phone10(r.client_phone || ''))}</td><td>${esc(workerOf(r))}</td><td class="p">${esc(phoneOf(r))}</td><td>${esc(svcOf(r))}</td><td class="n">${num(acQty(r))}</td><td class="n">${num(amt(r))}</td><td>${acState(r) === AC_PAID ? `${L('صُرفت', 'Paid')} ${esc(paidOn(r))}` : L('تُصرف', 'To pay')}</td></tr>`).join('') || none(13)}
+</tbody><tfoot><tr><td colspan="11">${L('الإجمالي', 'Total')}</td><td class="n">${num(toPay + paid)}</td><td></td></tr></tfoot></table>
+<h2>${L('لم تُستحقّ بعد — يُرجى متابعة هؤلاء العمّال', 'Not yet eligible — please follow up with these workers')} (${num(wait.length)})</h2>
+<table><thead><tr><th>#</th><th>${L('التاريخ', 'Date')}</th><th>${L('المكتب', 'Office')}</th><th>${L('رقم الفاتورة', 'Invoice no.')}</th><th>${L('الوسيط', 'Agent')}</th><th>${L('العميل', 'Client')}</th><th>${L('جوال العميل', 'Client mobile')}</th><th>${L('العامل', 'Worker')}</th><th>${L('جوال العامل', 'Worker mobile')}</th><th>${L('الخدمة', 'Service')}</th><th class="n">${L('الكمية', 'Qty')}</th><th class="n">${L('إجمالي الفاتورة', 'Invoice total')}</th><th class="n">${L('المتبقّي', 'Remaining')}</th><th>${L('السبب', 'Reason')}</th><th class="n">${L('العمولة عند الاستحقاق', 'Commission when eligible')}</th></tr></thead><tbody>
+${wait.map((r, i) => `<tr><td>${i + 1}</td><td>${esc(ymd(r.invoice_at))}</td><td>${esc(office(r))}</td><td>${esc(r.invoice_no)}</td><td>${esc(agentOf(r))}</td><td>${esc(clientOf(r))}</td><td class="p">${esc(phone10(r.client_phone || ''))}</td><td>${esc(workerOf(r))}</td><td class="p">${esc(phoneOf(r))}</td><td>${esc(svcOf(r))}</td><td class="n">${num(acQty(r))}</td><td class="n">${num(depNum(r.invoice_total))}</td><td class="n">${num(Math.max(0, depNum(r.remaining_amount)))}</td><td>${esc(whyWait(r))}</td><td class="n">${num(amt(r))}</td></tr>`).join('') || none(15)}
 </tbody></table>
-${dead.length ? `<h2>Cancelled invoices — no commission${clawAmt > 0 ? ` · ${num(clawAmt)} SAR clawback deducted above` : ''} (${num(dead.length)})</h2>
-<table><thead><tr><th>#</th><th>Date</th><th>Office</th><th>Invoice no.</th><th>Agent</th><th>Client</th><th>Service</th><th class="n">Qty</th><th>Cancelled on</th><th>Note</th></tr></thead><tbody>
-${dead.map((r, i) => `<tr><td>${i + 1}</td><td>${esc(ymd(r.invoice_at))}</td><td>${esc(office(r))}</td><td>${esc(r.invoice_no)}</td><td>${esc(agentOf(r))}</td><td>${esc(clientOf(r))}</td><td>${esc(svcEn(r))}</td><td class="n">${num(acQty(r))}</td><td>${esc(ymd(r.cancelled_at))}</td><td>${!r.is_clawback ? '' : r.clawback_waived ? 'Commission paid — clawback waived' : r.clawback_settled_at ? `Commission ${num(acClawAmt(r))} deducted ${esc(ymd(r.clawback_settled_at))}` : `Commission ${num(acClawAmt(r))} to be deducted`}</td></tr>`).join('')}
+${dead.length ? `<h2>${L('فواتير ملغاة — لا عمولة عليها', 'Cancelled invoices — no commission')}${clawAmt > 0 ? L(` · خُصم استردادها ${num(clawAmt)} ${SAR} أعلاه`, ` · ${num(clawAmt)} SAR clawback deducted above`) : ''} (${num(dead.length)})</h2>
+<table><thead><tr><th>#</th><th>${L('التاريخ', 'Date')}</th><th>${L('المكتب', 'Office')}</th><th>${L('رقم الفاتورة', 'Invoice no.')}</th><th>${L('الوسيط', 'Agent')}</th><th>${L('العميل', 'Client')}</th><th>${L('جوال العميل', 'Client mobile')}</th><th>${L('العامل', 'Worker')}</th><th>${L('جوال العامل', 'Worker mobile')}</th><th>${L('الخدمة', 'Service')}</th><th class="n">${L('الكمية', 'Qty')}</th><th>${L('تاريخ الإلغاء', 'Cancelled on')}</th><th>${L('ملاحظة', 'Note')}</th></tr></thead><tbody>
+${dead.map((r, i) => `<tr><td>${i + 1}</td><td>${esc(ymd(r.invoice_at))}</td><td>${esc(office(r))}</td><td>${esc(r.invoice_no)}</td><td>${esc(agentOf(r))}</td><td>${esc(clientOf(r))}</td><td class="p">${esc(phone10(r.client_phone || ''))}</td><td>${esc(workerOf(r))}</td><td class="p">${esc(phoneOf(r))}</td><td>${esc(svcOf(r))}</td><td class="n">${num(acQty(r))}</td><td>${esc(ymd(r.cancelled_at))}</td><td>${deadNote(r)}</td></tr>`).join('')}
 </tbody></table>` : ''}
 </body></html>`
     const iframe = document.createElement('iframe')
@@ -7889,7 +7961,7 @@ ${dead.map((r, i) => `<tr><td>${i + 1}</td><td>${esc(ymd(r.invoice_at))}</td><td
       catch { cleanup() }
     }, 400)
     setTimeout(cleanup, 60000)
-  }, [rows, draft, st, tot])
+  }, [rows, draft, st, tot, colFilters])
 
   const cell = { padding: '6px 10px', fontSize: 12.5, color: 'var(--tx2)', fontFamily: MONO, textAlign: 'center', whiteSpace: 'nowrap' }
   const head = { padding: '8px 10px', fontSize: 11, fontWeight: 600, color: 'var(--tx3)', textAlign: 'center', whiteSpace: 'nowrap', background: 'var(--card-grad2)' }
@@ -8012,11 +8084,23 @@ ${dead.map((r, i) => `<tr><td>${i + 1}</td><td>${esc(ymd(r.invoice_at))}</td><td
             والتلميح على الغلاف لا على الزرّ: الزرّ المعطَّل لا يستقبل حدث
             المرور في بعض المتصفّحات. */}
         {canExport && (
-          <button className="ox-btn" disabled={!rows.length} onClick={printStatement}
-            title={T('كشفٌ بالإنجليزية للوسيط: عمولة كل خدمة وفواتير المعروض', 'English statement for the agent: per-service commission and the shown invoices')}>
-            <Printer size={15} strokeWidth={2.1} />
-            <span>{T('طباعة الكشف', 'Print statement')}</span>
-          </button>
+          <span style={{ position: 'relative', display: 'inline-flex' }}>
+            <button className="ox-btn" disabled={!rows.length} onClick={() => setPrintAsk((v) => !v)}
+              title={T('كشفٌ للوسيط بالعربية أو الإنجليزية: عمولة كل خدمة وفواتير المعروض', 'Statement for the agent in Arabic or English: per-service commission and the shown invoices')}>
+              <Printer size={15} strokeWidth={2.1} />
+              <span>{T('طباعة الكشف', 'Print statement')}</span>
+            </button>
+            {printAsk && (<>
+              <div onClick={() => setPrintAsk(false)} style={{ position: 'fixed', inset: 0, zIndex: 40 }} />
+              <div style={{ position: 'absolute', bottom: 'calc(100% + 6px)', insetInlineStart: 0, zIndex: 41, display: 'flex', gap: 6, padding: 6,
+                borderRadius: 10, background: 'var(--sf)', border: '1px solid rgba(176,125,0,.35)', boxShadow: '0 8px 24px rgba(0,0,0,.18)' }}>
+                {[['ar', 'عربي'], ['en', 'English']].map(([k, l]) => (
+                  <button key={k} className="ox-btn" style={{ whiteSpace: 'nowrap' }}
+                    onClick={() => { setPrintAsk(false); printStatement(k) }}>{l}</button>
+                ))}
+              </div>
+            </>)}
+          </span>
         )}
         {canEdit && (
           <span title={payable.length ? '' : (noAmt
@@ -10709,9 +10793,22 @@ const renDurEnds = (r, pend) => ({
   from: ymd(r && r.iqama_expiry_gregorian),
   to: ev(r, 'iqama_expiry', pend) || REN_FIELDS.iqama_expiry(r),
 })
+/* إقامةٌ **منتهية** عند الفوترة (المحتسب لرسمها ≠ المطلوب: 33 مقابل 9): القياسُ من الانتهاء
+   القديم يُخرج «32 شهراً» لتجديدٍ اشتُري 9 أشهر — رقمٌ لا يعني أحداً. فمرجعُها **الانتهاء
+   المتوقَّع** في الفاتورة (قاعدة قوى): المدّة تُعدّ من «المتوقَّع − الأشهر المطلوبة»، والمطابقة
+   تُقاس على المتوقَّع نفسه (قرار المستخدم 2026-10-02). وما سواها على حاله. */
+const renLateBase = (r) => {
+  const q = depNum(r && r.renewal_months), b = depNum(r && r.billed_renewal_months), ex = ymd(r && r.expected_expiry_date)
+  if (!(q > 0 && b > 0 && q !== b && ex)) return null
+  const d = addMonths(new Date(`${ex}T00:00:00`), -q)
+  if (Number.isNaN(+d)) return null
+  return { q, ex, from: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
+}
 const renActualDur = (r, pend) => {
   const { from, to } = renDurEnds(r, pend)
-  return (from && to) ? monthsDays(from, to) : null
+  if (!from || !to) return null
+  const lb = renLateBase(r)
+  return monthsDays(lb ? lb.from : from, to)
 }
 /* الطرفان حاضران ولا مدّة بينهما (`monthsDays` يردّ null متى لم يكن الجديدُ
    بعد الحالي): هذه **حالةٌ تُقال لا فراغٌ يُترك**. وقوعُها الغالب أن زرّ مقيم
@@ -10719,6 +10816,11 @@ const renActualDur = (r, pend) => {
    الحالي — والخليّة الفارغة تُقرأ «العمود معطّل» لا «لم يُمدَّد شيء». */
 const renDurNil = (r, pend) => { const { from, to } = renDurEnds(r, pend); return !!(from && to && !monthsDays(from, to)) }
 const renBilledMonths = (r) => [r && r.billed_renewal_months, r && r.renewal_months, r && r.expected_duration_months]
+  .map(depNum).find((n) => n > 0) || 0
+/* المدّة **المطلوبة** (ما اشتراه العميل: 9 أشهر) لا المحتسبة لرسم الإقامة: إقامةٌ منتهية
+   منذ سنتين تُجدَّد 9 أشهر يُحتسب رسمُ إقامتها على 33 شهراً (من الانتهاء القديم) — وهذا
+   رقمُ رسمٍ واحد لا مدّةُ الخدمة ولا مدّةُ رخصة العمل (قرار المستخدم 2026-10-02). */
+const renReqMonths = (r) => [r && r.renewal_months, r && r.expected_duration_months, r && r.billed_renewal_months]
   .map(depNum).find((n) => n > 0) || 0
 /* الأحمر لحالتين لا ثالثة (قرار المستخدم 2026-09-21):
      · **لم يُجدَّد** — الانتهاء الجديد لا يتجاوز الحالي، فلا تجديد وقع.
@@ -10742,6 +10844,8 @@ const renDurGapDays = (r, pend) => {
   if (!from || !to || !billed) return null
   const a = new Date(`${String(from).slice(0, 10)}T00:00:00`), b = new Date(`${String(to).slice(0, 10)}T00:00:00`)
   if (Number.isNaN(+a) || Number.isNaN(+b)) return null
+  const lb = renLateBase(r)
+  if (lb) return Math.round((b - new Date(`${lb.ex}T00:00:00`)) / 86400000)
   return Math.round((b - addMonths(a, billed)) / 86400000)
 }
 const renDurBg = (_v, r) => {
@@ -10758,7 +10862,7 @@ const renDurTip = (_v, r, isAr2) => {
       ? 'The new expiry is not later than the current one — not renewed yet (Muqeem still reports the pre-renewal date)'
       : 'الانتهاء الجديد لا يتجاوز الحالي — لم يُجدَّد بعد (مقيم ما زال يقول تاريخ ما قبل التجديد)'
   }
-  const act = renActualDur(r); const billed = renBilledMonths(r)
+  const act = renActualDur(r); const billed = (renLateBase(r) || {}).q || renBilledMonths(r)
   if (!act || !billed) {
     return isAr2 === false ? 'Needs the current expiry and the new one together to compare with the billed months'
       : 'المقارنة تحتاج انتهاء الإقامة الحالية والجديد معاً'
@@ -10812,7 +10916,7 @@ const REN_MSG_SPECS = {
        ورسمُه) — `perWorker`. */
     extraMonths: true,
     fields: [{ k: 'wp_months', ar: 'مدة الرخصة', en: 'Permit duration', perWorker: true,
-      get: (r, e) => { const m = depNum(renMsgF(r, e, 'work_permit_months')) || renBilledMonths(r)
+      get: (r, e) => { const m = depNum(renMsgF(r, e, 'work_permit_months')) || renReqMonths(r)
         return m ? `${enNum(m)} ${moU(m, true)}` : '' } }],
   },
   prof: {
@@ -10869,6 +10973,11 @@ const REN_COLS = [
     tap: invInfoCard, tapTip: { ar: 'اعرض بطاقة الفاتورة', en: 'Show the invoice card' } },
   { key: 'invoice_at', ar: 'تاريخ الفاتورة', en: 'Invoice date', w: 115, kind: 'date', get: (r) => ymd(r.invoice_at) },
   branchCol({ key: 'branch_code', ar: 'المكتب', en: 'Office', w: 150 }),
+  /* «الإقامة» أوّلُ كتلة تفاصيل الخدمة قبل «الخدمة» (طلب المستخدم 2026-10-02): رقمُ إقامة
+     العامل الذي تُجدَّد له — به يُبحث في مقيم وقوى، فموضعُه عند الخدمة لا في ذيل الكتلة. */
+  { key: 'iqama_number', ar: 'الإقامة', en: 'Iqama', w: 130, kind: 'mono', source: 'fetched',
+    // الرقم بابُ بطاقة العامل كاسمه (طلب المستخدم 2026-10-02)
+    tap: workerInfoCard, tapTip: { ar: 'اعرض بطاقة العامل (الاسم · انتهاء الإقامة · الجوال)', en: 'Show the worker card (name · expiry · mobile)' } },
   { key: 'service_ar', ar: 'الخدمة', en: 'Service', w: 160, kind: 'text' },
   { key: 'client_name', ar: 'العميل', en: 'Client', w: 180, kind: 'text',
     tap: clientInfoCard, tapTip: { ar: 'اعرض بيانات العميل (الجوال · الهوية)', en: 'Show client details (mobile · ID)' },
@@ -10881,7 +10990,6 @@ const REN_COLS = [
   workerCol({ key: 'worker_name', ar: 'العامل', en: 'Worker', source: 'fetched' }),
   /* رقم الإقامة **الحالي**: هويّة العامل في هذا المسار — به يُستعلم مقيم ويُعرف
      في طلب السداد. مجلوبٌ من الحسبة ولا يُكتب هنا. */
-  { key: 'iqama_number', ar: 'رقم الإقامة', en: 'Iqama no.', w: 130, kind: 'mono', source: 'fetched' },
   { key: 'nationality_ar', ar: 'الجنسية', en: 'Nationality', w: 120, kind: 'text' },
   { key: 'occupation_ar', ar: 'المهنة الحالية', en: 'Occupation', w: 160, kind: 'text' },
   /* ── تغيير المهنة: عمودان يُشطَبان معاً متى لم يكن في الفاتورة ─────────────
@@ -10916,10 +11024,15 @@ const REN_COLS = [
   { key: 'passport_file', ar: 'مرفق الجواز', en: 'Passport file', w: 145, kind: 'file', ops: true },
 
   /* ═══ (2) ما تقوله الفاتورة عن هذا التجديد ═══ */
-  { key: 'iqama_expiry_gregorian', ar: 'انتهاء الإقامة الحالية', en: 'Current expiry', w: 150, kind: 'date',
-    sectionStart: true, source: 'fetched', get: (r) => ymd(r.iqama_expiry_gregorian) },
-  { key: 'billed_months', ar: 'المدة المفوترة', en: 'Billed months', w: 120, kind: 'text', source: 'fetched',
-    get: (r, isAr2) => { const m = renBilledMonths(r); return m ? `${m} ${moU(m, isAr2 !== false)}` : '' } },
+  { key: 'billed_months', ar: 'المدة المفوترة', en: 'Billed months', w: 120, kind: 'text', source: 'fetched', sectionStart: true,
+    get: (r, isAr2) => { const m = renReqMonths(r); return m ? `${m} ${moU(m, isAr2 !== false)}` : '' },
+    cellTip: (_v, r, isAr2) => { const q = renReqMonths(r), b = renBilledMonths(r)
+      return (b && q && b !== q) ? (isAr2 === false ? `Iqama fee is charged for ${b} months (from the old expiry)` : `رسم تجديد الإقامة محتسب على ${b} شهراً (من الانتهاء القديم)`) : null } },
+  /* «الانتهاء الحالي» قبل «المتوقّع» في كتلة تفاصيل الخدمة (طلب المستخدم 2026-10-02): انتهاءُ
+     إقامة العامل **يومَ أُنشئت الفاتورة** — مجمّدٌ في الحسبة، فلا يتبدّل بعد التجديد. */
+  { key: 'iqama_expiry_gregorian', ar: 'الانتهاء الحالي', en: 'Current expiry', w: 135, kind: 'date',
+    source: 'fetched', get: (r) => ymd(r.iqama_expiry_gregorian),
+    cellTip: (_v, _r, isAr2) => (isAr2 === false ? 'The worker’s iqama expiry when the invoice was created' : 'انتهاء إقامة العامل عند إنشاء الفاتورة') },
   { key: 'expected_expiry_date', ar: 'الانتهاء المتوقّع', en: 'Expected expiry', w: 135, kind: 'date',
     source: 'fetched', get: (r) => ymd(r.expected_expiry_date),
     cellTip: (_v, _r, isAr2) => (isAr2 === false
@@ -11718,7 +11831,7 @@ const VIEWS = [
       ])
       return src.map((r) => ({ ...r, _id: r.id }))
     },
-    search: (r) => [r.invoice_no, r.agent_name, r.agent_phone, r.agent_id_number, r.client_name,
+    search: (r) => [r.invoice_no, r.agent_name, r.agent_phone, r.agent_id_number, r.client_name, r.client_phone, r.worker_name, r.worker_phone,
       r.facility_ar, r.service_ar, r.request_ref_no, r.invoice_month, r.unified_number],
     /* صفّ الكتل فوق الرؤوس — كشيت «تجديد الإقامات» (`view.bands`؛ طلب المستخدم
        2026-10-01). عمودٌ بلا كتلة (أعمدة المستخدم المضافة) يبقى فوقه فراغ. */
@@ -11726,7 +11839,7 @@ const VIEWS = [
       { ar: 'الفاتورة', en: 'Invoice', keys: ['invoice_at', 'branch_code', 'invoice_no', 'inv_state', 'inv_live', 'invoice_month'] },
       { ar: 'الوسيط', en: 'Agent', keys: ['agent_name', 'agent_assumed', 'agent_phone', 'agent_id_number'] },
       { ar: 'الخدمة', en: 'Service', keys: ['service_quantity', 'service_ar'] },
-      { ar: 'العميل والمنشأة', en: 'Client & facility', keys: ['client_name', 'facility_ar'] },
+      { ar: 'العميل والمنشأة', en: 'Client & facility', keys: ['client_name', 'client_phone', 'worker_name', 'worker_phone', 'facility_ar'] },
       { ar: 'العمولة', en: 'Commission', keys: ['ac_due', 'ac_amount', 'ac_state', 'ac_paid_date', 'ac_ref', 'ac_claw'] },
       { ar: 'حالة الفاتورة والمعاملة', en: 'Invoice & request status', keys: ['invoice_status_ar',
         'request_status_ar', 'request_ref_no', 'invoice_total', 'paid_amount', 'remaining_amount', 'src'] },
@@ -11780,7 +11893,8 @@ const VIEWS = [
          عليها. مكتوبٌ YYYY-MM فيُرتَّب زمنياً بطبعه. */
       { key: 'invoice_month', ar: 'الشهر', en: 'Month', w: 90, kind: 'mono' },
       /* الكمية قبل الخدمة: «٣ × نقل كفالة» تُقرأ كما تُقال. وهي من الفاتورة
-         (`invoices.service_quantity`) لا من الطلب — الصفّ هنا فاتورة. ٢٧٥ فاتورة
+         (`invoices.service_quantity`) لا من الطلب — الصفّ هنا فاتورة. وفاتورةُ
+         التأشيرة كميّتُها **عددُ تأشيراتها الحيّة** (يحسبه الـview؛ 2026-10-02). ٢٧٥ فاتورة
          كميّتها أكثر من واحد، والعمولة تُحسب عليها لا على الفاتورة وحدها. */
       { key: 'service_quantity', ar: 'الكمية', en: 'Qty', w: 80, kind: 'num' },
       /* مدّة التجديد داخل خليّة الخدمة («تجديد الإقامة 6 أشهر») لا عمودٌ بجانبها
@@ -11794,6 +11908,12 @@ const VIEWS = [
           return isAr2 !== false ? `${svc} ${m} ${moU(m, true)}` : `${svc} · ${m}m`
         } },
       { key: 'client_name', ar: 'العميل', en: 'Client', w: 180, kind: 'text' },
+      phoneCol({ key: 'client_phone', ar: 'جوال العميل', en: 'Client mobile', w: 130, readOnly: true }),
+      /* العامل وجواله (طلب المستخدم 2026-10-02): عاملُ النقل/التجديد من سجلّه، وأسماءُ
+         عمّال التأشيرات إن كُتبت، وإلا العميل نفسه — والجوال بالترتيب ذاته (الـview). */
+      { key: 'worker_name', ar: 'العامل', en: 'Worker', w: 190, kind: 'text', readOnly: true,
+        get: (r, isAr2) => (isAr2 !== false ? (r.worker_name || '') : (r.worker_name_en || r.worker_name || '')) },
+      phoneCol({ key: 'worker_phone', ar: 'جوال العامل', en: 'Worker mobile', w: 130, readOnly: true }),
       { key: 'facility_ar', ar: 'المنشأة', en: 'Facility', w: 200, kind: 'text' },
       /* ═══ العمولة: أَحلَّ أجلُها؟ ثم كم؟ ثم أصُرفت؟ ═══ */
       /* «مستحقة العمولة» مشتقّة لا تُدخَل — حالةٌ تُكتب بيدٍ تشيخ. وسببُ «لا»
@@ -12867,6 +12987,7 @@ const VIEWS = [
      ومدّة الإقامة تأتي من الحقل المخزَّن، وإلا فمن نوع الخدمة (12 · 9 · 6 · 3). */
   {
     key: 'iqama_issuance',
+    bulkFetch: txnBulkIqamaExp('iqama_expiry'),
     /* صفّ الكتل فوق الرؤوس — انظر txnBands */
     bands: txnBands({
       svc: ['iqama_months'],
@@ -13247,10 +13368,11 @@ const VIEWS = [
      (`renPostStages`) — المكان الذي تكتب فيه صفحةُ الفاتورة نفسها. */
   {
     key: 'iqama_renewal',
+    bulkFetch: txnBulkIqamaExp('iqama_expiry'),
     /* صفّ الكتل فوق الرؤوس — انظر txnBands */
     bands: txnBands({
-      svc: ['billed_months', 'expected_expiry_date'],
-      who: { ar: 'العامل', en: 'Worker', keys: ['worker_name', 'iqama_number', 'nationality_ar', 'occupation_ar', 'phone', 'passport_file', 'iqama_expiry_gregorian'] },
+      svc: ['iqama_number', 'billed_months', 'iqama_expiry_gregorian', 'expected_expiry_date'],
+      who: { ar: 'العامل', en: 'Worker', keys: ['worker_name', 'nationality_ar', 'occupation_ar', 'phone', 'passport_file'] },
       /* كتلةٌ لكل مرحلة (طلب المستخدم 2026-09-24): سدادُها وحالتُها وحقولُها ومرفقاتها */
       stage: [
         { ar: 'التجديد - التأمين', en: 'Renewal — Insurance', prefixes: ['insurance_'],
@@ -13359,6 +13481,7 @@ const VIEWS = [
      تُدخَل من هنا — فالشيت مرآةُ المعاملة لا دفتراً موازياً لها. */
   {
     key: 'transfer_txn',
+    bulkFetch: txnBulkIqamaExp('mq_iqama_expiry'),
     /* صفّ الكتل فوق الرؤوس — انظر txnBands */
     bands: txnBands({
       who: { ar: 'العامل', en: 'Worker', keys: ['worker_name', 'iqama_number', 'iqama_expiry_gregorian', 'nationality', 'phone', 'occupation_name_ar'] },
@@ -22458,7 +22581,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
           العمل، واللوحة خلاصتُه — والخلاصة تُقرأ بعد المقروء لا قبله. */}
       {!loading && !loadErr && view.panel && allRows.length > 0 && (
         <view.panel rows={filtered} isAr={isAr} layout={layout} persistLayout={persistLayout} canEdit={canEdit} canExport={canExport}
-          writeCells={writeCells} colDefs={colDefs} toast={toast} sb={sb} />
+          writeCells={writeCells} colDefs={colDefs} toast={toast} sb={sb} colFilters={colFilters} />
       )}
 
       {/* ── قائمة السياق (كليك يمين) ── */}
