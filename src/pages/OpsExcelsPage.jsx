@@ -7709,10 +7709,24 @@ const AC_VISA_RE = /^work_visa_/
 const acInvPaid = (r) => depNum(r && r.invoice_total) > 0 && depNum(r && r.remaining_amount) <= 0
 const acInstPaid = (rec) => !!rec && rec.total > 0 && rec.paid >= rec.total
 const acCancelled = (r) => !!r && String(r.invoice_status_code || '') === 'cancelled'
+/* حكمٌ بيد يغلب المشتقّ (طلب المستخدم 2026-10-04): «نعم/لا» من قائمة العمود نفسه
+   تُحفظ في طبقة الشيت (`_ops.ac_due`) ويقرؤها كلُّ من يسأل `acDue` — اللوحة و«تم
+   الدفع» والكروت وتثبيتُ المؤجَّلة — فلا حكمان. والفراغ «—» يُعيد الحساب الآلي
+   (`clearToAuto`). والملغاة فوق الاثنين: لا عمولةَ عليها مهما كُتب. */
+const AC_DUE_YES = 'نعم'
+const AC_DUE_NO = 'لا'
 const acDueInfo = (r, isAr) => {
   if (!r) return { due: false, why: '' }
   // الملغاة تُعرض للاطّلاع (عمود «الحالة») ولا عمولةَ عليها
   if (acCancelled(r)) return { due: false, why: isAr ? 'الفاتورة ملغاة — لا عمولة عليها' : 'Invoice cancelled — no commission' }
+  const auto = acDueAuto(r, isAr)
+  const ov = av(r, 'ac_due')
+  if (ov !== AC_DUE_YES && ov !== AC_DUE_NO) return auto
+  const due = ov === AC_DUE_YES
+  return { due, manual: true,
+    why: (isAr ? `عُلّمت «${ov}» بيد — الحساب الآلي: ` : `Set to ${due ? 'Yes' : 'No'} by hand — computed: `) + auto.why }
+}
+const acDueAuto = (r, isAr) => {
   if (!AC_VISA_RE.test(String(r.service_code || ''))) {
     const ok = acInvPaid(r)
     return { due: ok,
@@ -12094,18 +12108,31 @@ const VIEWS = [
       phoneCol({ key: 'worker_phone', ar: 'جوال العامل', en: 'Worker mobile', w: 130, readOnly: true }),
       { key: 'facility_ar', ar: 'المنشأة', en: 'Facility', w: 200, kind: 'text' },
       /* ═══ العمولة: أَحلَّ أجلُها؟ ثم كم؟ ثم أصُرفت؟ ═══ */
-      /* «مستحقة العمولة» مشتقّة لا تُدخَل — حالةٌ تُكتب بيدٍ تشيخ. وسببُ «لا»
-         مكتوبٌ في تلميح الخليّة: أي دفعةٍ ينتظرها الصفّ بالضبط. */
+      /* «مستحقة العمولة» مشتقّة أصلاً، وسببُ «لا» مكتوبٌ في تلميح الخليّة: أي دفعةٍ
+         ينتظرها الصفّ بالضبط. وصارت **قائمةً منسدلة** (طلب المستخدم 2026-10-04): «نعم/لا»
+         بيد تغلب المشتقّ (انظر `acDueInfo`)، و«—» يعود إليه. القيمة تُخزَّن عربيةً
+         وتُترجَم عرضاً (`optText`). وصفُّ الملغاة مجمّد فلا يُختار فيه. */
       { key: 'ac_due', ar: 'مستحقة العمولة', en: 'Commission due', w: 130, kind: 'text',
-        auto: true, source: 'formula', sectionStart: true,
+        ops: true, select: true, clearToAuto: true, sectionStart: true,
+        options: () => [AC_DUE_YES, AC_DUE_NO],
         get: (r, isAr2) => (r.is_clawback ? (isAr2 !== false ? 'استرداد' : 'Clawback')
-          : acDueInfo(r, isAr2 !== false).due ? (isAr2 !== false ? 'نعم' : 'Yes') : (isAr2 !== false ? 'لا' : 'No')),
+          : acDueInfo(r, isAr2 !== false).due ? AC_DUE_YES : AC_DUE_NO),
+        // حكمٌ بيد بقي على صفٍّ أُلغيت فاتورتُه بعده: يُعرض حكمُ الإلغاء لا المكتوب
+        fmt: (_v, r, isAr2) => (r.is_clawback ? (isAr2 !== false ? 'استرداد' : 'Clawback')
+          : acCancelled(r) ? (isAr2 !== false ? AC_DUE_NO : 'No') : null),
         cellTip: (_v, r, isAr2) => (r.is_clawback && r.clawback_waived
           ? (isAr2 !== false ? 'الفاتورة أُلغيت بعد صرف عمولتها — أُعفي الوسيط من ردّها' : 'Invoice cancelled after its commission was paid — clawback waived')
           : r.is_clawback
           ? (isAr2 !== false ? 'الفاتورة أُلغيت بعد صرف عمولتها — تُخصم من صرفٍ قادم للوسيط نفسه' : 'Invoice cancelled after its commission was paid — deducted from the agent’s next payout')
           : acDueInfo(r, isAr2 !== false).why),
-        bg: (_v, r) => ((!r.is_clawback && acDue(r)) ? 'rgba(46,204,113,.26)' : 'rgba(232,114,101,.22)') },
+        /* اللون على **القيمة** لا على الصفّ وحده: القائمة تلوّن خيارَيها بهذه الدالّة
+           نفسها (`optBg`) — «نعم» أخضر و«لا» أحمر، لا لونَ الصفّ الحالي على الاثنين. */
+        bg: (v, r) => {
+          const t = String(v ?? '').split('\n')[0].trim()
+          const yes = (r.is_clawback || acCancelled(r)) ? false
+            : (t === AC_DUE_YES || t === 'Yes') ? true : (t === AC_DUE_NO || t === 'No') ? false : acDue(r)
+          return yes ? 'rgba(46,204,113,.26)' : 'rgba(232,114,101,.22)'
+        } },
       /* المبلغ: ما في سجلّ الوسيط، وإلا تسعيرةُ الخدمة × الكمية (لوحة الأعلى).
          ويبقى قابلاً للكتابة — ما يُكتب في الخليّة يغلب التسعيرة ويُرحَّل. */
       { key: 'ac_state', ar: 'حالة الصرف', en: 'Payout', w: 175, kind: 'text', ops: true, select: true,
@@ -20084,7 +20111,9 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
         for (const [kk, v] of Object.entries(patch)) {
           const cd = colDefs.get(kk)
           // قيمةُ العلامة = ما حجبته من المصدر: يقرؤها سجلّ الخليّة («كانت: …»)
-          const under = (v === '' || v == null) && cd && rowRef ? underVal(rowRef, cd, mergedData) : ''
+          /* `col.clearToAuto`: عمودٌ قيمتُه المكتوبة **حكمٌ فوق مشتقٍّ** (مستحقة العمولة) —
+             مسحُه رجوعٌ إلى المشتقّ لا تفريغٌ له، فلا علامةَ مسحٍ تحجبه. */
+          const under = (v === '' || v == null) && cd && !cd.clearToAuto && rowRef ? underVal(rowRef, cd, mergedData) : ''
           if (under) mergedData = { ...mergedData, [OPS_CLR]: { ...(mergedData[OPS_CLR] || {}), [kk]: under.slice(0, 500) } }
           else mergedData = opsUnclear(mergedData, [kk])
         }
