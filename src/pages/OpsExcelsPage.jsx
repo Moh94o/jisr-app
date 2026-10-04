@@ -4951,6 +4951,7 @@ const OPT_EN = {
   'خطأ إسناد فرع': 'Branch misassignment',
   'حوالة بنكية غير مسجّلة': 'Unrecorded bank transfer',
   'مصروف/خصم من المكتب': 'Office expense/deduction',
+  'خصم السبلاير': 'Supplier deduction',
   'فاتورة ملغاة أو مرتجعة': 'Cancelled or returned invoice',
   'استلم الكاش من قبل مهدي': 'Cash received by Mahdi',
   'استلم الكاش من قبل حسين': 'Cash received by Hussein',
@@ -5109,21 +5110,21 @@ const iqmReqTip = (stKey, arName, enName) => (v, r, isAr2) => {
    والباقي (مرحّل من أمس · إجمالي المستحق · تم الإيداع؟ · المتبقي · الحالة)
    سلسلة متتابعة عبر الأيام تُحسب في `derive` — لا يمكن التعبير عنها بمحرّك
    الصيغ لأنه لا يرى إلا صفّه (لا مراجع عبر الصفوف).                          */
-/* بداية المتابعة = أول يوم معبّأ في أوراق الإكسل الخمس كلها (7/15/26)، لا أول
-   الشهر. الفرق جوهري: النظام فيه نقد محصَّل بين 07-01 و07-14 (~286 ألف عبر
-   المكاتب الخمسة) لم تُسجَّل له إيداعات لأن المتابعة لم تكن بدأت — فالبدء من
-   07-01 كان سيخترع متأخرات وهمية تتراكم عبر كل الأيام التالية. الرصيد الافتتاحي
-   في ورقة الإكسل نفسها «-» أي صفر عند بدء المتابعة. */
-const DEP_START = '2026-07-15'
-/* مكتبٌ بدأت متابعته بعد البقيّة يبدأ جدوله من يومه هو — للسبب نفسه: نقدُه قبل
-   ذلك اليوم لم تُسجَّل له إيداعات، فعدُّه يخترع متأخرات وهمية. «الجبيل - سوني»
-   أُضيفت ورقته لإكسل المحاسب وأول صفّ معبّأ فيها 2026-09-02 (استيراد 2026-10-04). */
-const DEP_START_BY_OFFICE = { JUB1: '2026-09-02' }
+/* بداية المتابعة في البرنامج = **2026-10-01 لكل المكاتب** (قرار المستخدم
+   2026-10-04): صفحةٌ جديدة برصيد افتتاحي صفر من أول أكتوبر. ما قبله (من
+   2026-07-15، وسوني من 09-02) تابعه المحاسب في إكسله، وإدخالاته باقية في
+   `ops_sheet_rows` لم تُحذف — لا تُعرض ولا تدخل في المرحّل وحسب.
+   ⚠️ لا تُرجَع البداية لأول فترةٍ فيها نقدٌ بلا إيداعات مسجَّلة: ذلك يخترع
+   متأخرات وهمية تتراكم عبر كل الأيام التالية. */
+const DEP_START = '2026-10-01'
+/* مكتبٌ تبدأ متابعته بعد البقيّة يبدأ جدوله من يومه هو — للسبب نفسه. فارغة الآن:
+   البداية واحدة لكل المكاتب. */
+const DEP_START_BY_OFFICE = {}
 const depStartOf = (code) => DEP_START_BY_OFFICE[code] || DEP_START
 const DEP_DAYS_AR = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت']
 const DEP_DAYS_EN = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 // نتائج السلسلة لكل صف — تُملأ في derive وتقرأها الأعمدة (نفس نمط SDE_REF)
-const DEP_REF = { calc: new Map() }
+const DEP_REF = { calc: new Map(), accounts: new Map() }
 const depNum = (v) => { const n = Number(String(v ?? '').replace(/[^\d.-]/g, '')); return Number.isFinite(n) ? n : 0 }
 // «-» بدل الصفر تماماً كورقة الإكسل — الصفر البصري ضجيج في شيت مالي
 const depMoney = (n) => (!n ? '-' : enNum(n))
@@ -5180,7 +5181,7 @@ const depDerive = (rows, edits) => {
       // لا يوم مستحق ⇒ لا حالة (شرطة، كالإكسل). وإلا: كامل / مسوّى / جزئي / لم يتم.
       const idle = total <= 0 && paid <= 0 && adj === 0
       // عدد أيام التأخير يُلحَق بالنص كي يقرأه المستخدم بلا حساب ذهني.
-      // ⚠️ ألوان الحالة تُقرأ من الحرف الأول لا من النص كاملاً (انظر depStatusBg).
+      // ⚠️ شارة الحالة تُقرأ من الحرف الأول لا من النص كاملاً (انظر DEP_STATUS_UI).
       const late = lateDays > 1 ? ` · ${lateDays} أيام` : ''
       calc.set(r._id, {
         carry,
@@ -5208,16 +5209,6 @@ const depDerive = (rows, edits) => {
 const depGet = (r, k) => { const c = DEP_REF.calc.get(r && r._id); return c ? c[k] : undefined }
 // قيمةٌ من صفّ **اليوم** بين الصفوف المعروضة (مكتب التبويب المختار) — `null` إن غاب
 const depToday1 = (rows, pick) => { const t = depToday(); const r = rows.find((x) => x.dep_date === t); return r ? (Number(pick(r)) || 0) : null }
-/* لون الحالة من **الحرف الأول** لا من النص كاملاً — النص يحمل عدد أيام التأخير
-   («✗ لم يتم · ٤ أيام») فمطابقة النص الكامل كانت ستكسر التلوين. */
-const DEP_STATUS_BG = {
-  '✓': 'rgba(46,204,113,.20)',
-  '⊘': 'rgba(155,140,225,.22)',   // بنفسجي: أُغلق بقرار إداري لا بإيداع
-  '◐': 'rgba(212,160,23,.22)',
-  '✗': 'rgba(232,114,101,.20)',
-}
-const depStatusBg = (v) => DEP_STATUS_BG[String(v || '').charAt(0)] || undefined
-
 /* تدرّج التأخير: أصفر في اليوم الأول ← أحمر كامل عند عشرة أيام. اللون وحده
    يكفي لفرز الشبكة بصرياً بلا قراءة أرقام. */
 const depLateBg = (days) => {
@@ -5226,6 +5217,96 @@ const depLateBg = (days) => {
   const mix = (a, b) => Math.round(a + (b - a) * t)
   return `rgba(${mix(212, 232)},${mix(160, 114)},${mix(23, 101)},${(0.14 + 0.22 * t).toFixed(2)})`
 }
+/* خليّة «الحالة» شارةً لا نصّاً مصبوغ الخلفية (طلب المستخدم 2026-10-04): رمزٌ في
+   دائرةٍ بلون الحالة ثم اسمُها، وأيام التأخير شارةٌ صغيرة مستقلّة بجوارها.
+   العرض وحده — `get` يبقى نصّ الحالة كما هو، فالفرز والتصفية والتصدير عليه. */
+const DEP_STATUS_UI = {
+  '✓': { ar: 'تم بالكامل', en: 'Deposited', c: '#1f9d55', bg: 'rgba(46,204,113,.14)', bd: 'rgba(46,204,113,.50)' },
+  '⊘': { ar: 'مسوّى', en: 'Settled', c: '#7a68c9', bg: 'rgba(155,140,225,.16)', bd: 'rgba(155,140,225,.55)' },
+  '◐': { ar: 'جزئي', en: 'Partial', c: '#b07d00', bg: 'rgba(212,160,23,.16)', bd: 'rgba(212,160,23,.55)' },
+  '✗': { ar: 'لم يتم', en: 'Not deposited', c: '#d0503f', bg: 'rgba(232,114,101,.14)', bd: 'rgba(232,114,101,.55)' },
+}
+const depDaysLabel = (n, isAr) => (isAr === false ? `${enNum(n)} d`
+  : n === 2 ? 'يومان' : n <= 10 ? `${enNum(n)} أيام` : `${enNum(n)} يوماً`)
+function DepStatusCell({ row, isAr }) {
+  const s = DEP_STATUS_UI[String(depGet(row, 'status') || '').charAt(0)]
+  if (!s) return <span style={{ color: 'var(--tx4)' }}>—</span>
+  const late = depGet(row, 'lateDays') || 0
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, maxWidth: '100%', overflow: 'hidden' }}>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 24, paddingInlineStart: 4, paddingInlineEnd: 10,
+        borderRadius: 999, border: `1px solid ${s.bd}`, background: s.bg, color: s.c, fontFamily: F, fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap' }}>
+        <span aria-hidden style={{ width: 16, height: 16, borderRadius: '50%', background: s.c, color: '#fff', flexShrink: 0,
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, lineHeight: 1 }}>{String(depGet(row, 'status')).charAt(0)}</span>
+        {isAr === false ? s.en : s.ar}
+      </span>
+      {late > 1 && (
+        <span title={isAr === false ? 'Days overdue' : 'أيام التأخير'}
+          style={{ height: 20, padding: '0 7px', borderRadius: 999, background: 'rgba(232,114,101,.16)', color: '#d0503f', flexShrink: 0,
+            display: 'inline-flex', alignItems: 'center', fontFamily: F, fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' }}>{depDaysLabel(late, isAr)}</span>
+      )}
+    </span>
+  )
+}
+
+/* «الحساب المودع له» — مربوطٌ بجدول «الحسابات البنكية» (`bank_accounts`): القيمة
+   المخزَّنة **مفتاح صفّ الحساب** لا اسمه، فتعديل بيانات الحساب هناك ينعكس هنا
+   من تلقائه. تُحمَّل مع الشيت في `DEP_REF.accounts` (مفتاح ← {label, owner, on}). */
+const depAcctBuild = (rows) => {
+  const m = new Map()
+  for (const r of (rows || [])) {
+    const d = (r && r.data) || {}
+    const t = (k) => String(d[k] || '').trim()
+    const iban = t('ba_iban') || t('ba_account')
+    const nick = t('ba_nick'); const bank = t('ba_bank'); const owner = t('ba_owner')
+    // حسابٌ بلا مستعارٍ ولا مالكٍ ولا بنكٍ ولا اسم لا يُعرَّف في القائمة — صفٌّ لم يُكمَل بعد
+    if (!nick && !bank && !owner && !t('ba_holder')) continue
+    /* سطرُ الخيار الأول: المستعار وإلا البنك. وتحته: البنك · المالك · الغرض (طلب
+       المستخدم 2026-10-04) بلا تكرار ما في السطر الأول. */
+    const main = nick || bank || owner || t('ba_holder')
+    m.set(r.row_key, {
+      main,
+      sub: [bank, owner, t('ba_purpose')].filter((x) => x && x !== main).join(' · '),
+      // نصّ الخليّة (والتصدير والبحث): المستعار، وإلا «البنك · المالك · …آخر 4»
+      label: nick || ([bank, owner].filter(Boolean).join(' · ') || t('ba_holder')) + (iban ? ` · …${iban.slice(-4)}` : ''),
+      owner,
+      on: t('ba_state') !== 'موقوف',
+      d,
+    })
+  }
+  return m
+}
+/* بطاقة الحساب — كل بياناته من جدول «الحسابات البنكية» في نافذة، تُفتح من العين
+   بجوار الحساب في الخليّة أو في القائمة (بلا اختياره). */
+const depAcctCard = (k) => {
+  const a = k && DEP_REF.accounts && DEP_REF.accounts.get(k)
+  if (!a) return null
+  const t = (key) => String(a.d[key] || '').trim()
+  const bal = t('ba_balance')
+  return {
+    ar: 'بيانات الحساب البنكي', en: 'Bank account details',
+    hero: a.main, heroAr: 'الحساب', heroEn: 'Account',
+    rows: [
+      { ar: 'مالك الحساب', en: 'Account owner', v: t('ba_owner') },
+      { ar: 'البنك', en: 'Bank', v: t('ba_bank') },
+      { ar: 'اسم الحساب', en: 'Account name', v: t('ba_holder'), wide: true },
+      { ar: 'الاسم المستعار', en: 'Nickname', v: t('ba_nick') },
+      { ar: 'الغرض', en: 'Purpose', v: t('ba_purpose') },
+      { ar: 'الآيبان', en: 'IBAN', v: t('ba_iban'), mono: true, wide: true },
+      { ar: 'رقم الحساب', en: 'Account no.', v: t('ba_account'), mono: true },
+      { ar: 'الرصيد', en: 'Balance', v: bal ? enNum(depNum(bal)) : '', mono: true, tone: depNum(bal) < 0 ? C.red : undefined },
+      { ar: 'الحالة', en: 'Status', v: t('ba_state'), tone: t('ba_state') === 'موقوف' ? C.red : (t('ba_state') ? '#2ecc71' : undefined) },
+      { ar: 'ملاحظات', en: 'Notes', v: t('ba_notes'), wide: true },
+    ].filter((x) => x.v),
+    linkUrl: t('ba_iban_cert') || undefined, linkAr: 'مشهد الآيبان', linkEn: 'IBAN certificate',
+  }
+}
+const depAcctLabel = (k, isAr) => {
+  if (!k) return null
+  const a = DEP_REF.accounts && DEP_REF.accounts.get(k)
+  return a ? a.label : (isAr === false ? 'Deleted account' : 'حساب محذوف')
+}
+
 // أسباب التسوية — قائمة مغلقة كي تكون قابلة للفرز والإحصاء لاحقاً
 const DEP_ADJ_REASONS = [
   'فرق ما قبل بدء المتابعة',
@@ -5234,6 +5315,8 @@ const DEP_ADJ_REASONS = [
   'حوالة بنكية غير مسجّلة',
   'تعديل للفاتورة',
   'مصروف/خصم من المكتب',
+  // ما يُدفع للسبلاير من نقد المكتب قبل الإيداع (طلب المستخدم 2026-10-04)
+  'خصم السبلاير',
   'فاتورة ملغاة أو مرتجعة',
   // نقدٌ لم يُودَع في البنك بل سُلِّم يداً — اسمُ المستلِم هو السبب (طلب المستخدم 2026-10-04)
   'استلم الكاش من قبل مهدي',
@@ -5252,6 +5335,7 @@ const DEP_ADJ_BG = {
   'حوالة بنكية غير مسجّلة': 'rgba(93,173,226,.30)',
   'تعديل للفاتورة': 'rgba(234,179,8,.32)',
   'مصروف/خصم من المكتب': 'rgba(155,89,182,.28)',
+  'خصم السبلاير': 'rgba(161,114,78,.32)',
   'فاتورة ملغاة أو مرتجعة': 'rgba(232,114,101,.32)',
   'استلم الكاش من قبل مهدي': 'rgba(46,204,113,.32)',
   'استلم الكاش من قبل حسين': 'rgba(26,188,156,.30)',
@@ -14926,7 +15010,7 @@ const VIEWS = [
       { ar: 'اليوم', en: 'Day', keys: ['dep_date', 'dep_dayname'] },
       { ar: 'الحوالات البنكية', en: 'Bank transfers', keys: ['dep_bank'] },
       { ar: 'المستحق', en: 'Due', keys: ['dep_due', 'dep_due_xl', 'dep_carry', 'dep_total'] },
-      { ar: 'الإيداع', en: 'Deposit', keys: ['dep_paid', 'dep_receipt', 'dep_bank_sms'] },
+      { ar: 'الإيداع', en: 'Deposit', keys: ['dep_paid', 'dep_account', 'dep_receipt', 'dep_bank_sms'] },
       { ar: 'التسوية', en: 'Adjustment', keys: ['dep_adjust', 'dep_adjust_reason', 'dep_docs'] },
       { ar: 'النتيجة', en: 'Outcome', keys: ['dep_ok', 'dep_rem', 'dep_status', 'dep_notes'] },
     ],
@@ -14954,13 +15038,16 @@ const VIEWS = [
       }
     },
     async load(sb) {
-      const [agg, ovKeys] = await Promise.all([
+      const [agg, ovKeys, accts] = await Promise.all([
         fetchAll(sb, 'v_ops_office_deposits',
           'branch_id,branch_code,branch_name_ar,pay_date,cash_total,bank_total,bank_transfers',
           (q) => q.gte('pay_date', DEP_START)),
         // مفاتيح الإدخال المحفوظ فقط (لا حمولة) — لتحديد نهاية المدى بأمان
         sb.from('ops_sheet_rows').select('row_key').eq('view_key', 'deposits'),
+        // حسابات جدول «الحسابات البنكية» — لقائمة «الحساب المودع له»
+        sb.from('ops_sheet_rows').select('row_key,data').eq('view_key', 'bank_accounts').order('created_at'),
       ])
+      DEP_REF.accounts = depAcctBuild(accts && accts.data)
       // المكاتب = ما ظهر منها في الحركة (فينضمّ أي مكتب جديد تلقائياً)
       const offices = new Map()
       for (const a of agg) if (!offices.has(a.branch_code)) offices.set(a.branch_code, a.branch_name_ar || a.branch_code)
@@ -15024,6 +15111,17 @@ const VIEWS = [
       { key: 'dep_total', ar: 'إجمالي المستحق', en: 'Total due', w: 135, kind: 'num', auto: true, source: 'formula',
         get: (r) => depMoney(depGet(r, 'total')) },
       { key: 'dep_paid', ar: 'المبلغ المودع', en: 'Deposited', w: 130, kind: 'num', ops: true },
+      /* أيّ حسابٍ أُودع فيه — قائمةٌ من جدول «الحسابات البنكية» (النشطة وحدها تُختار،
+         والموقوف يبقى ظاهراً حيث اختير قبل إيقافه). خلفيّتها لون مالك الحساب. */
+      { key: 'dep_account', ar: 'الحساب المودع له', en: 'Deposited to', w: 230, kind: 'text', ops: true,
+        select: true,
+        options: () => [...DEP_REF.accounts.entries()].filter(([, a]) => a.on).map(([k]) => k),
+        optLabel: (o, r, isAr) => depAcctLabel(o, isAr) || o,
+        // في القائمة: سطرٌ ثانٍ «البنك · المالك · الغرض»، وعينٌ تفتح بطاقة الحساب كاملةً
+        optSub: (o) => { const a = DEP_REF.accounts.get(o); return a ? a.sub : '' },
+        info: (o) => depAcctCard(o),
+        fmt: (v, r, isAr) => depAcctLabel(v, isAr),
+        bg: (v) => { const a = DEP_REF.accounts.get(v); return a ? hexTint(SR_REF.personColor.get(a.owner)) : null } },
       // إثبات خروج المال للبنك — يقابل «ملفات الحوالة» التي تُثبت دخوله
       { key: 'dep_receipt', ar: 'إيصالات الإيداع', en: 'Deposit slips', w: 165, kind: 'multifile', ops: true },
       // نصّ البنك كما وصل. الإيداع الواحد قد يُقسَّم على عشر دفعات، ولكلٍّ رسالتها
@@ -15046,9 +15144,10 @@ const VIEWS = [
         fg: (v, r) => { const x = depGet(r, 'rem'); return x > 0 ? C.red : (x < 0 ? '#2ecc71' : undefined) },
         // وخلفيته تتدرّج مع طول التأخير: أصفر أول يوم ← أحمر عند العاشر
         bg: (v, r) => depLateBg(depGet(r, 'lateDays')) },
-      { key: 'dep_status', ar: 'الحالة', en: 'Status', w: 150, kind: 'text', auto: true, source: 'formula',
+      // شارةٌ ملوّنة بدل خلفيةٍ تصبغ الخليّة كلها (`DepStatusCell`)
+      { key: 'dep_status', ar: 'الحالة', en: 'Status', w: 190, kind: 'text', auto: true, source: 'formula',
         get: (r) => depGet(r, 'status') || '—',
-        bg: (v) => depStatusBg(v) },
+        render: (r, raw, isAr) => <DepStatusCell row={r} isAr={isAr} /> },
       notesCol({ key: 'dep_notes', ar: 'ملاحظات', en: 'Notes', w: 240, ops: true }),
     ],
   },
@@ -15078,9 +15177,15 @@ const VIEWS = [
       { ...personBgCol('ba_owner', 'مالك الحساب', 'Account owner'), w: 160, ops: true },
       // «اسم الحساب» كما سمّاه المستخدم في الجدول (كان «صاحب الحساب») — المفتاح باقٍ
       { key: 'ba_holder', ar: 'اسم الحساب', en: 'Account name', w: 200, kind: 'text', ops: true },
+      /* الاسم المستعار — ما يُعرف به الحساب بين الموظفين («الأهلي مهدي»). متى كُتب
+         صار هو اسمَ الحساب في قائمة «الحساب المودع له» (طلب المستخدم 2026-10-04). */
+      { key: 'ba_nick', ar: 'الاسم المستعار', en: 'Nickname', w: 180, kind: 'text', ops: true },
       { key: 'ba_iban', ar: 'الآيبان', en: 'IBAN', w: 260, kind: 'mono', ops: true, ...BA_IBAN },
       { key: 'ba_account', ar: 'رقم الحساب', en: 'Account no.', w: 180, kind: 'mono', ops: true,
         coerce: (v) => latin(v).replace(/\s+/g, '') },
+      // رصيد الحساب — يُكتب باليد (لا مصدر يُجلب منه)؛ السالب أحمر (طلب المستخدم 2026-10-04)
+      { key: 'ba_balance', ar: 'الرصيد', en: 'Balance', w: 140, kind: 'num', ops: true,
+        fg: (v) => (depNum(v) < 0 ? C.red : undefined) },
       { key: 'ba_purpose', ar: 'الغرض', en: 'Purpose', w: 170, kind: 'text', ops: true,
         select: true, options: () => BA_PURPOSES, bg: (v) => BA_PURPOSE_BG[v] || null },
       { key: 'ba_state', ar: 'الحالة', en: 'Status', w: 110, kind: 'text', ops: true,
@@ -16912,8 +17017,21 @@ const CS_SEARCH_MIN = 8
 const CS_MAX_ROWS = 200
 const csFold = (s) => String(s ?? '').toLowerCase().replace(/[أإآٱ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي')
   .replace(/[ً-ْـ]/g, '').replace(/\s+/g, ' ').trim()
-function CellSelect({ value, options, onChange, disabled, optBg, optLabel, isAr = true }) {
+/* `optSub(o)`: سطرٌ ثانٍ صغير تحت اسم الخيار (تعريفٌ به) ويدخل في البحث.
+   `onInfo(o)`: عينٌ بجوار الخيار — وبجوار القيمة المختارة في الخليّة — تفتح
+   بطاقة تفاصيله بلا اختياره (عمود «الحساب المودع له»). */
+function CellSelect({ value, options, onChange, disabled, optBg, optLabel, optSub, onInfo, isAr = true }) {
   const lab = (o) => (optLabel ? (optLabel(o) || o) : o)
+  const subOf = (o) => (optSub ? (optSub(o) || '') : '')
+  const infoBtn = (o, size, style) => (
+    <span role="button" tabIndex={-1} title={isAr ? 'عرض كل البيانات' : 'Show all details'}
+      onMouseDown={(e) => e.stopPropagation()}
+      onClick={(e) => { e.stopPropagation(); setOpen(false); onInfo(o) }}
+      style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: size + 10, height: size + 10, borderRadius: '50%',
+        color: C.gold, cursor: 'pointer', flexShrink: 0, ...style }}>
+      <Eye size={size} strokeWidth={2.2} />
+    </span>
+  )
   const btnRef = useRef(null)
   const popRef = useRef(null)
   const [open, setOpen] = useState(false)
@@ -16954,7 +17072,7 @@ function CellSelect({ value, options, onChange, disabled, optBg, optLabel, isAr 
     return () => { clearTimeout(t); document.removeEventListener('mousedown', onDoc) }
   }, [open])
   const fq = csFold(q)
-  const shown = fq ? opts.filter((o) => csFold(lab(o)).includes(fq)) : opts
+  const shown = fq ? opts.filter((o) => csFold(lab(o) + ' ' + subOf(o)).includes(fq)) : opts
   const pick = (v) => { onChange(v); setOpen(false); setQ('') }
   const item = (o, label, sub) => {
     const base = (!sub && optBg && optBg(o)) || (o === value ? 'rgba(176,125,0,.16)' : 'transparent')
@@ -16966,8 +17084,12 @@ function CellSelect({ value, options, onChange, disabled, optBg, optLabel, isAr 
           color: sub ? 'var(--tx4)' : (o === value ? C.gold : 'var(--tx)'), cursor: 'pointer', borderRadius: 7, textAlign: 'center',
           background: base, margin: '1px 0', whiteSpace: 'normal', overflowWrap: 'anywhere', transition: 'background .12s' }}>
         {cellLines(label)}
+        {!sub && subOf(o) && (
+          <div style={{ marginTop: 2, fontSize: 11, fontWeight: 500, color: 'var(--tx3)', lineHeight: 1.3 }}>{subOf(o)}</div>
+        )}
         {!sub && o === value && <Check size={14} color={C.gold} strokeWidth={3}
           style={{ position: 'absolute', insetInlineEnd: 9, top: '50%', transform: 'translateY(-50%)' }} />}
+        {!sub && onInfo && o && infoBtn(o, 14, { position: 'absolute', insetInlineStart: 3, top: '50%', transform: 'translateY(-50%)' })}
       </div>
     )
   }
@@ -16976,6 +17098,7 @@ function CellSelect({ value, options, onChange, disabled, optBg, optLabel, isAr 
       <button ref={btnRef} type="button" onMouseDown={(e) => e.stopPropagation()} onClick={openIt}
         style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: 'transparent', border: 'none', outline: 'none', cursor: disabled ? 'default' : 'pointer', color: value ? 'var(--tx)' : 'var(--tx4)', fontFamily: F, fontWeight: value ? 600 : 500, fontSize: 12.5, padding: '0 8px', textDecoration: 'inherit' }}>
         {/* `\n` في نصّ الخيار يُرسم سطرين (رمز المكتب ثم اسمه) — كبقيّة خلايا الشبكة */}
+        {onInfo && value ? infoBtn(value, 13) : null}
         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value ? cellLines(lab(value)) : '—'}</span>
         {!disabled && <span aria-hidden style={{ fontSize: 8, color: C.gold, opacity: .85, transition: '.2s', transform: open ? 'rotate(180deg)' : 'none' }}>▼</span>}
       </button>
@@ -17271,6 +17394,8 @@ const VIEW_STATS = {
   // «الأشخاص» بلا كروت بقرار المستخدم — مصفوفةٌ فارغة **صراحةً** لا حذفُ السطر:
   // الحذف يُسقطه على الاحتياطي (كرت «عدد الصفوف») فتعود الكروت من حيث لا يُقصد.
   persons: [],
+  // و«الحسابات البنكية» كذلك (طلب المستخدم 2026-10-04) — عدد صفوفٍ لا يقول شيئاً
+  bank_accounts: [],
   /* الكروت تُحسب من **المعروض** — الشهر المختار في العدسة (`weekFilter`) وأيّ فلترةٍ
      أو بحثٍ فوقه — فلا شهرَ مثبَّتاً فيها: تبديلُ الشهر يبدّلها كلَّها. */
   agent_commissions: [
@@ -22855,6 +22980,8 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
                                 /* بلا `optLabel` خاصّ: القاموس العام يترجم الخيار
                                    في الواجهة الإنجليزية — القيمة المخزَّنة لا تتغيّر */
                                 optLabel={col.optLabel ? (o) => col.optLabel(o, row, isAr) : (o) => optText(o, isAr)}
+                                optSub={col.optSub ? (o) => col.optSub(o, row, isAr) : null}
+                                onInfo={col.info ? (o) => openCard(col.info(o, row, isAr)) : null}
                                 onChange={(v) => writeCells([{ row, col, text: v }])} disabled={!canEdit} isAr={isAr} />)
                           ) : (<>
                           {isEd ? (
