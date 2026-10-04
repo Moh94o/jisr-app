@@ -276,7 +276,7 @@ export default function HomeDashboard({ sb, user, lang = 'ar', onNavigate, logo 
   const [err, setErr] = useState(null)
   const [busy, setBusy] = useState(false)
   const [loadedAt, setLoadedAt] = useState(null)
-  const [period, setPeriod] = useState('month')
+  const [period, setPeriod] = useState('today')
   const [sel, setSel] = useState(() => { try { return localStorage.getItem(SEL_KEY) || 'all' } catch { return 'all' } })
   const [trend, setTrend] = useState('daily')
   const [cmpMetric, setCmpMetric] = useState('net')
@@ -460,7 +460,7 @@ export default function HomeDashboard({ sb, user, lang = 'ar', onNavigate, logo 
           background: GOLD, color: '#fff', fontFamily: "'Cairo',sans-serif", fontSize: 13, fontWeight: 600, opacity: draftOk && !busy ? 1 : 0.45 }}>
           {busy ? T('جارٍ الحساب…', 'Calculating…') : T('تطبيق', 'Apply')}
         </button>
-        {range && <button onClick={() => { setRange(null); rangeRef.current = null; setPeriod('month'); setRangeOpen(false); fetchDash(null) }} style={{ height: 38, padding: '0 14px', borderRadius: 10, border: '1px solid var(--bd)', background: 'transparent', color: 'var(--tx3)', fontFamily: "'Cairo',sans-serif", fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>{T('إزالة التاريخ', 'Clear')}</button>}
+        {range && <button onClick={() => { setRange(null); rangeRef.current = null; setPeriod('today'); setRangeOpen(false); fetchDash(null) }} style={{ height: 38, padding: '0 14px', borderRadius: 10, border: '1px solid var(--bd)', background: 'transparent', color: 'var(--tx3)', fontFamily: "'Cairo',sans-serif", fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>{T('إزالة التاريخ', 'Clear')}</button>}
       </div>
     </div>
   )
@@ -578,7 +578,7 @@ export default function HomeDashboard({ sb, user, lang = 'ar', onNavigate, logo 
         <button className="mh-primary" onClick={() => applyRange(draft)} disabled={!draftOk || busy}>
           {busy ? T('جارٍ الحساب…', 'Calculating…') : T('تطبيق', 'Apply')}
         </button>
-        {range && <button className="mh-secondary" onClick={() => { setRange(null); rangeRef.current = null; setPeriod('month'); setRangeOpen(false); fetchDash(null) }}>{T('إزالة التاريخ', 'Clear date')}</button>}
+        {range && <button className="mh-secondary" onClick={() => { setRange(null); rangeRef.current = null; setPeriod('today'); setRangeOpen(false); fetchDash(null) }}>{T('إزالة التاريخ', 'Clear date')}</button>}
       </div>
     </div>
   )

@@ -4952,6 +4952,10 @@ const OPT_EN = {
   'حوالة بنكية غير مسجّلة': 'Unrecorded bank transfer',
   'مصروف/خصم من المكتب': 'Office expense/deduction',
   'فاتورة ملغاة أو مرتجعة': 'Cancelled or returned invoice',
+  'استلم الكاش من قبل مهدي': 'Cash received by Mahdi',
+  'استلم الكاش من قبل حسين': 'Cash received by Hussein',
+  'استلم الكاش من قبل فلاح': 'Cash received by Falah',
+  'استلم الكاش من قبل محمد': 'Cash received by Mohammed',
   'أخرى': 'Other',
   // أغراض السداد (SD_PURPOSES + LEGACY + NA)
   'إصدار إقامة': 'Iqama issuance', 'تجديد إقامة': 'Iqama renewal',
@@ -5105,6 +5109,11 @@ const iqmReqTip = (stKey, arName, enName) => (v, r, isAr2) => {
    07-01 كان سيخترع متأخرات وهمية تتراكم عبر كل الأيام التالية. الرصيد الافتتاحي
    في ورقة الإكسل نفسها «-» أي صفر عند بدء المتابعة. */
 const DEP_START = '2026-07-15'
+/* مكتبٌ بدأت متابعته بعد البقيّة يبدأ جدوله من يومه هو — للسبب نفسه: نقدُه قبل
+   ذلك اليوم لم تُسجَّل له إيداعات، فعدُّه يخترع متأخرات وهمية. «الجبيل - سوني»
+   أُضيفت ورقته لإكسل المحاسب وأول صفّ معبّأ فيها 2026-09-02 (استيراد 2026-10-04). */
+const DEP_START_BY_OFFICE = { JUB1: '2026-09-02' }
+const depStartOf = (code) => DEP_START_BY_OFFICE[code] || DEP_START
 const DEP_DAYS_AR = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت']
 const DEP_DAYS_EN = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 // نتائج السلسلة لكل صف — تُملأ في derive وتقرأها الأعمدة (نفس نمط SDE_REF)
@@ -5220,8 +5229,30 @@ const DEP_ADJ_REASONS = [
   'تعديل للفاتورة',
   'مصروف/خصم من المكتب',
   'فاتورة ملغاة أو مرتجعة',
+  // نقدٌ لم يُودَع في البنك بل سُلِّم يداً — اسمُ المستلِم هو السبب (طلب المستخدم 2026-10-04)
+  'استلم الكاش من قبل مهدي',
+  'استلم الكاش من قبل حسين',
+  'استلم الكاش من قبل فلاح',
+  'استلم الكاش من قبل محمد',
   'أخرى',
 ]
+/* لونٌ لكل سبب — يصبغ الخليّة وخيارَه في القائمة معاً (`col.bg` ← `optBg`).
+   الأحمر/البرتقالي لما هو خطأٌ يُصحَّح، والأزرق لفروق التوقيت والتسجيل، والبنفسجي
+   لما صُرف، والأخضر بدرجاته لنقدٍ استُلم يداً (درجةٌ لكل مستلِم)، والمحايد لما عداه. */
+const DEP_ADJ_BG = {
+  'فرق ما قبل بدء المتابعة': 'rgba(100,116,139,.30)',
+  'دفعة سُجّلت بأثر رجعي': 'rgba(99,102,241,.26)',
+  'خطأ إسناد فرع': 'rgba(230,126,34,.28)',
+  'حوالة بنكية غير مسجّلة': 'rgba(93,173,226,.30)',
+  'تعديل للفاتورة': 'rgba(234,179,8,.32)',
+  'مصروف/خصم من المكتب': 'rgba(155,89,182,.28)',
+  'فاتورة ملغاة أو مرتجعة': 'rgba(232,114,101,.32)',
+  'استلم الكاش من قبل مهدي': 'rgba(46,204,113,.32)',
+  'استلم الكاش من قبل حسين': 'rgba(26,188,156,.30)',
+  'استلم الكاش من قبل فلاح': 'rgba(139,195,74,.34)',
+  'استلم الكاش من قبل محمد': 'rgba(0,150,136,.26)',
+  'أخرى': 'rgba(160,150,130,.28)',
+}
 
 /* ── دفتر السدادات ───────────────────────────────────────────────────────────
    نقل «amr.xlsx» (٥ دفاتر أستاذ: ٤ مكاتب + بنك الأهلي) إلى شيت واحد بأزرار
@@ -14913,7 +14944,9 @@ const VIEWS = [
       const days = depDateSpine(end).reverse()
       const out = []
       for (const [code, name] of [...offices.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+        const from = depStartOf(code)
         for (const d of days) {
+          if (d.ymd < from) continue
           const a = byKey.get(code + '|' + d.ymd)
           out.push({
             _id: code + '|' + d.ymd,          // مفتاح overlay ثابت لا يتأثّر بإعادة الترتيب
@@ -14963,7 +14996,8 @@ const VIEWS = [
       { key: 'dep_bank_sms', ar: 'رسالة البنك', en: 'Bank SMS', w: 230, kind: 'longtext', ops: true },
       { key: 'dep_adjust', ar: 'تسوية', en: 'Adjustment', w: 105, kind: 'num', ops: true },
       { key: 'dep_adjust_reason', ar: 'سبب التسوية', en: 'Adjustment reason', w: 175, kind: 'text', ops: true,
-        select: true, options: () => DEP_ADJ_REASONS },
+        select: true, options: () => DEP_ADJ_REASONS,
+        bg: (v) => DEP_ADJ_BG[v] || null },
       // مرفقات عامّة لليوم: ما لا يندرج تحت إيصال إيداع ولا حوالة — مستند تسوية،
       // محضر، مراسلة، أي إثبات آخر. عدّة ملفات لكل يوم.
       { key: 'dep_docs', ar: 'مرفقات', en: 'Attachments', w: 150, kind: 'multifile', ops: true },
