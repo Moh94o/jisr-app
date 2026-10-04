@@ -4956,6 +4956,9 @@ const OPT_EN = {
   'استلم الكاش من قبل حسين': 'Cash received by Hussein',
   'استلم الكاش من قبل فلاح': 'Cash received by Falah',
   'استلم الكاش من قبل محمد': 'Cash received by Mohammed',
+  // الحسابات البنكية: الغرض والحالة (BA_PURPOSES / BA_STATES)
+  'إيداع نقد المكاتب': 'Office cash deposits', 'السداد': 'SADAD payments', 'الرواتب': 'Payroll',
+  'حوالات العملاء': 'Client transfers', 'نشط': 'Active', 'موقوف': 'Suspended',
   'أخرى': 'Other',
   // أغراض السداد (SD_PURPOSES + LEGACY + NA)
   'إصدار إقامة': 'Iqama issuance', 'تجديد إقامة': 'Iqama renewal',
@@ -5097,7 +5100,10 @@ const iqmReqTip = (stKey, arName, enName) => (v, r, isAr2) => {
    المستحق والحوالة **يُجلبان تلقائياً من الفواتير** (قرار المستخدم):
      المستحق  = دفعات «نقد» لفواتير المكتب ذلك اليوم        ← v_ops_office_deposits.cash_total
      الحوالة  = دفعات «حوالة بنكية»                          ← bank_total (تُتابَع مستقلّة)
-   مُتحقَّق مقابل الإكسل: DMM3 07-16 = 4800/3000 · JUB5 07-16 = 23100/8500 · JUB5 08-08 = 22000.
+   و«المبلغ» **صافي دخل الكاش** (قرار المستخدم 2026-10-04): نقد اليوم ناقص كامل
+   المسدَّد — بأي طريقة دفع — على الفواتير التي أُلغيت ذلك اليوم. يُحسب في العرض
+   نفسه (`v_ops_office_cancel_refunds`) ويظهر في تفصيل اليوم سطراً سالباً «فاتورة
+   ملغاة». مُتحقَّق: DMM3 07-15 = 10,650 − 4,500 = 6,150 كرقم المحاسب.   مُتحقَّق مقابل الإكسل: DMM3 07-16 = 4800/3000 · JUB5 07-16 = 23100/8500 · JUB5 08-08 = 22000.
 
    اليدوي الوحيد: «المبلغ المودع» و«ملاحظات» (طبقة overlay المعتادة).
    والباقي (مرحّل من أمس · إجمالي المستحق · تم الإيداع؟ · المتبقي · الحالة)
@@ -5252,6 +5258,29 @@ const DEP_ADJ_BG = {
   'استلم الكاش من قبل فلاح': 'rgba(139,195,74,.34)',
   'استلم الكاش من قبل محمد': 'rgba(0,150,136,.26)',
   'أخرى': 'rgba(160,150,130,.28)',
+}
+
+/* ── الحسابات البنكية ─────────────────────────────────────────────────────────
+   سجلّ الحسابات التي يُودَع فيها نقد المكاتب وتُسدَّد منها الخدمات: مَن مالك
+   الحساب وفي أي بنك. كل الصفوف يدوية (overlay) كدفتر السدادات — لا مصدر
+   مزامنة لها. (طلب المستخدم 2026-10-04)
+   البنوك من المصنَّفات المُدارة (`saudi_banks`) والمُلّاك من `sync_persons`، فلا
+   قائمةَ تُكتب هنا باليد وتتقادم. (عمود «المكتب» حذفه المستخدم من الجدول.) */
+const BA_PURPOSES = ['إيداع نقد المكاتب', 'السداد', 'الرواتب', 'حوالات العملاء', 'أخرى']
+const BA_PURPOSE_BG = {
+  'إيداع نقد المكاتب': 'rgba(46,204,113,.30)',
+  'السداد': 'rgba(93,173,226,.30)',
+  'الرواتب': 'rgba(155,89,182,.28)',
+  'حوالات العملاء': 'rgba(234,179,8,.30)',
+  'أخرى': 'rgba(160,150,130,.28)',
+}
+const BA_STATES = ['نشط', 'موقوف']
+const BA_STATE_BG = { 'نشط': 'rgba(46,204,113,.32)', 'موقوف': 'rgba(232,114,101,.32)' }
+/* الآيبان السعودي: `SA` ثم ٢٢ رقماً. `coerce` يُسقط المسافات (يُلصق من الشهادة
+   مقطّعاً أربعاً أربعاً) ويوحّد الأرقام والحروف قبل الفحص. */
+const BA_IBAN = {
+  coerce: (v) => latin(v).replace(/\s+/g, '').toUpperCase(),
+  validate: (v, r, isAr) => (/^SA\d{22}$/.test(v) ? '' : (isAr ? 'الآيبان: SA ثم 22 رقماً' : 'IBAN: SA followed by 22 digits')),
 }
 
 /* ── دفتر السدادات ───────────────────────────────────────────────────────────
@@ -14896,7 +14925,7 @@ const VIEWS = [
     bands: [
       { ar: 'اليوم', en: 'Day', keys: ['dep_date', 'dep_dayname'] },
       { ar: 'الحوالات البنكية', en: 'Bank transfers', keys: ['dep_bank'] },
-      { ar: 'المستحق', en: 'Due', keys: ['dep_due', 'dep_carry', 'dep_total'] },
+      { ar: 'المستحق', en: 'Due', keys: ['dep_due', 'dep_due_xl', 'dep_carry', 'dep_total'] },
       { ar: 'الإيداع', en: 'Deposit', keys: ['dep_paid', 'dep_receipt', 'dep_bank_sms'] },
       { ar: 'التسوية', en: 'Adjustment', keys: ['dep_adjust', 'dep_adjust_reason', 'dep_docs'] },
       { ar: 'النتيجة', en: 'Outcome', keys: ['dep_ok', 'dep_rem', 'dep_status', 'dep_notes'] },
@@ -14974,8 +15003,10 @@ const VIEWS = [
         get: (r) => depMoney(depNum(r.dep_bank)),
         render: (r, raw, isAr, ctx = {}) => <DepTransfersCell list={r.bank_transfers} total={depNum(r.dep_bank)} isAr={isAr} onView={ctx.view} onCopy={ctx.copy} /> },
       // قابل للفتح: الرقم تلقائي، فلا بد أن يكون قابلاً للتدقيق بضغطة
-      { key: 'dep_due', ar: 'المبلغ المستحق', en: 'Amount due', w: 130, kind: 'num', auto: true, source: 'invoice',
-        drill: (r) => depNum(r.dep_due) > 0,
+      // «صافي الكاش» بتسمية المستخدم (2026-10-04): نقد اليوم ناقص الفواتير الملغاة فيه
+      { key: 'dep_due', ar: 'صافي الكاش', en: 'Net cash', w: 130, kind: 'num', auto: true, source: 'invoice',
+        // وسالبُه يُفتح أيضاً: يومٌ أُلغي فيه أكثر مما حُصِّل
+        drill: (r) => depNum(r.dep_due) !== 0,
         /* بلا عدسة: المبلغ نفسه يُضغط وتحته خطّ ذهبي (طلب المستخدم 2026-10-02) */
         drillLink: true,
         get: (r) => depMoney(depNum(r.dep_due)),
@@ -14984,6 +15015,10 @@ const VIEWS = [
               onClick={(e) => { e.stopPropagation(); ctx.drill() }}
               style={{ direction: 'ltr', cursor: 'pointer', borderBottom: '1.5px solid #B07D00', lineHeight: 1.35 }}>{depMoney(depNum(r.dep_due))}</span>
           : <span style={{ direction: 'ltr' }}>{depMoney(depNum(r.dep_due))}</span>) },
+      /* «المبلغ المستحق» كما يكتبه المحاسب في إكسله (طلب المستخدم 2026-10-04) —
+         إدخالٌ يدوي بجوار «صافي الكاش» المحسوب، فيُرى الفرق بينهما يوماً بيوم.
+         مُلئ من الإكسل حتى 2026-10-03، ولا يدخل في سلسلة المرحّل والمتبقّي. */
+      { key: 'dep_due_xl', ar: 'المبلغ المستحق', en: 'Amount due', w: 130, kind: 'num', ops: true },
       { key: 'dep_carry', ar: 'مرحّل من أمس', en: 'Carried over', w: 125, kind: 'num', auto: true, source: 'formula',
         get: (r) => depMoney(depGet(r, 'carry')) },
       { key: 'dep_total', ar: 'إجمالي المستحق', en: 'Total due', w: 135, kind: 'num', auto: true, source: 'formula',
@@ -15015,6 +15050,45 @@ const VIEWS = [
         get: (r) => depGet(r, 'status') || '—',
         bg: (v) => depStatusBg(v) },
       notesCol({ key: 'dep_notes', ar: 'ملاحظات', en: 'Notes', w: 240, ops: true }),
+    ],
+  },
+
+  /* ── الحسابات البنكية — سجلّ حسابات الإيداع والسداد ───────────────────────── */
+  {
+    key: 'bank_accounts',
+    ar: 'الحسابات البنكية', en: 'Bank accounts',
+    hintAr: 'حسابات الإيداع والسداد وأصحابها',
+    hintEn: 'Deposit & payment accounts and their holders',
+    noSync: true,
+    // لا صفوف من مصدر — التحميل يملأ قائمة البنوك وحدها
+    async load(sb) { await loadMsgBanks(sb); return [] },
+    blankRows: 5,
+    search: (r) => Object.values(r._ops || {}),
+    addFields: [
+      { key: 'ba_bank', ar: 'البنك', en: 'Bank', required: true },
+      { key: 'ba_owner', ar: 'مالك الحساب', en: 'Account owner' },
+      { key: 'ba_holder', ar: 'اسم الحساب', en: 'Account name', required: true },
+      { key: 'ba_iban', ar: 'الآيبان', en: 'IBAN' },
+    ],
+    columns: [
+      { key: 'ba_bank', ar: 'البنك', en: 'Bank', w: 190, kind: 'text', ops: true,
+        select: true, options: () => MSG_REF.banks },
+      /* مالك الحساب من قائمة الأشخاص نفسها (`sync_persons`: مهدي · حسين · فلاح…)
+         وبلون كلٍّ منهم — كأعمدة «الحساب» في بقيّة الجداول (طلب المستخدم 2026-10-04). */
+      { ...personBgCol('ba_owner', 'مالك الحساب', 'Account owner'), w: 160, ops: true },
+      // «اسم الحساب» كما سمّاه المستخدم في الجدول (كان «صاحب الحساب») — المفتاح باقٍ
+      { key: 'ba_holder', ar: 'اسم الحساب', en: 'Account name', w: 200, kind: 'text', ops: true },
+      { key: 'ba_iban', ar: 'الآيبان', en: 'IBAN', w: 260, kind: 'mono', ops: true, ...BA_IBAN },
+      { key: 'ba_account', ar: 'رقم الحساب', en: 'Account no.', w: 180, kind: 'mono', ops: true,
+        coerce: (v) => latin(v).replace(/\s+/g, '') },
+      { key: 'ba_purpose', ar: 'الغرض', en: 'Purpose', w: 170, kind: 'text', ops: true,
+        select: true, options: () => BA_PURPOSES, bg: (v) => BA_PURPOSE_BG[v] || null },
+      { key: 'ba_state', ar: 'الحالة', en: 'Status', w: 110, kind: 'text', ops: true,
+        select: true, options: () => BA_STATES, bg: (v) => BA_STATE_BG[v] || null },
+      /* مشهد الآيبان — ملفٌ واحد لكل حساب (حلّ محلّ «مرفقات»، طلب المستخدم
+         2026-10-04). يُرفع من الخليّة ويُفتح بضغطةٍ في عارض الموقع نفسه. */
+      { key: 'ba_iban_cert', ar: 'مشهد الآيبان', en: 'IBAN certificate', w: 180, kind: 'file', ops: true },
+      notesCol({ key: 'ba_notes', ar: 'ملاحظات', en: 'Notes', w: 240, ops: true }),
     ],
   },
 
