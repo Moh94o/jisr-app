@@ -110,14 +110,21 @@ export const opsFieldEditable = (user, key, fieldKey) => {
     && r.vis[`field:ops_excels:${fieldKey}`] !== false)
 }
 /* امتيازٌ صريح بلا افتراض (فكّ الصفوف المقفولة · تعديل إدخال الغير): يمنحه دورٌ
-   نال `ops_excels.<action>` ويُظهر الجدول ولم يستثنِه عليه. */
+   يُظهر الجدول و**فتح المبدّل على هذا الجدول صراحةً** (`cardact…===true`)، أو نال
+   `ops_excels.<action>` عموماً ولم يستثنِه عليه.
+   ⚠️ المبدّل الأخضر على الجدول منحٌ فعليّ كما في `opsRoleCan` — كان يُهمَل هنا
+   ويُنتظَر منحُ الوحدة العامّ، فيفتح المدير «تعديل ما أدخله غيره» لدور التحصيل
+   وتبقى ملاحظاتُ غيره مقفولةً عليه. ويبقى الفرق عن `opsRoleCan`: إظهارُ الجدول
+   وحده (`card===true`) لا يمنح الامتياز — لا بدّ من فتحه هو. */
 export const opsSheetStrict = (user, key, action) => {
   if (isGM(user)) return true
   const roles = user?.roleGrants
   if (!Array.isArray(roles)) return null
-  return roles.some(r => opsRoleShows(r, key)
-    && r.perms.includes(`ops_excels.${action}`)
-    && r.vis[`cardact:ops_excels:${key}:${action}`] !== false)
+  return roles.some(r => {
+    if (!opsRoleShows(r, key)) return false
+    const ca = r.vis[`cardact:ops_excels:${key}:${action}`]
+    return ca === true || (ca !== false && r.perms.includes(`ops_excels.${action}`))
+  })
 }
 
 export const isGM = (user) =>

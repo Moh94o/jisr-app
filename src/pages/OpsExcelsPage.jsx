@@ -10263,7 +10263,14 @@ const msgCol = (spec) => ({
    طلب المستخدم (2026-10-04): الرسالة المنسوخة للقروب تحمل **رقماً مرجعياً**،
    ومسؤول السداد يكتبه في نافذة «＋ صف» بشيت «طلبات السداد» فيحضر الطلب كاملاً
    بلا إعادة كتابة. والرقم **بصمةُ محتوى الرسالة**: تغيّر المبلغ (أو أي سطر)
-   يولّد رقماً آخر ويُبطل السابق — فلا يُسدَّد ٢٠٠٠ برقمٍ صار طلبُه ٢٥٠٠.
+   يولّد رقماً آخر — كل نسخةٍ سدادٌ محفوظٌ برقمه.
+   ⚠️ **النسخ لا يُبطل شيئاً** (قرار المستخدم 2026-10-04): نسخةٌ بالخطأ لم تُرسَل
+   للقروب كانت تُلغي الرقم الصحيح الذي أُرسل قبلها. فالإبطال يقع عند **إدخال**
+   رقمٍ أحدث في «طلبات السداد» (`srAddByRef`) لا عند النسخ، وبقاعدة رقم السداد:
+     · **نفس رقم السداد** = تصحيحٌ للفاتورة نفسها (٢٠٠٠ صارت ٢٥٠٠): يُحدَّث طلبُها
+       غير المسدَّد، وتُبطَل أرقامُها الأقدم.
+     · **رقم سدادٍ آخر** = فاتورةٌ أخرى (رخصة عمل ٣ أشهر ثم ٦): طلبٌ مستقلّ،
+       والأول باقٍ صالحاً يُسدَّد وحده.
    · يُسجَّل لحظة «نسخ الواتساب» مع **لقطة** بيانات الرسالة (`msgRefSnap`) —
      فما يحضر لمسؤول السداد هو ما أُرسل حرفاً، لا ما يُعاد اشتقاقه من شيتٍ قد
      لا يملك صلاحيته ولا فهارسه.
@@ -10315,7 +10322,7 @@ const msgRefRow = (key, data, uid) => ({ view_key: MSG_REF_VIEW, row_key: key, d
    جديد — ولو عاد النصّ إلى ما كان عليه قبل تغييرين (بلاغ المستخدم 2026-10-04:
    ٢٠٠٠ ← ٢٠٠١ ← ٢٠٠٠ أعادت رقم الـ٢٠٠٠ القديم، والمطلوب «مع أي تغيير رقمٌ آخر»).
    فلا يُعاد رقمٌ إلا لـ**آخر** ما سُجّل للمصدر وهو لم يتغيّر: ضغطتا نسخٍ متتاليتان
-   على الرسالة نفسها رقمٌ واحد. وكل رقمٍ سابقٍ للمصدر يُبطَل. */
+   على الرسالة نفسها رقمٌ واحد. والأرقام السابقة **تبقى صالحة** — انظر رأس الكتلة. */
 async function msgRefRegister(sb, snap, uid) {
   const { data: prior, error: e0 } = await sb.from('ops_sheet_rows').select('row_key,data')
     .eq('view_key', MSG_REF_VIEW).eq('data->>src', snap.src)
@@ -10332,30 +10339,21 @@ async function msgRefRegister(sb, snap, uid) {
     if (!hit || !hit.length) ref = c
   }
   if (!ref) throw new Error('تعذّر توليد رقم مرجعي')
-  const rows = [msgRefRow(ref, { ...snap, at: new Date().toISOString() }, uid)]
-  for (const x of (prior || [])) {
-    if (x.row_key !== ref && !(x.data || {}).stale) rows.push(msgRefRow(x.row_key, { ...x.data, stale: ref }, uid))
-  }
-  const { error } = await sb.from('ops_sheet_rows').upsert(rows, { onConflict: 'view_key,row_key' })
+  const { error } = await sb.from('ops_sheet_rows')
+    .upsert([msgRefRow(ref, { ...snap, at: new Date().toISOString() }, uid)], { onConflict: 'view_key,row_key' })
   if (error) throw error
   return ref
-}
-/* تعديلٌ في نافذة الرسالة بلا نسخٍ بعده: أرقامُها السابقة تُبطَل في الحال — وإلا
-   بقي رقم الـ٢٠٠٠ صالحاً حتى تُنسخ رسالة الـ٢٥٠٠. أفضل-جهد: فشلُه لا يمنع الحفظ. */
-async function msgRefExpire(sb, src, text, uid) {
-  try {
-    const { data: prior } = await sb.from('ops_sheet_rows').select('row_key,data')
-      .eq('view_key', MSG_REF_VIEW).eq('data->>src', src)
-    const rows = (prior || []).filter((x) => (x.data || {}).text !== text && !(x.data || {}).stale)
-      .map((x) => msgRefRow(x.row_key, { ...x.data, stale: 'edited' }, uid))
-    if (rows.length) await sb.from('ops_sheet_rows').upsert(rows, { onConflict: 'view_key,row_key' })
-  } catch (e) { console.warn('[ops] msg ref expire', e) }
 }
 /* ── «＋ صف» في طلبات السداد: الرقم المرجعي ← صفُّ الطلب كاملاً (`view.addCustom`) ──
    · عاملُ الرسالة صفّ، ولكل عاملٍ مضافٍ في السداد نفسه صفُّه (رقم سدادٍ واحد
      ⇒ عمليةٌ واحدة كما يقرؤها الشيت).
-   · رسالةٌ عُدّلت بعد إضافتها (رقمٌ جديد لنفس المصدر): صفُّها القائم **غير
-     المسدَّد يُحدَّث** ولا يُكرَّر — وما سُدِّد لا يُمسّ، فيُضاف صفٌّ جديد. */
+   · «السداد نفسه» = نفس مصدر الرسالة **ونفس رقم السداد**:
+       – رقمٌ أحدث له وطلبُه القائم غير مسدَّد ⇒ **يُحدَّث الطلب** ولا يُكرَّر.
+       – طلبُه القائم مسدَّد ⇒ صفٌّ جديد (دفعةٌ أخرى على الرقم نفسه).
+       – رقمٌ **أقدم** ممّا أُدخل له ⇒ يُرفض: تصحيحُه سبقه إلى الجدول.
+     ورقمُ سدادٍ آخر للمصدر نفسه طلبٌ مستقلّ دائماً (انظر رأس الكتلة).
+   · وبعد الإدخال تُبطَل أرقامُ السداد نفسه الأقدم (التي حلّ هذا محلّها والتي لم
+     تُدخَل قطّ) — فلا تدخل بعده. ما سُدِّد بها لا يُمسّ. */
 async function srAddByRef(sb, form, c) {
   const isAr = !c || c.isAr !== false
   const ref = msgRefNorm((form || {}).sr_msg_ref)
@@ -10368,8 +10366,8 @@ async function srAddByRef(sb, form, c) {
   if (p.stale) {
     const nw = /^[A-Z]{0,2}\d+$/.test(String(p.stale)) ? String(p.stale) : ''
     throw new Error(isAr
-      ? `الرقم ${ref} قديم — عُدّلت رسالة السداد بعده` + (nw ? `، ورقمها الحالي ${nw}` : '، اطلب من مرسلها نسخها من جديد')
-      : `Reference ${ref} is outdated — the message was edited after it` + (nw ? `; its current reference is ${nw}` : '; ask the sender to copy it again'))
+      ? `الرقم ${ref} أُلغي — أُدخل بعده رقمٌ أحدث لنفس السداد` + (nw ? ` (${nw})` : '')
+      : `Reference ${ref} was cancelled — a newer one for the same payment was entered` + (nw ? ` (${nw})` : ''))
   }
   const { data: cur, error: e1 } = await sb.from('ops_sheet_rows').select('row_key,data,hidden')
     .eq('view_key', 'sadad_requests').eq('data->>sr_msg_src', p.src)
@@ -10377,6 +10375,17 @@ async function srAddByRef(sb, form, c) {
   const mine = (cur || []).filter((x) => !x.hidden)
   if (mine.some((x) => String((x.data || {}).sr_msg_ref || '') === ref)) {
     throw new Error(isAr ? `الرقم ${ref} أُضيف من قبل — طلبُه في الجدول` : `Reference ${ref} was already added`)
+  }
+  // «السداد نفسه»: نفس المصدر ونفس رقم السداد — رقمٌ آخر فاتورةٌ أخرى وطلبٌ مستقلّ
+  const bill = String(p.sadad || '').trim()
+  const sameBill = (d) => String((d || {}).sr_sadad_no || '').trim() === bill
+  const same = mine.filter((x) => sameBill(x.data))
+  const newer = same.find((x) => String((x.data || {}).sr_msg_at || '') > String(p.at || ''))
+  if (newer) {
+    const nr = String((newer.data || {}).sr_msg_ref || '')
+    throw new Error(isAr
+      ? `الرقم ${ref} أقدم من رقمٍ أُدخل لنفس السداد (${nr}) — طلبُه في الجدول`
+      : `Reference ${ref} is older than one already entered for the same payment (${nr})`)
   }
   const dg = (v) => String(v ?? '').replace(/\D/g, '')
   const months = (p.more || []).find((f) => f.k === 'months' || f.k === 'wp_months')
@@ -10400,7 +10409,7 @@ async function srAddByRef(sb, form, c) {
     ...(p.extra || []).map((x) => ({ ...base, sr_msg_part: dg(x.i), sr_iqama: dg(x.i),
       sr_amount: String(depNum(x.a) || ''), ...(dg(x.m) ? { sr_months: dg(x.m) } : {}) })),
   ]
-  const open = new Map(mine.filter((x) => !srIsPaid(x.data))
+  const open = new Map(same.filter((x) => !srIsPaid(x.data))
     .map((x) => [String((x.data || {}).sr_msg_part || '0'), x]))
   const now = new Date().toISOString(); const uid = (c && c.user && c.user.id) || null
   // مَن أدخل الطلب هنا ومتى — تعرضه بطاقة «مرجع رسالة السداد» بجانب مرسلها ومسدِّدها
@@ -10422,6 +10431,20 @@ async function srAddByRef(sb, form, c) {
     const { error } = await sb.from('ops_sheet_rows').upsert(batch, { onConflict: 'view_key,row_key' })
     if (error) throw error
   }
+  /* إبطالُ الأقدم للسداد نفسه — الآن وقد دخل الأحدث فعلاً. يُستثنى ما حمله صفٌّ
+     مسدَّد (رقمٌ استُعمل لا رقمٌ معلَّق). أفضل-جهد: الطلب أُدخل، وحارسُ «أقدم من
+     رقمٍ أُدخل» أعلاه يسدّ مسدّه إن تعثّر. */
+  try {
+    const { data: sibs } = await sb.from('ops_sheet_rows').select('row_key,data')
+      .eq('view_key', MSG_REF_VIEW).eq('data->>src', p.src)
+    const used = new Set(same.filter((x) => srIsPaid(x.data)).map((x) => String((x.data || {}).sr_msg_ref || '')))
+    const old = (sibs || []).filter((x) => x.row_key !== ref && !(x.data || {}).stale && !used.has(x.row_key)
+      && String((x.data || {}).sadad || '').trim() === bill && String((x.data || {}).at || '') < String(p.at || ''))
+    if (old.length) {
+      await sb.from('ops_sheet_rows').upsert(old.map((x) => msgRefRow(x.row_key, { ...x.data, stale: ref }, uid)),
+        { onConflict: 'view_key,row_key' })
+    }
+  } catch (e) { console.warn('[ops] msg ref supersede', e) }
   const amt = msgSar(p.total || p.amount)
   return upd
     ? (isAr ? `حُدِّث طلب «${p.purpose}» القائم — ${amt}` : `Existing “${p.purpose}” request updated — ${amt}`)
@@ -10466,8 +10489,8 @@ const srMsgRefCard = (r) => {
         { ar: 'وقت السداد', en: 'Paid at', v: paid ? [o.sr_paid_date, o.sr_paid_time].filter(Boolean).join(' ') : '', mono: true, noCopy: true },
       ].filter((f) => f.head || f.v),
       ...(stale ? {
-        warnAr: 'عُدّلت رسالة السداد في مصدرها بعد هذا الرقم' + (nw ? ` — رقمها الحالي ${nw}` : ''),
-        warnEn: 'The message was edited at its source after this reference' + (nw ? ` — current reference ${nw}` : ''),
+        warnAr: 'أُدخل لهذا السداد رقمٌ أحدث بعد هذا الرقم' + (nw ? ` — ${nw}` : ''),
+        warnEn: 'A newer reference was entered for this payment after this one' + (nw ? ` — ${nw}` : ''),
       } : {}),
     }
   }
@@ -24952,13 +24975,8 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
           if (cells.length) writeCells(cells, { viaButton: true })
           return cells.length > 0
         }
-        /* إغلاقٌ بتعديلٍ غيّر نصّ الرسالة ولم يُنسخ: أرقامها المرجعية السابقة تُبطَل
-           (انظر `msgRefExpire`) — والنسخ يتولّى ذلك بنفسه عند التسجيل. */
-        const close = () => {
-          const before = msgCompose(msgItems(spec, row, edits[row._id]))
-          if (flush() && before !== text) msgRefExpire(sb, msgRefSrc(viewKey, row, spec), text, user?.id)
-          setMsgView(null)
-        }
+        // لا إبطالَ لرقمٍ مرجعي هنا ولا عند النسخ — الإبطال عند إدخال الأحدث (`srAddByRef`)
+        const close = () => { flush(); setMsgView(null) }
         /* العنوان ثابتٌ «رسالة السداد» لا اسمُ العمود (قرار المستخدم
            2026-09-22): العمود قد يُعاد تسميتُه في الشيت فيصير عنوانُ النافذة
            نصفَ جملة. ولا سطرَ وصفٍ تحته: النافذة حقولٌ وزرُّ نسخٍ يقولان
