@@ -13,6 +13,7 @@ const DEFAULT_QIWA_PERSON_ID = 'dbbcf9c1-d269-4f72-b9f9-3690d8072ca2'
 self.__QIWA_PERSON_ID = DEFAULT_QIWA_PERSON_ID
 
 import './sweep.generated.js' // defines self.__runQiwaSweep
+import './login.js' // «الدخول لقوى» من داخل جسر — رسائل qiwa-login:* (مستقلّة عن المسح)
 
 let running = false
 

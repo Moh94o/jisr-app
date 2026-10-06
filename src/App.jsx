@@ -8,6 +8,7 @@ import AdminPageFull from './AdminPage.jsx'
 import BranchesPage from './BranchesPage.jsx'
 import BankAccountsPage from './BankAccountsPage.jsx'
 import SbcFacilities from './pages/SbcFacilities.jsx'
+import QiwaLoginPage from './pages/QiwaLoginPage.jsx'
 import FacilitiesPage from './FacilitiesPage.jsx'
 import WorkforcePage from './WorkforcePage.jsx'
 import TempWorkforcePage from './TempWorkforcePage.jsx'
@@ -753,6 +754,8 @@ const T=(ar,en)=>lang==='ar'?ar:en;const nav=[
    واحدةَ منها في النظام. والصفحة نفسها باقيةٌ (مسار ops_excels أدناه) تُفتح
    بالرابط #ops_excels لمن أراد إنشاء جدولٍ مخصّص، فلا يضيع بابُ إنشائها.
    وصلاحياتُ وحدتها تبقى في شاشتَي الصلاحيات — انظر permNav أدناه. */
+/* «الدخول لقوى» تبويبٌ مستقلّ بلا قسم: مقفلٌ بصلاحيته `qiwa_login.access` فلا يراه إلا من مُنحها */
+{id:'qiwa_login',l:T('الدخول لقوى','Qiwa Login'),i:'userPerm'},
 {id:'sync_center',l:T('مركز المزامنة','Sync Hub'),i:'transaction'},
 {id:'admin_hub',l:T('الإدارة','Admin'),i:'settings'}
 ];
@@ -1293,7 +1296,7 @@ return<div className='m-shell-top'>
 {(()=>{
 // صفحات تُرسَم هنا وليست تبويباً داخل هَب — تُذكر صراحةً وإلا رجعت الكتلة null
 // وظهرت الصفحة **فارغة** (وقعت في هذا حين نُقلت «اكسلات العمليات» لتبويب مستقلّ).
-const allHubPages=Object.values(hubTabs).flat().map(t=>t.id).concat(['transfer_calc','renewal_calc','ops_excels'])
+const allHubPages=Object.values(hubTabs).flat().map(t=>t.id).concat(['transfer_calc','renewal_calc','ops_excels','qiwa_login'])
 if(!allHubPages.includes(pg))return null
 // «اكسلات العمليات» مفتوحة لكل مستخدم بقرار الإدارة — الحجب داخلها على الشيتات المالية
 // وتبويبات «الخدمات» حارسها بطاقةُ جدولها (isVisible) لا صلاحية صفحة
@@ -1311,6 +1314,7 @@ return<div><div>
 {pg==='renewal_calc'&&<RenewalCalcPage sb={sb} toast={tt} user={user} lang={lang} emptyIcon={navEmptyIcon('renewal_calc')} onNewCalc={()=>setShowRenewalCalc(true)}/>}
 {/* مركز المزامنة — صفحة المنشآت مباشرة (بلا لوحة المزامنة/الأنشطة) */}
 {pg==='sync_hub'&&canSeeSyncHub&&<SbcFacilities sb={sb} toast={tt} user={user} lang={lang}/>}
+{pg==='qiwa_login'&&isVisible('qiwa_login')&&<QiwaLoginPage lang={lang}/>}
 {/* مفتوح لكل مستخدم — الحجب داخل الصفحة على الشيتات المالية وحدها.
     ولم يبقَ فيه إلا الجداول المخصّصة: المبنيّة صار لكلٍّ تبويبها تحت «الخدمات». */}
 {pg==='ops_excels'&&<OpsExcelsPage sb={sb} toast={tt} user={user} lang={lang} onTabChange={setSTabInfo}/>}

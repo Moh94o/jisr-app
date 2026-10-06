@@ -1,19 +1,49 @@
 {
   "manifest_version": 3,
-  "name": "جسر — مزامنة قوى",
-  "version": "1.0.0",
-  "description": "مزامنة شاملة لكل منشآت قوى بضغطة واحدة: تبدّل السياق لكل منشأة وتجلب الموظفين والتأشيرات وملفات المنشأة معًا وتكتبها في جسر.",
-  "permissions": ["storage", "cookies", "declarativeNetRequest"],
+  "name": "جسر — قوى",
+  "version": "1.1.0",
+  "description": "تسجيل الدخول إلى قوى من داخل جسر، ومزامنة بيانات كل المنشآت بضغطة واحدة.",
+  "permissions": [
+    "storage",
+    "cookies",
+    "declarativeNetRequest",
+    "scripting"
+  ],
   "host_permissions": [
     "https://*.qiwa.sa/*",
     "https://gcvshzutdslmdkwqwteh.supabase.co/*"
   ],
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
   "background": {
     "service_worker": "background.js",
     "type": "module"
   },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://famous-horse-6af149.netlify.app/*",
+        "http://localhost/*",
+        "http://127.0.0.1/*"
+      ],
+      "js": [
+        "bridge.js"
+      ],
+      "run_at": "document_start"
+    }
+  ],
   "action": {
     "default_popup": "popup.html",
-    "default_title": "مزامنة قوى"
+    "default_title": "جسر — قوى",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
   }
 }

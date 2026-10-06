@@ -228,6 +228,7 @@ export const PAGE_VIEW_PERM = {
   settings_fields: 'settings_fields.view',
   sync_hub: 'sync_hub.access',
   sync_log: 'sync_hub.access',
+  qiwa_login: 'qiwa_login.access',
   // «جداول العمل» غير مذكورة عمداً: التبويب مفتوح لكل مستخدم بقرار الإدارة،
   // والتحكّم داخله على مستوى **كل جدول وكل خاصيّة** (card:/cardact: ops_excels)
   // + حجب الشيتات المالية للمدير العام. ولو رُبطت هنا بصلاحية لظهرت شاشة

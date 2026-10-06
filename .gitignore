@@ -40,3 +40,6 @@ scripts/jub1-ocr-state.json
 
 # Supabase CLI cache — ليس مصدراً
 supabase/.temp/
+
+# Chrome Web Store package (npm run pack:ext)
+qiwa-sync-extension.zip

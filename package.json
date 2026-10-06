@@ -8,6 +8,7 @@
     "sandbox": "vite --mode sandbox --port 5174",
     "build": "vite build",
     "check:bookmarklets": "node scripts/checkBookmarklets.mjs",
+    "pack:ext": "node scripts/packExtension.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

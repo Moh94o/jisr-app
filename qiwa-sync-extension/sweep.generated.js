@@ -149,6 +149,9 @@ self.__runQiwaSweep = async () => {
     // targets whatever company the session currently has active. The sweep at
     // the bottom switches context per company and calls it once per company.
     const syncActiveCompany = async () => {
+    /* تصفير حالة المنشأة السابقة: هذه المتغيّرات خارج الدالة، فلو فشل نداءٌ
+       لمنشأةٍ في المسح الشامل لبقيت قيمة المنشأة السابقة وكُتبت تحت هذه. */
+    activeCompany = null; criteria = null; indicators = null; cases = null; absher = null;
     // 3) Current company context (works on dashboard.qiwa.sa / visa.qiwa.sa when in a specific company).
     const cur = await qiwaGet(API_CORE + '/context/company');
     if (cur.ok && cur.data && cur.data.data) {

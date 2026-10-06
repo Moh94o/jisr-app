@@ -103,6 +103,9 @@ export const MODULE_ACTIONS = {
     A('access', 'الوصول لمركز المزامنة', 'view'), A('sync', 'تنفيذ المزامنة', 'sync'),
     A('manage_operator', 'إدارة المشغّل', 'special'),
   ],
+  // «الدخول لقوى» — تسجيل الدخول لمنصة قوى من داخل جسر. وحدةٌ مستقلّة عن مركز
+  // المزامنة: مقفلة على كل دورٍ حتى يُمنح «الوصول» صراحةً (المدير العام يراها دائماً).
+  qiwa_login: [A('access', 'الدخول لقوى من جسر', 'view')],
 
   /* «جداول العمل» — صلاحياتٌ على مستويين: هذه القائمة تمنح الخاصيّة **عموماً**،
      وبطاقاتُ التبويب (TAB_CARDS.ops_excels) تُستثني جدولاً بعينه أو خاصيّةً على
@@ -177,6 +180,7 @@ export const TAB_MODULE = {
   jub1_receipts: 'jub1_receipts',
   transfer_calc: 'quotations', renewal_calc: 'renewal_calc',
   sync_hub: 'sync_hub', sync_log: 'sync_hub', ops_excels: 'ops_excels',
+  qiwa_login: 'qiwa_login',
   admin_clients: 'admin_clients', admin_agents: 'admin_agents',
   admin_offices: 'admin_offices', admin_bank_accounts: 'admin_bank_accounts',
   admin_permissions: 'admin_permissions', admin_services: 'admin_services',
@@ -195,6 +199,7 @@ export const MODULE_META = {
   quotations: { label_ar: 'تسعيرات التنازل', icon: 'calc', sort: 50 },
   renewal_calc: { label_ar: 'تسعيرات التجديد', icon: 'refresh', sort: 51 },
   sync_hub: { label_ar: 'مركز المزامنة', icon: 'facility', sort: 110 },
+  qiwa_login: { label_ar: 'الدخول لقوى', icon: 'userPerm', sort: 108 },
   ops_excels: { label_ar: 'جداول العمل', icon: 'calendar', sort: 115 },
   admin_clients: { label_ar: 'العملاء', icon: 'clients', sort: 90 },
   admin_agents: { label_ar: 'الوسطاء', icon: 'broker', sort: 91 },
