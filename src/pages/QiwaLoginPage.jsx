@@ -39,13 +39,16 @@ function callExt(type, payload, timeout = 90000) {
 }
 
 const CARD = { background: 'var(--sf)', border: '1px solid var(--bd)', borderRadius: 16, boxShadow: 'var(--shadow-md)', padding: 26 }
-const BTN = { width: '100%', height: 44, border: 'none', borderRadius: 10, background: C.gold, color: '#fff', fontFamily: F, fontSize: 14, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: '.2s' }
-const BTN_GHOST = { ...BTN, background: 'var(--sunken)', color: 'var(--tx2)' }
+const BTN_BASE = { width: '100%', height: 44, border: 'none', borderRadius: 10, background: C.gold, color: '#fff', fontFamily: F, fontSize: 14, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: '.2s' }
 const LINK = { background: 'none', border: 'none', padding: 0, fontFamily: F, fontSize: 13, fontWeight: 600, color: C.gold, cursor: 'pointer' }
 
 export default function QiwaLoginPage({ lang }) {
   const isAr = lang !== 'en'
   const T = (a, e) => (isAr ? a : e)
+  // الأيقونة في نهاية النص لا بدايته: يسار النص بالعربية ويمينه بالإنجليزية.
+  const ICON_END = { flexDirection: 'row-reverse' }
+  const BTN = { ...BTN_BASE, ...ICON_END }
+  const BTN_GHOST = { ...BTN, background: 'var(--sunken)', color: 'var(--tx2)' }
 
   const [ext, setExt] = useState('checking') // checking | missing | stale | ready
   const [step, setStep] = useState('creds')  // creds | otp | done | manual
@@ -166,7 +169,7 @@ export default function QiwaLoginPage({ lang }) {
       <div style={{ maxWidth: 460, marginInline: 'auto' }}>
         {/* العنوان والوصف فوق الكرت مباشرة، متوسّطان */}
         <div style={{ textAlign: 'center', marginTop: 10, marginBottom: 20 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, ...ICON_END }}>
             <KeyRound size={26} strokeWidth={1.8} style={{ color: C.gold, flexShrink: 0 }} />
             <div style={{ fontSize: 22, fontWeight: 600, color: C.gold, letterSpacing: '-.2px', lineHeight: 1 }}>{T('الدخول لقوى', 'Qiwa Login')}</div>
           </div>
@@ -176,7 +179,7 @@ export default function QiwaLoginPage({ lang }) {
         </div>
 
         {ext === 'checking' && (
-          <div style={{ ...CARD, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, color: 'var(--tx3)', fontSize: 13, fontWeight: 600 }}>
+          <div style={{ ...CARD, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, color: 'var(--tx3)', fontSize: 13, fontWeight: 600, ...ICON_END }}>
             {spin}{T('جارٍ التحقق من إضافة المتصفح…', 'Checking the browser extension…')}
           </div>
         )}
@@ -207,8 +210,8 @@ export default function QiwaLoginPage({ lang }) {
                   <li>{T('افتح الملف المُحمَّل، واضغط «استخراج الكل» (Extract All). لا تحذف المجلد بعدها.', 'Open the downloaded file and “Extract All”. Don’t delete the folder afterward.')}</li>
                   <li>
                     {T('افتح كروم على العنوان: ', 'In Chrome, open: ')}
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, verticalAlign: 'middle' }}>
-                      <span dir="ltr" style={{ color: 'var(--tx)', fontWeight: 700, background: 'var(--sunken)', padding: '1px 6px', borderRadius: 5 }}>chrome://extensions</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, verticalAlign: 'middle', background: 'var(--sunken)', padding: '1px 6px', borderRadius: 5 }}>
+                      <span dir="ltr" style={{ color: 'var(--tx)', fontWeight: 600 }}>chrome://extensions</span>
                       <button type="button" onClick={copyCmd} title={copied ? T('تم النسخ', 'Copied') : T('نسخ', 'Copy')}
                         style={{ display: 'inline-flex', alignItems: 'center', background: 'none', border: 'none', cursor: 'pointer', color: copied ? C.ok : C.gold, padding: '2px 4px' }}>
                         {copied ? <Check size={14} strokeWidth={2.5} /> : <Copy size={14} strokeWidth={2.2} />}
@@ -249,7 +252,7 @@ export default function QiwaLoginPage({ lang }) {
                 return (
                   <React.Fragment key={s.k}>
                     {i > 0 && <div style={{ flex: 1, height: 2, borderRadius: 2, background: on ? C.gold : 'var(--bd)', transition: '.3s' }} />}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: on ? C.gold : 'var(--tx4)', fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap', transition: '.3s' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: on ? C.gold : 'var(--tx4)', fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap', transition: '.3s', ...ICON_END }}>
                       <s.Icon size={15} strokeWidth={2} />{s.l}
                     </div>
                   </React.Fragment>
