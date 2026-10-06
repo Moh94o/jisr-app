@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>سياسة الخصوصية — إضافة جسر قوى</title>
+<title>سياسة الخصوصية — إضافة جسر الدخول لقوى</title>
 <style>
   body{margin:0;background:#f2ece0;color:#2b2418;font:16px/1.9 'Cairo','Tajawal',Tahoma,sans-serif}
   main{max-width:760px;margin:0 auto;padding:40px 22px 80px}
@@ -16,51 +16,51 @@
 </head>
 <body>
 <main>
-<h1>سياسة الخصوصية — إضافة «جسر — قوى»</h1>
+<h1>سياسة الخصوصية — إضافة «جسر — الدخول لقوى»</h1>
 <small>آخر تحديث: 2026-10-06</small>
 
 <h2>ما هي الإضافة</h2>
-<p>إضافة متصفح مساعِدة لنظام «جسر» لإدارة أعمال مكاتب الخدمات. تسجّل دخول المستخدم إلى منصة قوى من داخل جسر، وتزامن بيانات منشآته من قوى إلى قاعدة بيانات جسر الخاصة به.</p>
+<p>إضافة متصفح مساعِدة لنظام «جسر» لإدارة أعمال مكاتب الخدمات. وظيفتها الوحيدة تسجيل دخول المستخدم إلى منصة قوى من داخل جسر، ثم فتح قوى وهو مسجَّل الدخول.</p>
 
 <h2>البيانات التي تتعامل معها</h2>
 <ul>
   <li><b>بيانات الدخول إلى قوى</b> (رقم الهوية وكلمة المرور ورمز التحقق): يكتبها المستخدم في صفحة جسر، وتُرسَل مباشرةً إلى خوادم قوى الرسمية (<span dir="ltr">sso-api.qiwa.sa</span>) لإتمام تسجيل الدخول. <b>لا تُحفَظ</b> في الإضافة ولا في جسر ولا في أي مكان آخر، وتُمسَح من الذاكرة بعد الاستخدام.</li>
-  <li><b>جلسة قوى</b> (كوكيز الجلسة): تُحفَظ في متصفح المستخدم نفسه كما لو سجّل الدخول يدويًا، وتستعملها الإضافة أثناء المزامنة فقط.</li>
-  <li><b>بيانات المنشآت من قوى</b> (الموظفون، التأشيرات، ملفات المنشأة، النطاقات): تُجلَب بحساب المستخدم نفسه وتُحفَظ في قاعدة بيانات جسر الخاصة بمنشأته.</li>
+  <li><b>جلسة قوى</b> (كوكيز الجلسة): يحفظها المتصفح نفسه عند نجاح الدخول، كما لو سجّل المستخدم الدخول يدويًا. لا تقرؤها الإضافة ولا ترسلها لأي جهة.</li>
 </ul>
 
 <h2>ما لا نفعله</h2>
 <ul>
   <li>لا نبيع البيانات ولا نشاركها مع أي طرف ثالث.</li>
-  <li>لا نستخدم البيانات لأي غرض غير الدخول والمزامنة الموصوفَين أعلاه (لا إعلانات، لا تحليلات، لا بناء ملفات تعريف).</li>
-  <li>لا نقرأ أي موقع غير مواقع قوى (<span dir="ltr">*.qiwa.sa</span>) وموقع جسر.</li>
+  <li>لا نستخدم البيانات لأي غرض غير الدخول الموصوف أعلاه (لا إعلانات، لا تحليلات، لا بناء ملفات تعريف).</li>
+  <li>لا نقرأ أي موقع غير موقع جسر ومواقع قوى (<span dir="ltr">*.qiwa.sa</span>).</li>
   <li>لا نحمّل أي كود برمجي من الإنترنت؛ كل كود الإضافة مضمَّن في حزمتها.</li>
 </ul>
 
 <h2>الصلاحيات</h2>
-<p>تطلب الإضافة الوصول إلى نطاقات قوى لتنفيذ الدخول والمزامنة، والكوكيز لإرفاق جلسة المستخدم الحيّة بالطلبات، وقاعدة بيانات جسر لحفظ النتائج، وسكربت يعمل على موقع جسر فقط لاستقبال بيانات الدخول منه.</p>
+<p>تطلب الإضافة الوصول إلى نطاقات قوى (<span dir="ltr">*.qiwa.sa</span>) لتنفيذ طلبات الدخول، وسكربتًا يعمل على موقع جسر فقط لاستقبال بيانات الدخول منه، وتخزينًا مؤقتًا في الذاكرة لتتبّع عملية الدخول الجارية.</p>
 
 <h2>التواصل</h2>
 <p>لأي استفسار عن الخصوصية تواصل مع مسؤول نظام جسر في مؤسستك.</p>
 
 <div class="en">
-<h1>Privacy Policy — “Jisr — Qiwa” extension</h1>
+<h1>Privacy Policy — “Jisr — Qiwa Login” extension</h1>
 <small>Last updated: 2026-10-06</small>
 <h2>What it is</h2>
-<p>A helper browser extension for the Jisr business-management system. It signs the user in to the Qiwa platform from inside Jisr and syncs the user's establishments' data from Qiwa into the user's own Jisr database.</p>
+<p>A helper browser extension for the Jisr business-management system. Its single purpose is to sign the user in to the Qiwa platform from inside Jisr, then open Qiwa already signed in.</p>
 <h2>Data handled</h2>
 <ul>
   <li><b>Qiwa sign-in credentials</b> (ID number, password, SMS code): typed by the user into the Jisr page and sent directly to Qiwa's official servers (sso-api.qiwa.sa) to complete sign-in. They are <b>never stored</b> by the extension, by Jisr or anywhere else, and are cleared from memory after use.</li>
-  <li><b>Qiwa session</b> (session cookies): kept in the user's own browser exactly as if they had signed in manually, and used by the extension only during sync.</li>
-  <li><b>Establishment data from Qiwa</b> (employees, visas, establishment files, Nitaqat): fetched with the user's own account and saved to Jisr's database for the user's establishments.</li>
+  <li><b>Qiwa session</b> (session cookies): stored by the browser itself when sign-in succeeds, exactly as if the user had signed in manually. The extension does not read or transmit it.</li>
 </ul>
 <h2>What we do not do</h2>
 <ul>
   <li>We do not sell or share data with any third party.</li>
-  <li>We do not use data for anything other than the sign-in and sync described above (no ads, no analytics, no profiling).</li>
-  <li>We do not read any site other than Qiwa (*.qiwa.sa) and the Jisr site.</li>
+  <li>We do not use data for anything other than the sign-in described above (no ads, no analytics, no profiling).</li>
+  <li>We do not read any site other than the Jisr site and Qiwa (*.qiwa.sa).</li>
   <li>We do not load remote code; all extension code ships inside the package.</li>
 </ul>
+<h2>Permissions</h2>
+<p>The extension needs access to Qiwa domains (*.qiwa.sa) to perform the sign-in requests, a script that runs on the Jisr site only to receive the sign-in details from it, and in-memory storage to track the sign-in in progress.</p>
 <h2>Contact</h2>
 <p>For privacy questions contact your organization's Jisr administrator.</p>
 </div>

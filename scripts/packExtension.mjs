@@ -1,34 +1,56 @@
-// Packs qiwa-sync-extension/ into qiwa-sync-extension.zip for the Chrome Web Store.
-// Dependency-free (node:zlib + a minimal zip writer). Only the files the extension
-// actually loads are included — no README/STORE.md/build.mjs.
+// Packs the LOGIN-ONLY Chrome Web Store build of qiwa-sync-extension/ into
+// qiwa-sync-extension.zip. Dependency-free (node:zlib + a minimal zip writer).
+//
+// The store package is deliberately narrower than the dev extension: only the
+// «الدخول لقوى» feature (login.js + bridge.js). The sync sweep, the cookie bridge,
+// the popup and the Supabase/cookies/declarativeNetRequest permissions stay out —
+// the store listing describes login only, and undisclosed functionality is a
+// Web Store policy violation. The full extension (sync + login) is still loaded
+// unpacked from qiwa-sync-extension/ as before.
 //
 // Run:  npm run pack:ext
 import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs'
 import { deflateRawSync, crc32 } from 'node:zlib'
-import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const dir = join(root, 'qiwa-sync-extension')
+const dev = JSON.parse(readFileSync(join(dir, 'manifest.json'), 'utf8'))
 
-// sweep.generated.js is derived from the bookmarklet — regenerate so the package never ships stale.
-execFileSync(process.execPath, [join(dir, 'build.mjs')], { stdio: 'inherit' })
+// Store build only listens on the production Jisr origin (no localhost).
+const PROD_ORIGINS = dev.content_scripts[0].matches.filter((m) => m.startsWith('https://'))
+if (!PROD_ORIGINS.length) throw new Error('pack: no https Jisr origin in content_scripts.matches')
 
-const files = ['manifest.json', 'background.js', 'login.js', 'bridge.js', 'sweep.generated.js', 'popup.html', 'popup.js']
-for (const f of readdirSync(join(dir, 'icons'))) if (f.endsWith('.png')) files.push('icons/' + f)
+const manifest = {
+  manifest_version: 3,
+  name: 'جسر — الدخول لقوى',
+  version: dev.version,
+  description: 'تسجيل الدخول إلى قوى من داخل جسر برقم الهوية وكلمة المرور ورمز الجوال.',
+  permissions: ['storage', 'scripting'],
+  host_permissions: ['https://*.qiwa.sa/*'],
+  icons: dev.icons,
+  background: { service_worker: 'background.js', type: 'module' },
+  content_scripts: [{ matches: PROD_ORIGINS, js: ['bridge.js'], run_at: 'document_start' }],
+}
 
-const manifest = JSON.parse(readFileSync(join(dir, 'manifest.json'), 'utf8'))
-for (const f of files) if (!existsSync(join(dir, f))) throw new Error('pack: missing ' + f)
-for (const i of Object.values(manifest.icons || {})) if (!files.includes(i)) throw new Error('pack: manifest icon not packed: ' + i)
+const files = [
+  { name: 'manifest.json', data: Buffer.from(JSON.stringify(manifest, null, 2) + '\n') },
+  { name: 'background.js', data: Buffer.from("import './login.js'\n") },
+]
+for (const f of ['login.js', 'bridge.js']) {
+  if (!existsSync(join(dir, f))) throw new Error('pack: missing ' + f)
+  files.push({ name: f, data: readFileSync(join(dir, f)) })
+}
+for (const f of readdirSync(join(dir, 'icons'))) if (f.endsWith('.png')) files.push({ name: 'icons/' + f, data: readFileSync(join(dir, 'icons', f)) })
+for (const i of Object.values(manifest.icons || {})) if (!files.some((f) => f.name === i)) throw new Error('pack: manifest icon not packed: ' + i)
 
 const entries = []
 const chunks = []
 let offset = 0
 const u16 = (n) => { const b = Buffer.alloc(2); b.writeUInt16LE(n); return b }
 const u32 = (n) => { const b = Buffer.alloc(4); b.writeUInt32LE(n >>> 0); return b }
-for (const name of files) {
-  const data = readFileSync(join(dir, name))
+for (const { name, data } of files) {
   const comp = deflateRawSync(data, { level: 9 })
   const crc = crc32(data)
   const nameBuf = Buffer.from(name, 'utf8')
@@ -48,4 +70,4 @@ chunks.push(Buffer.concat([u32(0x06054b50), u16(0), u16(0), u16(entries.length),
 
 const out = join(root, 'qiwa-sync-extension.zip')
 writeFileSync(out, Buffer.concat(chunks))
-console.log(`packed ${files.length} files → ${out} (v${manifest.version})`)
+console.log(`packed ${files.length} files (login-only) → ${out} (v${manifest.version}, origins: ${PROD_ORIGINS.join(', ')})`)

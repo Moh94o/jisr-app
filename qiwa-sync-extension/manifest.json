@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "جسر — قوى",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "تسجيل الدخول إلى قوى من داخل جسر، ومزامنة بيانات كل المنشآت بضغطة واحدة.",
   "permissions": [
     "storage",

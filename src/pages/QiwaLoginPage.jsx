@@ -182,7 +182,7 @@ export default function QiwaLoginPage({ lang }) {
               <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx3)', lineHeight: 1.9 }}>{T('حدّث هذه الصفحة لإعادة الاتصال بالإضافة.', 'Refresh this page to reconnect to the extension.')}</div>
             ) : (
               <ol style={{ margin: 0, paddingInlineStart: 20, fontSize: 13, fontWeight: 500, color: 'var(--tx3)', lineHeight: 2 }}>
-                <li>{T('ثبّت إضافة «جسر — قوى» من متجر كروم (بضغطة واحدة).', 'Install the “Jisr — Qiwa” extension from the Chrome Web Store (one click).')}</li>
+                <li>{T('ثبّت إضافة «جسر — الدخول لقوى» من متجر كروم (بضغطة واحدة).', 'Install the “Jisr — Qiwa Login” extension from the Chrome Web Store (one click).')}</li>
                 <li>{T('حدّث هذه الصفحة.', 'Refresh this page.')}</li>
                 <li>{T('بعدها تدخل من هنا دائمًا — لا حاجة لتكرار التثبيت.', 'After that you sign in from here every time — no need to reinstall.')}</li>
               </ol>
