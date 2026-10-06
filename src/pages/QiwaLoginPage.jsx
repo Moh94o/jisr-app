@@ -154,17 +154,19 @@ export default function QiwaLoginPage({ lang }) {
   return (
     <div style={{ fontFamily: F, paddingBottom: 60, color: 'var(--tx2)' }}>
       <style>{`@keyframes ql-spin{to{transform:rotate(360deg)}}`}</style>
-      <div style={{ marginBottom: 22, marginTop: 6 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <KeyRound size={26} strokeWidth={1.8} style={{ color: C.gold, flexShrink: 0 }} />
-          <div style={{ fontSize: 22, fontWeight: 600, color: C.gold, letterSpacing: '-.2px', lineHeight: 1 }}>{T('الدخول لقوى', 'Qiwa Login')}</div>
-        </div>
-        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 10, lineHeight: 1.6 }}>
-          {T('تسجيل الدخول إلى منصة قوى برقم الهوية وكلمة المرور ورمز الجوال', 'Sign in to Qiwa with the ID number, password and SMS code')}
-        </div>
-      </div>
 
       <div style={{ maxWidth: 460, marginInline: 'auto' }}>
+        {/* العنوان والوصف فوق الكرت مباشرة، متوسّطان */}
+        <div style={{ textAlign: 'center', marginTop: 10, marginBottom: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+            <KeyRound size={26} strokeWidth={1.8} style={{ color: C.gold, flexShrink: 0 }} />
+            <div style={{ fontSize: 22, fontWeight: 600, color: C.gold, letterSpacing: '-.2px', lineHeight: 1 }}>{T('الدخول لقوى', 'Qiwa Login')}</div>
+          </div>
+          <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx4)', marginTop: 10, lineHeight: 1.7 }}>
+            {T('تسجيل الدخول إلى منصة قوى برقم الهوية وكلمة المرور ورمز الجوال', 'Sign in to Qiwa with the ID number, password and SMS code')}
+          </div>
+        </div>
+
         {ext === 'checking' && (
           <div style={{ ...CARD, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, color: 'var(--tx3)', fontSize: 13, fontWeight: 600 }}>
             {spin}{T('جارٍ التحقق من إضافة المتصفح…', 'Checking the browser extension…')}
