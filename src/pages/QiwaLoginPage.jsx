@@ -209,10 +209,9 @@ export default function QiwaLoginPage({ lang }) {
                     {T('افتح كروم على العنوان: ', 'In Chrome, open: ')}
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, verticalAlign: 'middle' }}>
                       <span dir="ltr" style={{ color: 'var(--tx)', fontWeight: 700, background: 'var(--sunken)', padding: '1px 6px', borderRadius: 5 }}>chrome://extensions</span>
-                      <button type="button" onClick={copyCmd} title={T('نسخ', 'Copy')}
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: 'none', border: 'none', cursor: 'pointer', color: copied ? C.ok : C.gold, fontFamily: F, fontSize: 11, fontWeight: 700, padding: '2px 4px' }}>
-                        {copied ? <Check size={13} strokeWidth={2.5} /> : <Copy size={13} strokeWidth={2.2} />}
-                        {copied ? T('تم', 'Copied') : T('نسخ', 'Copy')}
+                      <button type="button" onClick={copyCmd} title={copied ? T('تم النسخ', 'Copied') : T('نسخ', 'Copy')}
+                        style={{ display: 'inline-flex', alignItems: 'center', background: 'none', border: 'none', cursor: 'pointer', color: copied ? C.ok : C.gold, padding: '2px 4px' }}>
+                        {copied ? <Check size={14} strokeWidth={2.5} /> : <Copy size={14} strokeWidth={2.2} />}
                       </button>
                     </span>
                   </li>
