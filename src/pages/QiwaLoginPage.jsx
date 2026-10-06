@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { KeyRound, Eye, EyeOff, LogIn, ShieldCheck, ExternalLink, RefreshCw, Puzzle, CheckCircle2, MessageSquareText, Loader2 } from 'lucide-react'
+import { KeyRound, Eye, EyeOff, LogIn, ShieldCheck, ExternalLink, RefreshCw, Puzzle, CheckCircle2, MessageSquareText, Loader2, Download } from 'lucide-react'
 import { F, C, sF, Lbl, IdField } from '../components/ui/FormKit.jsx'
 
 // «الدخول لقوى» — تسجيل الدخول لمنصة قوى من داخل جسر.
@@ -12,8 +12,11 @@ const PAGE = 'jisr-app'
 const EXT = 'jisr-qiwa-ext'
 const LS_ID = 'jisr_qiwa_login_id'
 // رابط الإضافة في متجر كروم — يُملأ بعد النشر (انظر qiwa-sync-extension/STORE.md).
-// متى ما ضُبط، يظهر زر «تثبيت من المتجر» مباشرةً للموظف.
+// متى ما ضُبط، يظهر زر «تثبيت من المتجر» بدل زر التحميل اليدوي.
 const STORE_URL = ''
+// ملف الإضافة المُحزَّم، يُخدَم من public/ (يحدّثه `npm run pack:ext`). زرّ التحميل
+// في بطاقة «الإضافة غير مفعّلة» يشير إليه، فيُثبّت الموظف كل شيء من داخل البرنامج.
+const EXT_ZIP_URL = '/jisr-qiwa-login-extension.zip'
 
 let seq = 0
 // طلبٌ واحد = ردٌّ واحد. غياب الردّ خلال المهلة يعني أن الإضافة غير موجودة.
@@ -183,21 +186,42 @@ export default function QiwaLoginPage({ lang }) {
             </div>
             {ext === 'stale' ? (
               <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx3)', lineHeight: 1.9 }}>{T('حدّث هذه الصفحة لإعادة الاتصال بالإضافة.', 'Refresh this page to reconnect to the extension.')}</div>
-            ) : (
+            ) : STORE_URL ? (
               <ol style={{ margin: 0, paddingInlineStart: 20, fontSize: 13, fontWeight: 500, color: 'var(--tx3)', lineHeight: 2 }}>
-                <li>{T('ثبّت إضافة «جسر — الدخول لقوى» من متجر كروم (بضغطة واحدة).', 'Install the “Jisr — Qiwa Login” extension from the Chrome Web Store (one click).')}</li>
+                <li>{T('ثبّت الإضافة من متجر كروم (بضغطة واحدة).', 'Install the extension from the Chrome Web Store (one click).')}</li>
                 <li>{T('حدّث هذه الصفحة.', 'Refresh this page.')}</li>
                 <li>{T('بعدها تدخل من هنا دائمًا — لا حاجة لتكرار التثبيت.', 'After that you sign in from here every time — no need to reinstall.')}</li>
               </ol>
+            ) : (
+              <>
+                <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx3)', lineHeight: 1.7, marginBottom: 12 }}>
+                  {T('ثبّتها مرة واحدة فقط على كمبيوترك، واتبع الخطوات:', 'Install it once on your computer, following these steps:')}
+                </div>
+                <ol style={{ margin: 0, paddingInlineStart: 20, fontSize: 13, fontWeight: 500, color: 'var(--tx3)', lineHeight: 2.1 }}>
+                  <li>{T('اضغط «تحميل الإضافة» بالأسفل.', 'Click “Download the extension” below.')}</li>
+                  <li>{T('افتح الملف المُحمَّل، واضغط «استخراج الكل» (Extract All). لا تحذف المجلد بعدها.', 'Open the downloaded file and “Extract All”. Don’t delete the folder afterward.')}</li>
+                  <li>{T('افتح كروم على العنوان: ', 'In Chrome, open: ')}<span dir="ltr" style={{ color: 'var(--tx)', fontWeight: 700, background: 'var(--sunken)', padding: '1px 6px', borderRadius: 5 }}>chrome://extensions</span></li>
+                  <li>{T('فعّل «وضع المطوّر / Developer mode» (أعلى اليمين).', 'Turn on “Developer mode” (top right).')}</li>
+                  <li>{T('اضغط «تحميل غير مُحزَّمة / Load unpacked» واختر المجلد المُستخرَج.', 'Click “Load unpacked” and pick the extracted folder.')}</li>
+                  <li>{T('ارجع هنا واضغط «أعد الفحص».', 'Come back here and click “Check again”.')}</li>
+                </ol>
+                <div style={{ fontSize: 11.5, fontWeight: 500, color: 'var(--tx4)', lineHeight: 1.7, marginTop: 10 }}>
+                  {T('لو ظهر عند فتح كروم تنبيه عن «إضافات وضع المطوّر» اضغط «إلغاء» ولا توقف الإضافة.', 'If Chrome shows a “developer mode extensions” warning at startup, click “Cancel” — don’t disable it.')}
+                </div>
+              </>
             )}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 18 }}>
-              {ext !== 'stale' && STORE_URL && (
+              {ext !== 'stale' && (STORE_URL ? (
                 <button onClick={() => window.open(STORE_URL, '_blank')} style={BTN}>
                   <Puzzle size={16} strokeWidth={2.2} />{T('تثبيت من متجر كروم', 'Install from Chrome Web Store')}
                 </button>
-              )}
+              ) : (
+                <a href={EXT_ZIP_URL} download style={{ ...BTN, textDecoration: 'none' }}>
+                  <Download size={16} strokeWidth={2.2} />{T('تحميل الإضافة', 'Download the extension')}
+                </a>
+              ))}
               <button onClick={ext === 'stale' ? () => window.location.reload() : ping} style={BTN_GHOST}>
-                <RefreshCw size={15} strokeWidth={2.2} />{ext === 'stale' ? T('تحديث الصفحة', 'Refresh page') : T('إعادة الفحص', 'Check again')}
+                <RefreshCw size={15} strokeWidth={2.2} />{ext === 'stale' ? T('تحديث الصفحة', 'Refresh page') : T('أعد الفحص', 'Check again')}
               </button>
             </div>
           </div>

@@ -68,6 +68,10 @@ for (const e of entries) {
 }
 chunks.push(Buffer.concat([u32(0x06054b50), u16(0), u16(0), u16(entries.length), u16(entries.length), u32(offset - cdStart), u32(cdStart), u16(0)]))
 
+const zip = Buffer.concat(chunks)
 const out = join(root, 'qiwa-sync-extension.zip')
-writeFileSync(out, Buffer.concat(chunks))
-console.log(`packed ${files.length} files (login-only) → ${out} (v${manifest.version}, origins: ${PROD_ORIGINS.join(', ')})`)
+writeFileSync(out, zip)
+// Also serve it from the site so Jisr's «الدخول لقوى» card can offer a download link.
+const served = join(root, 'public', 'jisr-qiwa-login-extension.zip')
+writeFileSync(served, zip)
+console.log(`packed ${files.length} files (login-only) → ${out} + ${served} (v${manifest.version}, origins: ${PROD_ORIGINS.join(', ')})`)
