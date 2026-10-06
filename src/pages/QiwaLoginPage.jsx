@@ -76,6 +76,7 @@ export default function QiwaLoginPage({ lang }) {
       case 'login': return fromQiwa || T('بيانات الدخول غير صحيحة', 'Invalid credentials')
       case 'locked': return fromQiwa || T('الحساب مقفل في قوى', 'The account is locked on Qiwa')
       case 'multiple_session': return fromQiwa || T('توجد جلسة أخرى نشطة لهذا الحساب في قوى', 'Another session is active for this account')
+      case 'captcha': return T('طلبت قوى تحققًا إضافيًا بعد عدة محاولات — انتظر قليلًا ثم أعد المحاولة', 'Qiwa requested extra verification after several attempts — wait a bit and try again')
       case 'sms_unavailable': return fromQiwa || T('تعذّر على قوى إرسال رمز التحقق', 'Qiwa could not send the verification code')
       case 'refused': return fromQiwa || T('رمز التحقق غير صحيح', 'Wrong verification code')
       case 'expired': return fromQiwa || T('انتهت صلاحية الرمز — اطلب رمزًا جديدًا', 'The code expired — request a new one')

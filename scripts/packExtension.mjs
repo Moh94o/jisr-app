@@ -27,7 +27,7 @@ const manifest = {
   name: 'جسر — الدخول لقوى',
   version: dev.version,
   description: 'تسجيل الدخول إلى قوى من داخل جسر برقم الهوية وكلمة المرور ورمز الجوال.',
-  permissions: ['storage', 'scripting'],
+  permissions: ['storage', 'cookies', 'declarativeNetRequest', 'webRequest'],
   host_permissions: ['https://*.qiwa.sa/*'],
   icons: dev.icons,
   background: { service_worker: 'background.js', type: 'module' },
