@@ -56,7 +56,7 @@
 <h2>Data handled</h2>
 <ul>
   <li><b>Qiwa sign-in credentials</b> (ID number, password, SMS code): typed by the user into the Jisr page and sent directly to Qiwa's official servers (sso-api.qiwa.sa) to complete sign-in. They are <b>never stored</b> by the extension, by Jisr or anywhere else, and are cleared from memory after use.</li>
-  <li><b>Qiwa session</b> (session cookies): stored by the browser itself when sign-in succeeds, exactly as if the user had signed in manually. The extension does not read or transmit it.</li>
+  <li><b>Qiwa session</b> (session cookies): after a successful sign-in the extension receives the Qiwa session cookies from the server's response and saves them in the user's own browser, so Qiwa opens already signed in. It is the user's own session and is not sent to any other party.</li>
 </ul>
 <h2>What we do not do</h2>
 <ul>
@@ -66,7 +66,13 @@
   <li>We do not load remote code; all extension code ships inside the package.</li>
 </ul>
 <h2>Permissions</h2>
-<p>The extension needs access to Qiwa domains (*.qiwa.sa) to perform the sign-in requests, a script that runs on the Jisr site only to receive the sign-in details from it, and in-memory storage to track the sign-in in progress.</p>
+<ul>
+  <li><b>Qiwa domains</b> (*.qiwa.sa): sending the sign-in requests to Qiwa's official servers and opening the Qiwa portal after success.</li>
+  <li><b>Cookies</b>: saving the Qiwa session cookies in the browser after sign-in (the user's own session).</li>
+  <li><b>Web requests</b>: reading the session cookies returned in the Qiwa server's response in order to save them.</li>
+  <li><b>Storage and modifying the extension's own request headers</b>: attaching the sign-in session to the extension's requests to Qiwa only.</li>
+  <li><b>A script on the Jisr site only</b>: receiving the sign-in details from the Jisr page and passing them to the extension.</li>
+</ul>
 <h2>Contact</h2>
 <p>For privacy questions contact your organization's Jisr administrator.</p>
 </div>
