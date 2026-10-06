@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { KeyRound, Eye, EyeOff, LogIn, ShieldCheck, ExternalLink, RefreshCw, Puzzle, CheckCircle2, MessageSquareText, Loader2, Download } from 'lucide-react'
+import { KeyRound, Eye, EyeOff, LogIn, ShieldCheck, ExternalLink, RefreshCw, Puzzle, CheckCircle2, MessageSquareText, Loader2, Download, Copy, Check } from 'lucide-react'
 import { F, C, sF, Lbl, IdField } from '../components/ui/FormKit.jsx'
 
 // «الدخول لقوى» — تسجيل الدخول لمنصة قوى من داخل جسر.
@@ -58,6 +58,11 @@ export default function QiwaLoginPage({ lang }) {
   const [busy, setBusy] = useState('')       // '' | login | otp | resend | open
   const [err, setErr] = useState('')
   const [note, setNote] = useState('')
+  const [copied, setCopied] = useState(false)
+  const copyCmd = async () => {
+    try { await navigator.clipboard.writeText('chrome://extensions') } catch (e) {}
+    setCopied(true); setTimeout(() => setCopied(false), 1600)
+  }
   const stepRef = useRef(step)
   stepRef.current = step
   const otpRef = useRef(null)
@@ -200,7 +205,17 @@ export default function QiwaLoginPage({ lang }) {
                 <ol style={{ margin: 0, paddingInlineStart: 20, fontSize: 13, fontWeight: 500, color: 'var(--tx3)', lineHeight: 2.1 }}>
                   <li>{T('اضغط «تحميل الإضافة» بالأسفل.', 'Click “Download the extension” below.')}</li>
                   <li>{T('افتح الملف المُحمَّل، واضغط «استخراج الكل» (Extract All). لا تحذف المجلد بعدها.', 'Open the downloaded file and “Extract All”. Don’t delete the folder afterward.')}</li>
-                  <li>{T('افتح كروم على العنوان: ', 'In Chrome, open: ')}<span dir="ltr" style={{ color: 'var(--tx)', fontWeight: 700, background: 'var(--sunken)', padding: '1px 6px', borderRadius: 5 }}>chrome://extensions</span></li>
+                  <li>
+                    {T('افتح كروم على العنوان: ', 'In Chrome, open: ')}
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, verticalAlign: 'middle' }}>
+                      <span dir="ltr" style={{ color: 'var(--tx)', fontWeight: 700, background: 'var(--sunken)', padding: '1px 6px', borderRadius: 5 }}>chrome://extensions</span>
+                      <button type="button" onClick={copyCmd} title={T('نسخ', 'Copy')}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: 'none', border: 'none', cursor: 'pointer', color: copied ? C.ok : C.gold, fontFamily: F, fontSize: 11, fontWeight: 700, padding: '2px 4px' }}>
+                        {copied ? <Check size={13} strokeWidth={2.5} /> : <Copy size={13} strokeWidth={2.2} />}
+                        {copied ? T('تم', 'Copied') : T('نسخ', 'Copy')}
+                      </button>
+                    </span>
+                  </li>
                   <li>{T('فعّل «وضع المطوّر / Developer mode» (أعلى اليمين).', 'Turn on “Developer mode” (top right).')}</li>
                   <li>{T('اضغط «تحميل غير مُحزَّمة / Load unpacked» واختر المجلد المُستخرَج.', 'Click “Load unpacked” and pick the extracted folder.')}</li>
                   <li>{T('ارجع هنا واضغط «أعد الفحص».', 'Come back here and click “Check again”.')}</li>
