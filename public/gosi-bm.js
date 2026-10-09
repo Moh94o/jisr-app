@@ -15,7 +15,11 @@
 // build is running ("جسر · تأمينات [v17]"). Bump VERSION below whenever
 // you ship a change so users can confirm they re-dragged the bookmarklet.
 ;(async () => {
-  const VERSION = 'v19';
+  const VERSION = 'v20';
+  // إصدار الشهادات (download-certificate) هو النداء الوحيد في المزامنة الذي
+  // «يُنشئ» شيئاً في التأمينات — كل شهادة تُصدَر تُرسل رسالة نصية لجوال المنشأة
+  // (3 شهادات × كل منشأة في كل تشغيلة). موقوف افتراضياً؛ أعِده true لإرجاعه.
+  const SYNC_CERTS = false;
   const U = 'https://gcvshzutdslmdkwqwteh.supabase.co';
   const K = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdjdnNoenV0ZHNsbWRrd3F3dGVoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4OTkwNjgsImV4cCI6MjA5MDQ3NTA2OH0.5R0I5VvB7lp3wpSrtay3DMcXKsT9l1uK0Ukd1F4_ImM';
   const API = 'https://api.gosi.gov.sa';
@@ -887,7 +891,8 @@
           }).catch(() => {});
         }
 
-        // (h) Certificates — POST /download-certificate with the report id for
+        // (h) Certificates — موقوف عبر SYNC_CERTS (يرسل SMS لجوال المنشأة).
+        // POST /download-certificate with the report id for
         // each of the three certs the user actually opens by hand in Ameen:
         //   17_02_0011 — شهادة الالتزام (compliance), no date range
         //   17_02_0050 — شهادة الزكاة (zakat), 1st→last of current Gregorian month
@@ -959,7 +964,7 @@
           return out;
         };
 
-        for (const def of certDefs) {
+        for (const def of (SYNC_CERTS ? certDefs : [])) {
           const t0 = Date.now();
           let res = null, payload = null, rawText = '', netErr = null;
           try {
