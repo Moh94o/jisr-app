@@ -18,13 +18,17 @@
 const SUPABASE_URL = 'https://gcvshzutdslmdkwqwteh.supabase.co'
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdjdnNoenV0ZHNsbWRrd3F3dGVoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4OTkwNjgsImV4cCI6MjA5MDQ3NTA2OH0.5R0I5VvB7lp3wpSrtay3DMcXKsT9l1uK0Ukd1F4_ImM'
 
-function body({ sourceId, personId, force = false, resetAt = '' }) {
+function body({ sourceId, personId, force = false, resetAt = '', lang = 'ar' }) {
   return `
 (async () => {
   const U = '${SUPABASE_URL}', K = '${SUPABASE_ANON}';
   const SOURCE = '${sourceId}', PERSON = '${personId}';
   const FORCE = ${force ? 'true' : 'false'};
   const RESET_AT = ${JSON.stringify(resetAt || '')};
+  // لغة واجهة جسر عند سحب الزر — رسائل الشارة تتبعها. نصوص تحليل صفحات أجير
+  // (GATE_TEXT وعناوين الأعمدة) تبقى عربية لأنها تطابق محتوى البوابة لا تُعرض.
+  const EN = ${lang === 'en' ? 'true' : 'false'};
+  const L = (a, e) => (EN ? e : a);
   const GATE_TEXT = 'تحديث قائمة المسؤولين';
   const GATE_PATH = '/profile/representatives';
 
@@ -32,10 +36,10 @@ function body({ sourceId, personId, force = false, resetAt = '' }) {
     let d = document.getElementById('_jisr_ajeer_ui');
     if (!d) {
       d = document.createElement('div'); d.id = '_jisr_ajeer_ui';
-      d.style.cssText = 'position:fixed;top:16px;left:16px;background:#111;color:#27a046;padding:12px 18px;border-radius:10px;z-index:2147483647;font:600 13px/1.5 sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.5);max-width:380px;direction:rtl;text-align:right;border:1px solid rgba(39,160,70,.4)';
+      d.style.cssText = 'position:fixed;top:16px;left:16px;background:#111;color:#27a046;padding:12px 18px;border-radius:10px;z-index:2147483647;font:600 13px/1.5 sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.5);max-width:380px;direction:' + (EN ? 'ltr' : 'rtl') + ';text-align:' + (EN ? 'left' : 'right') + ';border:1px solid rgba(39,160,70,.4)';
       document.body.appendChild(d);
     }
-    d.textContent = 'جسر أجير: ' + m;
+    d.textContent = L('جسر أجير: ', 'Jisr · Ajeer: ') + m;
     return d;
   };
 
@@ -327,7 +331,7 @@ function body({ sourceId, personId, force = false, resetAt = '' }) {
 
   // ---- main ---------------------------------------------------------------
   try {
-    msg('جاري القراءة...');
+    msg(L('جاري القراءة...', 'Reading...'));
     let runId = null;
     try {
       const runRes = await supaFetch('/rest/v1/sync_runs?select=id', {
@@ -358,9 +362,9 @@ function body({ sourceId, personId, force = false, resetAt = '' }) {
       accounts = readAccounts(chooser.doc);
     }
 
-    if (!accounts.length) { msg('❌ لم أجد قائمة الحسابات — افتح صفحة اختيار الحساب (ajeer.qiwa.sa/auth/qiwa/login) وشغّل الأداة منها'); return; }
+    if (!accounts.length) { msg(L('❌ لم أجد قائمة الحسابات — افتح صفحة اختيار الحساب (ajeer.qiwa.sa/auth/qiwa/login) وشغّل الأداة منها', '❌ Account list not found — open the account chooser page (ajeer.qiwa.sa/auth/qiwa/login) and run the tool from there')); return; }
     await upsert('ajeer_establishments', accounts.map((a) => ({ ...a, person_id: PERSON || null, raw: a })), 'establishment_no');
-    msg('القائمة: ' + accounts.length + ' حساب');
+    msg(L('القائمة: ' + accounts.length + ' حساب', 'List: ' + accounts.length + ' accounts'));
 
     let sweep = accounts.filter((a) => a.account_type === 'establishment');
     // Resume: skip establishments swept within the last 2 hours, so a sweep
@@ -386,7 +390,7 @@ function body({ sourceId, personId, force = false, resetAt = '' }) {
     // done so a run continued after a logout reads e.g. "41/91" and climbs,
     // making it visible that it picked up where it stopped instead of restarting.
     const grandTotal = sweep.length + skippedRecent;
-    if (skippedRecent) msg('استئناف: مكتمل سابقاً ' + skippedRecent + '/' + grandTotal + ' — إكمال الباقي');
+    if (skippedRecent) msg(L('استئناف: مكتمل سابقاً ' + skippedRecent + '/' + grandTotal + ' — إكمال الباقي', 'Resuming: ' + skippedRecent + '/' + grandTotal + ' already done — finishing the rest'));
     let done = 0, okCount = 0, blockedCount = 0;
     for (const a of sweep) {
       try {
@@ -406,7 +410,7 @@ function body({ sourceId, personId, force = false, resetAt = '' }) {
       } catch (e) {}
       done++;
       if (done % 5 === 0 || done === sweep.length) {
-        msg('مسح: ' + (skippedRecent + done) + '/' + grandTotal + ' · تم ' + okCount + ' · محجوب ' + blockedCount);
+        msg(L('مسح: ', 'Sweep: ') + (skippedRecent + done) + '/' + grandTotal + L(' · تم ', ' · done ') + okCount + L(' · محجوب ', ' · blocked ') + blockedCount);
       }
     }
 
@@ -416,7 +420,7 @@ function body({ sourceId, personId, force = false, resetAt = '' }) {
         body: JSON.stringify({ status: 'success', completed_at: new Date().toISOString(), records_fetched: okCount }),
       });
     }
-    msg('✅ تم ' + (skippedRecent + okCount) + '/' + grandTotal + ' · محجوب ' + blockedCount + (skippedRecent ? ' · سابقاً ' + skippedRecent : ''));
+    msg(L('✅ تم ', '✅ Done ') + (skippedRecent + okCount) + '/' + grandTotal + L(' · محجوب ', ' · blocked ') + blockedCount + (skippedRecent ? L(' · سابقاً ', ' · earlier ') + skippedRecent : ''));
     setTimeout(() => { document.getElementById('_jisr_ajeer_ui')?.remove(); }, 30000);
   } catch (e) {
     msg('❌ ' + (e && e.message ? e.message : String(e)));
@@ -433,6 +437,6 @@ function minify(src) {
     .trim()
 }
 
-export function buildAjeerBookmarklet({ sourceId, personId, force = false, resetAt = '' }) {
-  return 'javascript:' + encodeURIComponent(minify(body({ sourceId, personId, force, resetAt })))
+export function buildAjeerBookmarklet({ sourceId, personId, force = false, resetAt = '', lang = 'ar' }) {
+  return 'javascript:' + encodeURIComponent(minify(body({ sourceId, personId, force, resetAt, lang })))
 }

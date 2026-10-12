@@ -17,8 +17,13 @@
 // Run: node scripts/checkBookmarklets.mjs
 
 import { transform } from 'esbuild'
+import fs from 'node:fs'
 import { buildMudadBookmarklet } from '../src/pages/mudadSyncBookmarklet.js'
 import { buildMuqeemRenewBookmarklet } from '../src/pages/muqeemRenewBookmarklet.js'
+import { buildMuqeemBookmarklet } from '../src/pages/muqeemSyncBookmarklet.js'
+import { buildQiwaBookmarklet } from '../src/pages/qiwaSyncBookmarklet.js'
+import { buildAjeerBookmarklet } from '../src/pages/ajeerSyncBookmarklet.js'
+import { buildBookmarklet as buildSbcBookmarklet, buildPdfBookmarklet } from '../src/pages/sbcSyncBookmarklet.js'
 
 let failed = 0
 const fail = (m) => { console.log('  FAIL: ' + m); failed++ }
@@ -42,8 +47,8 @@ const mkEst = (n) => ({
   }],
 })
 
-async function runMudad({ estCount = 5, expiredAfter = Infinity, priorRows = null } = {}) {
-  const href = buildMudadBookmarklet({ sourceId: 'mudad', personId: 'p1', proxyBaseUrl: 'https://jisr.test' })
+async function runMudad({ estCount = 5, expiredAfter = Infinity, priorRows = null, lang = 'ar' } = {}) {
+  const href = buildMudadBookmarklet({ sourceId: 'mudad', personId: 'p1', proxyBaseUrl: 'https://jisr.test', lang })
   const code = decodeURIComponent(href.replace(/^javascript:/, ''))
 
   await transform(code, { loader: 'js' })
@@ -318,8 +323,8 @@ try {
 const b64url = (o) => Buffer.from(JSON.stringify(o)).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_')
 const FAKE_JWT = 'eyJhbGciOiJIUzUxMiJ9.' + b64url({ sub: '7041873717', moiNumber: '7041873717', operatorId: '1089150369', exp: Math.floor(Date.now() / 1000) + 600 }) + '.sig'
 
-async function runRenew({ duration = 6, validateStatus = 200, validateBody = { totalAmount: 645, canRenew: true }, targetMoi = '7041873717', tmpJwt = null, ssoUsers = null, ssoIdToken = null, subOverview = { expired: false } } = {}) {
-  const href = buildMuqeemRenewBookmarklet({ iqama: '2442464695', duration, workerId: 'wk-1', personId: 'pr-1', targetMoi, proxyBaseUrl: 'https://jisr.test' })
+async function runRenew({ duration = 6, validateStatus = 200, validateBody = { totalAmount: 645, canRenew: true }, targetMoi = '7041873717', tmpJwt = null, ssoUsers = null, ssoIdToken = null, subOverview = { expired: false }, lang = 'ar' } = {}) {
+  const href = buildMuqeemRenewBookmarklet({ iqama: '2442464695', duration, workerId: 'wk-1', personId: 'pr-1', targetMoi, proxyBaseUrl: 'https://jisr.test', lang })
   const code = decodeURIComponent(href.replace(/^javascript:/, ''))
   await transform(code, { loader: 'js' })
 
@@ -509,6 +514,84 @@ try {
   else ok('blocked with guidance: ' + last.split('\n')[0])
   if (calls.some((c) => /renew\/validate$/.test(c.url))) fail('sent a doomed renew/validate despite establishment mismatch')
   else ok('did NOT send the doomed request')
+} catch (e) { fail('threw: ' + (e && e.stack ? e.stack.split('\n').slice(0, 3).join(' | ') : e)) }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// English UI. Every bookmarklet is built with the Jisr UI language it was dragged
+// in (lang), and an English-UI user must be able to run a whole sync without
+// meeting an Arabic badge. Two layers:
+//   1) every bookmarklet still PARSES in both languages (an unescaped apostrophe
+//      in an English string would kill the button silently, exactly like the
+//      trailing-comment trap);
+//   2) the two bookmarklets this runner can execute are RUN in English and every
+//      badge they print is asserted Arabic-free.
+// ─────────────────────────────────────────────────────────────────────────────
+const AR = /[؀-ۿ]/
+const noArabic = (msgs, what) => {
+  const bad = msgs.find((m) => AR.test(m))
+  if (bad) fail(what + ': Arabic badge in English mode: ' + bad.split('\n')[0].slice(0, 90))
+  else ok(what + ': ' + msgs.length + ' badges, none Arabic')
+}
+
+console.log('all bookmarklets — parse in both languages')
+for (const lang of ['ar', 'en']) {
+  const base = { personId: 'p1', proxyBaseUrl: 'https://jisr.test', force: true, resetAt: '2026-01-01T00:00:00Z', lang }
+  const built = {
+    sbc: buildSbcBookmarklet({ sourceId: 'sbc', ...base }),
+    'sbc-pdf': buildPdfBookmarklet(base),
+    qiwa: buildQiwaBookmarklet({ sourceId: 'qiwa', ...base }),
+    muqeem: buildMuqeemBookmarklet({ sourceId: 'muqeem', ...base }),
+    ajeer: buildAjeerBookmarklet({ sourceId: 'ajeer', ...base }),
+    mudad: buildMudadBookmarklet({ sourceId: 'mudad', ...base }),
+    'muqeem-renew': buildMuqeemRenewBookmarklet({ iqama: '2442464695', duration: 3, workerId: 'w', personId: 'p', targetMoi: '7041873717', proxyBaseUrl: 'https://jisr.test', lang }),
+  }
+  // gosi can't be imported here (Vite's ?raw) — check the inlined body directly,
+  // prefixed the same way gosiSyncBookmarklet.js does.
+  built.gosi = 'javascript:' + encodeURIComponent("window._jr_person_id='p1';window._jr_lang='" + lang + "';" + fs.readFileSync(new URL('../public/gosi-bm.js', import.meta.url), 'utf8'))
+  for (const [name, href] of Object.entries(built)) {
+    const code = decodeURIComponent(href.replace(/^javascript:/, ''))
+    try {
+      await transform(code, { loader: 'js' })
+      if (name !== 'gosi' && !code.includes('const EN = ' + (lang === 'en') + ';')) fail(name + ' [' + lang + ']: language flag not baked in')
+      else ok(name + ' [' + lang + '] parses')
+    } catch (e) { fail(name + ' [' + lang + '] does not parse: ' + String(e && e.message).split('\n')[0]) }
+  }
+}
+
+console.log('mudad — English UI (happy path + delta + dying session)')
+try {
+  const a = await runMudad({ estCount: 5, lang: 'en' })
+  const lastA = a.msgs[a.msgs.length - 1] || ''
+  if (!/✅ Done 5\/5 establishments/.test(lastA)) fail('English run did not end in success: ' + lastA)
+  else ok('reached success: ' + lastA.split('\n')[0])
+  noArabic(a.msgs, 'happy path')
+  const priorRows = Array.from({ length: 5 }, (_, i) => mkPrior(i))
+  const b = await runMudad({ estCount: 5, priorRows, lang: 'en' })
+  const lastB = b.msgs[b.msgs.length - 1] || ''
+  if (!/✅ No changes/.test(lastB)) fail('English delta run did not conclude no-change: ' + lastB)
+  else ok('concluded no-change: ' + lastB)
+  noArabic(b.msgs, 'delta skip')
+  const c = await runMudad({ estCount: 40, expiredAfter: 6, lang: 'en' })
+  noArabic(c.msgs, 'session dies mid-sweep')
+} catch (e) { fail('threw: ' + (e && e.stack ? e.stack.split('\n').slice(0, 3).join(' | ') : e)) }
+
+console.log('muqeem-renew — English UI')
+try {
+  const a = await runRenew({ duration: 6, lang: 'en' })
+  const lastA = a.msgs[a.msgs.length - 1] || ''
+  if (!/✅ Check complete/.test(lastA) || !/Fees: 645/.test(lastA) || !/Saved to Jisr/.test(lastA)) fail('English happy path wrong: ' + lastA)
+  else ok('reached success: ' + lastA.replace(/\n/g, ' | '))
+  noArabic(a.msgs, 'happy path')
+  const b = await runRenew({ duration: 3, validateStatus: 403, validateBody: { message: 'Forbidden' }, subOverview: { expired: true, latestSubscription: { expiryDate: '2026-01-01' } }, lang: 'en' })
+  const lastB = b.msgs[b.msgs.length - 1] || ''
+  if (!/subscription has expired/.test(lastB)) fail('English 403 not attributed to the expired subscription: ' + lastB)
+  else ok('403 explained: ' + lastB.split('\n')[0])
+  noArabic(b.msgs, 'expired subscription')
+  const c = await runRenew({ duration: 3, targetMoi: '7042064787', tmpJwt: null, lang: 'en' })
+  const lastC = c.msgs[c.msgs.length - 1] || ''
+  if (!/is not this worker’s sponsor/.test(lastC)) fail('English mismatch guard unclear: ' + lastC)
+  else ok('blocked with guidance: ' + lastC.split('\n')[0])
+  noArabic(c.msgs, 'mismatch guard')
 } catch (e) { fail('threw: ' + (e && e.stack ? e.stack.split('\n').slice(0, 3).join(' | ') : e)) }
 
 console.log(failed ? '\n' + failed + ' check(s) FAILED' : '\nall checks passed')

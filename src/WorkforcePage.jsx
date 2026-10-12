@@ -2599,7 +2599,7 @@ function RenewalCard({ w, f, sb, T, isAr, toast }) {
   // ليسكّ توكن هذه المنشأة تلقائياً عبر الدخول الموحد بدل تبديل يدوي في مقيم.
   const targetMoi = f?.unified_number || null
   const href = validIqama
-    ? buildMuqeemRenewBookmarklet({ iqama, duration, workerId: w.id, personId: w.person_id || null, targetMoi, proxyBaseUrl })
+    ? buildMuqeemRenewBookmarklet({ iqama, duration, workerId: w.id, personId: w.person_id || null, targetMoi, proxyBaseUrl, lang: isAr ? 'ar' : 'en' })
     : '#'
   const dragRef = useRef(null)
   useEffect(() => { if (dragRef.current) dragRef.current.setAttribute('href', href) }, [href])

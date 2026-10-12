@@ -23,7 +23,7 @@
 const SUPABASE_URL = 'https://gcvshzutdslmdkwqwteh.supabase.co'
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdjdnNoenV0ZHNsbWRrd3F3dGVoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4OTkwNjgsImV4cCI6MjA5MDQ3NTA2OH0.5R0I5VvB7lp3wpSrtay3DMcXKsT9l1uK0Ukd1F4_ImM'
 
-function body({ iqama, duration, workerId, personId, targetMoi, proxyBaseUrl }) {
+function body({ iqama, duration, workerId, personId, targetMoi, proxyBaseUrl, lang = 'ar' }) {
   return `
 (async () => {
   const U = '${SUPABASE_URL}', K = '${SUPABASE_ANON}';
@@ -33,17 +33,20 @@ function body({ iqama, duration, workerId, personId, targetMoi, proxyBaseUrl }) 
   const PERSON = ${JSON.stringify(personId || null)};
   const TARGET_MOI = ${JSON.stringify(targetMoi ? String(targetMoi) : null)};
   const API = 'https://muqeem.sa';
-  const BRIDGE_URL = '${proxyBaseUrl}/muqeem-bridge.html';
+  // لغة واجهة جسر عند سحب الزر — رسائل الشارة وتبويب الجسر تتبعها.
+  const EN = ${lang === 'en' ? 'true' : 'false'};
+  const L = (a, e) => (EN ? e : a);
+  const BRIDGE_URL = '${proxyBaseUrl}/muqeem-bridge.html' + (EN ? '?lang=en' : '');
 
   const msg = (m, tone) => {
     let d = document.getElementById('_jisr_renew_ui');
     if (!d) {
       d = document.createElement('div'); d.id = '_jisr_renew_ui';
-      d.style.cssText = 'position:fixed;top:16px;left:16px;background:#111;color:#f59e0b;padding:12px 18px;border-radius:10px;z-index:2147483647;font:600 13px/1.6 sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.5);max-width:460px;direction:rtl;text-align:right;border:1px solid rgba(245,158,11,.4);white-space:pre-wrap';
+      d.style.cssText = 'position:fixed;top:16px;left:16px;background:#111;color:#f59e0b;padding:12px 18px;border-radius:10px;z-index:2147483647;font:600 13px/1.6 sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.5);max-width:460px;direction:' + (EN ? 'ltr' : 'rtl') + ';text-align:' + (EN ? 'left' : 'right') + ';border:1px solid rgba(245,158,11,.4);white-space:pre-wrap';
       document.body.appendChild(d);
     }
     d.style.color = tone === 'ok' ? '#34d399' : (tone === 'err' ? '#f87171' : '#f59e0b');
-    d.textContent = 'تجديد مقيم: ' + m;
+    d.textContent = L('تجديد مقيم: ', 'Muqeem renewal: ') + m;
     return d;
   };
 
@@ -61,16 +64,16 @@ function body({ iqama, duration, workerId, personId, targetMoi, proxyBaseUrl }) 
     if (bridgeWin && !bridgeWin.closed && bridgeReady) return;
     if (!bridgeWin || bridgeWin.closed) {
       bridgeWin = window.open(BRIDGE_URL, 'jisr_muqeem_bridge');
-      if (!bridgeWin) throw new Error('فشل فتح تبويب الجسر — فعّل النوافذ المنبثقة (popups)');
+      if (!bridgeWin) throw new Error(L('فشل فتح تبويب الجسر — فعّل النوافذ المنبثقة (popups)', 'Could not open the Jisr bridge tab — allow pop-ups for this site'));
       bridgeReady = false;
     }
     const deadline = Date.now() + 30000;
     while (!bridgeReady && Date.now() < deadline) {
       try { bridgeWin.postMessage({ hello: true }, '*'); } catch (_) {}
       await new Promise(r => setTimeout(r, 250));
-      if (bridgeWin.closed) throw new Error('تبويب الجسر أُغلق قبل الحفظ');
+      if (bridgeWin.closed) throw new Error(L('تبويب الجسر أُغلق قبل الحفظ', 'The Jisr bridge tab was closed before saving'));
     }
-    if (!bridgeReady) throw new Error('تبويب الجسر لم يستجب خلال 30 ثانية');
+    if (!bridgeReady) throw new Error(L('تبويب الجسر لم يستجب خلال 30 ثانية', 'The Jisr bridge tab did not respond within 30 seconds'));
   };
   const supaFetch = async (path, opts = {}) => {
     await ensureBridge();
@@ -112,8 +115,8 @@ function body({ iqama, duration, workerId, personId, targetMoi, proxyBaseUrl }) 
   };
 
   try {
-    if (!location.hostname.endsWith('muqeem.sa')) return msg('افتح مقيم أولاً (muqeem.sa) ثم اضغط الزر.', 'err');
-    if (!/^[12]\\d{9}$/.test(IQAMA)) return msg('رقم إقامة غير صالح: ' + IQAMA, 'err');
+    if (!location.hostname.endsWith('muqeem.sa')) return msg(L('افتح مقيم أولاً (muqeem.sa) ثم اضغط الزر.', 'Open Muqeem first (muqeem.sa), then click the button.'), 'err');
+    if (!/^[12]\\d{9}$/.test(IQAMA)) return msg(L('رقم إقامة غير صالح: ', 'Invalid iqama number: ') + IQAMA, 'err');
 
     // Capture the live ORG session token. Muqeem is an Angular app whose
     // HttpClient uses XMLHttpRequest (not fetch), so a fetch-only interceptor
@@ -203,7 +206,7 @@ function body({ iqama, duration, workerId, personId, targetMoi, proxyBaseUrl }) 
       if (tmpJwt && tmpP && (!tmpP.exp || tmpP.exp > nowSec() + 20)) {
         try {
           const ssoHeaders = () => { const h = { 'Accept': 'application/json', 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tmpJwt }; const x = getXsrf(); if (x) h['X-XSRF-TOKEN'] = x; return h; };
-          msg('جارٍ تحديد منشأة كفيل العامل عبر الدخول الموحد…');
+          msg(L('جارٍ تحديد منشأة كفيل العامل عبر الدخول الموحد…', 'Locating the worker’s sponsor establishment via Unified Login…'));
           const ur = await origFetch(API + '/api/sso/absher/get-users', { method: 'POST', credentials: 'include', headers: ssoHeaders(), body: JSON.stringify({ tmpJwt }) });
           if (ur.ok) {
             const users = await ur.json().catch(() => null);
@@ -226,19 +229,19 @@ function body({ iqama, duration, workerId, personId, targetMoi, proxyBaseUrl }) 
     while (!captured.token && Date.now() < deadline) {
       const s = scanStores();
       if (s) { captured.token = s; break; }
-      msg('بانتظار جلسة مقيم — افتح/حدّث أي صفحة من القائمة (مثلاً «المقيمين»). ' + Math.ceil((deadline - Date.now()) / 1000) + 'ث');
+      msg(L('بانتظار جلسة مقيم — افتح/حدّث أي صفحة من القائمة (مثلاً «المقيمين»). ', 'Waiting for a Muqeem session — open or refresh any page from the menu (e.g. "Residents"). ') + Math.ceil((deadline - Date.now()) / 1000) + L('ث', 's'));
       await new Promise(r => setTimeout(r, 500));
     }
-    if (!captured.token) return msg('❌ ما لقيت جلسة مقيم. سجّل الدخول وافتح صفحة «المقيمين» ثم أعد الضغط.', 'err');
+    if (!captured.token) return msg(L('❌ ما لقيت جلسة مقيم. سجّل الدخول وافتح صفحة «المقيمين» ثم أعد الضغط.', '❌ No Muqeem session found. Sign in, open the "Residents" page, then click again.'), 'err');
 
     // Establishment guard — a page token for a DIFFERENT establishment would 403.
     // Block it up front with a precise instruction instead of a raw Forbidden.
     const tokMoi = (function () { const p = decodeJwt(captured.token) || {}; return p.moiNumber || p.sub || null; })();
     if (TARGET_MOI && !ssoToken && tokMoi && String(tokMoi) !== String(TARGET_MOI)) {
       const hint = ssoNote === 'notmp'
-        ? 'افتح مقيم عبر «الدخول الموحد» من أبشر (نفس طريقة المزامنة) ثم اضغط الزر — سيبدّل للمنشأة الصحيحة تلقائياً.'
-        : (ssoNote === 'notlisted' ? 'المنشأة ' + TARGET_MOI + ' غير متاحة عبر حساب أبشر الحالي.' : 'بدّل المنشأة في مقيم إلى كفيل العامل (' + TARGET_MOI + ') ثم أعد الضغط.');
-      return msg('⛔ المنشأة النشطة (' + tokMoi + ') ليست كفيل هذا العامل (' + TARGET_MOI + ').\\n' + hint, 'err');
+        ? L('افتح مقيم عبر «الدخول الموحد» من أبشر (نفس طريقة المزامنة) ثم اضغط الزر — سيبدّل للمنشأة الصحيحة تلقائياً.', 'Open Muqeem through Absher "Unified Login" (same as for syncing), then click the button — it switches to the right establishment automatically.')
+        : (ssoNote === 'notlisted' ? L('المنشأة ' + TARGET_MOI + ' غير متاحة عبر حساب أبشر الحالي.', 'Establishment ' + TARGET_MOI + ' is not available under the current Absher account.') : L('بدّل المنشأة في مقيم إلى كفيل العامل (' + TARGET_MOI + ') ثم أعد الضغط.', 'Switch the Muqeem establishment to the worker’s sponsor (' + TARGET_MOI + '), then click again.'));
+      return msg(L('⛔ المنشأة النشطة (' + tokMoi + ') ليست كفيل هذا العامل (' + TARGET_MOI + ').', '⛔ The active establishment (' + tokMoi + ') is not this worker’s sponsor (' + TARGET_MOI + ').') + '\\n' + hint, 'err');
     }
 
     const apiBase = captured.apiOrigin || API;
@@ -277,7 +280,7 @@ function body({ iqama, duration, workerId, personId, targetMoi, proxyBaseUrl }) 
     const sessionMoi = (function () { const p = decodeJwt(captured.token) || {}; return p.moiNumber || p.sub || null; })();
     const payload = { iqamaNumber: IQAMA, renewDuration: String(DURATION), isBulk: false, sendExpiryNotification: false };
 
-    msg('جارٍ فحص التجديد لمدة ' + DURATION + ' شهر…');
+    msg(L('جارٍ فحص التجديد لمدة ' + DURATION + ' شهر…', 'Checking a ' + DURATION + '-month renewal…'));
     let httpStatus = 0, respData = null, okFlag = false;
     try {
       const r = await origFetch(apiBase + '/api/alien/iqama/renew/validate', {
@@ -312,24 +315,26 @@ function body({ iqama, duration, workerId, personId, targetMoi, proxyBaseUrl }) 
     const forbidden = httpStatus === 403;
     const brief = (() => {
       try {
-        if (forbidden && subExpired) return 'اشتراك المنشأة في مقيم منتهٍ' + (subExpiry ? ' (انتهى ' + subExpiry + ')' : '') + ' — جدّد اشتراك المنشأة في مقيم أولاً، فالتجديد لا يعمل باشتراك منتهٍ.';
-        if (forbidden) return 'مقيم رفض العملية (403). غالباً اشتراك المنشأة منتهٍ، أو المنشأة النشطة' + (sessionMoi ? ' (' + sessionMoi + ')' : '') + ' ليست كفيل العامل / لا تملك صلاحية التجديد.';
+        if (forbidden && subExpired) return L('اشتراك المنشأة في مقيم منتهٍ' + (subExpiry ? ' (انتهى ' + subExpiry + ')' : '') + ' — جدّد اشتراك المنشأة في مقيم أولاً، فالتجديد لا يعمل باشتراك منتهٍ.', 'The establishment’s Muqeem subscription has expired' + (subExpiry ? ' (ended ' + subExpiry + ')' : '') + ' — renew the Muqeem subscription first; renewal does not work on an expired subscription.');
+        if (forbidden) return L('مقيم رفض العملية (403). غالباً اشتراك المنشأة منتهٍ، أو المنشأة النشطة' + (sessionMoi ? ' (' + sessionMoi + ')' : '') + ' ليست كفيل العامل / لا تملك صلاحية التجديد.', 'Muqeem refused the request (403). Usually the establishment’s subscription has expired, or the active establishment' + (sessionMoi ? ' (' + sessionMoi + ')' : '') + ' is not the worker’s sponsor / lacks renewal authority.');
         if (respData && typeof respData === 'object') {
           const j = respData;
           const fee = j.totalAmount ?? j.total ?? j.amount ?? j.fees ?? j.renewalFees ?? j.fee ?? null;
           const m = j.message;
-          const err = j.errorMessage || (m && typeof m === 'object' ? (m.ar || m.en) : m) || j.error || (j.errors && JSON.stringify(j.errors)) || null;
-          if (okFlag && fee != null) return 'الرسوم: ' + fee;
+          const err = j.errorMessage || (m && typeof m === 'object' ? (EN ? (m.en || m.ar) : (m.ar || m.en)) : m) || j.error || (j.errors && JSON.stringify(j.errors)) || null;
+          if (okFlag && fee != null) return L('الرسوم: ', 'Fees: ') + fee;
           if (err) return String(err);
         }
         return typeof respData === 'string' ? respData.slice(0, 200) : JSON.stringify(respData).slice(0, 200);
       } catch (_) { return ''; }
     })();
 
-    if (okFlag) msg('✅ تم الفحص (HTTP ' + httpStatus + ').\\n' + brief + (saved ? '\\nحُفظ في جسر — راجع كرت التجديد.' : '\\n⚠️ تعذّر الحفظ في جسر.'), 'ok');
-    else if (forbidden && subExpired) msg('⛔ اشتراك مقيم منتهٍ.\\n' + brief + (saved ? '\\nحُفظ في جسر.' : ''), 'err');
-    else if (forbidden) msg('⛔ رُفض (403).\\n' + brief + (saved ? '\\nحُفظ في جسر.' : ''), 'err');
-    else msg('⚠️ رد مقيم HTTP ' + httpStatus + '.\\n' + brief + (saved ? '\\nحُفظ في جسر — راجع كرت التجديد.' : '\\n⚠️ تعذّر الحفظ في جسر.'), 'err');
+    const savedNote = saved ? L('\\nحُفظ في جسر — راجع كرت التجديد.', '\\nSaved to Jisr — check the renewal card.') : L('\\n⚠️ تعذّر الحفظ في جسر.', '\\n⚠️ Could not save to Jisr.');
+    const savedShort = saved ? L('\\nحُفظ في جسر.', '\\nSaved to Jisr.') : '';
+    if (okFlag) msg(L('✅ تم الفحص (HTTP ', '✅ Check complete (HTTP ') + httpStatus + ').\\n' + brief + savedNote, 'ok');
+    else if (forbidden && subExpired) msg(L('⛔ اشتراك مقيم منتهٍ.', '⛔ Muqeem subscription expired.') + '\\n' + brief + savedShort, 'err');
+    else if (forbidden) msg(L('⛔ رُفض (403).', '⛔ Refused (403).') + '\\n' + brief + savedShort, 'err');
+    else msg(L('⚠️ رد مقيم HTTP ', '⚠️ Muqeem replied HTTP ') + httpStatus + '.\\n' + brief + savedNote, 'err');
     setTimeout(() => { document.getElementById('_jisr_renew_ui')?.remove(); }, 14000);
   } catch (e) {
     msg('❌ ' + (e && e.message ? e.message : String(e)), 'err');
@@ -346,6 +351,6 @@ function minify(src) {
     .trim()
 }
 
-export function buildMuqeemRenewBookmarklet({ iqama, duration, workerId, personId, targetMoi, proxyBaseUrl }) {
-  return 'javascript:' + encodeURIComponent(minify(body({ iqama, duration, workerId, personId, targetMoi, proxyBaseUrl })))
+export function buildMuqeemRenewBookmarklet({ iqama, duration, workerId, personId, targetMoi, proxyBaseUrl, lang = 'ar' }) {
+  return 'javascript:' + encodeURIComponent(minify(body({ iqama, duration, workerId, personId, targetMoi, proxyBaseUrl, lang })))
 }

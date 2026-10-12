@@ -8,7 +8,7 @@
 const SUPABASE_URL = 'https://gcvshzutdslmdkwqwteh.supabase.co'
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdjdnNoenV0ZHNsbWRrd3F3dGVoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4OTkwNjgsImV4cCI6MjA5MDQ3NTA2OH0.5R0I5VvB7lp3wpSrtay3DMcXKsT9l1uK0Ukd1F4_ImM'
 
-function body({ sourceId, personId, force = false, resetAt = '' }) {
+function body({ sourceId, personId, force = false, resetAt = '', lang = 'ar' }) {
   return `
 (async () => {
   const U = '${SUPABASE_URL}', K = '${SUPABASE_ANON}';
@@ -31,14 +31,17 @@ function body({ sourceId, personId, force = false, resetAt = '' }) {
   const API_CONTRACTS = 'https://contract-management-api.qiwa.sa';
   // Part-9: employee transfer. CORS scoped to employee-transfer.qiwa.sa.
   const API_TRANSFER = 'https://employee-transfer-api.qiwa.sa';
+  // لغة واجهة جسر عند سحب الزر — رسائل الشارة تتبعها.
+  const EN = ${lang === 'en' ? 'true' : 'false'};
+  const L = (a, e) => (EN ? e : a);
   const msg = (m) => {
     let d = document.getElementById('_jisr_qiwa_ui');
     if (!d) {
       d = document.createElement('div'); d.id = '_jisr_qiwa_ui';
-      d.style.cssText = 'position:fixed;top:16px;left:16px;background:#111;color:#27a046;padding:12px 18px;border-radius:10px;z-index:2147483647;font:600 13px/1.5 sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.5);max-width:380px;direction:rtl;text-align:right;border:1px solid rgba(39,160,70,.4)';
+      d.style.cssText = 'position:fixed;top:16px;left:16px;background:#111;color:#27a046;padding:12px 18px;border-radius:10px;z-index:2147483647;font:600 13px/1.5 sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.5);max-width:380px;direction:' + (EN ? 'ltr' : 'rtl') + ';text-align:' + (EN ? 'left' : 'right') + ';border:1px solid rgba(39,160,70,.4)';
       document.body.appendChild(d);
     }
-    d.textContent = 'جسر قوى: ' + m;
+    d.textContent = L('جسر قوى: ', 'Jisr · Qiwa: ') + m;
     return d;
   };
   const supaFetch = (path, opts = {}) => fetch(U + path, { ...opts, headers: { apikey: K, Authorization: 'Bearer ' + K, 'Content-Type': 'application/json', ...(opts.headers || {}) } });
@@ -71,19 +74,19 @@ function body({ sourceId, personId, force = false, resetAt = '' }) {
   const decodeJwt = (t) => { try { return JSON.parse(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))); } catch { return null } };
 
   try {
-    if (!location.hostname.endsWith('qiwa.sa')) return msg('افتح بوابة قوى أولاً (qiwa.sa)');
+    if (!location.hostname.endsWith('qiwa.sa')) return msg(L('افتح بوابة قوى أولاً (qiwa.sa)', 'Open the Qiwa portal first (qiwa.sa)'));
 
-    msg('إنشاء سجل مزامنة...');
+    msg(L('إنشاء سجل مزامنة...', 'Creating a sync record...'));
     const runRes = await supaFetch('/rest/v1/sync_runs?select=id', { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ source_id: SOURCE, person_id: PERSON, status: 'running' }) });
     const runArr = await runRes.json();
     const runId = Array.isArray(runArr) ? runArr[0]?.id : runArr.id;
-    if (!runId) return msg('❌ فشل إنشاء سجل المزامنة');
+    if (!runId) return msg(L('❌ فشل إنشاء سجل المزامنة', '❌ Failed to create the sync record'));
 
     let jwtStr = null, companies = [], groups = [], activeCompany = null, criteria = null, indicators = null, cases = null, absher = null;
 
     // 1) Workspaces — Qiwa silently caps page_size at 100 even when asked for more,
     // so loop page_index until we have pulled all items (hard stop at 50 pages).
-    msg('جلب قائمة المنشآت...');
+    msg(L('جلب قائمة المنشآت...', 'Fetching the establishment list...'));
     for (let page = 1; page <= 50; page++) {
       const ws = await qiwaGet(API_CORE + '/context/workspaces-v2/new?page_size=1000&page_index=' + page + '&sort_by=1');
       if (!ws.ok || !ws.data || !Array.isArray(ws.data.workspaces)) break;
@@ -91,7 +94,7 @@ function body({ sourceId, personId, force = false, resetAt = '' }) {
       const batch = ws.data.workspaces;
       companies.push(...batch);
       const total = Number(ws.data.total || 0);
-      msg('منشآت ' + companies.length + (total ? '/' + total : ''));
+      msg(L('منشآت ', 'Establishments ') + companies.length + (total ? '/' + total : ''));
       if (batch.length === 0 || (total && companies.length >= total)) break;
     }
 
@@ -110,7 +113,7 @@ function body({ sourceId, personId, force = false, resetAt = '' }) {
     // not per-company, so it must stay outside the context-switch sweep below.
     let added = 0;
     if (companies.length) {
-      msg('حفظ ' + companies.length + ' منشأة...');
+      msg(L('حفظ ' + companies.length + ' منشأة...', 'Saving ' + companies.length + ' establishments...'));
       const rows = companies.map(w => ({
         company_id: w.company_id,
         person_id: PERSON || null,
@@ -1506,7 +1509,7 @@ function body({ sourceId, personId, force = false, resetAt = '' }) {
     // "41/91" and climbs — visibly continuing, not restarting from 0.
     const grandTotal = sweepList.length + skippedRecent;
     if (sweepList.length > 0) {
-      msg('مزامنة شاملة لكل المنشآت (' + grandTotal + ')' + (skippedRecent ? ' · مكتمل سابقاً ' + skippedRecent : '') + '...');
+      msg(L('مزامنة شاملة لكل المنشآت (', 'Full sync of all establishments (') + grandTotal + ')' + (skippedRecent ? L(' · مكتمل سابقاً ', ' · already done ') + skippedRecent : '') + '...');
       let done = 0, okCount = 0, blocked = 0;
       // Serial by necessity: the active company is global session state, so two
       // concurrent switches would race and store one company's data under another.
@@ -1521,19 +1524,19 @@ function body({ sourceId, personId, force = false, resetAt = '' }) {
         } catch (e) {}
         done++;
         if (done % 5 === 0 || done === sweepList.length) {
-          msg('مزامنة شاملة: ' + (skippedRecent + done) + '/' + grandTotal + ' · تم ' + okCount + ' · متخطّى ' + blocked);
+          msg(L('مزامنة شاملة: ', 'Full sync: ') + (skippedRecent + done) + '/' + grandTotal + L(' · تم ', ' · done ') + okCount + L(' · متخطّى ', ' · skipped ') + blocked);
         }
       }
       // Leave the session on the company the user originally had active.
       if (originalCompanyId) await switchCtx(originalCompanyId);
-      sweepLabel = ' · شامل ' + (skippedRecent + okCount) + '/' + grandTotal + (blocked ? ' · متخطّى ' + blocked : '') + (skippedRecent ? ' · سابقاً ' + skippedRecent : '');
+      sweepLabel = L(' · شامل ', ' · full ') + (skippedRecent + okCount) + '/' + grandTotal + (blocked ? L(' · متخطّى ', ' · skipped ') + blocked : '') + (skippedRecent ? L(' · سابقاً ', ' · earlier ') + skippedRecent : '');
     } else if (skippedRecent > 0) {
       // Everything in the list was already synced within the last 2 hours.
-      sweepLabel = ' · ✅ الكل مُزامَن خلال آخر ساعتين (' + skippedRecent + ')';
+      sweepLabel = L(' · ✅ الكل مُزامَن خلال آخر ساعتين (', ' · ✅ everything was synced within the last 2 hours (') + skippedRecent + ')';
     } else {
       // No list to sweep — still sync whatever company is currently active.
       await syncActiveCompany();
-      sweepLabel = ' · ⚠️ لا توجد قائمة منشآت (زامن من auth.qiwa.sa أولاً)';
+      sweepLabel = L(' · ⚠️ لا توجد قائمة منشآت (زامن من auth.qiwa.sa أولاً)', ' · ⚠️ no establishment list (sync from auth.qiwa.sa first)');
     }
 
     await supaFetch('/rest/v1/sync_runs?id=eq.' + runId, {
@@ -1541,8 +1544,8 @@ function body({ sourceId, personId, force = false, resetAt = '' }) {
       body: JSON.stringify({ status: 'success', completed_at: new Date().toISOString(), records_fetched: added }),
     });
 
-    const detailLabel = activeCompany ? ' + تفاصيل المنشأة' : '';
-    msg('✅ قائمة: ' + added + sweepLabel + detailLabel);
+    const detailLabel = activeCompany ? L(' + تفاصيل المنشأة', ' + establishment details') : '';
+    msg(L('✅ قائمة: ', '✅ List: ') + added + sweepLabel + detailLabel);
     setTimeout(() => { document.getElementById('_jisr_qiwa_ui')?.remove(); }, 30000);
   } catch (e) {
     msg('❌ ' + (e && e.message ? e.message : String(e)));
@@ -1559,8 +1562,8 @@ function minify(src) {
     .trim()
 }
 
-export function buildQiwaBookmarklet({ sourceId, personId, force = false, resetAt = '' }) {
-  return 'javascript:' + encodeURIComponent(minify(body({ sourceId, personId, force, resetAt })))
+export function buildQiwaBookmarklet({ sourceId, personId, force = false, resetAt = '', lang = 'ar' }) {
+  return 'javascript:' + encodeURIComponent(minify(body({ sourceId, personId, force, resetAt, lang })))
 }
 
 // Raw (un-minified) sweep source — single source of truth reused by the

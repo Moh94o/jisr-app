@@ -19,7 +19,7 @@ const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFz
 const CLIENT_ID_REQUESTS = '8b907aa5799863128483d1d4121b0930'
 const CLIENT_ID_COMPANIES_PROCESSING = 'a5fb5f0df5605d7aef65c02d3f36197b'
 
-function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' }) {
+function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '', lang = 'ar' }) {
   return `
 (async () => {
   const U='${SUPABASE_URL}', K='${SUPABASE_ANON}';
@@ -33,15 +33,18 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
   // failed because tokens expire in minutes.
   const PROXY='${proxyBaseUrl}/.netlify/functions/proxy-sbc-pdf';
 
+  // لغة واجهة جسر عند سحب الزر — رسائل الشارة تتبعها.
+  const EN = ${lang === 'en' ? 'true' : 'false'};
+  const L = (a, e) => (EN ? e : a);
   const msg = (m) => {
     let d = document.getElementById('_jisr_sync_ui');
     if (!d) {
       d = document.createElement('div');
       d.id = '_jisr_sync_ui';
-      d.style.cssText = 'position:fixed;top:16px;left:16px;background:#111;color:#B07D00;padding:12px 18px;border-radius:10px;z-index:2147483647;font:600 13px/1.5 sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.5);max-width:380px;direction:rtl;text-align:right;border:1px solid rgba(176,125,0,.35)';
+      d.style.cssText = 'position:fixed;top:16px;left:16px;background:#111;color:#B07D00;padding:12px 18px;border-radius:10px;z-index:2147483647;font:600 13px/1.5 sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.5);max-width:380px;direction:' + (EN ? 'ltr' : 'rtl') + ';text-align:' + (EN ? 'left' : 'right') + ';border:1px solid rgba(176,125,0,.35)';
       document.body.appendChild(d);
     }
-    d.textContent = 'جسر: ' + m;
+    d.textContent = L('جسر: ', 'Jisr: ') + m;
     return d;
   };
 
@@ -152,7 +155,7 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
   let tokenKeeper = null;
   try {
     if (!location.hostname.includes('saudibusiness') && !location.hostname.endsWith('business.sa'))
-      return msg('افتح بوابة تيسير أولاً (e2.business.sa)');
+      return msg(L('افتح بوابة تيسير أولاً (e2.business.sa)', 'Open the Tayseer portal first (e2.business.sa)'));
 
     // Either portal's session works. تيسير parks its OIDC user under
     // InvestorPortal, بوابة الشركات under NewCompaniesClient — oidcKey() and
@@ -160,8 +163,8 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
     // keys off token + clientId, not the calling origin. The old guard read the
     // InvestorPortal key only, which silently killed the CR-list flow on the
     // companies portal and forced the user to visit both portals for one sync.
-    if (!oidcKey()) return msg('لم يتم تسجيل الدخول بنفاذ. سجّل الدخول ثم اضغط الإشارة مرة أخرى.');
-    if (!currentToken()) return msg('الجلسة غير صالحة. أعد تسجيل الدخول.');
+    if (!oidcKey()) return msg(L('لم يتم تسجيل الدخول بنفاذ. سجّل الدخول ثم اضغط الإشارة مرة أخرى.', 'Not signed in with Nafath. Sign in, then click the bookmark again.'));
+    if (!currentToken()) return msg(L('الجلسة غير صالحة. أعد تسجيل الدخول.', 'The session is not valid. Sign in again.'));
 
     // Header capture works by making the تيسير SPA fire its own ipapi-nl calls,
     // and the routes visit() walks exist only there. On بوابة الشركات the
@@ -170,7 +173,7 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
     // headersFor() adds the live token + correlation id on every call.
     const onCompanies = location.hostname === 'companies.saudibusiness.gov.sa';
     if (!onCompanies) {
-      msg('جارٍ التقاط الجلسة...');
+      msg(L('جارٍ التقاط الجلسة...', 'Capturing the session...'));
       try { await visit('/commercial-records'); } catch (_) {}
       await new Promise(r => setTimeout(r, 1500));
       try { await visit('/requests'); } catch (_) {}
@@ -181,7 +184,7 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
     }
     if (!captured['ipapi-nl']) {
       if (onCompanies) captured['ipapi-nl'] = { clientId: '${CLIENT_ID_REQUESTS}' };
-      else return msg('تعذّر التقاط الجلسة. افتح صفحة «سجلاتي» ثم جرّب مرة أخرى.');
+      else return msg(L('تعذّر التقاط الجلسة. افتح صفحة «سجلاتي» ثم جرّب مرة أخرى.', 'Could not capture the session. Open the "My Records" page, then try again.'));
     }
 
     // Keep the token alive for the whole run (cleared at the end / on error).
@@ -189,7 +192,7 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
 
     // ─────────── Step 1: CR list (paged, pageSize 1000) ───────────
     const reqBody = { pageNumber: 1, pageSize: 1000 };
-    msg('جلب جميع السجلات التجارية (pageSize 1000)...');
+    msg(L('جلب جميع السجلات التجارية (pageSize 1000)...', 'Fetching all commercial records (pageSize 1000)...'));
     const t0 = Date.now();
     let netErr = null;
     const res = await fetch(IP + '/mcV2/get-crs-by-personal-identifier-number', {
@@ -230,7 +233,7 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
     }
     if (!saveRes.ok) {
       const txt = await saveRes.text().catch(() => '');
-      return msg('⚠ تم استلام السجلات (' + itemsCount + ') لكن فشل الحفظ في sbc_sync_debug ' + saveRes.status + ' — ' + txt.slice(0, 120));
+      return msg(L('⚠ تم استلام السجلات (' + itemsCount + ') لكن فشل الحفظ في sbc_sync_debug ', '⚠ Records received (' + itemsCount + ') but saving to sbc_sync_debug failed ') + saveRes.status + ' — ' + txt.slice(0, 120));
     }
 
     // ─────────── Steps 2-5: per-facility data (parallel) ───────────
@@ -281,7 +284,7 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
     // so a run continued after a logout reads e.g. "41/91" and climbs — visibly
     // picking up where it stopped rather than restarting the count from 0.
     const grandTotal = perFacilityTargets.length + skippedRecent;
-    if (skippedRecent) msg('استئناف: مكتمل سابقاً ' + skippedRecent + '/' + grandTotal + ' — إكمال الباقي');
+    if (skippedRecent) msg(L('استئناف: مكتمل سابقاً ' + skippedRecent + '/' + grandTotal + ' — إكمال الباقي', 'Resuming: ' + skippedRecent + '/' + grandTotal + ' already done — finishing the rest'));
 
     // mapLimit: bounded concurrency over an array. Each worker pulls the next
     // index until exhausted. We keep limit low because the gateway throttles
@@ -368,7 +371,7 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
     // - extractCount(payload): how to derive items_count from this endpoint
     const ENDPOINTS = [
       {
-        key: 'v', label: 'مخالفات',
+        key: 'v', label: L('مخالفات', 'Violations'),
         name: 'mcV2/GetViolationsQuery',
         url: ({ enc }) => IP + '/mcV2/GetViolationsQuery?crNationalNumber=' + encodeURIComponent(enc) + '&pageNumber=1&pageSize=1000',
         reqBody: ({ enc, cr }) => ({ crNationalNumber_encrypted: enc, crNationalNumber: cr, pageNumber: 1, pageSize: 1000 }),
@@ -378,14 +381,14 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
           : (p && Array.isArray(p.items) ? p.items.length : null)),
       },
       {
-        key: 'q', label: 'قوائم',
+        key: 'q', label: L('قوائم', 'Statements'),
         name: 'Qawaem/GetQawaemStatistics',
         url: ({ enc }) => IP + '/Qawaem/GetQawaemStatistics?nCrNumber=' + encodeURIComponent(enc),
         reqBody: ({ enc, cr }) => ({ nCrNumber_encrypted: enc, crNationalNumber: cr }),
         extractCount: (p) => (p && typeof p.total === 'number') ? p.total : null,
       },
       {
-        key: 'qs', label: 'حالة القوائم',
+        key: 'qs', label: L('حالة القوائم', 'Statements status'),
         name: 'Qawaem/GetCRSubmissionInfo',
         // Per-year filing status behind the «حالة القوائم المالية» tab —
         // the sibling of GetQawaemStatistics, which only gives yearly counts.
@@ -399,7 +402,7 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
         noRetryOn: (status) => status === 404,
       },
       {
-        key: 'g', label: 'تأمينات',
+        key: 'g', label: L('تأمينات', 'GOSI'),
         name: 'gosi/establishments-main-info-by-cr-national-number',
         url: ({ enc }) => IP + '/gosi/establishments-main-info-by-cr-national-number/' + encodeURIComponent(enc),
         reqBody: ({ enc, cr }) => ({ encryptedCrNationalNumber: enc, crNationalNumber: cr }),
@@ -407,7 +410,7 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
           ? Number(p.numberOfContributors) : null,
       },
       {
-        key: 'c', label: 'لجان',
+        key: 'c', label: L('لجان', 'Committees'),
         name: 'mcV2/GetCaseViolationsQuery',
         url: ({ enc }) => IP + '/mcV2/GetCaseViolationsQuery?crNationalNumber=' + encodeURIComponent(enc) + '&pageNumber=1&pageSize=1000',
         reqBody: ({ enc, cr }) => ({ crNationalNumber_encrypted: enc, crNationalNumber: cr, pageNumber: 1, pageSize: 1000 }),
@@ -417,7 +420,7 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
           : (p && Array.isArray(p.items) ? p.items.length : null)),
       },
       {
-        key: 'h', label: 'موارد بشرية',
+        key: 'h', label: L('موارد بشرية', 'HRSD'),
         name: 'hrsd/get-establishment-statistics',
         url: ({ enc }) => IP + '/hrsd/get-establishment-statistics/' + encodeURIComponent(enc),
         reqBody: ({ enc, cr }) => ({ encryptedCrNationalNumber: enc, crNationalNumber: cr }),
@@ -426,7 +429,7 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
         extractCount: (p) => (p && typeof p.totalLaborers === 'number') ? p.totalLaborers : null,
       },
       {
-        key: 'm', label: 'رخص بلدية',
+        key: 'm', label: L('رخص بلدية', 'Municipal licences'),
         name: 'momrah/commercial-licenses-by-cr-number',
         url: ({ enc }) => IP + '/momrah/commercial-licenses-by-cr-number?crNumber=' + encodeURIComponent(enc),
         reqBody: ({ enc, cr }) => ({ crNumber_encrypted: enc, crNationalNumber: cr }),
@@ -442,7 +445,7 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
         noRetryOn: (status) => status === 400,
       },
       {
-        key: 'e', label: 'امتثال',
+        key: 'e', label: L('امتثال', 'Compliance'),
         name: 'mcV2/GetEmtethalViolationsQuery',
         // Encrypted CR is a PATH param; pageNumber/pageSize as query.
         url: ({ enc }) => IP + '/mcV2/GetEmtethalViolationsQuery/' + encodeURIComponent(enc) + '?pageNumber=1&pageSize=1000',
@@ -459,7 +462,7 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
         noRetryOn: (status) => status === 422,
       },
       {
-        key: 'p', label: 'طباعة سجل',
+        key: 'p', label: L('طباعة سجل', 'CR print'),
         name: 'mcV2/get-print-cr-by-national-number',
         // Returns { content, downloadUrl, extension, message }. The actual
         // PDF lives at downloadUrl on printcr.mc.gov.sa (cross-origin) —
@@ -471,7 +474,7 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
         extractCount: (p) => (p && p.downloadUrl) ? 1 : 0,
       },
       {
-        key: 'pc', label: 'عقد تأسيس',
+        key: 'pc', label: L('عقد تأسيس', 'Articles of association'),
         name: 'mcV2/get-print-cr-contract-by-national-number',
         // Founding contract — only meaningful for companies. Establishments
         // (sole proprietorships) have no contract. Skip via shouldFire so
@@ -492,14 +495,14 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
     //   gosi-main ─► gosi-file ─► gosi-compliance
     //                              (POST with derived officeID + unifiedID)
     const GOSI_FILE_EP = {
-      key: 'gf', label: 'ملف تأمينات',
+      key: 'gf', label: L('ملف تأمينات', 'GOSI file'),
       name: 'gosi/establishments-file-info-by-registration-number',
       // numberOfContributors comes back as a string here too (same as main info).
       extractCount: (p) => (p && p.numberOfContributors != null && Number.isFinite(Number(p.numberOfContributors)))
         ? Number(p.numberOfContributors) : null,
     };
     const GOSI_COMPLIANCE_EP = {
-      key: 'gc', label: 'التزام',
+      key: 'gc', label: L('التزام', 'GOSI compliance'),
       name: 'gosi/establishment-compliance',
       // numberOfPaidLaborers is the most concrete signal; fall back to null
       // when the server returns all-nulls (the typical empty-compliance shape).
@@ -640,7 +643,7 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
       return { ep, status, payload: pl, seen, netErr };
     };
 
-    msg('جلب بيانات ' + perFacilityTargets.length + ' منشأة على ' + (ENDPOINTS.length + 1) + ' نقاط بالتوازي...');
+    msg(L('جلب بيانات ' + perFacilityTargets.length + ' منشأة على ' + (ENDPOINTS.length + 1) + ' نقاط بالتوازي...', 'Fetching data for ' + perFacilityTargets.length + ' facilities across ' + (ENDPOINTS.length + 1) + ' endpoints in parallel...'));
     let facDone = 0;
     let facInFlight = 0;
     const inFlightCrs = new Set();
@@ -663,8 +666,8 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
         etaStr = fmtTime(Math.ceil((total - facDone) * ratePer));
       }
       const inFlightList = Array.from(inFlightCrs).slice(0, 2).join(',');
-      const inFlightPart = facInFlight > 0 ? (' · جاري ' + facInFlight + (inFlightList ? (' [' + inFlightList + ']') : '')) : '';
-      msg('منشأة ' + (skippedRecent + facDone) + '/' + grandTotal + inFlightPart + ' · مضى ' + fmtTime(elapsed) + ' · متبقي ~' + etaStr);
+      const inFlightPart = facInFlight > 0 ? (L(' · جاري ', ' · in progress ') + facInFlight + (inFlightList ? (' [' + inFlightList + ']') : '')) : '';
+      msg(L('منشأة ', 'Facility ') + (skippedRecent + facDone) + '/' + grandTotal + inFlightPart + L(' · مضى ', ' · elapsed ') + fmtTime(elapsed) + L(' · متبقي ~', ' · left ~') + etaStr);
     };
     const progressTimer = setInterval(tickProgress, 2000);
     tickProgress();
@@ -772,8 +775,8 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
         const allEps = ENDPOINTS.concat([GOSI_FILE_EP, GOSI_COMPLIANCE_EP]);
         const summary = allEps.map(ep => ep.label + ' ' + stats[ep.key].ok + '/' + stats[ep.key].fail).join(' · ');
         const anyRetried = allEps.some(ep => stats[ep.key].retried > 0);
-        const pdfPart = ' · PDF ' + pdfStats.uploaded + ' (فشل ' + (pdfStats.fetchFail + pdfStats.uploadFail) + ')';
-        msg('منشأة ' + (skippedRecent + facDone) + '/' + grandTotal + ' · ' + summary + pdfPart + (anyRetried ? ' · إعادة محاولات نشطة' : ''));
+        const pdfPart = ' · PDF ' + pdfStats.uploaded + L(' (فشل ', ' (failed ') + (pdfStats.fetchFail + pdfStats.uploadFail) + ')';
+        msg(L('منشأة ', 'Facility ') + (skippedRecent + facDone) + '/' + grandTotal + ' · ' + summary + pdfPart + (anyRetried ? L(' · إعادة محاولات نشطة', ' · retries active') : ''));
       }
     });
 
@@ -809,11 +812,11 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
       const remaining = Math.ceil((COOLDOWN_MS - elapsed) / 1000);
       const m = Math.floor(remaining / 60);
       const s = remaining % 60;
-      msg('⏳ انتظار تبريد SBC قبل النسخة الإنجليزية · ' + m + ':' + (s < 10 ? '0' : '') + s);
+      msg(L('⏳ انتظار تبريد SBC قبل النسخة الإنجليزية · ', '⏳ Waiting for the SBC cooldown before the English copy · ') + m + ':' + (s < 10 ? '0' : '') + s);
       await new Promise(r => setTimeout(r, 1000));
     }
 
-    msg('تحديث الجلسة قبل النسخة الإنجليزية...');
+    msg(L('تحديث الجلسة قبل النسخة الإنجليزية...', 'Refreshing the session before the English copy...'));
     /* بوابة الشركات لا تملك مسارات visit() فرؤوسها ثابتة؛ وإن فشل الالتقاط
        الجديد في تيسير نُبقي الرؤوس السابقة (التوكن يُقرأ حيّاً على كل حال). */
     const prevIpapi = captured['ipapi-nl'];
@@ -832,7 +835,7 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
     if (!captured['ipapi-nl']) captured['ipapi-nl'] = prevIpapi;
 
     const PRINT_EN_EP = {
-      key: 'pe', label: 'سجل إنجليزي',
+      key: 'pe', label: L('سجل إنجليزي', 'English CR'),
       name: 'mcV2/get-print-cr-by-national-number(en)',
       url: ({ enc }) => IP + '/mcV2/get-print-cr-by-national-number?crNationalNumber=' + encodeURIComponent(enc) + '&crNumber=&culture=en',
       reqBody: ({ enc, cr }) => ({ crNationalNumber_encrypted: enc, crNumber: '', culture: 'en', crNationalNumber: cr }),
@@ -840,7 +843,7 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
     };
     stats[PRINT_EN_EP.key] = { ok: 0, fail: 0, retried: 0, recovered: 0 };
 
-    msg('المرحلة الثانية: جلب نسخة إنجليزية لكل سجل (تزامن ' + FACILITY_CONCURRENCY + ')...');
+    msg(L('المرحلة الثانية: جلب نسخة إنجليزية لكل سجل (تزامن ', 'Phase 2: fetching an English copy of every record (concurrency ') + FACILITY_CONCURRENCY + ')...');
     let enDone = 0;
     const enT0 = Date.now();
     await mapLimit(perFacilityTargets, FACILITY_CONCURRENCY, async (target) => {
@@ -852,7 +855,7 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
 
       enDone++;
       if (enDone % 10 === 0 || enDone === perFacilityTargets.length) {
-        msg('إنجليزي ' + (skippedRecent + enDone) + '/' + grandTotal + ' · سجل ' + stats.pe.ok + '/' + stats.pe.fail + ' · PDF ' + pdfStats.uploaded);
+        msg(L('إنجليزي ', 'English ') + (skippedRecent + enDone) + '/' + grandTotal + L(' · سجل ', ' · CR ') + stats.pe.ok + '/' + stats.pe.fail + ' · PDF ' + pdfStats.uploaded);
       }
     });
     const enElapsed = Math.round((Date.now() - enT0) / 1000);
@@ -867,17 +870,17 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
       const done = pdfStats.uploaded + pdfStats.fetchFail + pdfStats.uploadFail + pdfStats.skipped;
       if (done >= expectedPdfs) break;
       if (Date.now() - pdfWaitT0 > 30000) break;
-      msg('في انتظار رفع PDFs... ' + done + '/' + expectedPdfs);
+      msg(L('في انتظار رفع PDFs... ', 'Waiting for PDF uploads... ') + done + '/' + expectedPdfs);
       await new Promise(r => setTimeout(r, 500));
     }
 
     const finalSummary = ENDPOINTS.concat([GOSI_FILE_EP, GOSI_COMPLIANCE_EP, PRINT_EN_EP]).map(ep => {
       const s = stats[ep.key];
-      return ep.label + ' ' + s.ok + '/' + s.fail + (s.retried ? (' (أعيد ' + s.retried + ' تعافى ' + s.recovered + ')') : '');
+      return ep.label + ' ' + s.ok + '/' + s.fail + (s.retried ? (L(' (أعيد ', ' (retried ') + s.retried + L(' تعافى ', ' recovered ') + s.recovered + ')') : '');
     }).join(' · ');
-    const pdfSummary = 'PDF ' + pdfStats.uploaded + ' نجح · ' + (pdfStats.fetchFail + pdfStats.uploadFail) + ' فشل';
+    const pdfSummary = 'PDF ' + pdfStats.uploaded + L(' نجح · ', ' ok · ') + (pdfStats.fetchFail + pdfStats.uploadFail) + L(' فشل', ' failed');
     clearInterval(tokenKeeper);
-    msg('✅ ' + itemsCount + ' سجل · حُفظ ' + mapStats.ok + ' منشأة (فشل ' + mapStats.fail + ') · ' + finalSummary + ' · ' + pdfSummary + ' في ' + (allElapsed + enElapsed) + 's');
+    msg(L('✅ ' + itemsCount + ' سجل · حُفظ ' + mapStats.ok + ' منشأة (فشل ' + mapStats.fail + ') · ', '✅ ' + itemsCount + ' records · saved ' + mapStats.ok + ' facilities (' + mapStats.fail + ' failed) · ') + finalSummary + ' · ' + pdfSummary + L(' في ', ' in ') + (allElapsed + enElapsed) + 's');
     setTimeout(() => { const el = document.getElementById('_jisr_sync_ui'); if (el) el.remove(); }, 30000);
   } catch (e) {
     try { clearInterval(tokenKeeper); } catch (_) {}
@@ -898,22 +901,25 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
 // network-blocked). CORS still applies — if printcr.mc.gov.sa doesn't allow
 // e2.business.sa as an origin, this will fail and we'll need a different
 // strategy (Cloudflare Worker with a Riyadh PoP, or a local script).
-function bodyPdf({ personId, proxyBaseUrl }) {
+function bodyPdf({ personId, proxyBaseUrl, lang = 'ar' }) {
   return `
 (async () => {
   const U='${SUPABASE_URL}', K='${SUPABASE_ANON}';
   const PERSON='${personId}';
   const PROXY='${proxyBaseUrl}/.netlify/functions/proxy-sbc-pdf';
 
+  // لغة واجهة جسر عند سحب الزر — رسائل الشارة تتبعها.
+  const EN = ${lang === 'en' ? 'true' : 'false'};
+  const L = (a, e) => (EN ? e : a);
   const msg = (m) => {
     let d = document.getElementById('_jisr_sync_ui');
     if (!d) {
       d = document.createElement('div');
       d.id = '_jisr_sync_ui';
-      d.style.cssText = 'position:fixed;top:16px;left:16px;background:#111;color:#B07D00;padding:12px 18px;border-radius:10px;z-index:2147483647;font:600 13px/1.5 sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.5);max-width:380px;direction:rtl;text-align:right;border:1px solid rgba(176,125,0,.35)';
+      d.style.cssText = 'position:fixed;top:16px;left:16px;background:#111;color:#B07D00;padding:12px 18px;border-radius:10px;z-index:2147483647;font:600 13px/1.5 sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.5);max-width:380px;direction:' + (EN ? 'ltr' : 'rtl') + ';text-align:' + (EN ? 'left' : 'right') + ';border:1px solid rgba(176,125,0,.35)';
       document.body.appendChild(d);
     }
-    d.textContent = 'جسر PDFs: ' + m;
+    d.textContent = L('جسر PDFs: ', 'Jisr PDFs: ') + m;
     return d;
   };
 
@@ -923,7 +929,7 @@ function bodyPdf({ personId, proxyBaseUrl }) {
   });
 
   try {
-    msg('قراءة روابط التحميل من قاعدة البيانات...');
+    msg(L('قراءة روابط التحميل من قاعدة البيانات...', 'Reading download links from the database...'));
 
     // Pull the most recent print/contract responses for this person.
     // We query each endpoint separately because PostgREST's in.(...) filter
@@ -946,7 +952,7 @@ function bodyPdf({ personId, proxyBaseUrl }) {
       const r = await supaFetch(url);
       if (!r.ok) {
         const txt = await r.text().catch(() => '');
-        return msg('❌ فشل قراءة ' + ep.lang + ': ' + r.status + ' ' + txt.slice(0, 120));
+        return msg(L('❌ فشل قراءة ', '❌ Failed to read ') + ep.lang + ': ' + r.status + ' ' + txt.slice(0, 120));
       }
       const arr = await r.json();
       for (const row of arr) row._lang = ep.lang;
@@ -969,10 +975,10 @@ function bodyPdf({ personId, proxyBaseUrl }) {
     }
 
     if (targets.length === 0) {
-      return msg('لا توجد روابط — شغّل بوكماركلت البيانات أولاً.');
+      return msg(L('لا توجد روابط — شغّل بوكماركلت البيانات أولاً.', 'No links found — run the data bookmarklet first.'));
     }
 
-    msg('وُجد ' + targets.length + ' ملف للتحميل. جارٍ المعالجة...');
+    msg(L('وُجد ' + targets.length + ' ملف للتحميل. جارٍ المعالجة...', 'Found ' + targets.length + ' files to download. Processing...'));
 
     let done = 0, ok = 0, fetchFail = 0, uploadFail = 0;
     const T0 = Date.now();
@@ -1037,14 +1043,14 @@ function bodyPdf({ personId, proxyBaseUrl }) {
         done++;
         if (done % 5 === 0 || done === targets.length) {
           const elapsed = Math.round((Date.now() - T0) / 1000);
-          msg('PDF ' + done + '/' + targets.length + ' · نجاح ' + ok + ' · فشل تحميل ' + fetchFail + ' · فشل رفع ' + uploadFail + ' · ' + elapsed + 's');
+          msg('PDF ' + done + '/' + targets.length + L(' · نجاح ', ' · ok ') + ok + L(' · فشل تحميل ', ' · download failed ') + fetchFail + L(' · فشل رفع ', ' · upload failed ') + uploadFail + ' · ' + elapsed + 's');
         }
       }
     };
     await Promise.all(Array.from({ length: CONC }, worker));
 
     const elapsed = Math.round((Date.now() - T0) / 1000);
-    msg('✅ ' + ok + '/' + targets.length + ' PDF رُفع (فشل تحميل ' + fetchFail + ' · فشل رفع ' + uploadFail + ') في ' + elapsed + 's');
+    msg('✅ ' + ok + '/' + targets.length + L(' PDF رُفع (فشل تحميل ', ' PDFs uploaded (download failed ') + fetchFail + L(' · فشل رفع ', ' · upload failed ') + uploadFail + L(') في ', ') in ') + elapsed + 's');
     setTimeout(() => { const el = document.getElementById('_jisr_sync_ui'); if (el) el.remove(); }, 25000);
   } catch (e) {
     msg('❌ ' + (e && e.message ? e.message : String(e)));
@@ -1074,7 +1080,7 @@ function bodyPdf({ personId, proxyBaseUrl }) {
 //   app/smartFlow/registrationStatus/{guid}  → mc.crNationalNumber + the
 //                                              gosi/hrsd/coc/spl/zakat/sca/moj
 //                                              file numbers
-function bodyRequests({ personId }) {
+function bodyRequests({ personId, lang = 'ar' }) {
   return `
 (async () => {
   const U='${SUPABASE_URL}', K='${SUPABASE_ANON}';
@@ -1085,15 +1091,18 @@ function bodyRequests({ personId }) {
   const CID_REQ='${CLIENT_ID_REQUESTS}';
   const CID_CP='${CLIENT_ID_COMPANIES_PROCESSING}';
 
+  // لغة واجهة جسر عند سحب الزر — رسائل الشارة تتبعها.
+  const EN = ${lang === 'en' ? 'true' : 'false'};
+  const L = (a, e) => (EN ? e : a);
   const msg = (m) => {
     let d = document.getElementById('_jisr_sync_ui');
     if (!d) {
       d = document.createElement('div');
       d.id = '_jisr_sync_ui';
-      d.style.cssText = 'position:fixed;top:16px;left:16px;background:#111;color:#B07D00;padding:12px 18px;border-radius:10px;z-index:2147483647;font:600 13px/1.5 sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.5);max-width:380px;direction:rtl;text-align:right;border:1px solid rgba(176,125,0,.35)';
+      d.style.cssText = 'position:fixed;top:16px;left:16px;background:#111;color:#B07D00;padding:12px 18px;border-radius:10px;z-index:2147483647;font:600 13px/1.5 sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.5);max-width:380px;direction:' + (EN ? 'ltr' : 'rtl') + ';text-align:' + (EN ? 'left' : 'right') + ';border:1px solid rgba(176,125,0,.35)';
       document.body.appendChild(d);
     }
-    d.textContent = 'جسر طلباتي: ' + m;
+    d.textContent = L('جسر طلباتي: ', 'Jisr · My Requests: ') + m;
     return d;
   };
 
@@ -1121,7 +1130,7 @@ function bodyRequests({ personId }) {
       if (!raw) continue;
       try { const o = JSON.parse(raw); if (o.access_token) { tok = o.access_token; tokExp = o.expires_at || null; tokIsCompanies = k.endsWith('NewCompaniesClient'); tokKey = k; break; } } catch (_) {}
     }
-    if (!tok) return msg('لم يتم تسجيل الدخول بنفاذ. سجّل الدخول ثم أعد المحاولة.');
+    if (!tok) return msg(L('لم يتم تسجيل الدخول بنفاذ. سجّل الدخول ثم أعد المحاولة.', 'Not signed in with Nafath. Sign in, then try again.'));
 
     // Re-read the token per call so a long طلباتي run always sends a live one. The portal
     // does NOT auto-renew an idle tab, so a background keeper refreshes it via the
@@ -1153,7 +1162,7 @@ function bodyRequests({ personId }) {
     // (re-verified 2026-07-17: it throws from e2.business.sa on every attempt).
     // Listing requests we can't resolve is pointless, so bail early on تيسير.
     if (!tokIsCompanies)
-      return msg('طلباتي: افتح بوابة الشركات (companies.saudibusiness.gov.sa) واضغط الزر لجلب طلبات هذا الحساب.');
+      return msg(L('طلباتي: افتح بوابة الشركات (companies.saudibusiness.gov.sa) واضغط الزر لجلب طلبات هذا الحساب.', 'My Requests: open the companies portal (companies.saudibusiness.gov.sa) and click the button to fetch this account’s requests.'));
 
     // Park the portal token so the app can pull the PDFs server-side later.
     // The files can't be fetched from this page at all — see
@@ -1232,7 +1241,7 @@ function bodyRequests({ personId }) {
     // instantly). The token parked above lets the app pull them instead —
     // see netlify/functions/sbc-request-files.mjs.
 
-    msg('جلب قائمة الطلبات...');
+    msg(L('جلب قائمة الطلبات...', 'Fetching the request list...'));
     // PAGE_SIZE is a hard server limit — requestList 400s ("لا يمكن أن يكون
     // MaxResultCount ...") above 1000, so we page with SkipCount instead of
     // asking for everything at once.
@@ -1246,7 +1255,7 @@ function bodyRequests({ personId }) {
       const listPayload = await jsonOf(listRes.res);
       lastStatus = listRes.res ? listRes.res.status : 0;
       if (!listRes.res || !listRes.res.ok) {
-        return msg('❌ تعذّر جلب قائمة الطلبات: ' + (listRes.res ? ('HTTP ' + lastStatus) : ('شبكة: ' + listRes.netErr)));
+        return msg(L('❌ تعذّر جلب قائمة الطلبات: ', '❌ Could not fetch the request list: ') + (listRes.res ? ('HTTP ' + lastStatus) : (L('شبكة: ', 'network: ') + listRes.netErr)));
       }
       const page = (listPayload && Array.isArray(listPayload.items)) ? listPayload.items : [];
       if (total === null) total = listPayload && listPayload.totalCount;
@@ -1265,10 +1274,10 @@ function bodyRequests({ personId }) {
         }),
       }).catch(() => {});
       if (!page.length || items.length >= (total || 0)) break;
-      msg('جلب قائمة الطلبات... ' + items.length + '/' + total);
+      msg(L('جلب قائمة الطلبات... ', 'Fetching the request list... ') + items.length + '/' + total);
     }
 
-    if (!items.length) return msg('لا توجد طلبات في هذا الحساب.');
+    if (!items.length) return msg(L('لا توجد طلبات في هذا الحساب.', 'This account has no requests.'));
 
     const targets = items.filter(it => it && it.encryptedId);
     // skipped: the companies backend 404s for anything that is not a company
@@ -1285,7 +1294,7 @@ function bodyRequests({ personId }) {
       const el = Math.floor((Date.now() - T0) / 1000);
       let eta = '?';
       if (done > 0) eta = fmt(Math.ceil((targets.length - done) * (el / done)));
-      msg('طلب ' + done + '/' + targets.length + ' · منشآت ' + stats.saved + ' · لا ينطبق ' + stats.skipped + ' · فشل ' + stats.failed + ' · مضى ' + fmt(el) + ' · متبقي ~' + eta);
+      msg(L('طلب ', 'Request ') + done + '/' + targets.length + L(' · منشآت ', ' · facilities ') + stats.saved + L(' · لا ينطبق ', ' · n/a ') + stats.skipped + L(' · فشل ', ' · failed ') + stats.failed + L(' · مضى ', ' · elapsed ') + fmt(el) + L(' · متبقي ~', ' · left ~') + eta);
     };
     const timer = setInterval(tick, 2000);
     tick();
@@ -1345,7 +1354,7 @@ function bodyRequests({ personId }) {
     clearInterval(timer);
     clearInterval(tokenKeeper);
     const el = Math.round((Date.now() - T0) / 1000);
-    msg('✅ ' + targets.length + ' طلب · حُفظ ' + stats.saved + ' منشأة (فشل حفظ ' + stats.saveFail + ') · لا ينطبق ' + stats.skipped + ' · بلا سجل تجاري ' + stats.noCr + ' · فشل جلب ' + stats.failed + ' · في ' + el + 'ث · الملفات تُجلب من مركز المزامنة');
+    msg(L('✅ ' + targets.length + ' طلب · حُفظ ' + stats.saved + ' منشأة (فشل حفظ ' + stats.saveFail + ') · لا ينطبق ' + stats.skipped + ' · بلا سجل تجاري ' + stats.noCr + ' · فشل جلب ' + stats.failed + ' · في ' + el + 'ث · الملفات تُجلب من مركز المزامنة', '✅ ' + targets.length + ' requests · saved ' + stats.saved + ' facilities (' + stats.saveFail + ' save failures) · n/a ' + stats.skipped + ' · no CR ' + stats.noCr + ' · fetch failed ' + stats.failed + ' · in ' + el + 's · files are fetched from the Sync Hub'));
     setTimeout(() => { const e = document.getElementById('_jisr_sync_ui'); if (e) e.remove(); }, 30000);
   } catch (e) {
     try { clearInterval(tokenKeeper); } catch (_) {}
@@ -1367,17 +1376,17 @@ function bodyRequests({ personId }) {
 //
 // CR-list runs first: it seeds sbc_facilities, and طلباتي then fills the gaps (its RPC
 // only COALESCEs into missing fields, so it can't clobber what CR-list wrote).
-function bodyDispatch({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' }) {
+function bodyDispatch({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '', lang = 'ar' }) {
   return `
 (async () => {
   // Each flow is a self-invoking async IIFE, so it must be awaited — without this
   // they run concurrently and race each other's writes to the same sbc_facilities
   // rows. A failure in one must not skip the other, hence the separate try blocks.
   try {
-    await ${body({ sourceId, personId, proxyBaseUrl, force, resetAt })}
+    await ${body({ sourceId, personId, proxyBaseUrl, force, resetAt, lang })}
   } catch (e) {}
   try {
-    await ${bodyRequests({ personId })}
+    await ${bodyRequests({ personId, lang })}
   } catch (e) {}
 })();
 `
@@ -1391,12 +1400,12 @@ function minify(src) {
     .trim()
 }
 
-export function buildBookmarklet({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' }) {
-  return 'javascript:' + encodeURIComponent(minify(bodyDispatch({ sourceId, personId, proxyBaseUrl, force, resetAt })))
+export function buildBookmarklet({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '', lang = 'ar' }) {
+  return 'javascript:' + encodeURIComponent(minify(bodyDispatch({ sourceId, personId, proxyBaseUrl, force, resetAt, lang })))
 }
 
-export function buildPdfBookmarklet({ personId, proxyBaseUrl }) {
-  return 'javascript:' + encodeURIComponent(minify(bodyPdf({ personId, proxyBaseUrl })))
+export function buildPdfBookmarklet({ personId, proxyBaseUrl, lang = 'ar' }) {
+  return 'javascript:' + encodeURIComponent(minify(bodyPdf({ personId, proxyBaseUrl, lang })))
 }
 
 export const SBC_SYNC_BOOKMARKLET = buildBookmarklet({ sourceId: 'sbc', personId: '' })

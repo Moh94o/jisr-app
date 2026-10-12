@@ -33,14 +33,17 @@
 // public bundle at runtime rather than being frozen into this repo, so they
 // survive a Mudad rotation and are never committed here.
 
-function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' }) {
+function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '', lang = 'ar' }) {
   return `
 (async () => {
   const SOURCE = '${sourceId}', PERSON = '${personId}';
   const FORCE = ${force ? 'true' : 'false'};
   const RESET_AT = ${JSON.stringify(resetAt || '')};
   const API = 'https://api.mudad.sa/';
-  const BRIDGE_URL = '${proxyBaseUrl}/sync-bridge.html?p=' + encodeURIComponent('مدد');
+  // لغة واجهة جسر عند سحب الزر — رسائل الشارة وتبويب الجسر تتبعها.
+  const EN = ${lang === 'en' ? 'true' : 'false'};
+  const L = (a, e) => (EN ? e : a);
+  const BRIDGE_URL = '${proxyBaseUrl}/sync-bridge.html?p=' + encodeURIComponent(L('مدد', 'Mudad')) + (EN ? '&lang=en' : '');
   const SYSTEM_TYPE = 'MUDAD_COMPLIANCE_APP';
   // The compliance-summary report takes ~25 SECONDS inside Mudad itself —
   // measured live on 2026-07-17: a clean sweep at concurrency 2 held a steady
@@ -64,10 +67,10 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
     let d = document.getElementById('_jisr_mudad_ui');
     if (!d) {
       d = document.createElement('div'); d.id = '_jisr_mudad_ui';
-      d.style.cssText = 'position:fixed;top:16px;left:16px;background:#111;color:#0ea5e9;padding:12px 18px;border-radius:10px;z-index:2147483647;font:600 13px/1.5 sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.5);max-width:420px;direction:rtl;text-align:right;border:1px solid rgba(14,165,233,.4)';
+      d.style.cssText = 'position:fixed;top:16px;left:16px;background:#111;color:#0ea5e9;padding:12px 18px;border-radius:10px;z-index:2147483647;font:600 13px/1.5 sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.5);max-width:420px;direction:' + (EN ? 'ltr' : 'rtl') + ';text-align:' + (EN ? 'left' : 'right') + ';border:1px solid rgba(14,165,233,.4)';
       document.body.appendChild(d);
     }
-    d.textContent = 'جسر مدد 4: ' + m;
+    d.textContent = L('جسر مدد 4: ', 'Jisr · Mudad 4: ') + m;
     return d;
   };
 
@@ -86,16 +89,16 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
     if (bridgeWin && !bridgeWin.closed && bridgeReady) return;
     if (!bridgeWin || bridgeWin.closed) {
       bridgeWin = window.open(BRIDGE_URL, 'jisr_mudad_bridge');
-      if (!bridgeWin) throw new Error('فشل فتح تبويب الجسر — فعّل النوافذ المنبثقة (popups)');
+      if (!bridgeWin) throw new Error(L('فشل فتح تبويب الجسر — فعّل النوافذ المنبثقة (popups)', 'Could not open the Jisr bridge tab — allow pop-ups for this site'));
       bridgeReady = false;
     }
     const deadline = Date.now() + 30000;
     while (!bridgeReady && Date.now() < deadline) {
       try { bridgeWin.postMessage({ hello: true }, '*'); } catch (_) {}
       await new Promise(r => setTimeout(r, 250));
-      if (bridgeWin.closed) throw new Error('تبويب الجسر أُغلق قبل بدء المزامنة');
+      if (bridgeWin.closed) throw new Error(L('تبويب الجسر أُغلق قبل بدء المزامنة', 'The Jisr bridge tab was closed before the sync started'));
     }
-    if (!bridgeReady) throw new Error('تبويب الجسر لم يستجب خلال 30 ثانية');
+    if (!bridgeReady) throw new Error(L('تبويب الجسر لم يستجب خلال 30 ثانية', 'The Jisr bridge tab did not respond within 30 seconds'));
   };
   const supaFetch = async (path, opts = {}) => {
     await ensureBridge();
@@ -406,11 +409,11 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
 
   // ── main ───────────────────────────────────────────────────────────────
   try {
-    msg('جاري القراءة...');
+    msg(L('جاري القراءة...', 'Reading...'));
 
-    if (!/mudad\\.com\\.sa$/.test(location.hostname)) { msg('❌ افتح موقع مدد أولاً ثم اضغط الزر'); return; }
-    if (!TOKEN) { msg('❌ لا توجد جلسة مدد — سجّل الدخول ثم اضغط الزر (الجلسة تنتهي بعد 20 دقيقة)'); return; }
-    if (!(await loadBundleConsts())) { msg('❌ تعذّر استخراج مفتاح الواجهة من مدد'); return; }
+    if (!/mudad\\.com\\.sa$/.test(location.hostname)) { msg(L('❌ افتح موقع مدد أولاً ثم اضغط الزر', '❌ Open the Mudad site first, then click the button')); return; }
+    if (!TOKEN) { msg(L('❌ لا توجد جلسة مدد — سجّل الدخول ثم اضغط الزر (الجلسة تنتهي بعد 20 دقيقة)', '❌ No Mudad session — sign in, then click the button (sessions expire after 20 minutes)')); return; }
+    if (!(await loadBundleConsts())) { msg(L('❌ تعذّر استخراج مفتاح الواجهة من مدد', '❌ Could not extract the app key from Mudad')); return; }
 
     await ensureBridge();
     let runId = null;
@@ -426,8 +429,8 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
     startKeeper();
 
     const first = await listPage(1, 100);
-    if (first.status === 401 || first.status === 402) { stopKeeper(); msg('❌ الجلسة منتهية (' + first.status + ') — أعد تسجيل الدخول في مدد ثم اضغط الزر'); return; }
-    if (first.status !== 200 || !first.body) { stopKeeper(); msg('❌ تعذّر جلب قائمة المنشآت (' + first.status + ')'); return; }
+    if (first.status === 401 || first.status === 402) { stopKeeper(); msg(L('❌ الجلسة منتهية (' + first.status + ') — أعد تسجيل الدخول في مدد ثم اضغط الزر', '❌ Session expired (' + first.status + ') — sign in to Mudad again, then click the button')); return; }
+    if (first.status !== 200 || !first.body) { stopKeeper(); msg(L('❌ تعذّر جلب قائمة المنشآت (', '❌ Could not fetch the establishment list (') + first.status + ')'); return; }
 
     const total = first.body.totalNoOfUserEstablishments || 0;
     let ests = (first.body.userEstablishmentsInfoList || []).slice();
@@ -439,12 +442,12 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
       const rows = (nxt.body && nxt.body.userEstablishmentsInfoList) || [];
       if (!rows.length) break;
       ests = ests.concat(rows);
-      msg('القائمة: ' + ests.length + '/' + total);
+      msg(L('القائمة: ', 'List: ') + ests.length + '/' + total);
     }
     stashRaw('_user', 'landing-page-info', { status: first.status, body: { totalNoOfUserEstablishments: total, count: ests.length } }, null);
 
-    if (!ests.length) { stopKeeper(); msg('❌ لم أجد أي منشأة في الحساب'); return; }
-    msg('القائمة: ' + ests.length + ' منشأة — جاري الحفظ...');
+    if (!ests.length) { stopKeeper(); msg(L('❌ لم أجد أي منشأة في الحساب', '❌ No establishments found in this account')); return; }
+    msg(L('القائمة: ' + ests.length + ' منشأة — جاري الحفظ...', 'List: ' + ests.length + ' establishments — saving...'));
 
     await upsert('mudad_establishments', ests.filter((e) => e && e.mlsdUnifiedId).map((e) => {
       const cd = e.complianceDetails || {};
@@ -470,10 +473,10 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
         updated_at: new Date().toISOString(),
       };
     }), 'mlsd_unified_id');
-    if (writeErr) { stopKeeper(); msg('❌ فشل حفظ المنشآت — ' + writeErr); return; }
+    if (writeErr) { stopKeeper(); msg(L('❌ فشل حفظ المنشآت — ', '❌ Failed to save establishments — ') + writeErr); return; }
 
     const withOrg = ests.filter(orgOf).length;
-    msg('حُفظت ' + ests.length + ' منشأة · سياق ' + withOrg + ' — جاري المسح...');
+    msg(L('حُفظت ' + ests.length + ' منشأة · سياق ' + withOrg + ' — جاري المسح...', 'Saved ' + ests.length + ' establishments · ' + withOrg + ' with context — sweeping...'));
 
     // No context switching in Mudad (the establishment is a header), so unlike
     // Qiwa/Ajeer the sweep can run concurrently.
@@ -522,13 +525,13 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
           body: JSON.stringify({ status: 'success', completed_at: new Date().toISOString(), records_fetched: ests.length }),
         });
       }
-      msg('✅ لا تغيير — كل المنشآت (' + ests.length + ') مُزامَنة');
+      msg(L('✅ لا تغيير — كل المنشآت (' + ests.length + ') مُزامَنة', '✅ No changes — all ' + ests.length + ' establishments are already synced'));
       return;
     }
     // Cumulative counter against the FULL establishment count: unchanged
     // (already-synced) establishments count as done so the number reads e.g.
     // "41/91" and climbs — visibly continuing, not restarting from 0.
-    msg('مسح: ' + skipped + '/' + ests.length + (skipped ? (' · بلا تغيير ' + skipped) : ''));
+    msg(L('مسح: ', 'Sweep: ') + skipped + '/' + ests.length + (skipped ? (L(' · بلا تغيير ', ' · unchanged ') + skipped) : ''));
 
     let done = 0;
     // Flushed every 40 rows (~20 establishments) rather than 100: the first run
@@ -549,7 +552,7 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
         const e = queue.shift();
         try { await syncEst(e); } catch (_) {}
         done++;
-        if (done % 10 === 0 || done === todo) msg('مسح: ' + (skipped + done) + '/' + ests.length + (refreshOk ? (' · تجديد ' + refreshOk) : ''));
+        if (done % 10 === 0 || done === todo) msg(L('مسح: ', 'Sweep: ') + (skipped + done) + '/' + ests.length + (refreshOk ? (L(' · تجديد ', ' · refreshed ') + refreshOk) : ''));
         if (rawRows.length >= 40) await flush();
       }
     };
@@ -567,9 +570,9 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
     // endpoints Mudad actually serves, instead of leaving that to be guessed.
     const tally = Object.keys(statusTally).sort().map((k) => k + '×' + statusTally[k]).join(' · ');
     const head = authDead
-      ? ('⚠️ توقّف: انتهت جلسة مدد عند ' + (skipped + done) + '/' + ests.length + ' منشأة — سجّل الدخول واضغط الزر ثانية ليكمل من حيث وقف')
-      : ('✅ تم ' + (skipped + done) + '/' + ests.length + ' منشأة' + (skipped ? (' · بلا تغيير ' + skipped) : ''));
-    msg(head + (refreshOk ? (' · جدّد التوكن ' + refreshOk) : '') + (refreshFail ? (' · فشل تجديد ' + refreshFail) : '') + (writeErr ? (' · ⚠️ ' + writeErr) : '') + (tally ? ('\\n' + tally) : ''));
+      ? L('⚠️ توقّف: انتهت جلسة مدد عند ' + (skipped + done) + '/' + ests.length + ' منشأة — سجّل الدخول واضغط الزر ثانية ليكمل من حيث وقف', '⚠️ Stopped: the Mudad session expired at ' + (skipped + done) + '/' + ests.length + ' establishments — sign in and click the button again to continue where it stopped')
+      : (L('✅ تم ', '✅ Done ') + (skipped + done) + '/' + ests.length + L(' منشأة', ' establishments') + (skipped ? (L(' · بلا تغيير ', ' · unchanged ') + skipped) : ''));
+    msg(head + (refreshOk ? (L(' · جدّد التوكن ', ' · token refreshed ') + refreshOk) : '') + (refreshFail ? (L(' · فشل تجديد ', ' · refresh failed ') + refreshFail) : '') + (writeErr ? (' · ⚠️ ' + writeErr) : '') + (tally ? ('\\n' + tally) : ''));
     setTimeout(() => { const el = document.getElementById('_jisr_mudad_ui'); if (el) el.remove(); }, 30000);
   } catch (e) {
     stopKeeper();
@@ -587,6 +590,6 @@ function minify(src) {
     .trim()
 }
 
-export function buildMudadBookmarklet({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' }) {
-  return 'javascript:' + encodeURIComponent(minify(body({ sourceId, personId, proxyBaseUrl, force, resetAt })))
+export function buildMudadBookmarklet({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '', lang = 'ar' }) {
+  return 'javascript:' + encodeURIComponent(minify(body({ sourceId, personId, proxyBaseUrl, force, resetAt, lang })))
 }

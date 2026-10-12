@@ -38,7 +38,7 @@
 const SUPABASE_URL = 'https://gcvshzutdslmdkwqwteh.supabase.co'
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdjdnNoenV0ZHNsbWRrd3F3dGVoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4OTkwNjgsImV4cCI6MjA5MDQ3NTA2OH0.5R0I5VvB7lp3wpSrtay3DMcXKsT9l1uK0Ukd1F4_ImM'
 
-function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' }) {
+function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '', lang = 'ar' }) {
   return `
 (async () => {
   const U = '${SUPABASE_URL}', K = '${SUPABASE_ANON}';
@@ -46,16 +46,19 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
   const FORCE = ${force ? 'true' : 'false'};
   const RESET_AT = ${JSON.stringify(resetAt || '')};
   const API = 'https://muqeem.sa';
-  const BRIDGE_URL = '${proxyBaseUrl}/muqeem-bridge.html';
+  // لغة واجهة جسر عند سحب الزر — رسائل الشارة وتبويب الجسر تتبعها.
+  const EN = ${lang === 'en' ? 'true' : 'false'};
+  const L = (a, e) => (EN ? e : a);
+  const BRIDGE_URL = '${proxyBaseUrl}/muqeem-bridge.html' + (EN ? '?lang=en' : '');
 
   const msg = (m) => {
     let d = document.getElementById('_jisr_muqeem_ui');
     if (!d) {
       d = document.createElement('div'); d.id = '_jisr_muqeem_ui';
-      d.style.cssText = 'position:fixed;top:16px;left:16px;background:#111;color:#f59e0b;padding:12px 18px;border-radius:10px;z-index:2147483647;font:600 13px/1.5 sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.5);max-width:420px;direction:rtl;text-align:right;border:1px solid rgba(245,158,11,.4)';
+      d.style.cssText = 'position:fixed;top:16px;left:16px;background:#111;color:#f59e0b;padding:12px 18px;border-radius:10px;z-index:2147483647;font:600 13px/1.5 sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.5);max-width:420px;direction:' + (EN ? 'ltr' : 'rtl') + ';text-align:' + (EN ? 'left' : 'right') + ';border:1px solid rgba(245,158,11,.4)';
       document.body.appendChild(d);
     }
-    d.textContent = 'جسر مقيم: ' + m;
+    d.textContent = L('جسر مقيم: ', 'Jisr · Muqeem: ') + m;
     return d;
   };
 
@@ -72,16 +75,16 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
     if (bridgeWin && !bridgeWin.closed && bridgeReady) return;
     if (!bridgeWin || bridgeWin.closed) {
       bridgeWin = window.open(BRIDGE_URL, 'jisr_muqeem_bridge');
-      if (!bridgeWin) throw new Error('فشل فتح تبويب الجسر — فعّل النوافذ المنبثقة (popups)');
+      if (!bridgeWin) throw new Error(L('فشل فتح تبويب الجسر — فعّل النوافذ المنبثقة (popups)', 'Could not open the Jisr bridge tab — allow pop-ups for this site'));
       bridgeReady = false;
     }
     const deadline = Date.now() + 30000;
     while (!bridgeReady && Date.now() < deadline) {
       try { bridgeWin.postMessage({ hello: true }, '*'); } catch (_) {}
       await new Promise(r => setTimeout(r, 250));
-      if (bridgeWin.closed) throw new Error('تبويب الجسر أُغلق قبل بدء المزامنة');
+      if (bridgeWin.closed) throw new Error(L('تبويب الجسر أُغلق قبل بدء المزامنة', 'The Jisr bridge tab was closed before the sync started'));
     }
-    if (!bridgeReady) throw new Error('تبويب الجسر لم يستجب خلال 30 ثانية');
+    if (!bridgeReady) throw new Error(L('تبويب الجسر لم يستجب خلال 30 ثانية', 'The Jisr bridge tab did not respond within 30 seconds'));
   };
   const supaFetch = async (path, opts = {}) => {
     await ensureBridge();
@@ -610,7 +613,7 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
 
   try {
     // ── Mode detection ───────────────────────────────────────────────────
-    if (!location.hostname.endsWith('muqeem.sa')) return msg('افتح مقيم أولاً (muqeem.sa)');
+    if (!location.hostname.endsWith('muqeem.sa')) return msg(L('افتح مقيم أولاً (muqeem.sa)', 'Open Muqeem first (muqeem.sa)'));
 
     const onPicker = /single-sign-on/.test(location.hash) || /single-sign-on/.test(location.pathname);
     const tmpJwt = localStorage.getItem('tmpJwt');
@@ -623,7 +626,7 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
     if (onPicker || canOrchestrate) {
       // ═══ ORCHESTRATOR — sync every establishment ═══
       if (!canOrchestrate) {
-        return msg('❌ ما لقيت جلسة أبشر المؤقتة (tmpJwt). افتح «الدخول الموحد» من أبشر ثم شغّل الأداة على تلك الصفحة.');
+        return msg(L('❌ ما لقيت جلسة أبشر المؤقتة (tmpJwt). افتح «الدخول الموحد» من أبشر ثم شغّل الأداة على تلك الصفحة.', '❌ Absher temporary session (tmpJwt) not found. Open "Unified Login" from Absher, then run the tool on that page.'));
       }
       // No time-window guessing: we mint until Absher actually rejects the temp JWT
       // (401/400 below) — that rejection is the true, accurate "expired" signal.
@@ -635,15 +638,15 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
         return h;
       };
 
-      msg('جلب قائمة المنشآت من الدخول الموحد...');
+      msg(L('جلب قائمة المنشآت من الدخول الموحد...', 'Fetching the establishment list from Unified Login...'));
       let users;
       try {
         // get-users requires tmpJwt in the BODY (validated NotBlank), not just the header.
         const ur = await origFetch(API + '/api/sso/get-users', { method: 'POST', credentials: 'include', headers: ssoHeaders(), body: JSON.stringify({ tmpJwt }) });
-        if (!ur.ok) return msg('❌ فشل جلب المنشآت (HTTP ' + ur.status + '). جرّب إعادة فتح «الدخول الموحد».');
+        if (!ur.ok) return msg(L('❌ فشل جلب المنشآت (HTTP ' + ur.status + '). جرّب إعادة فتح «الدخول الموحد».', '❌ Failed to fetch establishments (HTTP ' + ur.status + '). Try reopening "Unified Login".'));
         users = await ur.json();
-      } catch (e) { return msg('❌ فشل جلب المنشآت: ' + ((e && e.message) || e)); }
-      if (!Array.isArray(users) || !users.length) return msg('❌ لم تُرجع القائمة أي منشأة.');
+      } catch (e) { return msg(L('❌ فشل جلب المنشآت: ', '❌ Failed to fetch establishments: ') + ((e && e.message) || e)); }
+      if (!Array.isArray(users) || !users.length) return msg(L('❌ لم تُرجع القائمة أي منشأة.', '❌ The list returned no establishments.'));
 
       // Master upsert: make sure every establishment has a row (list-only) up front.
       const listRows = users.map(u => ({
@@ -710,7 +713,7 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
               if (jd && jd.id_token) minted.push({ u, moi, userLogin: String(u.userIdentificationNumber || u.username || moi), idToken: jd.id_token, ts: Date.now() });
             }
           } catch (_) { /* network hiccup — skip; org stays pending for next run */ }
-          msg('سكّ رموز المنشآت: ' + minted.length + '/' + pending.length + ' ...');
+          msg(L('سكّ رموز المنشآت: ', 'Minting establishment tokens: ') + minted.length + '/' + pending.length + ' ...');
         }
       };
       await Promise.all(Array.from({ length: MINT_CONC }, mintWorker));
@@ -732,8 +735,8 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
       };
       for (let i = 0; i < minted.length; i++) {
         const m = minted[i];
-        const orgName = m.u.organizationNameAr || m.moi;
-        if (Date.now() - m.ts > REFRESH_AFTER_MS) { msg('(' + (done + 1) + '/' + total + ') ' + orgName + ' — تجديد الرمز...'); await refreshTok(m); }
+        const orgName = (EN && m.u.organizationNameEn) || m.u.organizationNameAr || m.moi;
+        if (Date.now() - m.ts > REFRESH_AFTER_MS) { msg('(' + (done + 1) + '/' + total + ') ' + orgName + L(' — تجديد الرمز...', ' — refreshing token...')); await refreshTok(m); }
 
         // X-Xsrf-Token is injected fresh per request inside syncOrg (cookie rotates).
         const orgHeaders = {
@@ -741,11 +744,11 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
           'Accept-Language': 'ar-ly',
           'Authorization': 'Bearer ' + m.idToken,
         };
-        msg('(' + (done + 1) + '/' + total + ') ' + orgName + ' — مزامنة...');
+        msg('(' + (done + 1) + '/' + total + ') ' + orgName + L(' — مزامنة...', ' — syncing...'));
         try {
           const res = await syncOrg(m.moi, orgHeaders, API, m.userLogin);
           ok++; done++;
-          msg('(' + done + '/' + total + ') ✅ ' + orgName + ' — ' + (res.residentsCount || 0) + ' مقيم');
+          msg('(' + done + '/' + total + ') ✅ ' + orgName + ' — ' + (res.residentsCount || 0) + L(' مقيم', ' residents'));
         } catch (e) {
           failed++;
           msg('(' + (done + 1) + '/' + total + ') ⚠️ ' + orgName + ' — ' + ((e && e.message) || e));
@@ -761,11 +764,11 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
 
       const remaining = total - done;
       if (stoppedForExpiry && remaining > 0) {
-        msg('⏸️ تمّت مزامنة ' + done + '/' + total + '. انتهت نافذة جلسة أبشر — ارجع لأبشر واضغط «الانتقال الى مقيم»، ثم شغّل الأداة من جديد لإكمال الباقي (' + remaining + ' منشأة).');
+        msg(L('⏸️ تمّت مزامنة ' + done + '/' + total + '. انتهت نافذة جلسة أبشر — ارجع لأبشر واضغط «الانتقال الى مقيم»، ثم شغّل الأداة من جديد لإكمال الباقي (' + remaining + ' منشأة).', '⏸️ Synced ' + done + '/' + total + '. The Absher session window ended — go back to Absher, click "Go to Muqeem", then run the tool again to finish the remaining ' + remaining + ' establishments.'));
       } else if (remaining > 0) {
-        msg('✅ ' + done + '/' + total + ' منشأة (نجح ' + ok + '، تعذّر ' + failed + '). أعد التشغيل لإكمال الباقي (' + remaining + ').');
+        msg(L('✅ ' + done + '/' + total + ' منشأة (نجح ' + ok + '، تعذّر ' + failed + '). أعد التشغيل لإكمال الباقي (' + remaining + ').', '✅ ' + done + '/' + total + ' establishments (' + ok + ' succeeded, ' + failed + ' failed). Run again to finish the remaining ' + remaining + '.'));
       } else {
-        msg('✅ اكتملت مزامنة كل المنشآت: ' + total + ' منشأة.');
+        msg(L('✅ اكتملت مزامنة كل المنشآت: ' + total + ' منشأة.', '✅ All establishments synced: ' + total + '.'));
         setTimeout(() => { document.getElementById('_jisr_muqeem_ui')?.remove(); }, 12000);
       }
       return;
@@ -791,13 +794,13 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
       return origFetch.apply(this, arguments);
     };
 
-    msg('بانتظار جلسة مقيم — افتح أي صفحة من القائمة (مثلاً «المقيمين»).');
+    msg(L('بانتظار جلسة مقيم — افتح أي صفحة من القائمة (مثلاً «المقيمين»).', 'Waiting for a Muqeem session — open any page from the menu (e.g. "Residents").'));
     const deadline = Date.now() + 120000;
     while (!captured.token && Date.now() < deadline) {
-      msg('بانتظار جلسة مقيم — افتح أي صفحة من القائمة. ' + Math.ceil((deadline - Date.now()) / 1000) + 'ث');
+      msg(L('بانتظار جلسة مقيم — افتح أي صفحة من القائمة. ', 'Waiting for a Muqeem session — open any page from the menu. ') + Math.ceil((deadline - Date.now()) / 1000) + L('ث', 's'));
       await new Promise(r => setTimeout(r, 500));
     }
-    if (!captured.token) return msg('❌ ما لقيت جلسة مقيم. سجّل دخول ثم أعد المحاولة.');
+    if (!captured.token) return msg(L('❌ ما لقيت جلسة مقيم. سجّل دخول ثم أعد المحاولة.', '❌ No Muqeem session found. Sign in, then try again.'));
 
     const token = captured.token;
     const payload = decodeJwt(token) || {};
@@ -809,14 +812,14 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
     if (captured.xdomain) headers['X-Domain'] = captured.xdomain;
 
     if (!moi) {
-      msg('جلب رقم المنشأة من السياق...');
+      msg(L('جلب رقم المنشأة من السياق...', 'Reading the establishment number from context...'));
       try {
         const r = await origFetch(apiBase + '/api/organization/details', { credentials: 'include', headers });
         if (r.ok) { const det = await r.json().catch(() => null); if (det) moi = det.moiNumber || det.organizationId || det.id || (det.crInfoDTO?.crEntityNumber) || null; }
-        else if (r.status === 401 || r.status === 403) return msg('❌ غير مصرّح (' + r.status + ').');
-      } catch (e) { return msg('❌ فشل الاتصال بـapi مقيم: ' + ((e && e.message) || e)); }
+        else if (r.status === 401 || r.status === 403) return msg(L('❌ غير مصرّح (', '❌ Unauthorized (') + r.status + ').');
+      } catch (e) { return msg(L('❌ فشل الاتصال بـapi مقيم: ', '❌ Could not reach the Muqeem API: ') + ((e && e.message) || e)); }
     }
-    if (!moi) return msg('❌ ما لقيت رقم المنشأة.');
+    if (!moi) return msg(L('❌ ما لقيت رقم المنشأة.', '❌ Establishment number not found.'));
     moi = String(moi);
 
     let runId = null;
@@ -829,7 +832,7 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
       runId = Array.isArray(runArr) ? runArr[0]?.id : runArr?.id;
     } catch (_) {}
 
-    msg('مزامنة المنشأة النشطة...');
+    msg(L('مزامنة المنشأة النشطة...', 'Syncing the active establishment...'));
     const res = await syncOrg(moi, headers, apiBase, payload.operatorId || moi);
 
     if (runId) {
@@ -837,7 +840,7 @@ function body({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' })
         method: 'PATCH', body: JSON.stringify({ status: 'success', completed_at: new Date().toISOString(), records_fetched: res.residentsCount || 0 }),
       });
     }
-    msg('✅ ' + moi + ' — ' + (res.residentsCount || 0) + ' مقيم');
+    msg('✅ ' + moi + ' — ' + (res.residentsCount || 0) + L(' مقيم', ' residents'));
     setTimeout(() => { document.getElementById('_jisr_muqeem_ui')?.remove(); }, 8000);
   } catch (e) {
     msg('❌ ' + (e && e.message ? e.message : String(e)));
@@ -854,6 +857,6 @@ function minify(src) {
     .trim()
 }
 
-export function buildMuqeemBookmarklet({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '' }) {
-  return 'javascript:' + encodeURIComponent(minify(body({ sourceId, personId, proxyBaseUrl, force, resetAt })))
+export function buildMuqeemBookmarklet({ sourceId, personId, proxyBaseUrl, force = false, resetAt = '', lang = 'ar' }) {
+  return 'javascript:' + encodeURIComponent(minify(body({ sourceId, personId, proxyBaseUrl, force, resetAt, lang })))
 }

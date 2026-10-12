@@ -17,9 +17,9 @@
 <body>
   <div class="wrap">
     <div class="dot"></div>
-    <div>جسر مقيم — قناة الحفظ</div>
+    <div id="t">جسر مقيم — قناة الحفظ</div>
     <div id="n">0</div>
-    <small>لا تغلق هذا التبويب حتى تنتهي المزامنة. يستقبل البيانات من صفحة مقيم ويحفظها في قاعدة جسر.</small>
+    <small id="s">لا تغلق هذا التبويب حتى تنتهي المزامنة. يستقبل البيانات من صفحة مقيم ويحفظها في قاعدة جسر.</small>
   </div>
   <script>
   // ── Muqeem sync bridge ───────────────────────────────────────────────
@@ -41,6 +41,18 @@
   //   bridge → opener : {id, status, body}                    (the response)
   const U = 'https://gcvshzutdslmdkwqwteh.supabase.co';
   const K = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdjdnNoenV0ZHNsbWRrd3F3dGVoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4OTkwNjgsImV4cCI6MjA5MDQ3NTA2OH0.5R0I5VvB7lp3wpSrtay3DMcXKsT9l1uK0Ukd1F4_ImM';
+
+  // ?lang=en — the bookmarklet passes the Jisr UI language it was dragged in,
+  // so an English-UI user gets this tab in English too.
+  try {
+    if (new URLSearchParams(location.search).get('lang') === 'en') {
+      document.documentElement.lang = 'en';
+      document.body.style.direction = 'ltr';
+      document.title = 'Jisr · Muqeem bridge';
+      document.getElementById('t').textContent = 'Jisr Muqeem — save channel';
+      document.getElementById('s').textContent = 'Keep this tab open until the sync finishes. It receives data from the Muqeem page and saves it to the Jisr database.';
+    }
+  } catch (_) {}
 
   let served = 0;
   const counter = document.getElementById('n');

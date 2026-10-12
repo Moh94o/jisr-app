@@ -19,7 +19,7 @@
     <div class="dot"></div>
     <div id="t">جسر المزامنة — قناة الحفظ</div>
     <div id="n">0</div>
-    <small>لا تغلق هذا التبويب حتى تنتهي المزامنة. يستقبل البيانات من صفحة المنصة ويحفظها في قاعدة جسر.</small>
+    <small id="s">لا تغلق هذا التبويب حتى تنتهي المزامنة. يستقبل البيانات من صفحة المنصة ويحفظها في قاعدة جسر.</small>
   </div>
   <script>
   // ── Generic sync bridge ──────────────────────────────────────────────
@@ -46,9 +46,23 @@
 
   // Label only — no behaviour depends on it. Set via textContent so a crafted
   // ?p= value can't inject markup.
+  // ?lang=en — the bookmarklet passes the Jisr UI language it was dragged in,
+  // so an English-UI user gets this tab in English too.
   try {
-    const p = new URLSearchParams(location.search).get('p');
-    if (p) { document.getElementById('t').textContent = 'جسر ' + p + ' — قناة الحفظ'; document.title = 'جسر · ' + p; }
+    const q = new URLSearchParams(location.search);
+    const p = q.get('p');
+    const en = q.get('lang') === 'en';
+    if (en) {
+      document.documentElement.lang = 'en';
+      document.body.style.direction = 'ltr';
+      document.title = 'Jisr · Save channel';
+      document.getElementById('t').textContent = 'Jisr sync — save channel';
+      document.getElementById('s').textContent = 'Keep this tab open until the sync finishes. It receives data from the platform page and saves it to the Jisr database.';
+    }
+    if (p) {
+      document.getElementById('t').textContent = en ? ('Jisr ' + p + ' — save channel') : ('جسر ' + p + ' — قناة الحفظ');
+      document.title = (en ? 'Jisr · ' : 'جسر · ') + p;
+    }
   } catch (_) {}
 
   let served = 0;

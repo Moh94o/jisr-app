@@ -23,16 +23,16 @@
 
 import gosiBmSource from '../../public/gosi-bm.js?raw'
 
-function loaderBody({ personId, force = false, resetAt = '' }) {
+function loaderBody({ personId, force = false, resetAt = '', lang = 'ar' }) {
   const p = JSON.stringify(personId || '')
-  // `window._jr_person_id` / `window._jr_force` / `window._jr_reset_at` must be
+  // `window._jr_person_id` / `window._jr_force` / `window._jr_reset_at` / `window._jr_lang` must be
   // set BEFORE gosi-bm.js's IIFE runs, because the IIFE reads them.
-  return `window._jr_person_id=${p};window._jr_force=${force ? 'true' : 'false'};window._jr_reset_at=${JSON.stringify(resetAt || '')};${gosiBmSource}`
+  return `window._jr_person_id=${p};window._jr_force=${force ? 'true' : 'false'};window._jr_reset_at=${JSON.stringify(resetAt || '')};window._jr_lang=${lang === 'en' ? "'en'" : "'ar'"};${gosiBmSource}`
 }
 
-export function buildGosiBookmarklet({ personId, force = false, resetAt = '', origin: _ignoredOrigin }) {
+export function buildGosiBookmarklet({ personId, force = false, resetAt = '', lang = 'ar', origin: _ignoredOrigin }) {
   // `origin` is kept in the signature for backwards-compat with the
   // call-site in SbcFacilities.jsx, but is no longer used — the script
   // is fully inlined so the originating Jisr URL doesn't matter.
-  return 'javascript:' + encodeURIComponent(loaderBody({ personId, force, resetAt }))
+  return 'javascript:' + encodeURIComponent(loaderBody({ personId, force, resetAt, lang }))
 }

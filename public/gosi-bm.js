@@ -15,7 +15,7 @@
 // build is running ("جسر · تأمينات [v17]"). Bump VERSION below whenever
 // you ship a change so users can confirm they re-dragged the bookmarklet.
 ;(async () => {
-  const VERSION = 'v20';
+  const VERSION = 'v21';
   // إصدار الشهادات (download-certificate) هو النداء الوحيد في المزامنة الذي
   // «يُنشئ» شيئاً في التأمينات — كل شهادة تُصدَر تُرسل رسالة نصية لجوال المنشأة
   // (3 شهادات × كل منشأة في كل تشغيلة). موقوف افتراضياً؛ أعِده true لإرجاعه.
@@ -24,6 +24,9 @@
   const K = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdjdnNoenV0ZHNsbWRrd3F3dGVoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4OTkwNjgsImV4cCI6MjA5MDQ3NTA2OH0.5R0I5VvB7lp3wpSrtay3DMcXKsT9l1uK0Ukd1F4_ImM';
   const API = 'https://api.gosi.gov.sa';
   const PERSON = window._jr_person_id || '';
+  // لغة واجهة جسر عند سحب الزر (window._jr_lang) — رسائل الشارة تتبعها.
+  const EN = window._jr_lang === 'en';
+  const L = (a, e) => (EN ? e : a);
   const FALLBACK_APIKEY = 'SXeyWwv5xp2ooRqAn6eFfIikZifz8h9Z';
 
   const msg = (m) => {
@@ -31,10 +34,10 @@
     if (!d) {
       d = document.createElement('div');
       d.id = '_jisr_gosi_ui';
-      d.style.cssText = 'position:fixed;top:16px;left:16px;background:#111;color:#22c55e;padding:12px 18px;border-radius:10px;z-index:2147483647;font:700 13px/1.5 sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.5);max-width:380px;direction:rtl;text-align:right;border:1px solid rgba(34,197,94,.4)';
+      d.style.cssText = 'position:fixed;top:16px;left:16px;background:#111;color:#22c55e;padding:12px 18px;border-radius:10px;z-index:2147483647;font:700 13px/1.5 sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.5);max-width:380px;direction:' + (EN ? 'ltr' : 'rtl') + ';text-align:' + (EN ? 'left' : 'right') + ';border:1px solid rgba(34,197,94,.4)';
       document.body.appendChild(d);
     }
-    d.textContent = 'جسر · تأمينات [' + VERSION + ']: ' + m;
+    d.textContent = L('جسر · تأمينات [', 'Jisr · GOSI [') + VERSION + ']: ' + m;
     return d;
   };
 
@@ -157,13 +160,13 @@
 
   try {
     if (!location.hostname.endsWith('gosi.gov.sa'))
-      return msg('افتح بوابة التأمينات أولاً (ameen.gosi.gov.sa)');
+      return msg(L('افتح بوابة التأمينات أولاً (ameen.gosi.gov.sa)', 'Open the GOSI portal first (ameen.gosi.gov.sa)'));
 
     const stored = probeStorage();
     if (stored) captured = { auth: stored, apikey: FALLBACK_APIKEY };
 
     if (!captured) {
-      msg('جاهز للالتقاط. افتح أي قائمة من اليمين (الفواتير / الموظفين)...');
+      msg(L('جاهز للالتقاط. افتح أي قائمة من اليمين (الفواتير / الموظفين)...', 'Ready to capture. Open any item from the side menu (Bills / Employees)...'));
       // Wait up to 5 minutes. Re-probe storage every 5s.
       for (let i = 0; i < 1500 && !captured; i++) {
         await new Promise(r => setTimeout(r, 200));
@@ -175,22 +178,22 @@
     }
 
     if (!captured || !captured.auth) {
-      return msg('انتهى الوقت بدون التقاط. اضغط البوكماركليت مجدداً، ثم خلال الانتظار افتح "الفواتير" أو "الموظفين" من القائمة.');
+      return msg(L('انتهى الوقت بدون التقاط. اضغط البوكماركليت مجدداً، ثم خلال الانتظار افتح "الفواتير" أو "الموظفين" من القائمة.', 'Timed out without capturing a session. Click the bookmarklet again, then while it waits open "Bills" or "Employees" from the menu.'));
     }
 
     // Decode JWT and extract gosiscp[].e
     const parts = captured.auth.replace(/^Bearer\s+/i, '').split('.');
-    if (parts.length < 2) return msg('التوكن غير صالح.');
+    if (parts.length < 2) return msg(L('التوكن غير صالح.', 'The token is not valid.'));
     let claims = null;
     try { claims = JSON.parse(atob(pad64(parts[1].replace(/-/g, '+').replace(/_/g, '/')))); }
-    catch (_) { return msg('فشل فك التوكن.'); }
+    catch (_) { return msg(L('فشل فك التوكن.', 'Failed to decode the token.')); }
     let scp = [];
     try { scp = typeof claims.gosiscp === 'string' ? JSON.parse(claims.gosiscp) : (claims.gosiscp || []); }
     catch (_) { scp = []; }
     let regNos = Array.from(new Set((scp || []).map(x => x && x.e).filter(Boolean)));
-    if (!regNos.length) return msg('لا توجد منشآت في التوكن.');
+    if (!regNos.length) return msg(L('لا توجد منشآت في التوكن.', 'No establishments found in the token.'));
 
-    msg('جلب بيانات ' + regNos.length + ' منشأة من التأمينات...');
+    msg(L('جلب بيانات ' + regNos.length + ' منشأة من التأمينات...', 'Fetching data for ' + regNos.length + ' establishments from GOSI...'));
 
     // Resume: skip establishments synced within the last 2 hours, so a run
     // interrupted by leaving the portal continues where it left off instead of
@@ -215,8 +218,8 @@
       }
     } catch (e) {}
     const grandTotal = regNos.length + skippedRecent;
-    if (skippedRecent) msg('استئناف: مكتمل سابقاً ' + skippedRecent + '/' + grandTotal + ' — إكمال الباقي');
-    if (!regNos.length) return msg('✅ الكل مُزامَن خلال آخر ساعتين (' + skippedRecent + ')');
+    if (skippedRecent) msg(L('استئناف: مكتمل سابقاً ' + skippedRecent + '/' + grandTotal + ' — إكمال الباقي', 'Resuming: ' + skippedRecent + '/' + grandTotal + ' already done — finishing the rest'));
+    if (!regNos.length) return msg(L('✅ الكل مُزامَن خلال آخر ساعتين (', '✅ Everything was synced within the last 2 hours (') + skippedRecent + ')');
 
     const CONC = 4;
     let ok = 0, fail = 0;
@@ -1047,15 +1050,15 @@
           }).catch(() => {});
         }
 
-        if (i % 5 === 0) msg('جارٍ... ' + (skippedRecent + ok + fail) + '/' + grandTotal + ' (نجاح ' + ok + ')');
+        if (i % 5 === 0) msg(L('جارٍ... ', 'Working... ') + (skippedRecent + ok + fail) + '/' + grandTotal + L(' (نجاح ', ' (ok ') + ok + ')');
       }
     };
     await Promise.all(Array.from({ length: CONC }, worker));
     // Drain whatever is left in the debug buffer (the last partial batch).
     await flushDebug(true);
 
-    msg('✅ تمت مزامنة ' + (skippedRecent + ok) + '/' + grandTotal + ' منشأة' + (fail ? ' (فشل ' + fail + ')' : '') + (skippedRecent ? ' · سابقاً ' + skippedRecent : '')
-      + ' · مشتركون ' + contribRowsOk + (contribRowsFail ? (' (فشل حفظ ' + contribRowsFail + ')') : ''));
+    msg(L('✅ تمت مزامنة ', '✅ Synced ') + (skippedRecent + ok) + '/' + grandTotal + L(' منشأة', ' establishments') + (fail ? L(' (فشل ', ' (failed ') + fail + ')' : '') + (skippedRecent ? L(' · سابقاً ', ' · earlier ') + skippedRecent : '')
+      + L(' · مشتركون ', ' · contributors ') + contribRowsOk + (contribRowsFail ? (L(' (فشل حفظ ', ' (save failed ') + contribRowsFail + ')') : ''));
     setTimeout(() => { const el = document.getElementById('_jisr_gosi_ui'); if (el) el.remove(); }, 20000);
   } catch (e) {
     msg('❌ ' + (e && e.message ? e.message : String(e)));
