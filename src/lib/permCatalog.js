@@ -217,7 +217,12 @@ export const MODULE_META = {
 // a visibility toggle PLUS a toggle per action so the GM can grant edit but
 // exclude it on a specific card. Card lists are verified against the real
 // detail page of each tab (a card listed here actually renders there).
-const ca = (action, label_ar, kind = 'special') => ({ action, label_ar, kind })
+/* `optIn` على الفعل (كما على البطاقة): **مقفلٌ افتراضياً** — الغياب = ممنوع، ولا
+   يُمنح إلا بفتح مبدّله صراحةً (`cardact:…=true`). المحرّر يعرضه بـ`=== true`. */
+const ca = (action, label_ar, kind = 'special', optIn = false) => ({ action, label_ar, kind, optIn })
+/* هل هذا الفعل من نوع «منحٌ صريح»؟ يستشيره المحرّر عند العرض والتبديل */
+export const cardActOptIn = (tabId, key, action) =>
+  !!(((TAB_CARDS[tabId] || []).find((c) => c.key === key) || {}).actions || []).find((a) => a.action === action && a.optIn)
 /* `optIn` — بطاقةٌ **محجوبة افتراضياً**: لا تُرى إلا بمنحٍ صريح (`card:…=true`)
    من «الأدوار والصلاحيات»، خلافاً للنموذج العام (ظاهرة ما لم تُستثنَ). قرار
    المستخدم 2026-09-02: كل ما يُبنى جديداً يُقفل حتى يُفتح من البرنامج. */
@@ -245,6 +250,12 @@ const OPS_SHEET_ACTS = [
   ca('snapshot', 'لقطات الأسبوع'),
   ca('rename', 'التسمية'),
 ]
+/* أفعالٌ تخصّ جدولاً بعينه فلا تُعرض على سواه. «زرّ سداد» في «المنشآت الرئيسية»
+   (`view.sadadNew` في OpsExcelsPage — 2026-10-07): مقفلٌ افتراضياً (optIn)، ويحرسه
+   `opsSheetStrict(user, 'companies', 'sadad_msg')`. واجهةٌ فقط — لا مرآة له في القاعدة. */
+const OPS_SHEET_EXTRA_ACTS = {
+  companies: [ca('sadad_msg', 'زرّ «سداد» — رسالة سداد السجلات', 'special', true)],
+}
 /* قائمة الجداول = مفاتيح `VIEWS` في OpsExcelsPage بترتيبها ومجموعاتها.
    ⚠️ عند إضافة جدول هناك أضف سطره هنا وإلا لم يظهر في تبويب الصلاحيات.
    ⚠️ والتسمية هنا يجب أن تطابق **الاسم المعروض** (بما فيه ما أُعيدت تسميته في
@@ -387,7 +398,8 @@ export const TAB_CARDS = {
      القائمة — وكل خاصيّة داخله زرٌّ يُستثنى وحده. مفاتيح البطاقات هي `view_key`
      نفسها في `OpsExcelsPage.VIEWS`، فأي جدول جديد يُضاف هناك يُضاف سطره هنا.
      الجداول المخصّصة (`custom_*`) لا تُدرَج — تُنشأ وقت التشغيل. */
-  ops_excels: OPS_SHEETS.map(([k, ar, grp, optIn]) => C(k, ar, grp, OPS_SHEET_ACTS, !!optIn)),
+  ops_excels: OPS_SHEETS.map(([k, ar, grp, optIn]) => C(k, ar, grp,
+    OPS_SHEET_EXTRA_ACTS[k] ? [...OPS_SHEET_ACTS, ...OPS_SHEET_EXTRA_ACTS[k]] : OPS_SHEET_ACTS, !!optIn)),
   sync_log: [C('sync_activities_feed', 'أنشطة المزامنة')],
   admin_clients: [
     C('client_info', 'بيانات العميل', 'core', EDIT), C('invoices_log', 'سجل الفواتير'),

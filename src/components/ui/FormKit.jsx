@@ -23,7 +23,7 @@ import React, { useState, useEffect, useRef, useId, useContext, createContext } 
 import ReactDOM from 'react-dom'
 import { useBackHandler } from '../../lib/mobileBack'
 import { useIsMobile } from '../mobile/MobileKit.jsx'
-import { X, ChevronDown, ChevronLeft, ChevronRight, Check, Search, Save, Calendar as CalIcon, Clock as ClockIcon, Minus, Plus, Upload, Paperclip, AlertTriangle, Info, Trash2, Copy, Circle, CheckCircle2 } from 'lucide-react'
+import { X, ChevronDown, ChevronLeft, ChevronRight, Check, Search, Save, Calendar as CalIcon, Clock as ClockIcon, Minus, Plus, Upload, Paperclip, FileText, Image as ImageIcon, AlertTriangle, Info, Trash2, Copy, Circle, CheckCircle2 } from 'lucide-react'
 
 /* ═══════════════════════════════ التوكنز ═══════════════════════════════ */
 
@@ -657,6 +657,10 @@ export const FileField = ({ label, req, error, hint, value, onChange, accept = '
   }
   const removeAt = i => onChange(multiple ? files.filter((_, idx) => idx !== i) : null)
   const showDrop = multiple || files.length === 0
+  // الكرت المفرد: اتجاهه، وامتداد الملف (شارة)، وأيقونة بحسب نوعه.
+  const row = !!(compact || dropHeight)
+  const oneExt = !multiple && files[0] ? ((/\.([a-z0-9]{1,5})$/i.exec(files[0].name || '') || [])[1] || '').toUpperCase() : ''
+  const OneIcon = !multiple && files[0] && (/^image\//.test(files[0].type || '') || /^(PNG|JPE?G|WEBP|GIF|HEIC)$/.test(oneExt)) ? ImageIcon : FileText
   return (
     <Field label={label} req={req} error={error} hint={hint} full={full} style={grow ? { flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' } : undefined}>
       {showDrop && (
@@ -665,7 +669,9 @@ export const FileField = ({ label, req, error, hint, value, onChange, accept = '
           onDragOver={e => { e.preventDefault(); e.stopPropagation(); if (!drag) setDrag(true) }}
           onDragLeave={e => { e.preventDefault(); e.stopPropagation(); if (e.currentTarget.contains(e.relatedTarget)) return; setDrag(false) }}
           onDrop={e => { e.preventDefault(); e.stopPropagation(); setDrag(false); add(e.dataTransfer.files) }}
-          style={{ display: 'flex', flexDirection: compact ? 'row' : 'column', alignItems: 'center', justifyContent: 'center', gap: 8, ...(dropHeight ? { height: dropHeight } : (grow && !compact ? { flex: 1, minHeight: 96 } : { minHeight: compact ? 44 : 96 })), padding: compact ? '8px 14px' : (dropHeight ? '8px 16px' : '16px'), borderRadius: 10, border: `1.5px dashed ${drag ? ac : (error ? C.red : ac + '59')}`, background: drag ? ac + '1a' : C.inputBg, cursor: 'pointer', transition: '.18s', transform: drag ? 'scale(1.01)' : 'scale(1)' }}>
+          /* `grow` مع `compact`: يتمدّد ليملأ ما بقي من النافذة لكن من حدٍّ أدنى صغير (44) —
+             لنافذةٍ ثابتة الارتفاع تتبدّل حقولُها، فيمتصّ هو الفرق بلا فراغ. */
+          style={{ display: 'flex', flexDirection: compact ? 'row' : 'column', alignItems: 'center', justifyContent: 'center', gap: 8, ...(dropHeight ? { height: dropHeight } : (grow ? { flex: 1, minHeight: compact ? 44 : 96 } : { minHeight: compact ? 44 : 96 })), padding: compact ? '8px 14px' : (dropHeight ? '8px 16px' : '16px'), borderRadius: 10, border: `1.5px dashed ${drag ? ac : (error ? C.red : ac + '59')}`, background: drag ? ac + '1a' : C.inputBg, cursor: 'pointer', transition: '.18s', transform: drag ? 'scale(1.01)' : 'scale(1)' }}>
           <Upload size={compact ? 18 : 22} color={ac} strokeWidth={2} />
           <div style={{ fontSize: compact ? 12 : 13, fontWeight: 600, color: C.tx2 }}>{drag ? (multiple ? T('أفلت الملفات هنا', 'Drop the files here') : T('أفلت الملف هنا', 'Drop the file here')) : (multiple ? T('اسحب ملفات أو اضغط للإرفاق', 'Drag files or click to attach') : T('اسحب ملف هنا أو اضغط للإرفاق', 'Drag a file here or click to attach'))}</div>
           <input id={inputId} type="file" accept={accept} multiple={multiple} onChange={e => { add(e.target.files); e.target.value = '' }} style={{ display: 'none' }} />
@@ -687,15 +693,24 @@ export const FileField = ({ label, req, error, hint, value, onChange, accept = '
           </div>
         ) : (
           // عرض مفرد — يأخذ نفس مساحة كرت الإرفاق (نفس الارتفاع والحشو والشكل) فلا يقفز الحجم عند الإرفاق.
-          <div style={{ position: 'relative', display: 'flex', flexDirection: (compact || dropHeight) ? 'row' : 'column', alignItems: 'center', justifyContent: 'center', gap: (compact || dropHeight) ? 10 : 8, ...(grow && !compact && !dropHeight ? { flex: 1, minHeight: 96 } : { height: compact ? 44 : (dropHeight || 96) }), padding: compact ? '8px 14px' : (dropHeight ? '8px 14px' : '16px'), borderRadius: 10, border: `1px solid ${C.ok}40`, background: `${C.ok}0d` }}>
-            <Paperclip size={compact ? 16 : 22} color={C.ok} strokeWidth={2} style={{ flexShrink: 0 }} />
-            <div style={{ minWidth: 0, maxWidth: '100%', flex: compact ? 1 : 'none', textAlign: compact ? 'start' : 'center' }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: C.tx, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', direction: 'ltr' }}>{files[0].name}</div>
-              <div style={{ fontSize: 11, fontWeight: 500, color: C.tx4, marginTop: compact ? 0 : 2 }}>{fmtSize(files[0].size)}</div>
+          // أفقي (compact/dropHeight): بلاطة أيقونة بنوع الملف ← الاسم وتحته شارة الامتداد والحجم ← زر الإزالة.
+          // البلاطة تتناسب مع ارتفاع الكرت (cqh) فلا تبدو ضئيلة حين يتمدّد الكرت بـ`grow`.
+          <div style={{ position: 'relative', display: 'flex', flexDirection: row ? 'row' : 'column', alignItems: 'center', justifyContent: 'center', gap: row ? 10 : 5, ...(grow && !dropHeight ? { flex: 1, minHeight: compact ? 44 : 96 } : { height: compact ? 44 : (dropHeight || 96) }), padding: compact ? '6px 8px' : (dropHeight ? '8px 10px' : '10px 16px'), borderRadius: 10, border: `1px solid ${C.ok}40`, background: `${C.ok}0d`, ...(row ? { containerType: 'size' } : null),
+            /* كرتٌ ممتدّ (`grow`): الصفّ يُرصّ أعلاه لا في وسطه، وعناصره تبقى متوسّطةً فيما بينها. */
+            ...(row && grow ? { flexWrap: 'wrap', alignContent: 'flex-start' } : null) }}>
+            <div style={{ width: row ? 'clamp(30px, 50cqh, 46px)' : 30, height: row ? 'clamp(30px, 50cqh, 46px)' : 30, borderRadius: '28%', background: `${C.ok}1f`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <OneIcon color={C.ok} strokeWidth={2} style={{ width: '52%', height: '52%' }} />
             </div>
-            <button type="button" onClick={() => removeAt(0)}
-              style={{ ...(compact ? { position: 'static' } : { position: 'absolute', top: 8, insetInlineEnd: 8 }), width: 26, height: 26, borderRadius: 7, border: 'none', background: 'rgba(192,57,43,.15)', color: C.red, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <X size={13} />
+            <div style={{ minWidth: 0, maxWidth: '100%', flex: row ? 1 : 'none', display: 'flex', flexDirection: 'column', alignItems: row ? 'flex-start' : 'center', gap: 1 }}>
+              <div title={files[0].name} style={{ maxWidth: '100%', fontSize: 13, fontWeight: 600, lineHeight: 1.5, color: C.tx, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', direction: 'ltr' }}>{files[0].name}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 500, lineHeight: 1.4, color: C.tx4 }}>
+                {oneExt && <span style={{ padding: '0 6px', borderRadius: 5, background: `${C.ok}1f`, color: C.ok, fontSize: 10, fontWeight: 600, letterSpacing: .3, direction: 'ltr' }}>{oneExt}</span>}
+                {Number.isFinite(files[0].size) && <span dir="ltr">{fmtSize(files[0].size)}</span>}
+              </div>
+            </div>
+            <button type="button" onClick={() => removeAt(0)} title={T('إزالة الملف', 'Remove file')}
+              style={{ ...(row ? { position: 'static' } : { position: 'absolute', top: 8, insetInlineEnd: 8 }), width: 28, height: 28, borderRadius: 8, border: 'none', background: 'rgba(192,57,43,.1)', color: C.red, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <X size={14} />
             </button>
           </div>
         )

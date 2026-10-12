@@ -2797,8 +2797,9 @@ const av = (r, k) => String((r && r._ops && r._ops[k] != null && r._ops[k] !== '
 const ev = (r, k, pend) => (pend && Object.prototype.hasOwnProperty.call(pend, k)) ? String(pend[k] ?? '').trim() : av(r, k)
 /* الحقول الإجبارية لكل زر — تُعرَض في التلميح عند نقصها */
 const bmkMissing = (r, fields) => {
-  const gone = fields.filter(([k]) => !av(r, k)).map(([, ar]) => ar)
-  return gone.length ? 'ينقص: ' + gone.join('، ') : ''
+  const isAr = uiIsAr()
+  const gone = fields.filter(([k]) => !av(r, k)).map(([, ar, en]) => (isAr ? ar : (en || ar)))
+  return gone.length ? (isAr ? 'ينقص: ' + gone.join('، ') : 'Missing: ' + gone.join(', ')) : ''
 }
 
 /* ── «السعودة-إدخال»: جداول مرجعية للاشتقاق ─────────────────────────────────
@@ -5068,6 +5069,7 @@ const OPT_EN = {
   'تحويل مؤسسة لشركة': 'Convert establishment to company',
   'قيد سجل شركة': 'Company CR registration', 'تجديد سجل شركة': 'Company CR renewal',
   'رخصة البلدية': 'Municipality license', 'شهادة السلامة': 'Safety certificate',
+  'مستخرج السجل التجاري': 'CR extract', 'تفويض قوى': 'Qiwa authorization', 'الزكاة': 'Zakat',
 }
 /* ── اسم الخدمة بالإنجليزية — عرضاً وحده (طلب المستخدم 2026-10-01) ────────────
    عمود `service_ar` في كل الشيتات يحمل `lookup_items.value_ar`؛ والواجهة
@@ -5675,9 +5677,20 @@ const srMuqeem = (d, isAr) => {
 /* أغراض «لم تُحدَّد بعد» — سدادات السجلات التجارية. قائمة مستقلة لأن أغراض
    المكاتب (إقامة/نقل كفالة/…) لا تقع فيها أصلاً، وخلطهما يجعل القائمة ركاماً. */
 // مرتَّبة على تسلسل دورة السجل لا على الحروف: اسم ← مؤسسة ← تحويل ← شركة
+/* «مستخرج السجل التجاري» (2026-10-07): يُطلب من زرّ «سداد» في «المنشآت ← الرئيسية»
+   (`COMP_SADAD_SERVICES`) — له مرجعٌ باسمه كي لا يُكتب نصّاً حرّاً في موضعين. */
+const SD_CR_EXTRACT = 'مستخرج السجل التجاري'
+/* وأربعُ خدماتٍ للمنشأة تُطلب من الزرّ نفسه (طلب المستخدم 2026-10-07): اشتراك قوى
+   واشتراك مقيم غرضان قائمان في أغراض المكاتب (ولهما مفوترهما في `SD_BILLERS`)
+   فيُدرَجان هنا أيضاً — الطلب من ذلك الزرّ بلا مكتب، فقائمتُه هذه القائمة — و«تفويض
+   قوى» و«الزكاة» جديدان. (الغرض المشترك بين القائمتين سعرُه واحد — المفتاح اسمه.) */
+const SD_QIWA_DELEGATE = 'تفويض قوى'
+const SD_ZAKAT = 'الزكاة'
 const SD_NA_PURPOSES = [
   'حجز اسم تجاري', 'قيد سجل مؤسسة', 'تجديد سجل مؤسسة', 'تحويل مؤسسة لشركة',
-  'قيد سجل شركة', 'تجديد سجل شركة', 'رخصة البلدية', 'شهادة السلامة', 'أخرى',
+  'قيد سجل شركة', 'تجديد سجل شركة', SD_CR_EXTRACT,
+  'اشتراك قوى', SD_QIWA_DELEGATE, 'اشتراك مقيم', SD_ZAKAT,
+  'رخصة البلدية', 'شهادة السلامة', 'أخرى',
 ]
 /* أسماءٌ قديمة في حركات الدفتر المستورَدة: لم تعد تُنتقى في الطلبات (فُصِّلت إلى
    إصدارٍ وتمديد)، لكنها باقية على ١٢٦ حركة — فتبقى في قائمة الدفتر وإلا بدت
@@ -6116,6 +6129,95 @@ const srWfOf = (d, k) => {
 }
 // حقلٌ من الفاتورة أولاً ثم من بيانات العامل — للحقول المشتركة بينهما
 const srInvWf = (r, invKey, wfKey) => srInv(r, invKey) || srWfOf(r && r._ops, wfKey)
+/* نوع الطلب المشتقّ (عمود `sr_method`): الصفّ الجاهز الفارغ بلا نوع، والحوالةُ تُعرف من
+   ملاحظاتها — `srAddByRef` كان يكتبها هناك («حوالة بنكية — البنك: …») قبل أن يوجد العمود. */
+const srMethodOf = (o) => {
+  if (!o || !Object.keys(o).length) return ''
+  return String(o.sr_notes || '').trim().startsWith(MSG_WIRE) ? MSG_WIRE : MSG_SADAD
+}
+// عرضٌ إنجليزي للقيمتين (المخزَّن عربيٌّ دائماً) — `null` في العربية = كما هي
+const srMethodEn = (v, isAr) => (isAr !== false ? null
+  : (String(v ?? '').trim() === MSG_WIRE ? 'Bank transfer' : String(v ?? '').trim() === MSG_SADAD ? 'SADAD' : null))
+/* بطاقة العامل لصفّ طلب سداد (نظيرة `srInvInfoCard`/`srFacInfoCard` — طلب المستخدم
+   2026-10-07): نفس بطاقة نقل الكفالات وتجديد الإقامات (`workerInfoCard`). الصفّ هنا
+   لا يحمل من العامل إلا اسمه ورقمه، وفهرس التحميل كذلك (أعمدتُه قليلةٌ عمداً) —
+   فتُفتح البطاقة فوراً بهما ثم تستكمل نفسها بجلبةٍ عند الضغط (`info.load`).
+   والرقم في هذا العمود **إقامةٌ أو رقم حدود** (من لم تصدر إقامته بعد يُعرَّف بحدوده،
+   وكذلك تأشيرةٌ لم يُربط بها عامل)، فالبطاقة ثلاثُ أحوال (طلب المستخدم 2026-10-07):
+     · رقم حدودٍ بلا عامل ⇒ **بيانات التأشيرة** وحدها (`visaInfoCard`).
+     · رقم حدودٍ مربوطٌ به عامل ⇒ بيانات العامل **ثم** بيانات التأشيرة في بطاقةٍ واحدة.
+     · رقم إقامة ⇒ بطاقة العامل، ومعها تأشيرته إن كان له رقم حدودٍ مسجَّلةٌ تأشيرتُه.
+   العامل من «البيانات الأساسية» (بالإقامة أو بالحدود)، والتأشيرة من عرض تأشيرات
+   العمل برقم الحدود. والنتيجة تُحفظ للجلسة فلا يُستجوَب السجل مع كل ضغطة. */
+const SR_WK_CARD = new Map()   // `الرقم|حدود الفاتورة` → { w, vs }
+const SR_WK_SEL = SDE_WK_SEL + ',border_number'
+const SR_VISA_SEL = 'invoice_no,visa_number,border_number,nationality_ar,occupation_ar,embassy_ar,gender,visa_file_path,worker_name'
+const srDg = (x) => String(x ?? '').replace(/\D/g, '')
+const srIqamaOf = (r) => srDg(((r || {})._ops || {}).sr_iqama || srInv(r, 'worker_iqama'))
+const srWorkerTapIf = (r) => !!srIqamaOf(r)
+const srWorkerInfoCard = (r) => {
+  const num = srIqamaOf(r)
+  if (!num) return null
+  const bno = srDg(srInv(r, 'worker_border'))
+  const inv = String(((r || {})._ops || {}).sr_invoice ?? '').trim()
+  const name = String(srInvWf(r, 'worker_name', 'name') || '').trim()
+  const build = (hit) => {
+    const w = (hit && hit.w) || null
+    /* التأشيرة المقصودة: حدودُ العامل نفسه، وإلا حدودُ الفاتورة، وإلا الرقم المكتوب.
+       ورقم حدودٍ تكرّر في أكثر من تأشيرة ⇒ تأشيرةُ فاتورة هذا الصفّ أولى. */
+    const want = srDg(w && w.border_number) || bno || num
+    const vs = ((hit && hit.vs) || []).filter((x) => srDg(x.border_number) === want)
+    const v = vs.find((x) => String(x.invoice_no || '').trim() === inv) || vs[0] || null
+    const vc = v ? visaInfoCard(v) : null
+    const vRows = vc ? vc.rows.filter((x) => String(x.v ?? '').trim()) : []
+    // الحدود تُذكر مرّة: في قسم التأشيرة إن وُجد، وإلا في أسطر العامل
+    const wc = w ? workerInfoCard({ ...w, worker_name: w.worker_name || name, ...(vc ? { border_number: '' } : {}) }) : null
+    if (wc && vc) {
+      return { ...wc,
+        rows: [{ head: true, ar: 'بيانات العامل', en: 'Worker details' }, ...wc.rows,
+          { head: true, ar: 'بيانات التأشيرة', en: 'Visa details' }, ...vRows],
+        linkUrl: vc.linkUrl, linkAr: vc.linkAr, linkEn: vc.linkEn }
+    }
+    if (wc) return wc
+    const who = String((w && w.worker_name) || (v && v.worker_name) || name || '').trim()
+    const hero = who ? { hero: who, heroAr: 'العامل', heroEn: 'Worker' } : {}
+    if (vc) return { ...vc, rows: vRows, ...hero }
+    // لا عامل ولا تأشيرة (أو لم يصل الجلب بعد): ما في الصفّ وحده، مسمّىً باسمه الصحيح
+    if (bno && bno === num) {
+      return { ar: 'بيانات التأشيرة', en: 'Visa details', ...hero,
+        rows: [{ ar: 'رقم الحدود', en: 'Border no.', v: num, mono: true }] }
+    }
+    return workerInfoCard({ worker_name: name, iqama_number: num })
+  }
+  const key = `${num}|${bno}`
+  if (SR_WK_CARD.has(key)) return build(SR_WK_CARD.get(key))
+  const info = build(null)
+  return info && {
+    ...info,
+    load: async (sb) => {
+      const first = [...new Set([num, bno].filter(Boolean))]
+      const [wq, vq] = await Promise.all([
+        sb.from('v_ops_workers_registry').select(SR_WK_SEL).or(`iqama_number.eq.${num},border_number.eq.${num}`).limit(5),
+        sb.from('v_ops_work_visas').select(SR_VISA_SEL).in('border_number', first).limit(20),
+      ])
+      if (wq.error || vq.error) return null
+      const ws = wq.data || []
+      const w0 = ws.find((x) => srDg(x.iqama_number) === num) || ws[0] || null
+      const w = w0 ? sdeWkRec(w0) : null
+      let vs = vq.data || []
+      // عاملٌ عُرف بإقامته وحدودُه غير ما سُئل عنه: تأشيرتُه تُجلب بحدوده هو
+      const wb = srDg(w && w.border_number)
+      if (wb && !first.includes(wb)) {
+        const more = await sb.from('v_ops_work_visas').select(SR_VISA_SEL).eq('border_number', wb).limit(20)
+        if (more.error) return null
+        vs = more.data || []
+      }
+      const hit = { w, vs }
+      SR_WK_CARD.set(key, hit)
+      return build(hit)
+    },
+  }
+}
 /* حساب السداد لم يعد عموداً يُدخَل: طلبُ مكتبٍ يُصرف من حساب **فرع فاتورته**،
    فالفرع يفوز. والمخزَّن لا يُقرأ إلا حين لا فاتورة: طلبات السجلات مختومة بـ`NA`،
    وطلباتٌ قديمة تحمل ختم التبويب الذي أُدخلت فيه (JUB1 مثلاً) وهو ليس حساباً في
@@ -10344,6 +10446,113 @@ async function msgRefRegister(sb, snap, uid) {
   if (error) throw error
   return ref
 }
+/* ══ زرّ «سداد» في «المنشآت ← الرئيسية» (`view.sadadNew` — طلب المستخدم 2026-10-07) ══
+   سداداتُ السجلات تقع **قبل** أن توجد المنشأة (حجز اسم · فتح سجل) أو بلا صفٍّ
+   يخصّها، فلا عمودَ رسالةٍ يحملها كشيتات المعاملات — زرٌّ في شريط الشيت يفتح
+   نافذة «رسالة السداد» نفسها: نوع الخدمة ← رقم السداد ← مبلغ السداد، و«نسخ
+   الواتساب» يسجّل الرسالة برقمٍ مرجعي (`msgRefRegister`) فيستدعيها مسؤول السداد
+   من «＋ إضافة سداد» في «طلبات السداد» (`srAddByRef`) كأيّ رسالةٍ أخرى.
+   · `purpose`: غرضُ الخدمة في «طلبات السداد» — اسمُ القائمة هناك لا يُكرَّر باسمٍ
+     ثانٍ («تمديد سجل» = «تجديد سجل»، وحجزُ الاسم غرضٌ واحد بلغتَيه). وعنوانُ الرسالة
+     يبقى اسمَ الخدمة كما اختيرت، ويصحب الطلبَ في ملاحظاته متى خالف اسمَ الغرض.
+   · المصدر (`src`) يحمل **رقم السداد**: لا صفَّ يُعرَّف به الطلب، ورقمُ السداد هو
+     هويّتُه — نفس الرقم تصحيحٌ للطلب نفسه، ورقمٌ آخر طلبٌ مستقلّ (قاعدة `srAddByRef`).
+   · `branch: SD_NA`: طلبُ سجلٍّ لا مكتبَ له يُصرف منه ساعةَ يُطلَب. */
+/* لمن السداد (طلب المستخدم 2026-10-07):
+   · `person` — حجز الاسم التجاري يُسجَّل باسم **شخص**: قائمةُ الأشخاص (أصحاب الحسابات في
+     `sync_persons` — `COMP_REF.persons`) ثم «أخرى» يُكتب معها الاسم الكامل لمن ليس فيها.
+   · `fac` — من «تمديد سجل تجاري لمؤسسة» فما تحته: المنشأة **قائمة**، فتُحدَّد ببحثٍ بأحد
+     أرقامها الثلاثة (الموحّد · التأمينات · الموارد) من فهرس الأرقام (`FAC_NUM`).
+   وقيد السجل بينهما بلا هذا ولا ذاك: المنشأة لم توجد بعد. */
+const COMP_SADAD_OTHER = 'أخرى'
+const COMP_SADAD_SERVICES = [
+  { ar: 'حجز اسم تجاري عربي', en: 'Trade-name reservation (Arabic)', purpose: 'حجز اسم تجاري', person: true },
+  { ar: 'حجز اسم تجاري إنجليزي', en: 'Trade-name reservation (English)', purpose: 'حجز اسم تجاري', person: true },
+  // «قيد» لا «فتح» (طلب المستخدم 2026-10-07) — الكلمة نفسها في أغراض «طلبات السداد»
+  { ar: 'قيد سجل تجاري مؤسسة', en: 'Establishment CR registration', purpose: 'قيد سجل مؤسسة' },
+  { ar: 'قيد سجل تجاري شركة', en: 'Company CR registration', purpose: 'قيد سجل شركة' },
+  // التمديد = غرض «تجديد سجل …» القائم في «طلبات السداد»؛ اسمُ الخدمة يصحب الطلب في ملاحظاته
+  { ar: 'تمديد سجل تجاري لمؤسسة', en: 'Establishment CR extension', purpose: 'تجديد سجل مؤسسة', fac: true },
+  { ar: 'تمديد سجل تجاري لشركة', en: 'Company CR extension', purpose: 'تجديد سجل شركة', fac: true },
+  { ar: SD_CR_EXTRACT, en: 'CR extract', purpose: SD_CR_EXTRACT, fac: true },
+  { ar: 'اشتراك قوى', en: 'Qiwa subscription', purpose: 'اشتراك قوى', fac: true },
+  /* تفويض قوى: المنشأة **و**الشخص المفوَّض (طلب المستخدم 2026-10-07) — نفس قائمة الأشخاص.
+     `delegate`: الشخص هنا مفوَّضٌ لا صاحبُ اسمٍ تجاري، فيذهب لملاحظات الطلب لا لـ«اسم السعودي». */
+  { ar: SD_QIWA_DELEGATE, en: 'Qiwa authorization', purpose: SD_QIWA_DELEGATE, fac: true, person: true, delegate: true },
+  { ar: 'اشتراك مقيم', en: 'Muqeem subscription', purpose: 'اشتراك مقيم', fac: true },
+  { ar: SD_ZAKAT, en: 'Zakat', purpose: SD_ZAKAT, fac: true },
+  /* رخصة بلدي وشهادة السلامة (طلب المستخدم 2026-10-07): غرضاهما قائمان في «طلبات السداد»
+     («رخصة البلدية» · «شهادة السلامة») ومنشأتُهما قائمة. الإصدار والتجديد غرضٌ واحد
+     هناك — واسمُ الخدمة يصحب الطلب في ملاحظاته فيُعرف أيُّهما. */
+  { ar: 'إصدار رخصة بلدي', en: 'Balady license issuance', purpose: 'رخصة البلدية', fac: true },
+  { ar: 'تجديد رخصة بلدي', en: 'Balady license renewal', purpose: 'رخصة البلدية', fac: true },
+  { ar: 'شهادة السلامة', en: 'Safety certificate', purpose: 'شهادة السلامة', fac: true },
+]
+const compSadadSvc = (v) => COMP_SADAD_SERVICES.find((s) => s.ar === v) || null
+// عنوانُ خانة الشخص وسطرِه في الرسالة: «الشخص المفوَّض» في تفويض قوى، و«اسم الشخص» في حجز الاسم
+const compSadadPersonLbl = (svc) => (svc && svc.delegate
+  ? { ar: 'الشخص المفوَّض', en: 'Authorized person' } : { ar: 'اسم الشخص', en: 'Person name' })
+// اسمُ الشخص الفعّال: المختار من القائمة، أو المكتوب متى اختيرت «أخرى»
+const compSadadPerson = (vals) => {
+  const p = String((vals || {}).person || '').trim()
+  return p === COMP_SADAD_OTHER ? String((vals || {}).personName || '').trim().replace(/\s+/g, ' ') : p
+}
+// المفوتر كما في رسائل المحرّك: رقمُه إن كان، وإلا اسمُ جهته — ومن لا مفوترَ معروفاً له يسقط سطرُه
+const compSadadBiller = (svc) => { const b = (svc && SD_BILLERS[svc.purpose]) || []; return b[0] || b[1] || '' }
+// عناصرُ الرسالة بشكل عناصر المحرّك — فيبنيها `msgCompose` ويفحصها `msgMiss` كما هي
+const compSadadItems = (vals) => {
+  const svc = compSadadSvc((vals || {}).service)
+  return [
+    { k: 'purpose', ar: 'نوع الخدمة', en: 'Service type', title: true, req: true, val: svc ? svc.ar : '' },
+    { sq: true },
+    { k: 'biller', ar: 'المفوتر', en: 'Biller no.', num: true, val: compSadadBiller(svc) },
+    { k: 'sadad', ar: 'رقم السداد', en: 'SADAD no.', num: true, req: true, val: String((vals || {}).sadad ?? '').replace(/\s/g, '') },
+    { k: 'amount', ar: 'مبلغ السداد', en: 'Payment amount', money: true, req: true, val: String((vals || {}).amount ?? '') },
+    /* ملفُّ الفاتورة **إلزاميّ** (طلب المستخدم 2026-10-07): لا تُنسخ الرسالة قبل رفعه.
+       `noLine`: لا سطرَ له في نصّ الواتساب — يصحب اللقطة لا الرسالة. وأثناء الرفع
+       لا يُعدّ ناقصاً (الزرّ مطفأٌ حينها بسببه هو: «جارٍ الرفع»). */
+    { k: 'file', ar: 'ملف الفاتورة', en: 'Invoice file', req: true, noLine: true,
+      val: String((vals || {}).fileUrl || ((vals || {}).fileBusy ? '…' : '')) },
+    /* كتلةُ «من يخصّه السداد» بعد فاصلها كما في رسائل المحرّك: اسمُ الشخص في حجز
+       الاسم، وأرقامُ المنشأة فيما منشأتُه قائمة — **أرقاماً لا اسماً** (قاعدة
+       الرسائل: المحاسب يُدخل رقماً، والاسم يُطيل ولا يُغيّر). والموحّد يكفي متى
+       وُجد؛ ومنشأةٌ بلا موحّد تُعرَّف بتأميناتها ومواردها. */
+    ...(svc && (svc.person || svc.fac) ? [{ sq: true }] : []),
+    ...(svc && svc.fac ? ((f) => [
+      { k: 'fac', ar: 'المنشأة', en: 'Facility', req: true, noLine: true, val: f ? String(f.unified || f.gosi || f.hrsd || f.name || '') : '' },
+      { k: 'uni', ar: 'الرقم الموحّد', en: 'Unified no.', num: true, val: f ? fmtUniDisp(f.unified) : '' },
+      ...(f && !facNumKey(f.unified) ? [
+        { k: 'gosi', ar: 'رقم التأمينات', en: 'GOSI no.', num: true, val: String(f.gosi || '') },
+        { k: 'hrsd', ar: 'رقم الموارد البشرية', en: 'HRSD no.', num: true, val: fmtHrsdDisp(f.hrsd) },
+      ] : []),
+    ])((vals || {}).fac || null) : []),
+    // الشخص بعد المنشأة — ترتيبُ النافذة: تفويض قوى يحمل الاثنين
+    ...(svc && svc.person ? [{ k: 'person', ...compSadadPersonLbl(svc), req: true, val: compSadadPerson(vals) }] : []),
+  ]
+}
+const compSadadSnap = (viewKey, vals, text, who) => {
+  const svc = compSadadSvc((vals || {}).service)
+  const sadad = String((vals || {}).sadad ?? '').replace(/\s/g, '')
+  const amount = depNum((vals || {}).amount)
+  const fac = (svc.fac && (vals || {}).fac) || null
+  const person = svc.person ? compSadadPerson(vals) : ''
+  return {
+    src: `${viewKey}|sadad:${sadad}|${svc.purpose}`, view: viewKey, row: '', col: 'comp_sadad', text,
+    purpose: svc.purpose, method: '', biller: compSadadBiller(svc), sadad, amount, total: amount,
+    id: '', uni: fac ? facNumKey(fac.unified) : '', inv: '', branch: SD_NA, bank: '', holder: '', iban: '', extra: [],
+    // الشخص ← «اسم السعودي»، والمنشأة ← أرقامها في صفّ الطلب (`srAddByRef`)
+    ...(person && !svc.delegate ? { person } : {}),
+    ...(fac ? { fac: { name: String(fac.name || ''), gosi: String(fac.gosi || ''), hrsd: String(fac.hrsd || '') } } : {}),
+    more: [
+      ...(svc.ar === svc.purpose ? [] : [{ k: 'service', ar: 'الخدمة', val: svc.ar, money: false }]),
+      ...(person && svc.delegate ? [{ k: 'delegate', ar: compSadadPersonLbl(svc).ar, val: person, money: false }] : []),
+    ],
+    /* ملفُّ الفاتورة المرفوع في النافذة — لا يحمله نصُّ الواتساب، فيصحب اللقطة
+       وينزل في «مرفق الفاتورة» بصفّ الطلب عند استدعائه (`srAddByRef`). */
+    ...((vals || {}).fileUrl ? { file: { n: ((vals || {}).file && vals.file.name) || fileNameOf(vals.fileUrl), u: vals.fileUrl, m: ((vals || {}).file && vals.file.type) || '' } } : {}),
+    by: (who && who.name) || '', by_id: (who && who.id) || '',
+  }
+}
 /* ── «＋ صف» في طلبات السداد: الرقم المرجعي ← صفُّ الطلب كاملاً (`view.addCustom`) ──
    · عاملُ الرسالة صفّ، ولكل عاملٍ مضافٍ في السداد نفسه صفُّه (رقم سدادٍ واحد
      ⇒ عمليةٌ واحدة كما يقرؤها الشيت).
@@ -10395,8 +10604,19 @@ async function srAddByRef(sb, form, c) {
   ].join(' · ')
   const base = {
     sr_office: String(p.branch || '').trim(), sr_purpose: p.purpose, sr_qty: '1',
+    // نوع الطلب: طريقةُ الرسالة — حوالةٌ بنكية أو سداد (وهو الغالب وما لا طريقةَ مذكورةً له)
+    sr_method: p.method === MSG_WIRE ? MSG_WIRE : MSG_SADAD,
     ...(p.sadad ? { sr_sadad_no: p.sadad } : {}),
     ...(p.uni ? { sr_unified: p.uni } : {}),
+    /* زرّ «سداد» في المنشآت: اسمُ الشخص في حجز الاسم ← «اسم السعودي». والمنشأةُ
+       المحدَّدة يكفيها موحّدُها (بقيّةُ بياناتها تُقرأ منه في الشيت)؛ وما لا موحّدَ
+       له تُكتب تأميناتُه ومواردُه واسمُه كي لا يدخل الطلبُ بلا منشأة. */
+    ...(p.person ? { sr_saudi_name: p.person } : {}),
+    ...(!p.uni && p.fac ? {
+      ...(p.fac.name ? { sr_facility_name: p.fac.name } : {}),
+      ...(p.fac.gosi ? { sr_gosi_no: p.fac.gosi } : {}),
+      ...(p.fac.hrsd ? { sr_hrsd_no: p.fac.hrsd } : {}),
+    } : {}),
     sr_msg_ref: ref, sr_msg_src: p.src,
     /* نصُّ الرسالة ومرسلُها ووقتُها مع الصفّ نفسه: بطاقة المرجع تُفتح بها كاملةً
        من أول لحظة — بلا جلبةٍ تفتحها صغيرةً ثم تكبّرها (بلاغ المستخدم 2026-10-04). */
@@ -10405,7 +10625,10 @@ async function srAddByRef(sb, form, c) {
   const parts = [
     { ...base, sr_msg_part: '0', sr_amount: String(p.amount || ''),
       ...(p.inv ? { sr_invoice: String(p.inv).trim() } : {}), ...(p.id ? { sr_iqama: p.id } : {}),
-      ...(months ? { sr_months: dg(months.val) } : {}), ...(notes ? { sr_notes: notes } : {}) },
+      ...(months ? { sr_months: dg(months.val) } : {}), ...(notes ? { sr_notes: notes } : {}),
+      // ملفُّ الفاتورة المرفوع مع الرسالة (زرّ «سداد» في المنشآت) ← خانة «مرفق الفاتورة» بصيغتها
+      ...(p.file && p.file.u ? { sr_file_invoice: JSON.stringify([{ n: p.file.n || fileNameOf(p.file.u), u: p.file.u,
+        m: p.file.m || '', b: p.by || '', bi: p.by_id || '', t: p.at || new Date().toISOString() }]) } : {}) },
     ...(p.extra || []).map((x) => ({ ...base, sr_msg_part: dg(x.i), sr_iqama: dg(x.i),
       sr_amount: String(depNum(x.a) || ''), ...(dg(x.m) ? { sr_months: dg(x.m) } : {}) })),
   ]
@@ -12046,6 +12269,10 @@ const VIEWS = [
   {
     key: 'companies',
     ar: 'الشركات', en: 'Companies',
+    /* بلا زرّ «＋ عمود»، ومكانَه زرّ «سداد» (طلب المستخدم 2026-10-07): رسالةُ سدادٍ
+       لخدمات السجلّ التجاري برقمٍ مرجعي — انظر `COMP_SADAD_SERVICES`. */
+    noAddCol: true,
+    sadadNew: true,
     hintAr: 'المنشآت وبياناتها الرئيسية لدى الجهات المختلفة',
     hintEn: 'Establishments and their key data across government platforms',
     rowBg: (r) => (r.cr_status_ar === 'مشطوب' ? 'rgba(232,114,101,.20)' : null),   // صف أحمر للمنشأة المشطوبة من SBC
@@ -15659,13 +15886,15 @@ const VIEWS = [
        التبويبات) ولا شرائح الملخّص — طلب المستخدم 2026-10-04: الشيت يُقاد بمنتقي
        اليوم تحته، وعدّاد اليوم ومجموعه في رأس كتلته. */
     noTopTools: true,
+    // بلا زرّ «＋ عمود» — طلب المستخدم 2026-10-07: أعمدة الشيت ثابتة على كتله
+    noAddCol: true,
     /* صفّ الكتل فوق الرؤوس كبقيّة الجداول (`view.bands` — طلب المستخدم 2026-10-04)،
        وعليه رُتّبت الأعمدة: **الطلب** (متى ومن) ← **السداد** (ما يُدخَل في البوّابة) ←
        **العامل والمنشأة** (على مَن) ← **الفاتورة** (مرجعه عندنا) ← **تنفيذ السداد**
        (ما خرج فعلاً وحالته). أول عمودٍ في كل كتلة يحمل `sectionStart` ففاصلُها ذهبيّ.
        والمفاتيح تشمل الأعمدة المحذوفة من التخطيط — فمن أُعيد منها نزل في كتلته. */
     bands: [
-      { ar: 'الطلب', en: 'Request', keys: ['sr_day', 'sr_msg_ref', 'sr_requester', 'sr_date', 'sr_time', 'sr_notes', 'sr_docs'] },
+      { ar: 'الطلب', en: 'Request', keys: ['sr_day', 'sr_msg_ref', 'sr_method', 'sr_requester', 'sr_date', 'sr_time', 'sr_notes', 'sr_docs'] },
       { ar: 'السداد', en: 'Payment', keys: ['sr_purpose', 'sr_biller', 'sr_sadad_no', 'sr_amount', 'sr_inv_line', 'sr_months', 'sr_qty', 'sr_group'] },
       { ar: 'العامل والمنشأة', en: 'Worker & facility', keys: ['sr_worker', 'sr_iqama', 'sr_inv_facility', 'sr_inv_unified',
         'sr_facility_name', 'sr_unified', 'sr_gosi_no', 'sr_hrsd_no', 'sr_saudi_name', 'sr_saudi_id', 'sr_booking_no', 'sr_license_no', 'sr_file_cr'] },
@@ -15906,11 +16135,12 @@ const VIEWS = [
          طُلب ثانيةً — فكل صفٍّ يُبحث فيه بأرقام مصدره كلها لا برقمه وحده. */
       ...(SR_REF.msgRefs.get(String((r._ops || {}).sr_msg_src || '')) || []),
     ],
-    /* «＋ صف» = استدعاء الطلب **برقمه المرجعي** (طلب المستخدم 2026-10-04): الرقم
+    /* «＋ إضافة سداد» = استدعاء الطلب **برقمه المرجعي** (طلب المستخدم 2026-10-04): الرقم
        في ذيل رسالة السداد المرسلة للقروب، وبه يحضر الطلب كاملاً كما أُرسل
-       (`srAddByRef`). وهو طريق الإضافة الوحيد — لا صفَّ فارغاً في الشبكة. */
-    addLabel: { ar: 'صف', en: 'Row', titleAr: 'إضافة طلب سداد', titleEn: 'Add a payment request',
-      subAr: 'اكتب الرقم المرجعي المذكور في رسالة السداد', subEn: 'Enter the reference number from the payment message' },
+       (`srAddByRef`). وهو طريق الإضافة الوحيد — لا صفَّ فارغاً في الشبكة.
+       (الاسم «إضافة سداد» بدل «صف» — طلب المستخدم 2026-10-07.) */
+    // بلا سطرٍ تحت العنوان (طلب المستخدم 2026-10-07): الخانة الوحيدة «الرقم المرجعي» تقول ما يُكتب
+    addLabel: { ar: 'إضافة سداد', en: 'Add payment', titleAr: 'إضافة طلب سداد', titleEn: 'Add a payment request' },
     addStepLabels: { 1: { ar: 'رسالة السداد', en: 'Payment message' } },
     addCustom: srAddByRef, addPerm: 'create',
     addFields: [
@@ -15986,9 +16216,18 @@ const VIEWS = [
           const c = depNum(srInv(r, 'worker_count'))
           return c > 1 ? `${n}\n+${enNum(c - 1)} ${isAr ? 'عاملاً آخر' : 'more'}` : n
         },
+        // الاسم بابُ بطاقة العامل كرقم إقامته — كما في نقل الكفالات وتجديد الإقامات
+        tap: srWorkerInfoCard, tapIf: srWorkerTapIf,
+        tapTip: { ar: 'اعرض بطاقة العامل وتأشيرته', en: 'Show the worker & visa card' },
         bg: srReq('sr_worker') },
       { key: 'sr_iqama', ar: 'رقم إقامة العامل', en: 'Worker iqama', w: 175, kind: 'mono', ops: true, filled: true,
         get: (r) => srInv(r, 'worker_iqama'),
+        /* ضغطةٌ على الرقم تفتح بطاقة العامل — نفس بطاقة نقل الكفالات (طلب المستخدم
+           2026-10-07) — ورقم الحدود يفتح بيانات تأشيرته، ومعها العامل إن رُبط به.
+           والخانة المشطوبة تُفتح كذلك: رقم الحدود في «إصدار تأشيرة» يقع فيها.
+           والتحرير سالم: الشبكة لا تُحرّر إلا بنقرةٍ مزدوجة. */
+        tap: srWorkerInfoCard, tapIf: srWorkerTapIf,
+        tapTip: { ar: 'اعرض بطاقة العامل وتأشيرته', en: 'Show the worker & visa card' },
         bg: srReq('sr_iqama') },
       /* ورجوعٌ إلى المكتوب في الطلب حين لا تعرفها الفاتورة: منشأة **التأشيرة**
          تُحدَّد في شيت إصدار التأشيرات لا في الفاتورة (فاتورةٌ واحدة قد توزَّع
@@ -16163,6 +16402,14 @@ const VIEWS = [
         // ضغطةٌ على المرجع تعرض الرسالة كما أُرسلت ومَن أرسلها وأدخلها وسدّدها
         tap: srMsgRefCard, tapTip: { ar: 'اعرض رسالة السداد كما أُرسلت', en: 'Show the payment message as sent' },
         coerce: msgRefNorm },
+      /* نوع الطلب بعد الرقم المرجعي (طلب المستخدم 2026-10-07): **سداد** أو **حوالة بنكية** —
+         طريقةُ الرسالة نفسها (`MSG_METHODS`)، تُختَم عند استدعاء الطلب (`srAddByRef`).
+         وما لم يُختَم (طلباتٌ سبقت العمود أو أُدخلت بيد) يُقرأ من حاله: ملاحظاتُه تبدأ
+         بـ«حوالة بنكية» ⇒ حوالة، وإلا سداد. ويبقى قائمةً تُصحَّح بيد. */
+      { key: 'sr_method', ar: 'نوع الطلب', en: 'Request type', w: 130, kind: 'text', ops: true, filled: true,
+        select: true, options: () => MSG_METHODS,
+        optLabel: (o, _r, isAr) => srMethodEn(o, isAr) || o, fmt: (v, _r, isAr) => srMethodEn(v, isAr),
+        get: (r) => srMethodOf(r && r._ops) },
       notesCol({ key: 'sr_notes', ar: 'ملاحظات', en: 'Notes', w: 220, ops: true }),
       /* ── جانب المحاسب ── */
       { key: 'sr_paid_date', ar: 'تاريخ السداد', en: 'Paid on', w: 115, kind: 'date', ops: true },
@@ -17661,6 +17908,120 @@ function AddFileField({ sb, isAr, viewKey, value, onChange, toast }) {
     </div>
   )
 }
+/* منتقي المنشأة في نافذة زرّ «سداد» (طلب المستخدم 2026-10-07): بحثٌ **بأحد أرقامها**
+   — الموحّد أو التأمينات أو الموارد — في فهرس الأرقام المحمَّل (`FAC_NUM`، من
+   `v_facility_numbers`): يشمل المُزامَن من كل المنصّات لا منشآت النظام وحدها، وبلا
+   جلبةٍ لكل حرف. ثلاثُ خاناتٍ فأكثر تكفي؛ ما يبدأ بالمكتوب يتقدّم ما يحتويه.
+   `value` = سجلّ الفهرس { name, unified, gosi, hrsd } أو null. */
+function SadadFacPick({ isAr, value, onChange }) {
+  const [q, setQ] = useState('')
+  const T2 = (a, e) => (isAr ? a : e)
+  const by = FAC_NUM.by
+  const d = facNumKey(latin(q))
+  const hits = useMemo(() => {
+    if (d.length < 3) return []
+    const pre = [], mid = [], seen = new Set()
+    for (const [k, rec] of by) {
+      if (seen.has(rec)) continue
+      const i = k.indexOf(d); if (i < 0) continue
+      seen.add(rec); (i === 0 ? pre : mid).push(rec)
+      if (pre.length >= 8) break
+    }
+    return [...pre, ...mid].slice(0, 8)
+  }, [d, by])
+  // الأرقام الثلاثة من جهة البداية: الموحّد ثم الموارد ثم التأمينات (كمنتقي «إضافة منشأة»)
+  const nums = (f) => {
+    const a = [fmtUniDisp(f.unified), fmtHrsdDisp(f.hrsd), f.gosi].map((x) => String(x || '').trim()).filter(Boolean)
+    return (isAr ? a.reverse() : a).join(' · ')
+  }
+  // شاراتُ صفّ النتيجة: كلُّ رقمٍ باسمه — والفارغ منها يسقط
+  const chips = (f) => [
+    { ar: 'الموحّد', en: 'Unified', v: fmtUniDisp(f.unified) },
+    { ar: 'الموارد', en: 'HRSD', v: fmtHrsdDisp(f.hrsd) },
+    { ar: 'التأمينات', en: 'GOSI', v: String(f.gosi || '') },
+  ].filter((c) => String(c.v || '').trim())
+  /* إبرازُ الجزء المطابق للمكتوب داخل الرقم: المطابقة على **الخانات وحدها** (كالبحث —
+     «18-4072467» يطابق «184072»)، ثم يُردّ الموضع إلى نصّ العرض بشَرطته. */
+  const hl = (txt) => {
+    const s = String(txt || '')
+    if (d.length < 3) return s
+    const pos = []
+    for (let i = 0; i < s.length; i++) if (s[i] >= '0' && s[i] <= '9') pos.push(i)
+    const at = pos.map((i) => s[i]).join('').indexOf(d)
+    if (at < 0) return s
+    const a = pos[at], b = pos[at + d.length - 1] + 1
+    return <>{s.slice(0, a)}<span style={{ color: C.gold2 }}>{s.slice(a, b)}</span>{s.slice(b)}</>
+  }
+  const note = (txt) => (
+    <div style={{ padding: '14px 10px', fontSize: 12.5, color: 'var(--tx3)', textAlign: 'center', fontFamily: F }}>{txt}</div>
+  )
+  /* **سطرٌ واحد بارتفاع الخانة في حالَيه** (طلب المستخدم 2026-10-07 — نافذةٌ ثابتة
+     الارتفاع): المختارة بطاقةٌ بارتفاع الحقل (٤٢)، والبحثُ حقلٌ ونتائجُه **عائمةٌ**
+     تحته فوق ما يليه — لا صندوقَ نتائجٍ يدفع الحقول ويُطيل النافذة. */
+  if (value) {
+    return (
+      <div style={{ gridColumn: '1 / -1', minWidth: 0 }}>
+        <label style={oxLbl}>{T2('المنشأة', 'Facility')}</label>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, height: 42, padding: 0, paddingInline: '12px 6px', borderRadius: 9, border: `1.5px solid ${C.gold}`, background: 'rgba(176,125,0,.08)', fontFamily: F, boxSizing: 'border-box' }}>
+          <Building2 size={17} color={C.gold} style={{ flexShrink: 0 }} />
+          <div style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 600, color: 'var(--tx)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value.name || '—'}</div>
+          {/* الأرقام بالأسود وبحجم الاسم (طلب المستخدم 2026-10-07): هي ما يُطابَق به، لا حاشية */}
+          <div dir="ltr" style={{ flexShrink: 0, maxWidth: '62%', fontSize: 13.5, fontWeight: 600, color: 'var(--tx)', fontFamily: MONO, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nums(value)}</div>
+          <button type="button" onClick={() => { onChange(null); setQ('') }}
+            style={{ height: 30, flexShrink: 0, padding: '0 12px', borderRadius: 8, border: '1px solid rgba(176,125,0,.4)', background: 'transparent', color: C.gold2, fontSize: 12, fontWeight: 600, fontFamily: F, cursor: 'pointer' }}>
+            {T2('تغيير', 'Change')}
+          </button>
+        </div>
+      </div>
+    )
+  }
+  return (
+    <div style={{ gridColumn: '1 / -1', minWidth: 0, position: 'relative' }}>
+      <TextField label={T2('المنشأة', 'Facility')}
+        placeholder={T2('ابحث بالرقم الموحّد أو التأمينات أو الموارد', 'Search by unified, GOSI or HRSD no.')}
+        value={q} onChange={setQ} dir="ltr" align="center" />
+      {q.trim() !== '' && (
+        <div style={{ position: 'absolute', top: 'calc(100% + 4px)', insetInlineStart: 0, insetInlineEnd: 0, zIndex: 20,
+          background: 'var(--modal-bg)', border: '1px solid rgba(176,125,0,.35)', borderRadius: 10, padding: 4,
+          boxShadow: '0 12px 28px var(--shadowClr)', fontFamily: F }}>
+          {!by.size ? note(T2('جارٍ تحميل قائمة المنشآت…', 'Loading the facility list…'))
+            : d.length < 3 ? note(T2('اكتب ثلاث خاناتٍ فأكثر من أحد أرقام المنشأة', 'Type three or more digits of one of the facility numbers'))
+            : !hits.length ? note(T2('لا منشأة بهذا الرقم', 'No facility with this number'))
+            : (
+              /* صفُّ النتيجة (طلب المستخدم 2026-10-07 — «اجعل الشكل أحسن»): أيقونةُ منشأةٍ
+                 في دائرةٍ ذهبية، ثم الاسم، وتحته أرقامُها الثلاثة **شاراتٍ مسمّاة**
+                 (الموحّد · الموارد · التأمينات) بالأسود — فيُعرف أيُّ رقمٍ هو بلا تخمين،
+                 والجزءُ المطابقُ للمكتوب ذهبيٌّ فيُرى لماذا ظهرت. وخطٌّ رفيع بين الصفوف. */
+              <ScrollBox maxHeight={186}>
+                {hits.map((f, i) => (
+                  <div key={i} onClick={() => { onChange(f); setQ('') }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(176,125,0,.10)' }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 8, cursor: 'pointer',
+                      transition: 'background .12s', ...(i ? { boxShadow: 'inset 0 1px 0 var(--bd)' } : {}) }}>
+                    <span style={{ width: 32, height: 32, flexShrink: 0, borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(176,125,0,.12)', color: C.gold }}>
+                      <Building2 size={16} strokeWidth={2} />
+                    </span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--tx)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name || '—'}</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                        {chips(f).map((c) => (
+                          <span key={c.en} style={{ display: 'inline-flex', alignItems: 'baseline', gap: 5, padding: '1px 8px', borderRadius: 6, background: 'var(--bd2)', lineHeight: '19px' }}>
+                            <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--tx4)' }}>{T2(c.ar, c.en)}</span>
+                            <bdi dir="ltr" style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx)', fontFamily: MONO }}>{hl(c.v)}</bdi>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </ScrollBox>
+            )}
+        </div>
+      )}
+    </div>
+  )
+}
 function AddFacPick({ sb, value, onChange, isAr, autoFocus }) {
   const [q, setQ] = useState('')
   const [hits, setHits] = useState(null)
@@ -18659,6 +19020,8 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
   /* نافذة «رسالة السداد» (`kind:'msg'`): الرسالة كاملةً تُقرأ قبل أن تُرسَل،
      وزرُّ نسخها في ذيلها. { text, col } — نصٌّ مشتقٌّ من الصفّ لا يُحفظ. */
   const [msgView, setMsgView] = useState(null)
+  // نافذة زرّ «سداد» (`view.sadadNew`): رسالةُ سدادٍ بلا صفّ — { service, sadad, amount }
+  const [sadadNew, setSadadNew] = useState(null)
   useEffect(() => {
     const on = (e) => setOxCard((e && e.detail) || null)
     window.addEventListener('ox-card', on)
@@ -18808,7 +19171,13 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
      طلباً برقمه المرجعي لكنه **ميلادُ صفّ** يُحكَم بـ`create` كما كان قبل النافذة. */
   const canAddRow = !view.noAddRow && canEdit && sheetCan(view.addPerm || (view.addCustom ? 'pull_invoice' : 'create'))
   const canDelRow = canEdit && sheetCan('delete')
-  const canCols = canEdit && sheetCan('columns')
+  /* `view.noAddCol`: شيتٌ أعمدتُه ثابتة — لا زرّ «＋ عمود» فيه لأيّ دور */
+  const canCols = !view.noAddCol && canEdit && sheetCan('columns')
+  /* زرّ «سداد» (`view.sadadNew`): **مقفلٌ افتراضياً** — امتيازٌ صريح (`opsSheetStrict`)
+     لا يُمنح بإظهار الجدول ولا بمنح تعديله، بل بفتح مبدّله «زرّ سداد» على هذا الجدول
+     في محرّر الأدوار (`cardact:…:sadad_msg === true`). والمدير العام يملكه دائماً. */
+  const canSadadNew = !!view.sadadNew && !archived
+    && (opsSheetStrict(user, viewKey, 'sadad_msg') ?? (isGM || uvis[`cardact:ops_excels:${viewKey}:sadad_msg`] === true))
   const canExport = sheetCan('export')
   const canRefresh = sheetCan('refresh')
   const canSnapshot = sheetCan('snapshot')
@@ -22576,6 +22945,13 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
         </div>
         {canAddRow && <button className="ox-btn" onClick={() => { if (view.addBlank) { addBlankRow(); return } setAddForm({}); setAddOpen(true) }} disabled={busy}>＋ {view.addLabel ? T(view.addLabel.ar, view.addLabel.en) : T('صف', 'Row')}</button>}
         {canCols && <button className="ox-btn" onClick={() => { setColName(''); setColModal(true) }} disabled={busy}>＋ {T('عمود', 'Column')}</button>}
+        {canSadadNew && (
+          <button className="ox-btn" onClick={() => { loadFacNums(sb); setSadadNew({ service: '', sadad: '', amount: '', file: null, fileUrl: '', person: '', personName: '', fac: null }) }}
+            title={T('رسالة سدادٍ لخدمات السجلّ التجاري — تُنسخ للواتساب برقمٍ مرجعي', 'A payment message for CR services — copied for WhatsApp with a reference number')}>
+            <HandCoins size={15} strokeWidth={2.1} />
+            {T('سداد', 'SADAD')}
+          </button>
+        )}
         {canExport && <button className="ox-btn" onClick={exportCsv} title={T('تصدير إلى CSV/إكسل', 'Export to CSV/Excel')}>⭳ {T('تصدير', 'Export')}</button>}
         {/* الجلب الجماعي — وأثناء الجري يصير الزرّ عدّاداً يعيد فتح نافذته */}
         {canEdit && view.bulkFetch && (bulkRows.length > 0 || (bulk && bulk.phase === 'run')) && (
@@ -24474,7 +24850,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
       {colModal && (
         <Modal open onClose={() => setColModal(false)} closeOnOverlay lang={lang} accent={C.gold} width={440} Icon={Columns3}
           title={T('إضافة عمود جديد', 'Add new column')} subtitle={T('عمود تشغيلي — يُحرَّر ويُخزَّن مع الشيت', 'Operational column — editable, stored with the sheet')}
-          footer={<ActionButton Icon={Save} disabled={!colName.trim()} onClick={() => { addColumn(colName); setColModal(false) }}>{T('إضافة', 'Add')}</ActionButton>}>
+          footer={<ActionButton Icon={Plus} disabled={!colName.trim()} onClick={() => { addColumn(colName); setColModal(false) }}>{T('إضافة', 'Add')}</ActionButton>}>
           <label style={oxLbl}>{T('اسم العمود', 'Column name')}</label>
           <input className="ox-fld" value={colName} onChange={(e) => setColName(e.target.value)} autoFocus
             onKeyDown={(e) => { if (e.key === 'Enter' && colName.trim()) { addColumn(colName); setColModal(false) } }} />
@@ -25156,6 +25532,106 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
           </Modal>
         )
       })()}
+      {/* ── نافذة زرّ «سداد» (`view.sadadNew`) — توأمُ نافذة «رسالة السداد» أعلاه ──
+          نفس العنوان والحقول وزرّ «نسخ الواتساب» والرقم المرجعي؛ الفرق أنها بلا
+          صفّ: نوعُ الخدمة يُختار من قائمة، ولا شيء يُحفظ في الشيت — ما يُسجَّل
+          هو الرسالة نفسها برقمها (`MSG_REF_VIEW`) لحظةَ النسخ. */}
+      {sadadNew && (() => {
+        const all = compSadadItems(sadadNew)
+        const items = all.filter((f) => !f.sq && !f.div)
+        const text = msgCompose(all)
+        const miss = msgMiss(items)
+        const set = (k, v) => setSadadNew((s) => (s ? { ...s, [k]: v } : s))
+        const svcEn = (o) => (compSadadSvc(o) || {}).en || o
+        const svc = compSadadSvc(sadadNew.service)
+        const personOther = sadadNew.person === COMP_SADAD_OTHER
+        /* ملفُّ الفاتورة يُرفع **فور اختياره** لا عند النسخ: رفعٌ بطيء قبل النسخ يُسقط
+           إذنَ الحافظة (النسخ يلزمه ضغطةٌ قريبة) فتفشل الرسالة بعد انتظار. وزرُّ النسخ
+           يُطفأ ريثما ينتهي الرفع، والحارس `s.file === file` يُهمل رفعةً استُبدل ملفُّها. */
+        const pickFile = async (file) => {
+          if (!file) { setSadadNew((s) => (s ? { ...s, file: null, fileUrl: '', fileBusy: false } : s)); return }
+          setSadadNew((s) => (s ? { ...s, file, fileUrl: '', fileBusy: true } : s))
+          try {
+            const safe = (file.name || 'file').replace(/[^\w.\-]+/g, '_')
+            const path = `ops_sheets/${viewKey}/sadad/${Date.now()}_${Math.random().toString(36).slice(2, 8)}_${safe}`
+            const { error } = await sb.storage.from('attachments').upload(path, file, { cacheControl: '3600', upsert: false })
+            if (error) throw error
+            const url = sb.storage.from('attachments').getPublicUrl(path).data?.publicUrl || path
+            setSadadNew((s) => (s && s.file === file ? { ...s, fileUrl: url, fileBusy: false } : s))
+          } catch (e) {
+            toast && toast(T('تعذّر رفع الملف: ', 'Upload failed: ') + ((e && e.message) || String(e)), 'error')
+            setSadadNew((s) => (s && s.file === file ? { ...s, file: null, fileUrl: '', fileBusy: false } : s))
+          }
+        }
+        const uploading = !!sadadNew.fileBusy
+        return (
+          <Modal open onClose={() => setSadadNew(null)} closeOnOverlay lang={lang} accent={C.gold} width={620} Icon={ClipboardCopy}
+            height="min(595px, 95vh)" scroll
+            title={T('رسالة السداد', 'Payment message')}
+            footer={(
+              <MsgCopyBtn label={T('نسخ الواتساب', 'Copy for WhatsApp')} okLabel={T('نُسخت', 'Copied')}
+                disabled={miss.length > 0 || uploading}
+                tip={miss.length > 0
+                  ? `${T('ينقصها: ', 'Missing: ')}${miss.map((f) => (isAr ? f.ar : f.en)).join(' · ')}`
+                  : uploading ? T('جارٍ رفع ملف الفاتورة…', 'Uploading the invoice file…') : undefined}
+                onCopy={async () => {
+                  // الرقم المرجعي يُسجَّل قبل النسخ ويُذيَّل به النصّ — تعذُّر التسجيل يمنع النسخ
+                  let ref = ''
+                  try {
+                    ref = await msgRefRegister(sb, compSadadSnap(viewKey, sadadNew, text, { name: userName, id: user?.id }), user?.id)
+                  } catch (e) {
+                    toast && toast(T('تعذّر تسجيل الرقم المرجعي: ', 'Could not register the reference: ') + ((e && e.message) || String(e)), 'error')
+                    return false
+                  }
+                  const okc = await writeClipboard(`${text}\n${MSG_REF_AR}: ${ref}`)
+                  if (!okc) toast && toast(T('تعذّر النسخ — حدّد النصّ وانسخه بـCtrl+C', 'Copy failed — select the text and press Ctrl+C'))
+                  else toast && toast(T(`نُسخت الرسالة — الرقم المرجعي ${ref}`, `Message copied — reference ${ref}`))
+                  return okc
+                }} />
+            )}>
+            {/* ── ارتفاعٌ ثابت وتصميمٌ مرن (طلب المستخدم 2026-10-07) ──────────────────
+                عددُ الحقول يتبدّل بنوع الخدمة (لا شيء · شخص · منشأة · منشأةٌ وشخص)،
+                والنافذة لا تقفز معه: الحقول كتلةٌ بحجمها، و**خانةُ الملف تتمدّد** لتملأ
+                ما بقي — فلا فراغَ في أيّ حال، ولا يتغيّر الارتفاع. (`scroll` أمانٌ
+                لشاشةٍ أقصر من النافذة: تمريرٌ لا قصّ.) */}
+            <div style={{ ...GRID, flexShrink: 0 }}>
+              <Select label={T('نوع الخدمة', 'Service type')} full value={sadadNew.service}
+                options={COMP_SADAD_SERVICES.map((s) => s.ar)} getLabel={(o) => (isAr ? o : svcEn(o))} searchable={false}
+                placeholder={T('اختر…', 'Choose…')} onChange={(v) => set('service', v)} />
+              {/* لمن السداد: منشأةٌ قائمة فيما بعد «تمديد سجل تجاري لمؤسسة»، وشخصٌ في حجز
+                  الاسم وتفويض قوى (القائمة ثم «أخرى» باسمه الكامل) — انظر `COMP_SADAD_SERVICES` */}
+              {svc && svc.fac && (
+                <SadadFacPick isAr={isAr} value={sadadNew.fac || null} onChange={(f) => set('fac', f)} />
+              )}
+              {svc && svc.person && (
+                <Select label={isAr ? compSadadPersonLbl(svc).ar : compSadadPersonLbl(svc).en} full={!personOther} value={sadadNew.person || ''}
+                  options={[...COMP_REF.persons, COMP_SADAD_OTHER]}
+                  getLabel={(o) => (o === COMP_SADAD_OTHER ? T('أخرى', 'Other') : o)}
+                  searchable={COMP_REF.persons.length > 5}
+                  placeholder={T('اختر…', 'Choose…')} onChange={(v) => set('person', v)} />
+              )}
+              {svc && svc.person && personOther && (
+                <TextField label={T('الاسم الكامل', 'Full name')} value={sadadNew.personName || ''}
+                  onChange={(v) => set('personName', v)} align="center" />
+              )}
+              <TextField label={T('رقم السداد', 'SADAD no.')} value={sadadNew.sadad} onChange={(v) => set('sadad', v)}
+                dir="ltr" align="center" />
+              <CurrencyField label={T('مبلغ السداد', 'Payment amount')} unit={T('ريال', 'SAR')}
+                value={sadadNew.amount} onChange={(v) => set('amount', v)} />
+            </div>
+            {/* ملفُّ الفاتورة لكل أنواع الخدمة (طلب المستخدم 2026-10-07) — يصحب الرقم المرجعي
+                وينزل في «مرفق الفاتورة» بصفّ الطلب في «طلبات السداد». وهو **الممتدّ**: يملأ
+                ما بقي من النافذة (`grow`)، وحدُّه الأدنى يمنع انضغاطَه تحت عنوانه. */}
+            <div style={{ flex: 1, minHeight: 78, marginTop: 14, display: 'flex', flexDirection: 'column' }}>
+              <FileField label={T('ملف الفاتورة', 'Invoice file')} compact grow
+                hint={uploading ? T('جارٍ الرفع…', 'Uploading…') : undefined}
+                value={sadadNew.file || null} onChange={pickFile} />
+            </div>
+            {/* (أُزيل صندوق «ينقص الرسالة قبل نسخها» بطلب المستخدم 2026-10-07 — الخاناتُ
+                الناقصة أمام العين، والسببُ باقٍ في تلميح زرّ النسخ المطفأ.) */}
+          </Modal>
+        )
+      })()}
       {/* ── نافذة إجمالي العمود ── */}
       {aggModal && (() => {
         const col = colDefs.get(aggModal)
@@ -25211,7 +25687,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
             : null}
           footer={addGoNext
             ? <ActionButton Icon={isAr ? ChevronLeft : ChevronRight} onClick={addNextStep}>{T('التالي', 'Next')}</ActionButton>
-            : <ActionButton Icon={Save} disabled={busy} onClick={addPerson}>{busy ? T('...', '...') : T('إضافة', 'Add')}</ActionButton>}>
+            : <ActionButton Icon={Plus} disabled={busy} onClick={addPerson}>{busy ? T('...', '...') : T('إضافة', 'Add')}</ActionButton>}>
           {/* الحقول داخل بطاقةٍ معنونة كنوافذ البرنامج (مرجعها «تسجيل دفعة»):
               حقلٌ عارٍ وسط نافذةٍ بيضاء يبدو نصف مصمَّم. */}
           <ModalSection Icon={(view.addStepLabels && view.addStepLabels[addStep] && view.addStepLabels[addStep].Icon) || (addStep === 2 ? Building2 : (view.addCustom ? FileInput : Plus))}

@@ -7,7 +7,7 @@ import {
   TextField, IdField, PhoneField, Select, MultiSelect, EmptyState,
 } from '../../components/ui/FormKit.jsx'
 import { Shimmer } from '../../components/ui/Skeleton.jsx'
-import { TAB_CARDS, CARD_GROUP_LABELS, TAB_FIELDS, TAB_MODALS, TAB_STAGES, TAB_SERVICE_SCOPE, TAB_STATS_MODE, tabModule as catTabModule, registerOpsLayouts, cardOptIn } from '../../lib/permCatalog.js'
+import { TAB_CARDS, CARD_GROUP_LABELS, TAB_FIELDS, TAB_MODALS, TAB_STAGES, TAB_SERVICE_SCOPE, TAB_STATS_MODE, tabModule as catTabModule, registerOpsLayouts, cardOptIn, cardActOptIn } from '../../lib/permCatalog.js'
 import { isGM as isGmUser } from '../../lib/permissions.js'
 import { branchLabel } from '../../lib/utils.js'
 import { ALL_SERVICES, SVC_CODE_MAP } from '../../ServiceRequestPage.jsx'
@@ -728,7 +728,12 @@ export function PermissionsPanel({ sb, currentUser, u, role, mode = 'user', bran
     if (cardOptIn(tabId, key)) return patchVis({ [k]: visRef.current[k] !== true })
     return flip(k)
   }
-  const toggleCardAct = (tabId, key, action) => flip(`cardact:${tabId}:${key}:${action}`)
+  /* فعلٌ `optIn` (زرّ «سداد» في المنشآت الرئيسية): الغياب = ممنوع، فالتبديل يخزّن `true` للمنح */
+  const toggleCardAct = (tabId, key, action) => {
+    const k = `cardact:${tabId}:${key}:${action}`
+    if (cardActOptIn(tabId, key, action)) return patchVis({ [k]: visRef.current[k] !== true })
+    return flip(k)
+  }
   const toggleField = (tabId, key) => flip(`field:${tabId}:${key}`)
   const toggleFieldEdit = (tabId, key) => flip(`fieldedit:${tabId}:${key}`)
   const toggleModal = (tabId, key) => flip(`modal:${tabId}:${key}`)
@@ -806,7 +811,8 @@ export function PermissionsPanel({ sb, currentUser, u, role, mode = 'user', bran
     const shown = cardOn('ops_excels', card)
     const isOpen = open.has(id)
     const acts = card.actions || []
-    const actOn = acts.filter(a => vis[`cardact:ops_excels:${key}:${a.action}`] !== false).length
+    const actIsOn = (a) => (a.optIn ? vis[`cardact:ops_excels:${key}:${a.action}`] === true : vis[`cardact:ops_excels:${key}:${a.action}`] !== false)
+    const actOn = acts.filter(actIsOn).length
     const fields = (TAB_FIELDS.ops_excels || []).filter(f => f.group === key)
     const fldOn = fields.filter(f => vis[`field:ops_excels:${f.key}`] !== false).length
     const toggleOpen = () => setOpen(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
@@ -840,7 +846,7 @@ export function PermissionsPanel({ sb, currentUser, u, role, mode = 'user', bran
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(210px,1fr))', gap: 7 }}>
                 {acts.map(a => {
-                  const aOn = vis[`cardact:ops_excels:${key}:${a.action}`] !== false
+                  const aOn = actIsOn(a)
                   const dot = ACTION_DOT[a.kind] || C.gold
                   return (
                     <div key={a.action} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '7px 10px', borderRadius: 9, background: 'var(--card)', border: '1px solid var(--bd)' }}>
@@ -1581,7 +1587,7 @@ function CardsSection({ tabId, cards, fields, vis, cardOn, disabled, onToggle, o
                     {acts.length > 0 && (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 5, paddingTop: 7, borderTop: '1px dashed var(--bd)', opacity: shown ? 1 : .45 }}>
                         {acts.map(a => {
-                          const aOn = vis[`cardact:${tabId}:${c.key}:${a.action}`] !== false
+                          const aOn = a.optIn ? vis[`cardact:${tabId}:${c.key}:${a.action}`] === true : vis[`cardact:${tabId}:${c.key}:${a.action}`] !== false
                           const dot = ACTION_DOT[a.kind] || C.gold
                           return (
                             <div key={a.action} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
