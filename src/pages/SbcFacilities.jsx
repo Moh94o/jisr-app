@@ -8,7 +8,7 @@ import { buildAjeerBookmarklet } from './ajeerSyncBookmarklet.js'
 import { buildMudadBookmarklet } from './mudadSyncBookmarklet.js'
 import { Sel } from './KafalaCalculator.jsx'
 import { Ban, ShieldOff, RefreshCw, ClipboardCheck, ChevronRight, ChevronLeft } from 'lucide-react'
-import { Modal as FKModal, ActionButton, SuccessView, TextField, ScrollBox, EmptyState } from '../components/ui/FormKit.jsx'
+import { Modal as FKModal, ActionButton, SuccessView, TextField, ScrollBox, EmptyState, useFKLang } from '../components/ui/FormKit.jsx'
 import { useIsMobile, MStatStrip, MCardList, MChips, MSearch, MBadge } from '../components/mobile/MobileKit.jsx'
 import '../styles/m-synchub.css'
 
@@ -386,24 +386,25 @@ function CrCountdown({ confirmDate, T, compact, pill, style }) {
 // badge "م.س" so the chrome doesn't show a broken-image icon.
 function SbcSourceIcon({ size = 16 }) {
   const [failed, setFailed] = useState(false)
+  const { isAr } = useFKLang()
   if (failed) {
     return (
       <span
-        title="المركز السعودي للأعمال"
+        title={isAr ? 'المركز السعودي للأعمال' : 'Saudi Business Center'}
         style={{
           display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
           width: size, height: size, borderRadius: 4,
           background: 'rgba(176,125,0,.18)', color: '#B07D00',
           fontSize: Math.round(size * 0.55), fontWeight: 600,
           flexShrink: 0, lineHeight: 1, fontFamily: F,
-        }}>م.س</span>
+        }}>{isAr ? 'م.س' : 'SBC'}</span>
     )
   }
   return (
     <img
       src="/sbc-logo.jpg"
       alt="SBC"
-      title="المركز السعودي للأعمال"
+      title={isAr ? 'المركز السعودي للأعمال' : 'Saudi Business Center'}
       width={size}
       height={size}
       style={{ width: size, height: size, objectFit: 'contain', flexShrink: 0 }}
@@ -417,24 +418,25 @@ function SbcSourceIcon({ size = 16 }) {
 // consistent if the image is ever missing.
 function GosiSourceIcon({ size = 16 }) {
   const [failed, setFailed] = useState(false)
+  const { isAr } = useFKLang()
   if (failed) {
     return (
       <span
-        title="المؤسسة العامة للتأمينات الاجتماعية"
+        title={isAr ? 'المؤسسة العامة للتأمينات الاجتماعية' : 'General Organization for Social Insurance (GOSI)'}
         style={{
           display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
           width: size, height: size, borderRadius: 4,
           background: 'rgba(34,197,94,.18)', color: '#22c55e',
           fontSize: Math.round(size * 0.55), fontWeight: 600,
           flexShrink: 0, lineHeight: 1, fontFamily: F,
-        }}>تأ</span>
+        }}>{isAr ? 'تأ' : 'GOSI'}</span>
     )
   }
   return (
     <img
       src="/gosi.logo.png"
       alt="GOSI"
-      title="المؤسسة العامة للتأمينات الاجتماعية"
+      title={isAr ? 'المؤسسة العامة للتأمينات الاجتماعية' : 'General Organization for Social Insurance (GOSI)'}
       width={size}
       height={size}
       style={{ width: size, height: size, objectFit: 'contain', flexShrink: 0 }}
@@ -615,7 +617,8 @@ function QiwaTransferRequestsCard({ sb, companyId, T }) {
   }
   const statusLabel = (r) => {
     const code = String(r.status || '').toUpperCase()
-    return TRANSFER_STATUS_AR[code] || r.status_ar || r.status_en || r.status || null
+    const en = r.status_en || (code ? code.charAt(0) + code.slice(1).toLowerCase().replace(/_/g, ' ') : null)
+    return T(TRANSFER_STATUS_AR[code] || r.status_ar || r.status_en || r.status || null, en || r.status_ar || r.status || null)
   }
   const statusColor = (r) => {
     const code = String(r.status || '').toUpperCase()
@@ -1553,24 +1556,25 @@ function QiwaContractsCard({ sb, companyId, T }) {
 // img-with-text-fallback pattern as SbcSourceIcon / GosiSourceIcon.
 function QiwaSourceIcon({ size = 16 }) {
   const [failed, setFailed] = useState(false)
+  const { isAr } = useFKLang()
   if (failed) {
     return (
       <span
-        title="منصة قوى"
+        title={isAr ? 'منصة قوى' : 'Qiwa platform'}
         style={{
           display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
           width: size, height: size, borderRadius: 4,
           background: 'rgba(59,130,246,.18)', color: '#3b82f6',
           fontSize: Math.round(size * 0.55), fontWeight: 600,
           flexShrink: 0, lineHeight: 1, fontFamily: F,
-        }}>قوى</span>
+        }}>{isAr ? 'قوى' : 'Qiwa'}</span>
     )
   }
   return (
     <img
       src="/qiwa-logo.jpg"
       alt="Qiwa"
-      title="منصة قوى"
+      title={isAr ? 'منصة قوى' : 'Qiwa platform'}
       width={size}
       height={size}
       style={{ width: size, height: size, objectFit: 'contain', flexShrink: 0 }}
@@ -1583,24 +1587,25 @@ function QiwaSourceIcon({ size = 16 }) {
 // Same img-with-text-fallback pattern as the other source icons.
 function MuqeemSourceIcon({ size = 16 }) {
   const [failed, setFailed] = useState(false)
+  const { isAr } = useFKLang()
   if (failed) {
     return (
       <span
-        title="منصة مقيم"
+        title={isAr ? 'منصة مقيم' : 'Muqeem platform'}
         style={{
           display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
           width: size, height: size, borderRadius: 4,
           background: 'rgba(245,158,11,.18)', color: '#f59e0b',
           fontSize: Math.round(size * 0.55), fontWeight: 600,
           flexShrink: 0, lineHeight: 1, fontFamily: F,
-        }}>مقيم</span>
+        }}>{isAr ? 'مقيم' : 'Muqeem'}</span>
     )
   }
   return (
     <img
       src="/muqeem-logo.png"
       alt="Muqeem"
-      title="منصة مقيم"
+      title={isAr ? 'منصة مقيم' : 'Muqeem platform'}
       width={size}
       height={size}
       style={{ width: size, height: size, objectFit: 'contain', flexShrink: 0 }}
@@ -1613,24 +1618,25 @@ function MuqeemSourceIcon({ size = 16 }) {
 // Same img-with-text-fallback pattern as the other source icons.
 function MudadSourceIcon({ size = 16 }) {
   const [failed, setFailed] = useState(false)
+  const { isAr } = useFKLang()
   if (failed) {
     return (
       <span
-        title="منصة مدد"
+        title={isAr ? 'منصة مدد' : 'Mudad platform'}
         style={{
           display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
           width: size, height: size, borderRadius: 4,
           background: 'rgba(14,165,233,.18)', color: '#0ea5e9',
           fontSize: Math.round(size * 0.55), fontWeight: 600,
           flexShrink: 0, lineHeight: 1, fontFamily: F,
-        }}>مدد</span>
+        }}>{isAr ? 'مدد' : 'Mudad'}</span>
     )
   }
   return (
     <img
       src="/mudad.jpg"
       alt="Mudad"
-      title="منصة مدد"
+      title={isAr ? 'منصة مدد' : 'Mudad platform'}
       width={size}
       height={size}
       style={{ width: size, height: size, objectFit: 'contain', flexShrink: 0 }}
@@ -1641,24 +1647,25 @@ function MudadSourceIcon({ size = 16 }) {
 
 function AjeerSourceIcon({ size = 16 }) {
   const [failed, setFailed] = useState(false)
+  const { isAr } = useFKLang()
   if (failed) {
     return (
       <span
-        title="منصة أجير"
+        title={isAr ? 'منصة أجير' : 'Ajeer platform'}
         style={{
           display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
           width: size, height: size, borderRadius: 4,
           background: 'rgba(16,185,129,.18)', color: '#10b981',
           fontSize: Math.round(size * 0.55), fontWeight: 600,
           flexShrink: 0, lineHeight: 1, fontFamily: F,
-        }}>أجير</span>
+        }}>{isAr ? 'أجير' : 'Ajeer'}</span>
     )
   }
   return (
     <img
       src="/ajeer.png"
       alt="Ajeer"
-      title="منصة أجير"
+      title={isAr ? 'منصة أجير' : 'Ajeer platform'}
       width={size}
       height={size}
       style={{ width: size, height: size, objectFit: 'contain', flexShrink: 0 }}
@@ -1708,6 +1715,7 @@ function CollapsibleCard({ title, color, badge, badgeColor, badgeBare = false, d
   }, [alwaysOpen])
   const open = alwaysOpen || expanded
   const brand = sourcePill ? SOURCE_BRAND[sourcePill] : null
+  const { isAr: pillAr } = useFKLang()
   return (
     <div style={cardChrome}>
       <div
@@ -1723,7 +1731,7 @@ function CollapsibleCard({ title, color, badge, badgeColor, badgeBare = false, d
         {showAjeerIcon && <AjeerSourceIcon />}
         <span style={cardTitle}>{title}</span>
         {brand && (
-          <span style={{ fontSize: 9, fontWeight: 600, color: brand.color, background: brand.color + '14', border: `1px solid ${brand.color}45`, borderRadius: 5, padding: '1px 6px', lineHeight: '14px' }}>{brand.ar}</span>
+          <span style={{ fontSize: 9, fontWeight: 600, color: brand.color, background: brand.color + '14', border: `1px solid ${brand.color}45`, borderRadius: 5, padding: '1px 6px', lineHeight: '14px' }}>{pillAr ? brand.ar : (brand.en || brand.ar)}</span>
         )}
         {badge != null && (
           badgeBare
@@ -1785,6 +1793,7 @@ function ActivitiesCard({ activities, lang, T }) {
 
 function CopyBtn({ value }) {
   const [copied, setCopied] = useState(false)
+  const { isAr } = useFKLang()
   const onCopy = async (e) => {
     e.stopPropagation()
     try {
@@ -1794,7 +1803,7 @@ function CopyBtn({ value }) {
     } catch { /* clipboard unavailable */ }
   }
   return (
-    <button type="button" onClick={onCopy} title="نسخ"
+    <button type="button" onClick={onCopy} title={isAr ? 'نسخ' : 'Copy'}
       style={{ width: 20, height: 20, padding: 0, border: 'none', background: 'transparent',
         color: copied ? C.ok : 'var(--tx4)', cursor: 'pointer',
         display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
@@ -2369,7 +2378,7 @@ function GosiAccountCard({ data, bills, contributors, T, lang }) {
                   { k: T('تاريخ الرصد', 'Reported'), v: date, mono: true },
                   { k: T('المصدر', 'Channel'), v: isAr ? (v.channel && v.channel.arabic) : (v.channel && v.channel.english) },
                   { k: T('الفئة', 'Class'), v: isAr ? (v.approvedViolationClass && v.approvedViolationClass.arabic) : (v.approvedViolationClass && v.approvedViolationClass.english) },
-                  { k: T('المشترك', 'Contributor'), v: fallbackNames.length ? fallbackNames.join('، ') : null },
+                  { k: T('المشترك', 'Contributor'), v: fallbackNames.length ? fallbackNames.join(T('، ', ', ')) : null },
                 ].filter(m => m.v != null && m.v !== '')
                 return (
                   <div key={v.violationId || i} style={{ ..._gosiRowDanger, flexDirection: 'column', alignItems: 'stretch', gap: 8, padding: 10 }}>
@@ -2625,6 +2634,7 @@ function _GosiWagesCell({ contributors }) {
 // the metadata strip. Always an "individual" icon — GOSI owners/admins are
 // always natural persons (rows carry national_id, not unified company nos).
 function _GosiPersonRow({ name, badge, badgeColor, tags, meta }) {
+  const { isAr } = useFKLang()
   const [expanded, setExpanded] = useState(false)
   const items = (meta || []).filter(Boolean)
   const hasDetails = items.length > 0
@@ -2638,7 +2648,7 @@ function _GosiPersonRow({ name, badge, badgeColor, tags, meta }) {
         <div
           onClick={hasDetails ? () => setExpanded(v => !v) : undefined}
           style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: hasDetails ? 'pointer' : 'default', userSelect: 'none' }}>
-          <span title="شخص" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 18, height: 18, borderRadius: 4, background: 'rgba(255,255,255,.08)', color: 'var(--tx)', flexShrink: 0 }}>
+          <span title={isAr ? 'شخص' : 'Person'} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 18, height: 18, borderRadius: 4, background: 'rgba(255,255,255,.08)', color: 'var(--tx)', flexShrink: 0 }}>
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>
           </span>
           <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{name || '—'}</div>
@@ -2918,7 +2928,7 @@ function _GosiContribRow({ name, wage, statusType, groups, T }) {
         <div
           onClick={hasDetails ? () => setExpanded(v => !v) : undefined}
           style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: hasDetails ? 'pointer' : 'default', userSelect: 'none', minWidth: 0, flex: 1 }}>
-          <span title="موظف" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 18, height: 18, borderRadius: 4, background: 'rgba(255,255,255,.08)', color: 'var(--tx)', flexShrink: 0 }}>
+          <span title={T('موظف', 'Employee')} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 18, height: 18, borderRadius: 4, background: 'rgba(255,255,255,.08)', color: 'var(--tx)', flexShrink: 0 }}>
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>
           </span>
           <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{name || '—'}</div>
@@ -3243,7 +3253,7 @@ function DragBookmark({ href, label, accent, title, icon }) {
 // DragBookmark so the toolbar row stays even, but flat/greyed and undraggable —
 // there's no bookmarklet body to drag. Swap for a real *SyncBookmarklet once the
 // portal's endpoints are captured.
-function SoonBookmark({ label, accent, title, icon }) {
+function SoonBookmark({ label, accent, title, icon, soonLabel = 'قريباً' }) {
   return (
     <span
       title={title}
@@ -3261,12 +3271,12 @@ function SoonBookmark({ label, accent, title, icon }) {
           colour but dimmed, so the slot still reads as "this source, later". */}
       <span aria-hidden="true" style={{ display: 'inline-flex', color: accent, opacity: .45, flexShrink: 0 }}>{icon}</span>
       <span style={{ whiteSpace: 'nowrap' }}>{label}</span>
-      <span style={{ fontSize: 9, fontWeight: 600, padding: '1px 6px', borderRadius: 999, background: 'var(--bd)', color: 'var(--tx4)', whiteSpace: 'nowrap' }}>قريباً</span>
+      <span style={{ fontSize: 9, fontWeight: 600, padding: '1px 6px', borderRadius: 999, background: 'var(--bd)', color: 'var(--tx4)', whiteSpace: 'nowrap' }}>{soonLabel}</span>
     </span>
   )
 }
 
-function SbcSyncBookmarklet({ syncPersonId, T, force = false, resetAt = '' }) {
+function SbcSyncBookmarklet({ syncPersonId, T, lang, force = false, resetAt = '' }) {
   // Bake current site origin into the bookmarklet so it can POST to our
   // Netlify proxy from across the e2.business.sa origin. PDF upload is
   // fire-and-forget inside the data bookmarklet itself — token-expiry
@@ -3277,7 +3287,7 @@ function SbcSyncBookmarklet({ syncPersonId, T, force = false, resetAt = '' }) {
   // which is the only channel that reaches facilities this account
   // established but doesn't own. See sbcSyncBookmarklet.js for why the split
   // is forced by CORS rather than chosen.
-  const dataHref = buildBookmarklet({ sourceId: 'sbc', personId: syncPersonId || '', proxyBaseUrl, force, resetAt })
+  const dataHref = buildBookmarklet({ sourceId: 'sbc', personId: syncPersonId || '', proxyBaseUrl, force, resetAt, lang })
   return (
     <DragBookmark
       href={dataHref}
@@ -3297,8 +3307,8 @@ function SbcSyncBookmarklet({ syncPersonId, T, force = false, resetAt = '' }) {
 // ameen.gosi.gov.sa it captures the bearer token, decodes the JWT to find
 // every establishment regNo the account has access to, then pulls
 // /v1/establishment/{regNo} for each into public.gosi_establishments.
-function GosiSyncBookmarklet({ syncPersonId, T, force = false, resetAt = '' }) {
-  const dataHref = buildGosiBookmarklet({ personId: syncPersonId || '', force, resetAt, origin: window.location.origin })
+function GosiSyncBookmarklet({ syncPersonId, T, lang, force = false, resetAt = '' }) {
+  const dataHref = buildGosiBookmarklet({ personId: syncPersonId || '', force, resetAt, lang, origin: window.location.origin })
   return (
     <DragBookmark
       href={dataHref}
@@ -3318,8 +3328,8 @@ function GosiSyncBookmarklet({ syncPersonId, T, force = false, resetAt = '' }) {
 // *.qiwa.sa origin, captures workspaces + active company detail + criteria
 // + indicators + cases + employee-cases + absher into public.qiwa_companies
 // (plus related sub-tables populated by qiwaSyncBookmarklet.js).
-function QiwaSyncBookmarklet({ syncPersonId, T, force = false, resetAt = '' }) {
-  const dataHref = buildQiwaBookmarklet({ sourceId: 'qiwa', personId: syncPersonId || '', force, resetAt })
+function QiwaSyncBookmarklet({ syncPersonId, T, lang, force = false, resetAt = '' }) {
+  const dataHref = buildQiwaBookmarklet({ sourceId: 'qiwa', personId: syncPersonId || '', force, resetAt, lang })
   return (
     <DragBookmark
       href={dataHref}
@@ -3344,8 +3354,8 @@ function QiwaSyncBookmarklet({ syncPersonId, T, force = false, resetAt = '' }) {
 // switching the session context, recording the ones Ajeer gates behind
 // "تحديث قائمة المسؤولين" instead of writing them empty. Fills ajeer_establishments /
 // _notices / _contracts / _payments, with every page kept whole in ajeer_raw.
-function AjeerSyncBookmarklet({ syncPersonId, T, force = false, resetAt = '' }) {
-  const dataHref = buildAjeerBookmarklet({ sourceId: 'ajeer', personId: syncPersonId || '', force, resetAt })
+function AjeerSyncBookmarklet({ syncPersonId, T, lang, force = false, resetAt = '' }) {
+  const dataHref = buildAjeerBookmarklet({ sourceId: 'ajeer', personId: syncPersonId || '', force, resetAt, lang })
   return (
     <DragBookmark
       href={dataHref}
@@ -3369,9 +3379,9 @@ function AjeerSyncBookmarklet({ syncPersonId, T, force = false, resetAt = '' }) 
 //   • On any normal org page it syncs the active org only (legacy).
 // Fills muqeem_companies / _residents / _subscriptions / _points_transactions /
 // _payment_history.
-function MuqeemSyncBookmarklet({ syncPersonId, T, force = false, resetAt = '' }) {
+function MuqeemSyncBookmarklet({ syncPersonId, T, lang, force = false, resetAt = '' }) {
   const proxyBaseUrl = typeof window !== 'undefined' ? window.location.origin : ''
-  const dataHref = buildMuqeemBookmarklet({ sourceId: 'muqeem', personId: syncPersonId || '', proxyBaseUrl, force, resetAt })
+  const dataHref = buildMuqeemBookmarklet({ sourceId: 'muqeem', personId: syncPersonId || '', proxyBaseUrl, force, resetAt, lang })
   return (
     <DragBookmark
       href={dataHref}
@@ -3394,9 +3404,9 @@ function MuqeemSyncBookmarklet({ syncPersonId, T, force = false, resetAt = '' })
 // mudad_establishments (linked to our facilities by the unified national number)
 // with every response kept whole in mudad_raw. Writes go through sync-bridge.html
 // because Mudad's CSP blocks supabase.co.
-function MudadSyncBookmarklet({ syncPersonId, T, force = false, resetAt = '' }) {
+function MudadSyncBookmarklet({ syncPersonId, T, lang, force = false, resetAt = '' }) {
   const proxyBaseUrl = typeof window !== 'undefined' ? window.location.origin : ''
-  const dataHref = buildMudadBookmarklet({ sourceId: 'mudad', personId: syncPersonId || '', proxyBaseUrl, force, resetAt })
+  const dataHref = buildMudadBookmarklet({ sourceId: 'mudad', personId: syncPersonId || '', proxyBaseUrl, force, resetAt, lang })
   return (
     <DragBookmark
       href={dataHref}
@@ -3429,6 +3439,7 @@ const _cmpNorm = (v) => {
 
 // شريحة قيمة بمصدرها — لبنة العرض الأساسية في كروت المطابقة.
 function _SrcVal({ src, v, mismatch, mono }) {
+  const { isAr } = useFKLang()
   const brand = SOURCE_BRAND[src] || { color: '#888', ar: src }
   return (
     <span style={{
@@ -3437,7 +3448,7 @@ function _SrcVal({ src, v, mismatch, mono }) {
       border: `1px solid ${mismatch ? 'rgba(234,179,8,.45)' : 'var(--bd2)'}`,
       minWidth: 0,
     }}>
-      <span style={{ fontSize: 8.5, fontWeight: 600, color: brand.color, background: brand.color + '14', border: `1px solid ${brand.color}40`, borderRadius: 4, padding: '0 5px', lineHeight: '13px', whiteSpace: 'nowrap', flexShrink: 0 }}>{brand.ar}</span>
+      <span style={{ fontSize: 8.5, fontWeight: 600, color: brand.color, background: brand.color + '14', border: `1px solid ${brand.color}40`, borderRadius: 4, padding: '0 5px', lineHeight: '13px', whiteSpace: 'nowrap', flexShrink: 0 }}>{isAr ? brand.ar : (brand.en || brand.ar)}</span>
       <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', direction: mono ? 'ltr' : undefined, fontFamily: mono ? 'ui-monospace, monospace' : undefined }} title={typeof v === 'string' ? v : undefined}>{v}</span>
     </span>
   )
@@ -4073,7 +4084,7 @@ function _HistoryEntry({ h, T, lang }) {
   return (
     <div style={{ borderRadius: 8, border: '1px solid var(--bd2)', background: 'rgba(255,255,255,.02)', padding: '8px 12px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 8.5, fontWeight: 600, color: brand.color, background: brand.color + '14', border: `1px solid ${brand.color}40`, borderRadius: 4, padding: '0 5px', lineHeight: '13px' }}>{brand.ar}</span>
+        <span style={{ fontSize: 8.5, fontWeight: 600, color: brand.color, background: brand.color + '14', border: `1px solid ${brand.color}40`, borderRadius: 4, padding: '0 5px', lineHeight: '13px' }}>{isAr ? brand.ar : (brand.en || brand.ar)}</span>
         <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--tx2)' }}>{tbl ? (isAr ? tbl.ar : tbl.en) : h.table_name}</span>
         <span style={{ fontSize: 9, fontWeight: 600, color: opMeta.color, background: opMeta.color + '14', borderRadius: 4, padding: '0 6px', lineHeight: '14px' }}>{opMeta.label}</span>
         {h.record_label && <span style={{ fontSize: 10, color: 'var(--tx3)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }} title={h.record_label}>{h.record_label}</span>}
@@ -6171,7 +6182,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
         {/* الشريط RTL: المصادر تبدأ من اليمين (المركز أولاً) وتتدفق يساراً.
             كل زر يفرض ltr داخلياً فيبقى ترتيبه أيقونة ← اسم ← نقاط السحب. */}
         {spid && (
-        <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap', flex: '1 1 100%', justifyContent: 'flex-start', direction: 'rtl' }}>
+        <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap', flex: '1 1 100%', justifyContent: 'flex-start', direction: lang === 'en' ? 'ltr' : 'rtl' }}>
           {/* اختيار الحساب قبل النسخ — يُحقن في كل بوكماركت فتُنسب كل منشأة
               مُزامَنة لصاحب الحساب الصحيح (المصدر الواحد قد يُزامَن من أكثر من حساب). */}
           {syncPersons.length > 0 && (
@@ -6200,14 +6211,15 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
             <RefreshCw size={15} strokeWidth={2.2} />
             {resetMode ? T('إعادة ضبط: مُفعّل', 'Reset: ON') : T('إعادة ضبط', 'Reset')}
           </button>
-          <SbcSyncBookmarklet syncPersonId={spid} T={T} force={resetMode} resetAt={resetAt} />
-          <GosiSyncBookmarklet syncPersonId={spid} T={T} force={resetMode} resetAt={resetAt} />
-          <QiwaSyncBookmarklet syncPersonId={spid} T={T} force={resetMode} resetAt={resetAt} />
-          <MuqeemSyncBookmarklet syncPersonId={spid} T={T} force={resetMode} resetAt={resetAt} />
-          <AjeerSyncBookmarklet syncPersonId={spid} T={T} force={resetMode} resetAt={resetAt} />
-          <MudadSyncBookmarklet syncPersonId={spid} T={T} force={resetMode} resetAt={resetAt} />
+          <SbcSyncBookmarklet syncPersonId={spid} T={T} lang={lang} force={resetMode} resetAt={resetAt} />
+          <GosiSyncBookmarklet syncPersonId={spid} T={T} lang={lang} force={resetMode} resetAt={resetAt} />
+          <QiwaSyncBookmarklet syncPersonId={spid} T={T} lang={lang} force={resetMode} resetAt={resetAt} />
+          <MuqeemSyncBookmarklet syncPersonId={spid} T={T} lang={lang} force={resetMode} resetAt={resetAt} />
+          <AjeerSyncBookmarklet syncPersonId={spid} T={T} lang={lang} force={resetMode} resetAt={resetAt} />
+          <MudadSyncBookmarklet syncPersonId={spid} T={T} lang={lang} force={resetMode} resetAt={resetAt} />
           {/* الغرفة + الزكاة — لا يوجد سكربت/جداول بعد؛ معطّلان لحين التقاط الـ endpoints. */}
           <SoonBookmark
+            soonLabel={T('قريباً', 'Soon')}
             accent={SOURCE_BRAND.chambers.color}
             title={T('مزامنة البوابة الموحدة للغرف التجارية — قيد التطوير', 'Unified Chambers portal sync — not built yet')}
             label={T('الغرف الموحد', 'Chambers (Unified)')}
@@ -6218,6 +6230,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
             )}
           />
           <SoonBookmark
+            soonLabel={T('قريباً', 'Soon')}
             accent={SOURCE_BRAND.chambers_eastern.color}
             title={T('مزامنة غرفة الشرقية — قيد التطوير', 'Eastern Province Chamber sync — not built yet')}
             label={T('الغرف الشرقية', 'Chambers (Eastern)')}
@@ -6228,6 +6241,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
             )}
           />
           <SoonBookmark
+            soonLabel={T('قريباً', 'Soon')}
             accent={SOURCE_BRAND.zatca.color}
             title={T('مزامنة الزكاة والضريبة — قيد التطوير', 'ZATCA sync — not built yet')}
             label={T('الزكاة', 'ZATCA')}
@@ -6320,7 +6334,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
             <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--tx4)' }}>
               {T('الخطوة الأولى — اسحب هذا الزر إلى شريط الإشارات', 'Step one — drag this to your bookmarks bar')}
             </div>
-            <SbcSyncBookmarklet syncPersonId={spid} T={T} />
+            <SbcSyncBookmarklet syncPersonId={spid} T={T} lang={lang} />
           </div>
 
           {/* 3-step mini guide */}
@@ -7975,7 +7989,7 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                 // Small pill that flags a field as "already visible in another
                 // card on this page". Hover shows where.
                 const DupBadge = ({ where }) => (
-                  <span title={`مكرر · ${where}`} style={{
+                  <span title={T(`مكرر · ${where}`, `Duplicate · ${where}`)} style={{
                     fontSize: 9, padding: '1px 5px', borderRadius: 4,
                     background: 'rgba(176,125,0,.12)', border: '1px solid rgba(176,125,0,.35)',
                     color: '#B07D00', fontWeight: 600, whiteSpace: 'nowrap',
