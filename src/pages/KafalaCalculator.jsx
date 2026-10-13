@@ -59,13 +59,18 @@ const sF = { width: '100%', height: 42, padding: '0 14px', border: '1px solid tr
 const Lbl = ({ children, req }) => <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--tx)', marginBottom: 9, textAlign: 'start' }}>{children}{req && <span style={{ color: C.red }}> *</span>}</div>
 
 const CAPTCHA_TTL = 13
-const CaptchaCountdown = ({ captchaKey, onExpire, color = C.gold }) => {
+// الرمز يُولَد عند وزارة العمل قبل وصول صورته بزمن الجلب، ونافذته (~15ث) تُحسب من تلك اللحظة لا من ظهور الصورة:
+// العدّاد يبدأ من bornAt (لحظة التوليد) فلا يَعِد بوقتٍ انقضى فعلاً، مع حدّ أدنى للعرض حتى لا يُستبدل الرمز فور ظهوره.
+const CAPTCHA_MIN_SHOW = 6
+const CAPTCHA_WINDOW_MS = 14000
+const captchaFromFn = r => ({ sessionToken: r.session, captchaImage: r.captchaImage, captchaBornAt: Date.now() - (r.ageMs || 0), captchaInput: '' })
+const CaptchaCountdown = ({ captchaKey, bornAt, onExpire, color = C.gold }) => {
   const [remaining, setRemaining] = useState(CAPTCHA_TTL)
   const firedRef = useRef(false)
   useEffect(() => {
     firedRef.current = false
-    setRemaining(CAPTCHA_TTL)
-    const start = Date.now()
+    const start = Math.max(bornAt || Date.now(), Date.now() - (CAPTCHA_TTL - CAPTCHA_MIN_SHOW) * 1000)
+    setRemaining(Math.max(0, CAPTCHA_TTL - Math.floor((Date.now() - start) / 1000)))
     const iv = setInterval(() => {
       const rem = Math.max(0, CAPTCHA_TTL - Math.floor((Date.now() - start) / 1000))
       setRemaining(rem)
@@ -543,10 +548,12 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
     phase: 'idle',        // idle | loading | captcha | verifying | result | error
     sessionToken: null,
     captchaImage: null,
+    captchaBornAt: null, // لحظة توليد الرمز عند الوزارة (بتوقيت المتصفح) — منها يُحسب العدّاد.
     captchaInput: '',
     result: null,
     error: null,
-    attempts: 0,        // عدّاد المحاولات الخاطئة — للعرض فقط، لا تخطّي تلقائي.
+    attempts: 0,        // رفضٌ متتالٍ لرمز التحقق — عند HRSD_MAX_FAILS تُفتح شاشة التجاوز بالاسم.
+    manualName: null,   // اسم العامل المُدخل يدوياً في شاشة «تعذّر الاستعلام» (null ⇒ يُعرض الاسم الحالي).
     errorCount: 0,      // عدّاد مرات «تعذّر الاستعلام» — للعرض فقط.
   })
 
@@ -904,6 +911,10 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
 
   // ═══ HRSD (Ministry of Labor) helpers ═══
   const HRSD_FN_URL = '/.netlify/functions/check-hrsd-worker'
+  // كل طلب يحمل رقمه؛ ردٌّ متأخّر لطلبٍ تجاوزه طلبٌ أحدث (تحديث تلقائي أثناء «تحقق»، أو إغلاق النافذة) يُهمل
+  // فلا يستبدل الرمز تحت يد المستخدم ولا يعيد فتح نافذة أُغلقت.
+  const hrsdSeq = useRef(0)
+  const HRSD_MAX_FAILS = 3
 
   async function callHrsdFn(body, timeoutMs = 25000) {
     const ctrl = new AbortController()
@@ -923,41 +934,53 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
 
   async function startHrsdCheck() {
     if (!/^[12]\d{9}$/.test((f.iqama || '').trim())) return
+    const seq = ++hrsdSeq.current
     setHrsdCheck(c => ({ ...c, phase: 'loading', error: null, result: null, attempts: 0 }))
     try {
       const r = await callHrsdFn({ action: 'init' })
-      setHrsdCheck(c => ({ ...c, phase: 'captcha', sessionToken: r.session, captchaImage: r.captchaImage, captchaInput: '' }))
+      if (seq !== hrsdSeq.current) return
+      setHrsdCheck(c => ({ ...c, phase: 'captcha', ...captchaFromFn(r) }))
     } catch (e) {
+      if (seq !== hrsdSeq.current) return
       setHrsdCheck(c => ({ ...c, phase: 'error', error: e.name === 'AbortError' ? T('انتهت مهلة الاتصال بوزارة العمل','Ministry of Labor connection timed out') : (e.message || T('خطأ في الاتصال','Connection error')), errorCount: (c.errorCount || 0) + 1 }))
     }
   }
 
   async function submitHrsdCaptcha() {
     if (!hrsdCheck.captchaInput || hrsdCheck.captchaInput.length < 3) return
+    const seq = ++hrsdSeq.current
     setHrsdCheck(c => ({ ...c, phase: 'verifying', error: null }))
     try {
       const r = await callHrsdFn({ action: 'verify', iqama: f.iqama, captcha: hrsdCheck.captchaInput, session: hrsdCheck.sessionToken })
-      // رمز خاطئ فعلاً — يُحتسب ضمن المحاولات الثلاث
-      if (r.status === 'invalid_captcha') {
-        // التحقق إلزامي — لا تخطّي تلقائي. يُطلب رمز جديد ويُعاد المحاولة حتى ينجح.
-        const nextAttempts = (hrsdCheck.attempts || 0) + 1
-        const fresh = await callHrsdFn({ action: 'init' })
+      if (seq !== hrsdSeq.current) return
+      // الرمز قُبل لكن الوزارة لم تُعطِ بيانات العامل (رفضت الخدمة، أو لا سجلّ له، أو ردٌّ غير مفهوم): يُعرض نصّها كما هو
+      // في شاشة «تعذّر الاستعلام»، ومنها يُدخل المستخدم اسم العامل يدوياً ويتجاوز الخطوة — لا رمز بعد رمز بلا نهاية.
+      if (r.status === 'not_found' || (r.status === 'unknown' && r.message)) {
+        const error = r.message ? T('ردّ وزارة العمل: ', 'Ministry of Labor replied: ') + r.message : T('لا توجد بيانات لهذا العامل لدى وزارة العمل', 'The Ministry of Labor has no record of this worker')
+        setHrsdCheck(c => ({ ...c, phase: 'error', error, errorCount: (c.errorCount || 0) + 1 }))
+        return
+      }
+      // الوزارة رفضت الرمز: ردّها واحد («تحقق من القيمة المدخلة للصورة») سواء أُدخل خطأً أو تجاوز نافذته (~15ث)، فيُفرَّق
+      // بعمر الرمز لحظة إرساله. يُعرض رمز جديد، وبعد HRSD_MAX_FAILS رفضاً متتالياً تُفتح شاشة التجاوز بالاسم.
+      if (r.status === 'invalid_captcha' || r.status === 'unknown') {
+        const fails = (hrsdCheck.attempts || 0) + 1
+        if (fails >= HRSD_MAX_FAILS) {
+          setHrsdCheck(c => ({ ...c, phase: 'error', attempts: fails, error: T(`لم تقبل وزارة العمل رمز التحقق بعد ${fails} محاولات`, `The Ministry of Labor rejected the code ${fails} times`), errorCount: (c.errorCount || 0) + 1 }))
+          return
+        }
+        // الردّ المرفوض يحمل الرمز الجديد جاهزاً؛ طلب init احتياطٌ إن خلا منه.
+        const fresh = r.captchaImage ? r : await callHrsdFn({ action: 'init' })
+        if (seq !== hrsdSeq.current) return
+        const expired = r.status === 'invalid_captcha' && r.submittedAgeMs >= CAPTCHA_WINDOW_MS
         setHrsdCheck(c => ({
           ...c,
           phase: 'captcha',
-          sessionToken: fresh.session,
-          captchaImage: fresh.captchaImage,
-          captchaInput: '',
-          error: T('رمز التحقق غير صحيح — أدخل الرمز الجديد', 'Wrong captcha — enter the new code'),
-          attempts: nextAttempts,
+          ...captchaFromFn(fresh),
+          error: r.status === 'unknown' ? T('لم تتضح نتيجة وزارة العمل — أدخل الرمز الجديد', 'Ministry of Labor reply was unclear — enter the new code')
+            : expired ? T('انتهت صلاحية الرمز — أدخل الرمز الجديد', 'Code expired — enter the new code')
+            : T('الرمز غير مطابق للصورة — أدخل الرمز الجديد', 'Code does not match the image — enter the new code'),
+          attempts: fails,
         }))
-        return
-      }
-      // انتهت صلاحية الرمز/الجلسة — موقع وزارة العمل يمنح الرمز ~15 ثانية فقط، فإذا تأخّر الإدخال يُعيد الصفحة فارغة (status=unknown).
-      // هذا ليس خطأ المستخدم: نُحدّث الرمز برسالة محايدة وبدون احتساب محاولة خاطئة (كان سابقًا يظهر «رمز غير صحيح» ويستهلك محاولة).
-      if (r.status === 'unknown' || r.code === 'SESSION_EXPIRED') {
-        const fresh = await callHrsdFn({ action: 'init' })
-        setHrsdCheck(c => ({ ...c, phase: 'captcha', sessionToken: fresh.session, captchaImage: fresh.captchaImage, captchaInput: '', error: T('انتهت صلاحية الرمز — أدخل الرمز الجديد','Code expired — enter the new code') }))
         return
       }
       // Apply name to form if found
@@ -968,22 +991,38 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
       setHrsdCheck(c => ({ ...c, phase: 'idle', result: r }))
       setErrors({}); setTab(1)
     } catch (e) {
+      if (seq !== hrsdSeq.current) return
       setHrsdCheck(c => ({ ...c, phase: 'error', error: e.name === 'AbortError' ? T('انتهت مهلة التحقق','Verification timed out') : (e.message || T('خطأ في التحقق','Verification error')), errorCount: (c.errorCount || 0) + 1 }))
     }
   }
 
+  // تعذّر الاستعلام أو رفضته الوزارة: يُدخل المستخدم اسم العامل يدوياً ويتجاوز الخطوة.
+  // النتيجة status='manual' فيبقى hrsd_verified_at فارغاً — الطلب يُحفظ على أنه غير مُتحقَّق منه لدى الوزارة.
+  function skipHrsdWithName() {
+    const name = (hrsdCheck.manualName ?? f.name ?? '').trim()
+    if (name.length < 2) return
+    hrsdSeq.current++
+    setF(p => ({ ...p, name }))
+    setHrsdCheck(c => ({ ...c, phase: 'idle', result: { status: 'manual', name }, error: null, manualName: null }))
+    setErrors({}); setTab(1)
+  }
+
   function closeHrsdCheck() {
     // إغلاق النافذة يُلغي الاستعلام الحالي فقط ويُبقي المستخدم في خطوة بيانات العامل —
-    // «التالي» إلزامي ويُعيد طلب الكابتشا، فلا تقدّم بدون تحقق ناجح.
+    // «التالي» يُعيد طلب الكابتشا؛ التقدّم بتحقق ناجح أو بإدخال الاسم يدوياً من شاشة «تعذّر الاستعلام».
+    hrsdSeq.current++
     setHrsdCheck(c => ({ phase: 'idle', sessionToken: null, captchaImage: null, captchaInput: '', result: c.result || null, error: null, attempts: 0, errorCount: 0 }))
   }
 
   async function refreshHrsdCaptcha() {
+    const seq = ++hrsdSeq.current
     setHrsdCheck(c => ({ ...c, captchaImage: null, captchaInput: '', error: null }))
     try {
       const r = await callHrsdFn({ action: 'init' })
-      setHrsdCheck(c => ({ ...c, phase: 'captcha', sessionToken: r.session, captchaImage: r.captchaImage, captchaInput: '' }))
+      if (seq !== hrsdSeq.current) return
+      setHrsdCheck(c => ({ ...c, phase: 'captcha', ...captchaFromFn(r) }))
     } catch (e) {
+      if (seq !== hrsdSeq.current) return
       setHrsdCheck(c => ({ ...c, error: e.message || T('تعذّر تحديث رمز التحقق','Could not refresh captcha') }))
     }
   }
@@ -1837,7 +1876,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
                 <div style={{ fontSize: 12, color: 'var(--tx3)', textAlign: lang === 'en' ? 'left' : 'right' }}>{T('أدخل رمز التحقق الظاهر بالصورة','Enter the captcha shown in the image')}</div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '0 8px' }}>
                   {hrsdCheck.captchaImage
-                    ? <CaptchaCountdown captchaKey={hrsdCheck.captchaImage} onExpire={refreshHrsdCaptcha} color="#3bb27a" />
+                    ? <CaptchaCountdown captchaKey={hrsdCheck.captchaImage} bornAt={hrsdCheck.captchaBornAt} onExpire={refreshHrsdCaptcha} color="#3bb27a" />
                     : <div style={{ width: 38, height: 38, flexShrink: 0 }} aria-hidden="true" />}
                   {hrsdCheck.captchaImage
                     ? <img src={hrsdCheck.captchaImage} alt="captcha" style={{ height: 72, background: 'transparent', mixBlendMode: 'multiply', imageRendering: 'auto' }} />
@@ -1848,7 +1887,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
                 </div>
                 <input
                   value={hrsdCheck.captchaInput}
-                  onChange={e => setHrsdCheck(c => ({ ...c, captchaInput: e.target.value.slice(0, 6) }))}
+                  onChange={e => setHrsdCheck(c => ({ ...c, captchaInput: e.target.value.slice(0, 6), error: null }))}
                   onKeyDown={e => { if (e.key === 'Enter') submitHrsdCaptcha() }}
                   placeholder="______"
                   autoFocus maxLength={6}
@@ -1874,6 +1913,25 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
                   <div style={{ fontSize: 14, fontWeight: 500, color: C.red, textAlign: 'center' }}>{T('تعذّر الاستعلام','Inquiry failed')}</div>
                   <div style={{ fontSize: 14, color: 'var(--tx3)', textAlign: 'center', lineHeight: 1.6, padding: '0 8px' }}>{hrsdCheck.error}</div>
                 </div>
+                {/* تجاوز الخطوة: اسم العامل يدوياً بدل نتيجة الوزارة */}
+                {(() => {
+                  const manualName = hrsdCheck.manualName ?? f.name ?? ''
+                  const canSkip = manualName.trim().length >= 2
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 9, paddingTop: 12, borderTop: '1px solid var(--bd)' }}>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--tx)', textAlign: lang === 'en' ? 'left' : 'right' }}>{T('اسم العامل','Worker name')}</div>
+                      <input
+                        value={manualName}
+                        onChange={e => setHrsdCheck(c => ({ ...c, manualName: e.target.value }))}
+                        onKeyDown={e => { if (e.key === 'Enter') skipHrsdWithName() }}
+                        placeholder={T('أدخل اسم العامل للمتابعة بدون استعلام','Enter the worker name to continue without the inquiry')}
+                        autoFocus dir="auto"
+                        style={{ ...sF, background: 'var(--modal-input-bg)' }}
+                      />
+                      <button onClick={skipHrsdWithName} disabled={!canSkip} style={{ height: 44, borderRadius: 10, border: '1px solid rgba(59,178,122,.55)', background: 'linear-gradient(180deg,#4ac888 0%,#2d9963 100%)', color: '#fff', fontFamily: F, fontSize: 14, fontWeight: 600, cursor: canSkip ? 'pointer' : 'not-allowed', opacity: canSkip ? 1 : 0.45, transition: '.18s' }}>{T('متابعة بدون استعلام','Continue without the inquiry')}</button>
+                    </div>
+                  )
+                })()}
                 <button onClick={startHrsdCheck} style={{ height: 40, borderRadius: 10, border: '1px solid rgba(11,109,61,.4)', background: 'rgba(11,109,61,.12)', color: '#3bb27a', fontFamily: F, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>{T('إعادة المحاولة','Retry')}</button>
               </div>
             )}

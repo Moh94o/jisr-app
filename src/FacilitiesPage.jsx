@@ -182,13 +182,18 @@ function extractPartyDisplay(p) {
 // عدّاد صلاحية الكابتشا — نسخة مطابقة لعداد حاسبة الكفالة (صلاحية رمز وزارة
 // الموارد ~15 ثانية فقط؛ عند الانتهاء يُطلب رمز جديد تلقائياً).
 const CAPTCHA_TTL = 13
-const CaptchaCountdown = ({ captchaKey, onExpire, color = C.gold }) => {
+// الرمز يُولَد عند الوزارة قبل وصول صورته بزمن الجلب، ونافذته (~15ث) تُحسب من تلك اللحظة لا من ظهور الصورة:
+// العدّاد يبدأ من bornAt (لحظة التوليد) فلا يَعِد بوقتٍ انقضى فعلاً، مع حدّ أدنى للعرض حتى لا يُستبدل الرمز فور ظهوره.
+const CAPTCHA_MIN_SHOW = 6
+const CAPTCHA_WINDOW_MS = 14000
+const captchaFromFn = r => ({ sessionToken: r.session, captchaImage: r.captchaImage, captchaBornAt: Date.now() - (r.ageMs || 0), captchaInput: '' })
+const CaptchaCountdown = ({ captchaKey, bornAt, onExpire, color = C.gold }) => {
   const [remaining, setRemaining] = useState(CAPTCHA_TTL)
   const firedRef = useRef(false)
   useEffect(() => {
     firedRef.current = false
-    setRemaining(CAPTCHA_TTL)
-    const start = Date.now()
+    const start = Math.max(bornAt || Date.now(), Date.now() - (CAPTCHA_TTL - CAPTCHA_MIN_SHOW) * 1000)
+    setRemaining(Math.max(0, CAPTCHA_TTL - Math.floor((Date.now() - start) / 1000)))
     const iv = setInterval(() => {
       const rem = Math.max(0, CAPTCHA_TTL - Math.floor((Date.now() - start) / 1000))
       setRemaining(rem)
@@ -4038,7 +4043,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
     setNitaqFetch({ phase: 'loading', row, sessionToken: null, captchaImage: null, captchaInput: '', error: null, result: null })
     try {
       const r = await callNitaqFn({ action: 'init' })
-      setNitaqFetch(c => c.phase === 'idle' ? c : ({ ...c, phase: 'captcha', sessionToken: r.session, captchaImage: r.captchaImage, captchaInput: '' }))
+      setNitaqFetch(c => c.phase === 'idle' ? c : ({ ...c, phase: 'captcha', ...captchaFromFn(r) }))
     } catch (e) {
       setNitaqFetch(c => c.phase === 'idle' ? c : ({ ...c, phase: 'error', error: e.name === 'AbortError' ? T('انتهت مهلة الاتصال بوزارة الموارد', 'HRSD connection timed out') : (e.message || T('خطأ في الاتصال', 'Connection error')) }))
     }
@@ -4047,9 +4052,10 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
     setNitaqFetch(c => ({ ...c, captchaImage: null, captchaInput: '', error: null }))
     try {
       const r = await callNitaqFn({ action: 'init' })
-      setNitaqFetch(c => c.phase === 'idle' ? c : ({ ...c, phase: 'captcha', sessionToken: r.session, captchaImage: r.captchaImage, captchaInput: '' }))
+      // ردّ تحديثٍ وصل بعد ضغط «جلب النطاق» أو بعد الإغلاق يُهمل — لا يُستبدل الرمز أثناء التحقق منه.
+      setNitaqFetch(c => c.phase !== 'captcha' ? c : ({ ...c, ...captchaFromFn(r) }))
     } catch (e) {
-      setNitaqFetch(c => c.phase === 'idle' ? c : ({ ...c, error: e.message || T('تعذّر تحديث رمز التحقق', 'Could not refresh captcha') }))
+      setNitaqFetch(c => c.phase !== 'captcha' ? c : ({ ...c, error: e.message || T('تعذّر تحديث رمز التحقق', 'Could not refresh captcha') }))
     }
   }
   const closeNitaqFetch = () => setNitaqFetch({ phase: 'idle', row: null, sessionToken: null, captchaImage: null, captchaInput: '', error: null, result: null })
@@ -4060,8 +4066,10 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
     try {
       const r = await callNitaqFn({ action: 'verify', office: row.hrsd_labor_office_id, sequence: row.hrsd_sequence_number, captcha: captchaInput, session: sessionToken })
       if (r.status === 'invalid_captcha') {
-        const fresh = await callNitaqFn({ action: 'init' })
-        setNitaqFetch(c => c.phase === 'idle' ? c : ({ ...c, phase: 'captcha', sessionToken: fresh.session, captchaImage: fresh.captchaImage, captchaInput: '', error: T('رمز التحقق غير صحيح — أدخل الرمز الجديد', 'Wrong code — enter the new one') }))
+        // ردّ الوزارة واحد للرمز الخاطئ والمنتهي (~15ث) فيُفرَّق بعمر الرمز لحظة إرساله؛ والردّ المرفوض يحمل الرمز الجديد جاهزاً.
+        const fresh = r.captchaImage ? r : await callNitaqFn({ action: 'init' })
+        const expired = r.submittedAgeMs >= CAPTCHA_WINDOW_MS
+        setNitaqFetch(c => c.phase === 'idle' ? c : ({ ...c, phase: 'captcha', ...captchaFromFn(fresh), error: expired ? T('انتهت صلاحية الرمز — أدخل الرمز الجديد', 'Code expired — enter the new code') : T('الرمز غير مطابق للصورة — أدخل الرمز الجديد', 'Code does not match the image — enter the new code') }))
         return
       }
       if (r.status === 'not_found') {
@@ -7687,7 +7695,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                 <div style={{ fontSize: 12, color: 'var(--tx3)', textAlign: lang === 'en' ? 'left' : 'right' }}>{T('أدخل رمز التحقق الظاهر بالصورة', 'Enter the captcha shown in the image')}</div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '0 8px' }}>
                   {nitaqFetch.captchaImage
-                    ? <CaptchaCountdown captchaKey={nitaqFetch.captchaImage} onExpire={refreshNitaqCaptcha} color={C.gold} />
+                    ? <CaptchaCountdown captchaKey={nitaqFetch.captchaImage} bornAt={nitaqFetch.captchaBornAt} onExpire={refreshNitaqCaptcha} color={C.gold} />
                     : <div style={{ width: 38, height: 38, flexShrink: 0 }} aria-hidden="true" />}
                   {nitaqFetch.captchaImage
                     ? <img src={nitaqFetch.captchaImage} alt="captcha" style={{ height: 72, background: 'transparent', mixBlendMode: 'multiply', imageRendering: 'auto' }} />
@@ -7698,7 +7706,7 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                 </div>
                 <input
                   value={nitaqFetch.captchaInput}
-                  onChange={e => setNitaqFetch(c => ({ ...c, captchaInput: e.target.value.slice(0, 6) }))}
+                  onChange={e => setNitaqFetch(c => ({ ...c, captchaInput: e.target.value.slice(0, 6), error: null }))}
                   onKeyDown={e => { if (e.key === 'Enter') submitNitaqCaptcha() }}
                   placeholder="______"
                   autoFocus maxLength={6}

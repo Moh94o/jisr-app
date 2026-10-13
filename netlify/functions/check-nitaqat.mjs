@@ -97,7 +97,9 @@ const BAND_RE = /(بلاتيني(?:\s*مميز)?|(?:أخضر|اخضر)\s*(?:مر
 function parseResult(html) {
   const text = stripTags(cleanBody(html))
 
-  if (/(?:رمز\s*التحقق|الكابتشا|captcha)[^\n]{0,80}(?:غير\s*صحيح|خاطئ|خطأ|invalid|incorrect)/i.test(text)) {
+  // The live site answers a rejected code with «من فضلك تحقق من القيمة المدخلة للصورة» (verified 2026-10-13) —
+  // the same text whether the code was mistyped or simply outlived its ~15s window.
+  if (/تحقق\s*من\s*القيمة\s*المدخلة\s*للصورة|(?:رمز\s*التحقق|الكابتشا|captcha)[^\n]{0,80}(?:غير\s*صحيح|خاطئ|خطأ|invalid|incorrect)/i.test(text)) {
     return { status: 'invalid_captcha' }
   }
   if (/(?:لا\s*يوجد|غير\s*موجود|not\s*found|لم\s*يتم\s*العثور|no\s*records)/i.test(text)) {
@@ -128,6 +130,33 @@ function parseResult(html) {
 function packSession(s) { return Buffer.from(JSON.stringify(s), 'utf8').toString('base64') }
 function unpackSession(p) { return JSON.parse(Buffer.from(p, 'base64').toString('utf8')) }
 
+const setCookiesOf = res => res.headers.getSetCookie ? res.headers.getSetCookie() : (res.headers.raw ? res.headers.raw()['set-cookie'] : res.headers.get('set-cookie'))
+
+// Reads the captcha a page carries (the first GET, or the page a rejected postback returns) together with the
+// hidden fields needed to post it back. `born` = when that page was requested, i.e. when its code was generated.
+async function loadCaptcha(html, cookies, born) {
+  const hidden = extractHidden(html)
+  const captchaUrl = extractCaptchaUrl(html)
+  if (!captchaUrl || !hidden['__VIEWSTATE']) {
+    return { fail: { error: 'Failed to parse HRSD page', hasCaptcha: !!captchaUrl, hasViewState: !!hidden['__VIEWSTATE'] } }
+  }
+  const imgRes = await fetch(captchaUrl, {
+    headers: { 'User-Agent': UA, 'Cookie': cookies, 'Referer': HRSD_URL },
+  })
+  if (!imgRes.ok) return { fail: { error: 'Failed to fetch CAPTCHA image', status: imgRes.status } }
+  const imgBuf = Buffer.from(await imgRes.arrayBuffer())
+  const mime = imgBuf[0] === 0x89 && imgBuf[1] === 0x50 ? 'image/png'
+             : imgBuf[0] === 0xFF && imgBuf[1] === 0xD8 ? 'image/jpeg'
+             : imgBuf[0] === 0x47 && imgBuf[1] === 0x49 ? 'image/gif'
+             : 'image/png'
+  return {
+    session: packSession({ cookies: applySetCookies(cookies, setCookiesOf(imgRes)), hidden, exp: Date.now() + 5 * 60_000, born }),
+    captchaImage: `data:${mime};base64,${imgBuf.toString('base64')}`,
+    // How old the code already is when this response leaves — the client counts its window down from here.
+    ageMs: Date.now() - born,
+  }
+}
+
 export const handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: cors, body: '' }
   if (event.httpMethod !== 'POST') return json({ error: 'Method not allowed' }, 405)
@@ -140,6 +169,7 @@ export const handler = async (event) => {
 
   try {
     if (action === 'init') {
+      const born = Date.now()
       const ctrl = new AbortController()
       const t = setTimeout(() => ctrl.abort(), 20_000)
       let res
@@ -152,30 +182,9 @@ export const handler = async (event) => {
 
       if (!res.ok) return json({ error: 'HRSD page fetch failed', status: res.status }, 502)
       const html = await res.text()
-      const cookies = parseCookies(res.headers.raw ? res.headers.raw()['set-cookie'] : res.headers.get('set-cookie'))
-      const hidden = extractHidden(html)
-      const captchaUrl = extractCaptchaUrl(html)
-
-      if (!captchaUrl || !hidden['__VIEWSTATE']) {
-        return json({ error: 'Failed to parse HRSD page', hasCaptcha: !!captchaUrl, hasViewState: !!hidden['__VIEWSTATE'] }, 502)
-      }
-
-      const imgRes = await fetch(captchaUrl, {
-        headers: { 'User-Agent': UA, 'Cookie': cookies, 'Referer': HRSD_URL },
-      })
-      if (!imgRes.ok) return json({ error: 'Failed to fetch CAPTCHA image', status: imgRes.status }, 502)
-      const imgBuf = Buffer.from(await imgRes.arrayBuffer())
-      const mime = imgBuf[0] === 0x89 && imgBuf[1] === 0x50 ? 'image/png'
-                 : imgBuf[0] === 0xFF && imgBuf[1] === 0xD8 ? 'image/jpeg'
-                 : imgBuf[0] === 0x47 && imgBuf[1] === 0x49 ? 'image/gif'
-                 : 'image/png'
-      const captchaImage = `data:${mime};base64,${imgBuf.toString('base64')}`
-      const finalCookies = applySetCookies(cookies, imgRes.headers.raw ? imgRes.headers.raw()['set-cookie'] : imgRes.headers.get('set-cookie'))
-
-      return json({
-        session: packSession({ cookies: finalCookies, hidden, exp: Date.now() + 5 * 60_000 }),
-        captchaImage,
-      })
+      const cap = await loadCaptcha(html, parseCookies(setCookiesOf(res)), born)
+      if (cap.fail) return json(cap.fail, 502)
+      return json(cap)
     }
 
     if (action === 'verify') {
@@ -194,6 +203,7 @@ export const handler = async (event) => {
       form.set(`${FIELD}$ucCaptcha$txtCaptchaCode`, captcha)
       form.set(`${FIELD}$btnSearch`, 'بحث')
 
+      const sentAt = Date.now()
       const ctrl = new AbortController()
       const t = setTimeout(() => ctrl.abort(), 25_000)
       let res
@@ -215,8 +225,20 @@ export const handler = async (event) => {
         })
       } finally { clearTimeout(t) }
 
+      if (!res.ok) return json({ error: 'HRSD request failed', status: res.status }, 502)
       const html = await res.text()
-      return json(parseResult(html))
+      const result = parseResult(html)
+      if (result.status === 'invalid_captcha') {
+        // Age of the code when it was submitted — lets the client tell "expired" from "mistyped".
+        result.submittedAgeMs = sess.born ? sentAt - sess.born : null
+        // The rejected postback already returns the form with a fresh captcha: hand it over here so the
+        // client doesn't spend another full page round trip (and part of the next code's window) on init.
+        try {
+          const next = await loadCaptcha(html, applySetCookies(sess.cookies || '', setCookiesOf(res)), sentAt)
+          if (!next.fail) Object.assign(result, next)
+        } catch { /* client falls back to init */ }
+      }
+      return json(result)
     }
 
     return json({ error: 'Unknown action. Use init | verify.' }, 400)
