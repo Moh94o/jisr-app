@@ -393,7 +393,8 @@ exit_reentry_visa:{store:'servicesPricingConfig',sub:'exitReentry',fields:[
   {k:'issueMultiplePerMonth',l:'إصدار متعددة · كل شهر إضافي',d:200,sfx:'ريال/شهر'},
   {k:'extendSingle',l:'تمديد مفردة · كل شهر',d:100,sfx:'ريال/شهر'},
   {k:'extendMultiple',l:'تمديد متعددة · كل شهر',d:200,sfx:'ريال/شهر'},
-  {k:'officeFeeFixed',l:'رسوم مكتب ثابتة',d:50,sfx:'ريال'},
+  {k:'officeFeeFixed',l:'رسوم مكتب · الإصدار',d:50,sfx:'ريال'},
+  {k:'officeFeeExtend',l:'رسوم مكتب · التمديد',d:200,sfx:'ريال'},
   {k:'mqExpiredFee',l:'إضافة عند انتهاء اشتراك مقيم للمنشأة',d:200,sfx:'ريال'}
 ],note:'الإصدار: السعر الأساسي يشمل عدد الأشهر المحدد، ويُضاف سعر كل شهر إضافي بعدها. التمديد: عدد الأشهر × سعر الشهر.'},
 final_exit_visa:{store:'servicesPricingConfig',sub:'finalExit',fields:[

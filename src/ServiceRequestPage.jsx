@@ -966,7 +966,7 @@ const OTHER_SVC_SUB_MAP={ajeer:'ajeer_contract',exitReentry:'exit_reentry_visa',
 const getServicesConfig=(branchId=null)=>{
 const d={
   ajeer:{baseFee:300,baseMonths:3,perMonthAfter:100,saudizationEnabled:true,saudizationThreshold:6,saudizationPerWorker:250},
-  exitReentry:{issueSingleBase:300,issueMultipleBase:500,issueSingleCovered:3,issueMultipleCovered:3,issueSinglePerMonth:100,issueMultiplePerMonth:200,extendSingle:100,extendMultiple:200,officeFeeFixed:50,mqExpiredFee:200},
+  exitReentry:{issueSingleBase:300,issueMultipleBase:500,issueSingleCovered:3,issueMultipleCovered:3,issueSinglePerMonth:100,issueMultiplePerMonth:200,extendSingle:100,extendMultiple:200,officeFeeFixed:50,officeFeeExtend:200,mqExpiredFee:200},
   finalExit:{fee:150,expiredFee:1250,mqExpiredFee:200},
   professionChange:{fee:200,officeFeeFixed:50},
   passportUpdate:{fee:100},
@@ -1007,15 +1007,16 @@ if(selSvc==='exit_reentry_visa'){
   const months=parseInt(fields.duration_months)||0
   const type=fields.exit_type||'single'
   const er=cfg.exitReentry
-  const officeFee=parseFloat(er.officeFeeFixed)||0
-  // اشتراك مقيم للمنشأة منتهٍ ⇒ بند «اشتراك مقيم» من الإعدادات (كطباعة الإقامة — طلب المستخدم 2026-09-26)
-  const feeLine=[...(mqSub?.expired?[{label:'اشتراك مقيم',amount:Number(er.mqExpiredFee)||0}]:[]),...(officeFee>0?[{label:'رسوم مكتب',amount:officeFee}]:[])]
   const typeLbl=type==='multiple'?'متعددة':'مفردة'
   // التمديد: عند وجود تأشيرة فعّالة للعامل، أو عند اختيار الموظف «تمديد» يدويًا.
   const existingVisa=selWorker?.exit_reentry_visa||null
   const endDate=existingVisa?.end_date?new Date(existingVisa.end_date):null
   const isActiveVisa=!!(existingVisa&&endDate&&!isNaN(endDate)&&endDate>=new Date())
   const isExtend=fields.op_mode==='extend'||isActiveVisa
+  // رسوم المكتب: للتمديد رسمه الخاص (200 افتراضياً — طلب المستخدم 2026-10-15) وللإصدار الرسم الثابت.
+  const officeFee=parseFloat(isExtend?er.officeFeeExtend:er.officeFeeFixed)||0
+  // اشتراك مقيم للمنشأة منتهٍ ⇒ بند «اشتراك مقيم» من الإعدادات (كطباعة الإقامة — طلب المستخدم 2026-09-26)
+  const feeLine=[...(mqSub?.expired?[{label:'اشتراك مقيم',amount:Number(er.mqExpiredFee)||0}]:[]),...(officeFee>0?[{label:'رسوم مكتب',amount:officeFee}]:[])]
   if(isExtend){
     const rate=type==='multiple'?er.extendMultiple:er.extendSingle
     return{lines:[{label:`خروج وعودة (تمديد-${typeLbl})`,amount:rate*months},...feeLine]}
