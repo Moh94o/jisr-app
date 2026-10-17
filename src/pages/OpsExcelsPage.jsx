@@ -13,7 +13,7 @@ import { Modal, ModalSection, ActionButton, ConfirmDialog, Dropdown, Select, Seg
 import { useIsMobile, MBadge } from '../components/mobile/MobileKit.jsx'
 import { MSheetList, MSheetDetail, buildSpec, toneOfBg, stageState, StageDots, fmtMoney, rangeLabel } from '../components/mobile/sheets/MSheet.jsx'
 import '../styles/m-sheets.css'
-import { Save, UserRound, IdCard, Trash2, Search, RefreshCw, HeartPulse, ShieldOff, X as XIcon, HandCoins, BadgeCheck, ArrowUpDown, Zap, SlidersHorizontal, ListChecks, Pencil, ArrowUpNarrowWide, ArrowDownWideNarrow, Filter, Sigma, Pin, PinOff, Palette, Type, KeyRound, Eye, EyeOff, MoveHorizontal, SeparatorVertical, ClipboardCopy, Check, History, Plus, FileInput, Columns3, TableProperties, ChevronLeft, ChevronRight, Building2, CalendarDays, Printer, FileText, SaudiRiyal } from 'lucide-react'
+import { Save, UserRound, IdCard, Trash2, Search, RefreshCw, HeartPulse, ShieldOff, X as XIcon, HandCoins, BadgeCheck, ArrowUpDown, Zap, SlidersHorizontal, ListChecks, Pencil, ArrowUpNarrowWide, ArrowDownWideNarrow, Filter, Sigma, Pin, PinOff, Palette, Type, KeyRound, Eye, EyeOff, MoveHorizontal, SeparatorVertical, ClipboardCopy, Check, History, Plus, FileInput, Columns3, TableProperties, ChevronLeft, ChevronRight, Building2, CalendarDays, Printer, FileText, SaudiRiyal, RotateCcw } from 'lucide-react'
 
 /* سقوطُ الجلسة يُرجع 401 / 42501 من PostgREST، فيبدو للمستخدم «فشل الحفظ» بلا
    سبب — وهو يرى اسمه في الرأس فيظنّها صلاحيات. نُسمّيه باسمه. */
@@ -19004,6 +19004,7 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
   const [dueModal, setDueModal] = useState(false)      // نافذة قواعد «مستحقة التجديد»
   const [dueDraft, setDueDraft] = useState({})
   const [colModal, setColModal] = useState(false)   // نافذة إضافة عمود
+  const [removedOpen, setRemovedOpen] = useState(false)   // نافذة «صفوف محذوفة» (removedRows)
   const [colName, setColName] = useState('')
   const [renameCol, setRenameCol] = useState(null)  // { key, name } نافذة إعادة تسمية
   const [cfModal, setCfModal] = useState(null)      // مفتاح العمود لنافذة التنسيق الشرطي
@@ -19953,8 +19954,12 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
   }, [allRows, nameRank, view])
 
   const hiddenCount = useMemo(() => allRows.reduce((a, r) => a + (r._hidden ? 1 : 0), 0), [allRows])
-  // صفوف محذوفة نهائياً (تُستبعد كلياً حتى من قائمة «المحذوفة») — تُخزَّن في layout
+  /* صفوف محذوفة نهائياً — تُخزَّن في layout وتغيب عن الجدول والبحث، وتُعرض وحدها في
+     نافذة «صفوف محذوفة» للاسترجاع. معرّفٌ لا يقابله صفٌّ محمَّل (غاب من مصدره) لا يُعرض. */
   const removedRowSet = useMemo(() => new Set(layout.removedRows || []), [layout])
+  /* من الصفوف كلّها قبل تصفية التبويب والفترة (`_all`): المحذوف قبل شهرين يبقى قابلاً
+     للاسترجاع وإن كانت العدسة على «آخر 30 يوماً». */
+  const removedList = useMemo(() => (removedRowSet.size ? (allRows._all || allRows).filter((r) => removedRowSet.has(r._id)) : []), [allRows, removedRowSet])
   const visible = useMemo(() => {
     const base = showHidden ? ordered : ordered.filter((r) => !r._hidden)
     return removedRowSet.size ? base.filter((r) => !removedRowSet.has(r._id)) : base
@@ -21584,12 +21589,17 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
      يكتب نسخة الذاكرة كاملةً — فأي تبويب مفتوح من قبل (أو تعديل من شخص آخر أو
      من SQL) يُدهَس ويرجع الترتيب للخلف عند التحديث. الآن نحسب **ما تغيّر فعلاً
      في هذه العملية** ونطبّقه على أحدث نسخة من الخادم، فتتعايش التعديلات. */
-  const persistLayout = useCallback(async (next) => {
+  /* `setDelta` — مفاتيحُ قوائمَ تُعدَّل **بالفرق لا بالاستبدال**: `{ removedRows: { add:[…], del:[…] } }`.
+     المفتاح من أعلى المستوى يُكتب كلّه فوق نسخة الخادم، والقائمة محسوبةٌ من نسخةٍ محلّية
+     قد تكون قديمة — فمتصفّحٌ فُتح قبل استرجاع صفٍّ ثم حذف صفّاً آخر كان **يُعيد المسترجَع
+     إلى المحذوفات**. هنا تُطبَّق الإضافة والإزالة على قائمة الخادم المقروءة للتوّ. */
+  const persistLayout = useCallback(async (next, setDelta) => {
     setLayout(next)
     if (!sb) return
     const prev = layout || {}
     const changed = {}
     for (const k of new Set([...Object.keys(next || {}), ...Object.keys(prev)])) {
+      if (setDelta && setDelta[k]) continue   // يُحسب من نسخة الخادم أدناه
       if (JSON.stringify(next?.[k]) !== JSON.stringify(prev[k])) changed[k] = next?.[k]
     }
     // أحدث نسخة من الخادم ثم نطبّق التغيير وحده فوقها
@@ -21598,6 +21608,12 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
        التخطيط كلّه فيمحو بقيّته. فلا كتابة بلا أحدث نسخة. */
     if (readErr) { toast && toast(isAuthErr(readErr) ? T('انتهت الجلسة — أعد تسجيل الدخول ثم أعد المحاولة', 'Session expired — sign in again and retry') : T('فشل حفظ تخطيط الأعمدة', 'Failed to save column layout')); return }
     const merged = { ...(cur?.layout || {}), ...changed }
+    for (const [k, d] of Object.entries(setDelta || {})) {
+      const s = new Set(Array.isArray(merged[k]) ? merged[k] : [])
+      for (const v of d.add || []) s.add(v)
+      for (const v of d.del || []) s.delete(v)
+      if (s.size) merged[k] = Array.from(s); else delete merged[k]
+    }
     for (const k of Object.keys(merged)) if (merged[k] === undefined) delete merged[k]
     const { error } = await sbRetry(() => sb.from('ops_sheet_config').upsert({
       view_key: view.key, layout: merged, updated_by: user?.id || null, updated_at: new Date().toISOString(),
@@ -21669,12 +21685,24 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
     persistLayout({ ...layout, removed, hidden, order, custom, tabHidden })
   }, [layout, orderKeys, persistLayout])
 
-  // حذف صف نهائياً: اليدوي يُحذف فعلاً؛ المُزامَن يُضاف لقائمة removedRows فلا يظهر إطلاقاً
+  /* حذف صف نهائياً: اليدوي يُحذف فعلاً؛ المُزامَن يُضاف لقائمة removedRows فيغيب عن
+     الجدول والبحث — ويُسترجَع من نافذة «صفوف محذوفة» (حادثة 2026-10-14: فاتورة
+     1561394273 حُذف صفّها في «إصدار التأشيرات» بعد إدخال بياناته بثوانٍ، ولم يكن
+     لاسترجاعه طريقٌ إلا SQL). الكتابة فرقٌ على قائمة الخادم — انظر `setDelta`. */
   const removeRowPermanent = useCallback((rowId) => {
     const row = allRows.find((r) => r._id === rowId); if (!row) return
     if (row._manual) { deleteRow(rowId); return }
-    persistLayout({ ...layout, removedRows: Array.from(new Set([...(layout.removedRows || []), rowId])) })
+    persistLayout({ ...layout, removedRows: Array.from(new Set([...(layout.removedRows || []), rowId])) },
+      { removedRows: { add: [rowId] } })
   }, [allRows, deleteRow, layout, persistLayout])
+
+  const restoreRemovedRows = useCallback((ids) => {
+    if (!ids || !ids.length) return
+    const drop = new Set(ids)
+    persistLayout({ ...layout, removedRows: (layout.removedRows || []).filter((id) => !drop.has(id)) },
+      { removedRows: { del: ids } })
+    toast && toast(ids.length === 1 ? T('استُرجع الصف', 'Row restored') : T(`استُرجع ${enNum(ids.length)} صفاً`, `${ids.length} rows restored`))
+  }, [layout, persistLayout, toast, T])
 
   /* إفلات رأس عمود مسحوب فوق رأس عمود هدف. */
   const reorderCols = useCallback((fromKey, toKey) => {
@@ -22953,6 +22981,15 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
           </button>
         )}
         {canExport && <button className="ox-btn" onClick={exportCsv} title={T('تصدير إلى CSV/إكسل', 'Export to CSV/Excel')}>⭳ {T('تصدير', 'Export')}</button>}
+        {/* يظهر فقط حين يوجد ما يُسترجَع — وبصلاحية الحذف النهائي نفسها (`canEdit`) */}
+        {canEdit && removedList.length > 0 && (
+          <button className="ox-btn" onClick={() => setRemovedOpen(true)}
+            title={T('صفوفٌ حُذفت نهائياً من هذا الجدول — اطّلع عليها واسترجعها', 'Rows permanently removed from this sheet — review and restore')}>
+            <Trash2 size={15} strokeWidth={2.1} />
+            {T('صفوف محذوفة', 'Removed rows')}
+            <span style={{ marginInlineStart: 2, fontFamily: MONO, fontSize: 10.5, color: 'var(--tx4)' }}>{enNum(removedList.length)}</span>
+          </button>
+        )}
         {/* الجلب الجماعي — وأثناء الجري يصير الزرّ عدّاداً يعيد فتح نافذته */}
         {canEdit && view.bulkFetch && (bulkRows.length > 0 || (bulk && bulk.phase === 'run')) && (
           bulk && bulk.phase === 'run'
@@ -24856,6 +24893,46 @@ function OpsExcelsPage({ sb, user, toast, lang, onTabChange, forceView, withTool
             onKeyDown={(e) => { if (e.key === 'Enter' && colName.trim()) { addColumn(colName); setColModal(false) } }} />
         </Modal>
       )}
+
+      {/* ── نافذة «صفوف محذوفة» — ما حُذف نهائياً من صفوف المزامنة (`layout.removedRows`)
+          مشتركٌ لكل المستخدمين؛ «استرجاع» يُزيل المعرّف فيعود الصفّ بقيمه المحفوظة كما كان. */}
+      {removedOpen && canEdit && (() => {
+        const idCols = COLS.filter((c) => c.kind !== 'rownum')
+        const labelOf = (row) => {
+          const vals = []
+          for (const c of idCols) {
+            const v = String(fmtDisp(row, c) ?? '').trim()
+            if (v && !oxIsFileVal(v)) vals.push(v)
+            if (vals.length >= 4) break
+          }
+          return vals
+        }
+        return (
+          <Modal open onClose={() => setRemovedOpen(false)} closeOnOverlay lang={lang} accent={C.gold} width={600} scroll Icon={Trash2}
+            title={T('صفوف محذوفة', 'Removed rows')}
+            subtitle={T('صفوفٌ حُذفت نهائياً من هذا الجدول لكل المستخدمين — الاسترجاع يعيدها بقيمها المحفوظة', 'Rows permanently removed from this sheet for everyone — restoring brings them back with their saved values')}
+            footer={removedList.length > 1 ? <ActionButton Icon={RotateCcw} onClick={() => { restoreRemovedRows(removedList.map((r) => r._id)); setRemovedOpen(false) }}>{T('استرجاع الكل', 'Restore all')}</ActionButton> : null}>
+            {removedList.length === 0 && (
+              <div style={{ padding: '18px 2px', fontSize: 13, color: 'var(--tx3)' }}>{T('لا صفوف محذوفة', 'No removed rows')}</div>
+            )}
+            {removedList.map((row) => {
+              const [head, ...rest] = labelOf(row)
+              return (
+                <div key={row._id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 2px', borderBottom: '1px solid var(--bd2)' }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--tx)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{head || row._id}</div>
+                    {rest.length > 0 && <div style={{ fontSize: 11.5, color: 'var(--tx3)', marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{rest.join(' · ')}</div>}
+                  </div>
+                  <button className="ox-btn" style={{ height: 32, padding: '0 12px', flexShrink: 0 }} onClick={() => restoreRemovedRows([row._id])}>
+                    <RotateCcw size={14} strokeWidth={2.1} />
+                    {T('استرجاع', 'Restore')}
+                  </button>
+                </div>
+              )
+            })}
+          </Modal>
+        )
+      })()}
 
       {/* ── نافذة قواعد «مستحقة التجديد» ── */}
       {dueModal && view.dueRules && (() => {
