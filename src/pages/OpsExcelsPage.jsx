@@ -7804,7 +7804,17 @@ const wvIssState = (r, isAr2, pend) => {
   const done = { t: isAr2 === false ? 'On the invoice ✓' : 'في الفاتورة ✓', c: 'ok' }
   if (o.wv_issue_p && o.wv_issue_p === iv.fp) return done
   if (iv.typed) {
-    if (iv.complete) return { t: isAr2 === false ? 'Posts on save' : 'يُرحَّل مع الحفظ', c: 'wait' }
+    /* محجوبٌ لا «يُرحَّل»: رقم حدودٍ على تأشيرةٍ أخرى يردّه الترحيل في كل حفظةٍ وكل
+       فتحة، فكان العمود يعِد بترحيلٍ لا يقع والفاتورة فارغة (بلاغ 2026-10-17: فاتورة
+       1650207037). الحجب المختوم من الترحيل (`wv_issue_h`) يسمّي الفاتورة الأخرى،
+       والتكرار داخل الشيت يُقال لحظة الكتابة قبل الحفظ. */
+    if (iv.complete) {
+      const h = o.wv_issue_h
+      if (h && h.fp === iv.fp) return { t: (isAr2 === false ? 'Blocked: border no. used' : 'محجوب: رقم الحدود مستخدَم')
+        + (h.inv ? (isAr2 === false ? ` on invoice ${h.inv}` : ` في فاتورة ${h.inv}`) : ''), c: 'block' }
+      if (wvBnCount(iv.vals.border_number) > 1) return { t: isAr2 === false ? 'Blocked: duplicate border no.' : 'محجوب: رقم الحدود مكرّر', c: 'block' }
+      return { t: isAr2 === false ? 'Posts on save' : 'يُرحَّل مع الحفظ', c: 'wait' }
+    }
     return { t: (isAr2 === false ? 'missing: ' : 'ناقص: ')
       + (isAr2 === false ? iv.missingEn.join(', ') : iv.missing.join('، ')), c: 'miss' }
   }
@@ -7885,18 +7895,24 @@ const wvPostIssuanceCore = async (sb, savedRows, { user, isAr, rows }) => {
     /* الفحص من الـview لا من الجدول: تأشيرة الفاتورة **الملغية** لا تحجز
        رقمَها — التأشيرة نفسها انتقلت لفاتورةٍ أخرى فليس الرقمان عاملين. */
     const { data: clash, error } = await sb.from('v_ops_work_visas')
-      .select('id,border_number,invoice_status_ar').in('border_number', nums)
+      .select('id,border_number,invoice_no,invoice_status_ar').in('border_number', nums)
       .not('id', 'in', `(${cand.map((c) => c.row.id).join(',')})`)
     if (error) throw error
-    taken = new Set((clash || [])
+    taken = new Map((clash || [])
       .filter((d) => !/ملغ/.test(String(d.invoice_status_ar || '')))
-      .map((d) => wvIssNorm('border_number', d.border_number)))
+      .map((d) => [wvIssNorm('border_number', d.border_number), String(d.invoice_no || '').trim()]))
   }
   for (const c of cand) {
     const b = c.iv.vals.border_number
     if (cnt.get(b) > 1 || taken.has(b)) {
-      held.push(isAr ? `رقم الحدود ${b} مستخدَم على تأشيرة أخرى — يجب أن يكون فريداً`
-        : `Border number ${b} is already used on another visa`)
+      const inv = taken.get(b) || ''
+      held.push(isAr ? `رقم الحدود ${b} مستخدَم على تأشيرة أخرى${inv ? ` (فاتورة ${inv})` : ''} — يجب أن يكون فريداً`
+        : `Border number ${b} is already used on another visa${inv ? ` (invoice ${inv})` : ''}`)
+      /* يُختم الحجب في الطبقة ليقوله عمود «في الفاتورة» دائماً — لا تنبيهاً عابراً
+         يضيع، ثم «ترحيلُ ما فات» الصامت عند كل فتحة. ويُختم مرّةً لكل بصمة، فلا
+         يُكتب ولا يُنبَّه عليه من جديد ما لم تتغيّر القيم أو الفاتورة الحاجبة. */
+      const h = c.data.wv_issue_h
+      if (!h || h.fp !== c.iv.fp || (h.inv || '') !== inv) patch[c.row._id] = { ...c.data, wv_issue_h: { fp: c.iv.fp, inv } }
       continue
     }
     /* `.select()` لتأكيد تحديث صفٍّ فعلاً — منع RLS يُرجع صفر صفوف بلا خطأ.
@@ -7926,7 +7942,8 @@ const wvPostIssuanceCore = async (sb, savedRows, { user, isAr, rows }) => {
     }
     posted++
     if (depNum(wvFirstPay(c.row).remaining) > 0) unpaidN++
-    patch[c.row._id] = { ...c.data, wv_issue_p: c.iv.fp, wv_posted_at: nowIso }
+    const { wv_issue_h: _h, ...rest } = c.data
+    patch[c.row._id] = { ...rest, wv_issue_p: c.iv.fp, wv_posted_at: nowIso }
   }
   if (Object.keys(patch).length) {
     const { error } = await sb.from('ops_sheet_rows').upsert(
@@ -13821,7 +13838,7 @@ const VIEWS = [
       { key: '_issue_posted', ar: 'في الفاتورة', en: 'On the invoice', w: 170, kind: 'text', readOnly: true,
         get: (r, isAr2, e) => (wvIssState(r, isAr2, e) || {}).t || '',
         bg: (v, r) => { const s = wvIssState(r, true)
-          return !s ? null : s.c === 'ok' ? 'rgba(46,204,113,.26)' : s.c === 'miss' ? 'rgba(234,179,8,.28)' : 'rgba(56,189,248,.22)' },
+          return !s ? null : s.c === 'ok' ? 'rgba(46,204,113,.26)' : s.c === 'block' ? 'rgba(232,114,101,.40)' : s.c === 'miss' ? 'rgba(234,179,8,.28)' : 'rgba(56,189,248,.22)' },
         cellTip: (v, r, isAr2) => (isAr2 === false
           ? 'The four issuance fields (unified, visa & border numbers + issue date) post to the visa row once complete — the invoice transaction card reads them from there.'
           : 'حقول الإصدار الأربعة (الموحّد ورقما التأشيرة والحدود + تاريخ الإصدار) تُرحَّل لصفّ التأشيرة متى اكتملت — ومنه تقرؤها بطاقة «حالة المعاملة» في الفاتورة.') },
