@@ -153,7 +153,7 @@ function reasonLine(inv) {
 
 // أسطر إضافية أسفل الأرصدة:
 //   • الوسيط + جواله — لأي خدمة يوجد بها وسيط (وليس نقل الكفالة فقط).
-//   • المدة (المتوقعة/التجديد) وفائدة المكتب — خاصّة بنقل الكفالة وتجديد الإقامة فقط.
+//   • المدة (المتوقعة/التجديد) — خاصّة بنقل الكفالة وتجديد الإقامة فقط.
 function calcExtra(inv) {
   const code = inv.service_type?.code
   const isTransfer = code === 'transfer'
@@ -167,14 +167,13 @@ function calcExtra(inv) {
     const ph = dg ? (dg.startsWith('966') ? '0' + dg.slice(3) : (dg.startsWith('0') ? dg : '0' + dg.slice(-9))) : ''
     if (nm) out.push(` الوسيط: ${nm}${ph ? ' | ' + ph : ''}`)
   }
-  // المدة والفائدة خاصّتان بنقل الكفالة وتجديد الإقامة (تُقرآن من حساب النقل/التجديد).
+  // المدة خاصّة بنقل الكفالة وتجديد الإقامة (تُقرأ من حساب النقل/التجديد). سطر «الفائدة» (صافي رسوم المكتب)
+  // أُزيل من الرسالة بطلب المستخدم 2026-10-15.
   if (isTransfer || isRenewal) {
     const tcRaw = isTransfer ? inv.transfer_calculation : inv.iqama_renewal_calculation
     const tc = Array.isArray(tcRaw) ? tcRaw.find(x => x && !x.deleted_at) : (tcRaw && !tcRaw.deleted_at ? tcRaw : null)
     const months = Number(tc?.expected_duration_months || tc?.billed_renewal_months || tc?.renewal_months || 0)
     if (months > 0) out.push(`${isRenewal ? ' مدة التجديد' : ' المدة المتوقعة'}: ${months} شهر`)
-    const officeNet = tc ? (tc.office_fee_net != null ? Number(tc.office_fee_net) : Number(tc.office_fee || 0)) : 0
-    if (officeNet > 0) out.push(` الفائدة: ${num(officeNet)} ${M.currency}`)
   }
   return out
 }
