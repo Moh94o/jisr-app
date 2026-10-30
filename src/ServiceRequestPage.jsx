@@ -134,7 +134,7 @@ const inpOpts=(opts,isAr)=>(opts||[]).map(o=>isAr||!o.label_en?o:{...o,label:o.l
 // Resolve a SERVICE_INPUTS placeholder by current language (falls back to Arabic).
 const inpPh=(inp,isAr)=>!inp?'':(isAr?(inp.placeholder||''):(inp.placeholder_en||inp.placeholder||''))
 // Display translation for computed pricing-line labels (the stored label stays Arabic; this only flips the display).
-const PRICE_LABEL_EN={'رسوم العقد':'Contract Fee','رسوم مكتب':'Office Fee','رسوم المكتب':'Office Fee','رسوم':'Fees','رسوم خروج نهائي':'Final Exit Fee','رسم تغيير المهنة':'Occupation Change Fee','رسم تحديث بيانات الجواز':'Passport Update Fee','رسم تعديل الراتب':'Salary Edit Fee','طباعة الإقامة':'Iqama Print','التأمين الطبي':'Medical Insurance','تصديق المطبوعات':'Printout Certification','تصديق طلب مفتوح':'Open-Request Certification','الغرفة التجارية':'Chamber of Commerce','خدمة عامة':'General Service','رسوم النقل':'Transfer Fee','تجديد الإقامة':'Iqama Renewal','رخصة العمل':'Work Permit','تغيير المهنة':'Occupation Change','غرامة تأخير التجديد':'Renewal Late Fine','غرامة تأخّر الإقامة':'Renewal Late Fine','الخصم':'Discount','إضافي':'Extra'}
+const PRICE_LABEL_EN={'رسوم العقد':'Contract Fee','رسوم مكتب':'Office Fee','رسوم المكتب':'Office Fee','رسوم':'Fees','رسوم خروج نهائي':'Final Exit Fee','رسوم إلغاء خروج نهائي':'Final Exit Cancellation Fee','رسم تغيير المهنة':'Occupation Change Fee','رسم تحديث بيانات الجواز':'Passport Update Fee','رسم تعديل الراتب':'Salary Edit Fee','طباعة الإقامة':'Iqama Print','التأمين الطبي':'Medical Insurance','تصديق المطبوعات':'Printout Certification','تصديق طلب مفتوح':'Open-Request Certification','الغرفة التجارية':'Chamber of Commerce','خدمة عامة':'General Service','رسوم النقل':'Transfer Fee','تجديد الإقامة':'Iqama Renewal','رخصة العمل':'Work Permit','تغيير المهنة':'Occupation Change','غرامة تأخير التجديد':'Renewal Late Fine','غرامة تأخّر الإقامة':'Renewal Late Fine','الخصم':'Discount','إضافي':'Extra'}
 const priceLabel=(lbl,isAr)=>{if(isAr||!lbl)return lbl;if(PRICE_LABEL_EN[lbl])return PRICE_LABEL_EN[lbl];
   // handle parameterized labels like "خروج وعودة (تمديد-مفردة)", "تجديد الإقامة (12 شهر)", "معامل السعودة ×N"
   let m;
@@ -171,7 +171,7 @@ const RESIDENCE_VISA_SERVICES=new Set(['work_visa_permanent','work_visa_9m','wor
 // والباقي من الإجمالي يذهب لدفعة «عند إصدار الإقامة».
 const VISA_FIXED_INST={issuance:2000,authorization:3000}
 // خدماتٌ يُضاف فيها بند «اشتراك مقيم» حين يكون اشتراك مقيم لمنشأة العامل منتهياً (طلب المستخدم 2026-09-26)
-const MQ_SUB_SVCS=new Set(['iqama_print','exit_reentry_visa','final_exit_visa'])
+const MQ_SUB_SVCS=new Set(['iqama_print','exit_reentry_visa'])
 // الخدمات التي يُسمح فيها بوسيط على الفاتورة — ما عداها لا وسيط له (قرار المستخدم 2026-09-26)
 export const AGENT_SERVICES=new Set(['kafala_transfer','iqama_renewal',...RESIDENCE_VISA_SERVICES])
 
@@ -359,7 +359,6 @@ const[workerFacilityStat,setWorkerFacilityStat]=useState(null)// latest nitaqat/
 // اشتراك مقيم لمنشأة العامل في «طباعة الإقامة»: {expired, expiry, name} أو null (طلب المستخدم 2026-09-26)
 const[mqSub,setMqSub]=useState(null)
 // تأشيرة الخروج النهائي للعامل في مقيم (فاتورة «خروج نهائي»): {expired, validUntil, visaNumber} أو null
-const[feVisa,setFeVisa]=useState(null)
 
 // Step 4: Invoice
 const[,setPaymentType]=useState('full')// 'full' | 'installments'
@@ -689,28 +688,6 @@ setMqSub({expired:!!c.subscription_expired||(!!exp&&exp<today),expiry:exp,name:c
 }catch(e){console.warn('[iqama_print] muqeem subscription',e)}})()
 return()=>{cancelled=true}
 },[selSvc,selWorker,sb])
-/* «خروج نهائي»: هل تأشيرة الخروج النهائي للعامل منتهية؟ (طلب المستخدم 2026-09-26 — سعرها
-   حينئذٍ 1250 من الإعدادات). المصدر `v_muqeem_exit_visas` (كل تأشيرات مقيم في صفٍّ لكلٍّ):
-   تأشيرةٌ سارية ⇒ لا؛ وإلا فالأحدث: منتهية إن قال سجلّ المقيم «Expired»، أو كانت من
-   التقرير بلا حالة وقد مضى تاريخُها. «Used/Cancelled» ليست انتهاءً. */
-useEffect(()=>{
-setFeVisa(null)
-if(selSvc!=='final_exit_visa'||!selWorker||!sb)return
-const iq=String(selWorker.iqama_number||'').replace(/\D/g,'')
-if(!iq)return
-let cancelled=false
-;(async()=>{try{
-const{data}=await sb.from('v_muqeem_exit_visas').select('visa_number,valid_until,status,is_valid').eq('alien_id',iq).eq('kind','خروج نهائي')
-if(cancelled||!data||!data.length)return
-if(data.some(v=>v.is_valid))return
-const today=new Date().toISOString().slice(0,10)
-const last=[...data].sort((a,b)=>String(b.valid_until||'').localeCompare(String(a.valid_until||'')))[0]
-const until=String(last.valid_until||'').slice(0,10)
-const expired=last.status==='Expired'||(!last.status&&!!until&&until<today)
-setFeVisa({expired,validUntil:until,visaNumber:last.visa_number||''})
-}catch(e){console.warn('[final_exit] visa status',e)}})()
-return()=>{cancelled=true}
-},[selSvc,selWorker,sb])
 
 // عقد أجير — معامل السعودة: عدد عمال منشأة العامل المختار (يُستخدم لحساب رسم السعودة وعرضه في بطاقة المنشأة)
 const[ajeerWorkerCount,setAjeerWorkerCount]=useState(0)
@@ -967,7 +944,7 @@ const getServicesConfig=(branchId=null)=>{
 const d={
   ajeer:{baseFee:300,baseMonths:3,perMonthAfter:100,saudizationEnabled:true,saudizationThreshold:6,saudizationPerWorker:250},
   exitReentry:{issueSingleBase:300,issueMultipleBase:500,issueSingleCovered:3,issueMultipleCovered:3,issueSinglePerMonth:100,issueMultiplePerMonth:200,extendSingle:100,extendMultiple:200,officeFeeFixed:50,officeFeeExtend:200,mqExpiredFee:200},
-  finalExit:{fee:150,expiredFee:1250,mqExpiredFee:200},
+  finalExit:{fee:1000,cancelFee:2000},
   professionChange:{fee:200,officeFeeFixed:50},
   passportUpdate:{fee:100},
   nameTranslation:{pct:5},
@@ -976,9 +953,11 @@ const d={
   documents:{perDoc:30},
   medicalInsurance:{perMonthMultiplier:1}
 }
-try{const r=localStorage.getItem('servicesPricingConfig');if(r){const p=JSON.parse(r);Object.keys(d).forEach(k=>{d[k]={...d[k],...(p[k]||{})}})}}catch(e){}
+// قيمة فارغة محفوظة ("" / null) لا تمحو الافتراضي — وإلا صار البند 0 (خروج وعودة 2026-10-30)
+const filled=o=>Object.fromEntries(Object.entries(o||{}).filter(([,v])=>v!==''&&v!==null&&v!==undefined))
+try{const r=localStorage.getItem('servicesPricingConfig');if(r){const p=JSON.parse(r);Object.keys(d).forEach(k=>{d[k]={...d[k],...filled(p[k])}})}}catch(e){}
 // تخصيص المكتب: أي حقل مخصَّص لهذا الفرع يحل محل السعر العام
-if(branchId){try{const ov=getBranchOverrides()[branchId]||{};Object.entries(OTHER_SVC_SUB_MAP).forEach(([sub,svcId])=>{const op=ov[svcId]?.pricing;if(op&&typeof op==='object')d[sub]={...d[sub],...op}})}catch(e){}}
+if(branchId){try{const ov=getBranchOverrides()[branchId]||{};Object.entries(OTHER_SVC_SUB_MAP).forEach(([sub,svcId])=>{const op=ov[svcId]?.pricing;if(op&&typeof op==='object')d[sub]={...d[sub],...filled(op)}})}catch(e){}}
 return d
 }
 
@@ -1030,8 +1009,9 @@ if(selSvc==='exit_reentry_visa'){
   return{lines:[{label:`خروج وعودة (إصدار-${typeLbl})`,amount:serviceFee},...feeLine]}
 }
 if(selSvc==='final_exit_visa'){
-  // تأشيرة الخروج النهائي للعامل منتهية في مقيم ⇒ `expiredFee` (1250) بدل الرسم العادي (طلب المستخدم 2026-09-26)
-  return{lines:[feVisa?.expired?{label:'رسوم خروج نهائي (تأشيرة منتهية)',amount:Number(cfg.finalExit.expiredFee)||0}:{label:'رسوم خروج نهائي',amount:cfg.finalExit.fee},...(mqSub?.expired?[{label:'اشتراك مقيم',amount:Number(cfg.finalExit.mqExpiredFee)||0}]:[])]}
+  // الإلغاء: رسمه الخاص `cancelFee` (2000) — طلب المستخدم 2026-10-30
+  const feCancel=(fields.exit_action||'create')==='cancel'
+  return{lines:[feCancel?{label:'رسوم إلغاء خروج نهائي',amount:Number(cfg.finalExit.cancelFee)||0}:{label:'رسوم خروج نهائي',amount:Number(cfg.finalExit.fee)||0}]}
 }
 if(selSvc==='external_transfer_approval'){
   // لا سعر افتراضي — يبدأ صفراً ويقرّره الموظف بند «رسوم» قابل للتعديل (حدّ أدنى صفر، لا سقف).
@@ -1082,7 +1062,7 @@ if(selSvc==='custom'){
   return{lines:[]}
 }
 return null
-},[selSvc,fields,selWorker,customName,ajeerWorkerCount,user,branchId,svcBranch,mqSub,feVisa])
+},[selSvc,fields,selWorker,customName,ajeerWorkerCount,user,branchId,svcBranch,mqSub])
 
 // ── Other services: editable pricing state + lines ──
 const[otherServicePricing,setOtherServicePricing]=useState({overrides:{},extras:[],absherBalance:'',discount:''})
@@ -1091,9 +1071,9 @@ const[otherExtraAmount,setOtherExtraAmount]=useState('')
 // إطار التسعيرة: حقول البند الإضافي مخفية افتراضياً — تظهر فقط بعد الضغط على «إضافة بند جديد»
 const[otherExtraOpen,setOtherExtraOpen]=useState(false)
 // Reset when service changes
-// الخروج النهائي: وصولُ حالة التأشيرة (منتهية/لا) يغيّر سعر البند الأوّل (العادي ↔ 1250) — فمبلغٌ كُتب
+// الخروج النهائي: تبديل نوع الطلب (إصدار ↔ إلغاء) يغيّر سعر البند الأوّل — فمبلغٌ كُتب
 // قبلها لا يبقى بأقلّ من السعر الجديد (الحدّ الأدنى يُفرض عند ترك الخانة فقط)
-useEffect(()=>{if(selSvc==='final_exit_visa')setOtherServicePricing(p=>({...p,overrides:{}}))},[feVisa?.expired])// eslint-disable-line react-hooks/exhaustive-deps
+useEffect(()=>{if(selSvc==='final_exit_visa')setOtherServicePricing(p=>({...p,overrides:{}}))},[fields.exit_action])// eslint-disable-line react-hooks/exhaustive-deps
 useEffect(()=>{setOtherServicePricing({overrides:{},extras:[],absherBalance:'',discount:''});setOtherExtraName('');setOtherExtraAmount('')
 // Quote-driven services share one quote-state slot — clear it on every service switch so transfer quotes
 // never leak into تجديد الإقامة (or vice-versa) and the certified-quote list reloads for the new service.
@@ -3699,11 +3679,6 @@ return<div style={{marginTop:10,borderRadius:12,border:'1.5px solid rgba(176,125
 {MQ_SUB_SVCS.has(selSvc)&&mqSub?.expired&&<div style={{display:'flex',alignItems:'flex-start',gap:8,padding:'9px 12px',marginBottom:10,borderRadius:10,background:'rgba(234,179,8,.12)',border:'1px solid rgba(234,179,8,.45)',fontFamily:F}}>
 <AlertTriangle size={15} color="#b8860b" strokeWidth={2} style={{flexShrink:0,marginTop:2}}/>
 <span style={{fontSize:12.5,fontWeight:600,color:'var(--tx)',lineHeight:1.6}}>{T(`اشتراك مقيم للمنشأة${mqSub.name?` «${mqSub.name}»`:''} منتهٍ${mqSub.expiry?` (${mqSub.expiry})`:''} — يجب زيادة ${fmtAmt(ac?.lines?.find(l=>l.label==='اشتراك مقيم')?.amount||0)} ريال، وقد أُضيفت بنداً في التسعيرة.`,`The facility's Muqeem subscription${mqSub.name?` (${mqSub.name})`:''} has expired${mqSub.expiry?` (${mqSub.expiry})`:''} — ${fmtAmt(ac?.lines?.find(l=>l.label==='اشتراك مقيم')?.amount||0)} SAR must be added; it was added as a line below.`)}</span>
-</div>}
-{/* إشعار «خروج نهائي»: تأشيرة الخروج النهائي للعامل منتهية — والسعر صار سعرَها في الإعدادات */}
-{selSvc==='final_exit_visa'&&feVisa?.expired&&<div style={{display:'flex',alignItems:'flex-start',gap:8,padding:'9px 12px',marginBottom:10,borderRadius:10,background:'rgba(232,114,101,.10)',border:'1px solid rgba(232,114,101,.45)',fontFamily:F}}>
-<AlertTriangle size={15} color="#c0392b" strokeWidth={2} style={{flexShrink:0,marginTop:2}}/>
-<span style={{fontSize:12.5,fontWeight:600,color:'var(--tx)',lineHeight:1.6}}>{T(`تأشيرة الخروج النهائي للعامل${feVisa.visaNumber?` (${feVisa.visaNumber})`:''} منتهية${feVisa.validUntil?` منذ ${feVisa.validUntil}`:''} — رسوم الخروج النهائي ${fmtAmt(ac?.lines?.[0]?.amount||0)} ريال.`,`The worker's final-exit visa${feVisa.visaNumber?` (${feVisa.visaNumber})`:''} expired${feVisa.validUntil?` on ${feVisa.validUntil}`:''} — the final-exit fee is ${fmtAmt(ac?.lines?.[0]?.amount||0)} SAR.`)}</span>
 </div>}
 {/* نمط الجدول — شريط عناوين (البند / المبلغ) ثم صفوف مفصولة بخطوط خفيفة */}
 <div style={{display:'flex',justifyContent:'space-between',padding:'0 12px 8px',borderBottom:'1px solid rgba(176,125,0,.25)',marginBottom:2}}>

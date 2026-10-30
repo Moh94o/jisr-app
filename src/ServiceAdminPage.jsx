@@ -398,10 +398,9 @@ exit_reentry_visa:{store:'servicesPricingConfig',sub:'exitReentry',fields:[
   {k:'mqExpiredFee',l:'إضافة عند انتهاء اشتراك مقيم للمنشأة',d:200,sfx:'ريال'}
 ],note:'الإصدار: السعر الأساسي يشمل عدد الأشهر المحدد، ويُضاف سعر كل شهر إضافي بعدها. التمديد: عدد الأشهر × سعر الشهر.'},
 final_exit_visa:{store:'servicesPricingConfig',sub:'finalExit',fields:[
-  {k:'fee',l:'رسوم الخروج النهائي',d:150,sfx:'ريال'},
-  // حين تكون تأشيرة الخروج النهائي للعامل منتهيةً في مقيم (طلب المستخدم 2026-09-26)
-  {k:'expiredFee',l:'رسوم الخروج النهائي إذا كانت التأشيرة منتهية',d:1250,sfx:'ريال'},
-  {k:'mqExpiredFee',l:'إضافة عند انتهاء اشتراك مقيم للمنشأة',d:200,sfx:'ريال'}
+  {k:'fee',l:'رسوم الخروج النهائي · إصدار',d:1000,sfx:'ريال'},
+  // إلغاء تأشيرة خروج نهائي قائمة له رسمه الخاص (طلب المستخدم 2026-10-30)
+  {k:'cancelFee',l:'رسوم الخروج النهائي · إلغاء',d:2000,sfx:'ريال'},
 ]},
 profession_change:{store:'servicesPricingConfig',sub:'professionChange',fields:[
   {k:'fee',l:'رسم تغيير المهنة',d:200,sfx:'ريال'},
@@ -476,7 +475,8 @@ if(!sch)return null
 const raw=readStore(sch.store)
 const src=sch.sub?raw[sch.sub]||{}:raw
 const out={}
-sch.fields.forEach(f=>{out[f.k]=src[f.k]!==undefined?src[f.k]:f.d})
+// الحقل الفارغ = السعر الافتراضي (لا صفر)
+sch.fields.forEach(f=>{const v=src[f.k];out[f.k]=(v!==undefined&&v!==null&&v!=='')?v:f.d})
 // تجديد الإقامة يشارك الكفالة جدول الفئات العمرية للتأمين فقط — التأمين إلزامي في التجديد فلا مهلة إعفاء.
 if(svcId==='kafala_transfer'||svcId==='iqama_renewal'){
   out.medicalBrackets=Array.isArray(src.medicalBrackets)&&src.medicalBrackets.length?src.medicalBrackets:KAFALA_DEFAULTS.medicalBrackets
@@ -510,6 +510,9 @@ if(!sch)return
 const raw=readStore(sch.store)
 if(sch.sub){raw[sch.sub]={...(raw[sch.sub]||{}),...values}}
 else{Object.assign(raw,values)}
+// حقل سعر مُفرَّغ يُحذف من المخزن فيعود للافتراضي — حفظ "" كان يجعل البند 0 في الفاتورة.
+const tgt=sch.sub?raw[sch.sub]:raw
+sch.fields.forEach(f=>{if(tgt[f.k]===''||tgt[f.k]===null)delete tgt[f.k]})
 writeStore(sch.store,raw)
 saveSvcAdminSetting(sch.store,raw).catch(e=>console.warn('[svcAdminSync] save pricing failed',sch.store,e))
 }
