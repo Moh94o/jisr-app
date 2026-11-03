@@ -14,6 +14,7 @@ import { buildInvoiceDoc } from './lib/invoicePrint.js'
 import { buildInvoiceWaMessage, buildDaySummaryWaMessage, fetchInvoicePrintData } from './lib/invoiceWa.js'
 import { DONE_INPUTS, SALARY_RETURN_INPUTS, SELF_PARTY_DONE_SVCS, DONE_FILE_NOTES, doneInputsFor } from './lib/doneInputs.js'
 import { swrGet, swrSet, useLiveRefresh, emitDataChanged, getArchiveBranchIds } from './lib/liveData.js'
+import { serverNow, syncServerClock } from './lib/supabase.js'
 import InvoicePricingEditor from './components/InvoicePricingEditor.jsx'
 import { useIsMobile, MStatStrip, MCard, MCardList, MFab, MChips, MSearch, MBadge } from './components/mobile/MobileKit.jsx'
 import './styles/m-invoices.css'
@@ -62,8 +63,9 @@ const fmtDateTime = (iso, ar = true) => {
 
 // Business "day" boundary = 05:00 AM Riyadh (UTC+3) = 02:00 UTC.
 // Times before 05:00 Riyadh count as the previous business day.
+// «الآن» من ساعة الخادم لا من ساعة الجهاز (جهاز تاريخه خاطئ كان يعرض يوماً آخر).
 const riyadhDayStart = () => {
-  const now = new Date()
+  const now = serverNow()
   const ry = new Date(now.getTime() + 3 * 3600 * 1000)
   const Y = ry.getUTCFullYear(), M = ry.getUTCMonth(), D = ry.getUTCDate(), H = ry.getUTCHours()
   const offset = H < 5 ? -1 : 0
@@ -1104,6 +1106,19 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
   // تصل كإشارة Realtime فتُعاد قراءة القائمة والكروت صامتاً — بلا رفرش يدوي وبلا وميض.
   useLiveRefresh(['invoices', 'payments', 'installments', 'service_requests'], () => setRefreshTick(t => t + 1))
 
+  // مزامنة ساعة الخادم ثم مراقبة تبدّل يوم العمل (5 فجراً) — الصفحة المفتوحة طوال الليل
+  // تنتقل لليوم الجديد تلقائياً بدل أن تبقى على كروت الأمس.
+  const [bizDay, setBizDay] = useState(() => riyadhDayStart().toISOString())
+  useEffect(() => {
+    let alive = true
+    const check = () => syncServerClock().then(() => { if (alive) setBizDay(riyadhDayStart().toISOString()) })
+    check()
+    const id = setInterval(check, 60 * 1000)
+    const onVis = () => { if (!document.hidden) check() }
+    document.addEventListener('visibilitychange', onVis)
+    return () => { alive = false; clearInterval(id); document.removeEventListener('visibilitychange', onVis) }
+  }, [])
+
   useEffect(() => {
     let alive = true
     const applyLookups = ([b, s, st, ag, nat]) => {
@@ -1236,6 +1251,9 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
   // (استدعاء «الأسبوع» الثاني أُزيل: نتيجته لم تكن تُعرض في أي مكان.)
   useEffect(() => {
     let alive = true
+    // ننتظر مزامنة ساعة الخادم (مرة واحدة، مخزّنة) قبل تحديد «اليوم»
+    syncServerClock().then(() => { if (alive) loadPeriod() })
+    const loadPeriod = () => {
     const todayStart = riyadhDayStart()
     const normKpi = (x) => ({ cnt: Number(x?.cnt) || 0, sum: Number(x?.sum) || 0, cash: Number(x?.cash) || 0, bank: Number(x?.bank) || 0 })
     const normSvc = (rows) => (rows || []).map(s => ({ code: s.code, cnt: Number(s.cnt) || 0, sum: Number(s.sum) || 0 }))
@@ -1263,8 +1281,9 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
       swrSet(ck, res)
       applyPeriod(res)
     })
+    }
     return () => { alive = false }
-  }, [sb, statFilters, refreshTick, user])
+  }, [sb, statFilters, refreshTick, user, bizDay])
 
   // Paged invoice list — البحث والتصفية الشاملة عبر RPC واحد (search_invoice_ids):
   // الدالة تطبّق كل الفلاتر + البحث الذكي عبر كل حقول الفاتورة والمعاملة وتُرجع صفحة المعرّفات + العدد الكلي،
@@ -1350,7 +1369,7 @@ export default function InvoicePage({ sb, lang, user, branchId, toast, onNewInvo
     })
     return { days, order }
   }, [rows, sortMode])
-  const todayStr = riyadhDayStart().toISOString().slice(0, 10)
+  const todayStr = bizDay.slice(0, 10)
 
   // ── نسخ ملخص حركة اليوم (زر الواتساب بجانب «فاتورة جديدة») ──
   // يجلب أرقام اليوم طازجة من invoice_period_stats (بداية اليوم 5 فجراً + قيد المكتب فقط —

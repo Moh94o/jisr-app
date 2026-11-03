@@ -18,3 +18,23 @@ export function getSupabase() {
   }
   return globalThis[KEY]
 }
+
+// ساعة الخادم — «اليوم» لا يُؤخذ من ساعة الجهاز: جهاز ساعته متأخرة/متقدمة كان
+// يجعل كروت الإحصاء تعرض يوماً آخر. نحفظ فرق الساعة مرة واحدة ونعيد مزامنته كل ربع ساعة.
+const CLOCK_KEY = '__jisr_clock_offset__'
+let clockSync = null
+let clockSyncedAt = 0
+export function syncServerClock() {
+  if (clockSync && Date.now() - clockSyncedAt < 15 * 60 * 1000) return clockSync
+  clockSyncedAt = Date.now()
+  const t0 = Date.now()
+  clockSync = getSupabase().rpc('server_now').then(({ data, error }) => {
+    if (error || !data) return globalThis[CLOCK_KEY] || 0
+    const t1 = Date.now()
+    const srv = new Date(data).getTime()
+    if (!isNaN(srv)) globalThis[CLOCK_KEY] = srv - (t0 + t1) / 2
+    return globalThis[CLOCK_KEY] || 0
+  }).catch(() => globalThis[CLOCK_KEY] || 0)
+  return clockSync
+}
+export const serverNow = () => new Date(Date.now() + (globalThis[CLOCK_KEY] || 0))

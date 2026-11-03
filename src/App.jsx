@@ -40,7 +40,8 @@ import { Modal as FKModal, ModalSection, ActionButton, SuccessView, ConfirmDialo
 import { getVisibility, isItemVisible } from './pages/VisibilityAdmin.jsx'
 import { FileText, Lock, Mail, Send, User, UserPlus, ShieldCheck, Pencil, Eye, Calendar, Banknote, ArrowLeftRight, BadgeCheck, Calculator, Trash2, RefreshCw, MessageSquare, Paperclip, Plus, AlertCircle, FileCheck, Users, HeartPulse, UserCog, Plane, PlaneTakeoff, Wallet, IdCard, FileStack, Printer, Coins, UsersRound, Hourglass, HandCoins, CalendarClock } from 'lucide-react'
 
-import { getSupabase } from './lib/supabase.js'
+import { getSupabase, serverNow, syncServerClock } from './lib/supabase.js'
+syncServerClock()
 import { swrGet, swrSet, useLiveRefresh, emitDataChanged, getTestBranchIds, excludeTestBranchesOr, getArchiveBranchIds, dropArchiveRows } from './lib/liveData.js'
 import { navReportPg, navPushFrom, navSetHere } from './lib/navStack.js'
 import { installMobileBack, rearmMobileBack, useBackHandler } from './lib/mobileBack.js'
@@ -1260,7 +1261,7 @@ return<div data-avatar onClick={openProfile} title={(lang==='en'?(user?.person?.
 })()}
 {/* شريحة التاريخ — هجري + اليوم/الميلادي */}
 <div className='topbar-datetime' style={{display:'inline-flex',alignItems:'center',padding:'5px 12px',borderRadius:10,background:'var(--hoverBg)',border:'1px solid var(--bd)',whiteSpace:'nowrap',flexShrink:0}}>
-{(()=>{const d=new Date();const pad=n=>String(n).padStart(2,'0');const greg=d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());const day=d.toLocaleDateString(lang==='ar'?'ar-SA':'en-US',{weekday:'long'});let hijri='';try{const hp=new Intl.DateTimeFormat('en-US-u-ca-islamic-umalqura',{day:'numeric',month:'numeric',year:'numeric'}).formatToParts(d);const hv=t=>{const p=hp.find(x=>x.type===t);return p?p.value:''};hijri=hv('year')+'-'+pad(+hv('month'))+'-'+pad(+hv('day'))}catch{}return<div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',lineHeight:1.3,gap:3,fontFamily:"'Reem Kufi','Cairo',sans-serif"}}><span style={{fontSize:9.5,fontWeight:500,color:'var(--hdtx2)',letterSpacing:'.5px',direction:'ltr',alignSelf:'center'}}>{hijri}</span><div style={{display:'flex',alignItems:'baseline',gap:7}}><span style={{fontSize:11.5,fontWeight:600,color:C.gold}}>{day}</span><span style={{fontSize:12,fontWeight:600,color:C.gold,letterSpacing:'.5px',direction:'ltr',opacity:.9}}>{greg}</span></div></div>})()}
+{(()=>{const d=serverNow();const pad=n=>String(n).padStart(2,'0');const greg=d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());const day=d.toLocaleDateString(lang==='ar'?'ar-SA':'en-US',{weekday:'long'});let hijri='';try{const hp=new Intl.DateTimeFormat('en-US-u-ca-islamic-umalqura',{day:'numeric',month:'numeric',year:'numeric'}).formatToParts(d);const hv=t=>{const p=hp.find(x=>x.type===t);return p?p.value:''};hijri=hv('year')+'-'+pad(+hv('month'))+'-'+pad(+hv('day'))}catch{}return<div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',lineHeight:1.3,gap:3,fontFamily:"'Reem Kufi','Cairo',sans-serif"}}><span style={{fontSize:9.5,fontWeight:500,color:'var(--hdtx2)',letterSpacing:'.5px',direction:'ltr',alignSelf:'center'}}>{hijri}</span><div style={{display:'flex',alignItems:'baseline',gap:7}}><span style={{fontSize:11.5,fontWeight:600,color:C.gold}}>{day}</span><span style={{fontSize:12,fontWeight:600,color:C.gold,letterSpacing:'.5px',direction:'ltr',opacity:.9}}>{greg}</span></div></div>})()}
 </div>
 {/* شريحة الأوامر — اللغة + الخروج داخل كبسولة واحدة */}
 <div style={{display:'inline-flex',alignItems:'center',gap:2,padding:3,borderRadius:10,background:'var(--hoverBg)',border:'1px solid var(--bd)',flexShrink:0}}>
