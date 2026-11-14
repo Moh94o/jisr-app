@@ -92,3 +92,17 @@ pm2 save && pm2 startup                 # auto-start at boot
 - كلمة السر فقط في `.env` — لا ترفعها للـ Git (`.env` مدرجة في `.gitignore`)
 - الجلسة (JWT) تُحفظ في Supabase تحت RLS — لا تظهر للمستخدمين العاديين
 - البوت لا يخزّن كلمة السر في أي مكان آخر
+
+---
+
+## qawaem-bot — الفحص الشهري لإيداع القوائم المالية
+
+يفحص خدمة «قوائم» العامة (`qawaemextapi.scbc.gov.sa/api/QawaemServices/GetCREnquiry`) لكل منشأة وكل سنة مالية منذ قيد السجل، ويكتب النتيجة في `qawaem_filings` (تظهر في شيت «القوائم المالية» وكرت «حالة القوائم المالية»).
+
+- **لماذا على هذا الجهاز:** الجهات الحكومية ترفض الاتصال من خوادم Supabase (كل المناطق)، والخدمة بلا CORS — فلا بد من شبكة سعودية.
+- **الجدولة في القاعدة:** pg_cron `qawaem-monthly-enqueue` الساعة 6 صباحاً بتوقيت الرياض يوم 1 من كل شهر → `qawaem_enqueue()` يملأ `qawaem_queue`. السنوات المعتمدة نهائية ولا تُعاد.
+- **التشغيل:** `C:\qawaem-bot\qawaem-bot.mjs` تحت PM2 باسم `qawaem-bot` (Node 18+ و`pdfjs-dist` لقراءة العقود — `npm install` في المجلد). ملف `.env` بجانبه فيه `QAWAEM_BOT_TOKEN` (يُطابَق بـsha256 في `qawaem_bot_config`).
+- **أوامر:** `pm2 logs qawaem-bot --lines 50 --nostream` · `pm2 restart qawaem-bot`
+- **فحص فوري لكل المنشآت:** `select public.qawaem_enqueue(true);` ثم ينتظر البوت (كل 10 دقائق).
+- **المتابعة:** `select count(*) from qawaem_queue;` · `select * from qawaem_filings where check_error is not null;`
+- **نهاية السنة المالية من عقود التأسيس (2026-11-14):** في كل دورة يقرأ البوت العقود الجديدة أو المتغيّرة من `documents/sbc-cr-certificates/{موحد}-contract.pdf` (`qawaem_bot_fy_todo`) ويستخرج مادة «السنة المالية» بـ`qawaem-fy.mjs` (pdfjs-dist) ثم يكتبها في `facility_fiscal_years` (`qawaem_bot_fy_report`). الحالة في جسر (`v_qawaem_years`): السنوات تنتهي في تاريخ العقد ثم كل 12 شهراً، و«قوائم» تسمّي السنة بسنة انتهائها (سنة تنتهي 1 يناير = السنة السابقة)، والموعد = النهاية + 6 أشهر. يحتاج `npm install` في `C:\qawaem-bot` (pdfjs-dist).

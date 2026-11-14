@@ -242,6 +242,19 @@ const QAWAEM_STATUS_AR = {
   'approved by sbc': 'معتمدة من المركز',
   'rejected by sbc': 'مرفوضة من المركز',
   'draft': 'مسودة',
+  /* فحص «قوائم» الشهري (qawaem_filings — 2026-11-14) */
+  'filed - not approved yet': 'مودعة — لم تُعتمد بعد',
+  'not filed': 'غير مودعة',
+  'no filings found': 'لا توجد قوائم مودعة',
+  'check failed': 'تعذّر الفحص',
+  /* الحالة من عقد التأسيس: نهاية السنة المالية + 6 أشهر (نظام الشركات م17/2) */
+  'overdue': 'متأخرة — فات موعد الإيداع',
+  'not due yet': 'لم يحن موعد الإيداع',
+  'first year not ended': 'لم تنتهِ السنة المالية الأولى',
+  'overdue (no contract)': 'متأخرة يقيناً (لا يوجد عقد)',
+  'maybe overdue (no contract)': 'ربما متأخرة (لا يوجد عقد)',
+  'establishment - none filed': 'مؤسسة — لا توجد قوائم مودعة',
+  'unknown': 'غير معروف',
 }
 const qawaemStatusLabel = (v, isAr) => { if (v == null || v === '') return ''; if (!isAr) return v; return QAWAEM_STATUS_AR[String(v).trim().toLowerCase()] || v }
 /* خلفية خلية النطاق: تدرّج شفاف من لون النطاق ليُقرأ بلمحة مع بقاء النص واضحاً */
@@ -15377,20 +15390,24 @@ const VIEWS = [
     ],
   },
 
-  /* ── القوائم المالية — v_ops_qawaem (من المركز السعودي، صف لكل سنة مالية) ──── */
+  /* ── القوائم المالية — v_ops_qawaem (صف لكل سنة مالية) ──────────────────────
+     المصدر منذ 2026-11-14: qawaem_filings — فحص شهري لخدمة «قوائم» العامة
+     (GetCREnquiry) لكل منشأة وكل سنة منذ قيد السجل، يجريه qawaem-bot من شبكة
+     سعودية (الجهات الحكومية ترفض خوادم Supabase). حقول الفترة النظامية/المراجع/
+     في المدة من قراءات المركز القديمة قبل تعطّلها (2026-09-10) متى وُجدت. */
   {
     key: 'qawaem',
     /* اسم المنشأة من السجل التجاري إن وُجد — القاعدة العامة (applySbcName) */
     sbcName: { unified: (r) => r.unified_number, field: 'facility_ar' },
     ar: 'القوائم المالية', en: 'Financial statements',
-    hintAr: 'القوائم المالية لكل منشأة',
-    hintEn: 'Financial statements per establishment',
+    hintAr: 'حالة إيداع القوائم المالية لكل منشأة وسنة مالية',
+    hintEn: 'Financial statements filing status per establishment and fiscal year',
     mergeKey: (r) => (r.unified_number != null ? String(r.unified_number) : (r.facility_ar || null)),
     mergeCols: ['facility_ar', 'unified_number', 'gosi_number', 'hrsd_number', 'sbc_sync_person', 'sbc_synced_at', 'annual_confirm_date'],
     /* صفّ الجهات فوق الرؤوس (طلب المستخدم 2026-09-25) — على أقسام الشيت كما رتّبها */
     bands: [
-      { ar: 'المنشأة', en: 'Establishment', keys: ['facility_ar', 'unified_number', 'gosi_number', 'hrsd_number', 'annual_confirm_date', 'fy_end'] },
-      { ar: 'الإيداع', en: 'Filing', keys: ['filed_on', 'fiscal_year', 'statutory_period', 'on_time', 'resubmission', 'filing_status', 'calendar_type', 'unaudited', 'audit_firm'] },
+      { ar: 'المنشأة', en: 'Establishment', keys: ['facility_ar', 'unified_number', 'gosi_number', 'hrsd_number', 'annual_confirm_date'] },
+      { ar: 'الإيداع', en: 'Filing', keys: ['fiscal_year', 'fy_end', 'deadline', 'fy_basis', 'statutory_period', 'filing_status', 'filed_on', 'approved_on', 'on_time', 'resubmission', 'calendar_type', 'unaudited', 'audit_firm', 'last_checked'] },
       { ar: 'المتابعة', en: 'Follow-up', keys: ['sbc_sync_person', 'sbc_synced_at', 'op_status', 'op_notes', 'op_follow'] },
     ],
     async load(sb) {
@@ -15437,31 +15454,37 @@ const VIEWS = [
       } },
       /* القوائم المالية — صف لكل سنة */
       { key: 'fiscal_year', ar: 'السنة المالية', en: 'Fiscal year', w: 110, kind: 'text' },
-      /* نهاية السنة المالية (طلب المستخدم 2026-09-24) — إدخالٌ يدوي: ردّ قوائم
-         (GetCRSubmissionInfo) وبيانات السجل لا تحملها؛ و`startDate` فيه بدايةُ
-         نافذة الإيداع النظامية لا نهايةُ السنة، فلا يُشتقّ منه. */
-      { key: 'fy_end', ar: 'نهاية السنة المالية', en: 'Fiscal year end', w: 140, kind: 'date', ops: true },
+      /* نهاية السنة المالية (طلب المستخدم 2026-09-24) — كانت إدخالاً يدوياً؛ منذ 2026-11-14
+         تُقرأ من مادة «السنة المالية» في عقد التأسيس (facility_fiscal_years يملؤه qawaem-bot):
+         السنة الأولى تنتهي في تاريخ العقد ثم كل 12 شهراً، و«قوائم» تسمّي السنة بسنة انتهائها،
+         والموعد = النهاية + 6 أشهر (نظام الشركات م17/2). لا يوجد عقد ⇒ فارغة. */
+      { key: 'fy_end', ar: 'نهاية السنة المالية', en: 'Fiscal year end', w: 140, kind: 'date', readOnly: true },
+      { key: 'deadline', ar: 'آخر موعد للإيداع', en: 'Filing deadline', w: 130, kind: 'date', readOnly: true, bg: (v, row) => {
+        const s = String((row && row.filing_status) || '').toLowerCase()
+        return s.startsWith('overdue') ? 'rgba(232,114,101,.28)' : null
+      } },
+      { key: 'fy_basis', ar: 'مصدر نهاية السنة', en: 'Fiscal-year source', w: 140, kind: 'text', readOnly: true },
       /* حالة متابعة (إدخال يدوي) — قائمة منسدلة ملوّنة */
       /* «معتمدة» بدل «تم/أنجزت»، و«أودعت» خطوةٌ قبلها بلونٍ أزرق (طلب المستخدم 2026-09-25).
          «تم» القديمة تُقرأ «معتمدة» لونًا فقط — حُوِّلت قيمتها الوحيدة في القاعدة. */
       { key: 'op_status', ar: 'الحالة', en: 'Status', w: 130, kind: 'text', ops: true, select: true, options: () => ['أودعت', 'معتمدة', 'في الانتظار', 'مشكلة'],
         optLabel: iqmStateLabel('op_status'), fmt: iqmStageFmt('op_status'),
         bg: (v) => { const t = iqFirst(v); return (t === 'معتمدة' || t === 'تم') ? 'rgba(46,204,113,.32)' : t === 'أودعت' ? 'rgba(93,173,226,.32)' : t === 'في الانتظار' ? 'rgba(234,179,8,.32)' : t === 'مشكلة' ? 'rgba(232,114,101,.32)' : null } },
-      { key: 'filing_status', ar: 'حالة الإيداع (المركز)', en: 'Filing status (SBC)', w: 200, kind: 'text', get: (r, isAr) => qawaemStatusLabel(r.filing_status, isAr), bg: (v, row) => { const s = String((row && row.filing_status) || '').toLowerCase(); return s.includes('approved') ? 'rgba(46,204,113,.28)' : s.includes('pending') ? 'rgba(234,179,8,.26)' : s.includes('rejected') ? 'rgba(232,114,101,.28)' : null } },
+      { key: 'filing_status', ar: 'حالة الإيداع', en: 'Filing status', w: 210, kind: 'text', get: (r, isAr) => qawaemStatusLabel(r.filing_status, isAr), bg: (v, row) => { const s = String((row && row.filing_status) || '').toLowerCase(); return s.includes('approved') ? 'rgba(46,204,113,.28)' : (s.includes('pending') || s.startsWith('filed') || s.startsWith('maybe')) ? 'rgba(234,179,8,.26)' : (s.startsWith('overdue') || s.includes('rejected') || s === 'not filed') ? 'rgba(232,114,101,.28)' : (s === 'not due yet' || s === 'first year not ended') ? 'rgba(93,173,226,.26)' : null } },
       { key: 'calendar_type', ar: 'نوع التقويم', en: 'Calendar', w: 100, kind: 'text' },
-      { key: 'statutory_period', ar: 'الفترة النظامية للإيداع', en: 'Statutory period', w: 210, kind: 'mono', get: (r) => { const s = r.statutory_period; if (!s) return ''; const p = String(s).split(' → '); return p.length === 2 ? `${p[1]} ← ${p[0]}` : s } },
+      { key: 'statutory_period', ar: 'فترة السنة المالية', en: 'Fiscal period', w: 210, kind: 'mono', get: (r) => { const s = r.statutory_period; if (!s) return ''; const p = String(s).split(' → '); return p.length === 2 ? `${p[1]} ← ${p[0]}` : s } },
+      /* أخضر = أُودعت قبل آخر موعد (نهاية السنة + 6 أشهر)، أحمر = بعده */
       { key: 'filed_on', ar: 'تاريخ الإيداع', en: 'Filed on', w: 120, kind: 'date', bg: (v, row) => {
-        const conf = row && row.annual_confirm_date, filed = row && row.filed_on
-        if (!conf || !filed) return null
-        const cd = new Date(String(conf).slice(0, 10) + 'T00:00:00'), fd = new Date(String(filed).slice(0, 10) + 'T00:00:00')
-        if (Number.isNaN(cd.getTime()) || Number.isNaN(fd.getTime())) return null
-        const limit = new Date(cd); limit.setMonth(limit.getMonth() + 6)   // التأكيد + ٦ أشهر
-        return fd < limit ? 'rgba(46,204,113,.28)' : 'rgba(232,114,101,.28)'
+        const filed = row && row.filed_on, dl = row && row.deadline
+        if (!filed || !dl) return null
+        return String(filed).slice(0, 10) <= String(dl).slice(0, 10) ? 'rgba(46,204,113,.28)' : 'rgba(232,114,101,.28)'
       } },
+      { key: 'approved_on', ar: 'تاريخ الاعتماد', en: 'Approved on', w: 120, kind: 'date', readOnly: true },
       { key: 'on_time', ar: 'أُودعت خلال المدة النظامية', en: 'On time', w: 160, kind: 'text' },
       { key: 'unaudited', ar: 'غير مدققة', en: 'Unaudited', w: 100, kind: 'text' },
       { key: 'audit_firm', ar: 'مكتب المراجعة', en: 'Audit firm', w: 170, kind: 'text' },
       { key: 'resubmission', ar: 'إعادة إيداع', en: 'Resubmission', w: 100, kind: 'text' },
+      { key: 'last_checked', ar: 'آخر فحص', en: 'Last checked', w: 110, kind: 'date', readOnly: true, source: 'sync' },
       ...OPS_COLS,
     ],
   },
@@ -18518,9 +18541,11 @@ const VIEW_STATS = {
     /* الأربعة في كرتٍ واحد كـ«المراحل» في نقل الكفالات (طلب المستخدم 2026-09-25) */
     SC('group', 'الإيداع', 'Filing', { ofRows: true, items: [
       SC('filled', 'أُودعت', 'Filed', { k: 'filed_on', tone: 'ok' }),
-      SC('empty', 'لم تُودع', 'Not filed', { k: 'filed_on', tone: 'warn' }),
+      SC('eq', 'معتمدة', 'Approved', { k: 'filing_status', v: ['Approved by SBC', 'معتمدة من المركز'], tone: 'ok' }),
       SC('eq', 'في المدة النظامية', 'On time', { k: 'on_time', v: YES, tone: 'ok' }),
-      SC('eq', 'متأخّرة', 'Late', { k: 'on_time', v: ['لا', 'No'], tone: 'bad' }),
+      SC('eq', 'أُودعت متأخّرة', 'Filed late', { k: 'on_time', v: ['لا', 'No'], tone: 'warn' }),
+      SC('eq', 'فات موعدها', 'Overdue', { k: 'filing_status', v: ['Overdue', 'متأخرة — فات موعد الإيداع', 'Overdue (no contract)', 'متأخرة يقيناً (لا يوجد عقد)'], tone: 'bad' }),
+      SC('eq', 'لم يحن موعدها', 'Not due yet', { k: 'filing_status', v: ['Not due yet', 'لم يحن موعد الإيداع', 'First year not ended', 'لم تنتهِ السنة المالية الأولى'], tone: 'ok' }),
     ] }),
   ],
   /* «مدد» بلا كروت إحصاء (طلب المستخدم). القائمة **فارغة** لا محذوفة: الحذف
