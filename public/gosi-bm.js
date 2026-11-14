@@ -15,7 +15,7 @@
 // build is running ("جسر · تأمينات [v17]"). Bump VERSION below whenever
 // you ship a change so users can confirm they re-dragged the bookmarklet.
 ;(async () => {
-  const VERSION = 'v21';
+  const VERSION = 'v22';
   // إصدار الشهادات (download-certificate) هو النداء الوحيد في المزامنة الذي
   // «يُنشئ» شيئاً في التأمينات — كل شهادة تُصدَر تُرسل رسالة نصية لجوال المنشأة
   // (3 شهادات × كل منشأة في كل تشغيلة). موقوف افتراضياً؛ أعِده true لإرجاعه.
@@ -75,6 +75,17 @@
   const logDebug = (row) => { dbgQueue.push(row); flushDebug(false); };
 
   let captured = null;
+  // أرقام المنشآت المرئية في طلبات البوابة نفسها (/v1/establishment/{reg}/...).
+  // بعض الحسابات (مثل «مدير حساب الفروع») يأتي توكنها بدون gosiscp، فنأخذ
+  // المنشأة من الطلبات التي فتحتها البوابة بدل الفشل بـ«لا توجد منشآت».
+  const seenRegs = new Set();
+  const EST_URL_RE = /api\.gosi\.gov\.sa\/.*?\/establishment\/(\d{5,})(?=[\/?#]|$)/;
+  const noteUrl = (u) => {
+    try { const m = String(u || '').match(EST_URL_RE); if (m) seenRegs.add(m[1]); } catch (_) {}
+  };
+  const scanPerfEntries = () => {
+    try { (performance.getEntriesByType('resource') || []).forEach((e) => noteUrl(e && e.name)); } catch (_) {}
+  };
   const recordHeaders = (h) => {
     const auth = h['authorization'];
     const ak = h['x-apikey'];
@@ -88,6 +99,7 @@
     try {
       const u = typeof input === 'string' ? input : (input && input.url);
       if (u && u.indexOf('api.gosi.gov.sa') !== -1) {
+        noteUrl(u);
         const src = (init && init.headers) || (input instanceof Request ? input.headers : null);
         const h = {};
         if (src instanceof Headers) src.forEach((v, k) => { h[k.toLowerCase()] = v; });
@@ -102,7 +114,7 @@
   const origXhrOpen = XMLHttpRequest.prototype.open;
   const origXhrSetHeader = XMLHttpRequest.prototype.setRequestHeader;
   XMLHttpRequest.prototype.open = function (method, url) {
-    try { this._jr_url = url; this._jr_headers = {}; } catch (_) {}
+    try { this._jr_url = url; this._jr_headers = {}; noteUrl(url); } catch (_) {}
     return origXhrOpen.apply(this, arguments);
   };
   XMLHttpRequest.prototype.setRequestHeader = function (name, value) {
@@ -125,37 +137,53 @@
     } catch (_) { return null; }
   };
   const JWT_RE = /eyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g;
-  const findGosiJwt = (haystack) => {
-    if (haystack == null) return null;
-    if (typeof haystack !== 'string') {
-      try { haystack = JSON.stringify(haystack); } catch (_) { return null; }
+  // يستخرج أرقام المنشآت من claims التوكن. gosiscp قد يكون نصاً أو مصفوفة أو
+  // كائناً، والمفتاح قد يختلف حسب نوع الحساب (e / est / estId / regNo ...).
+  const EST_KEYS = ['e', 'est', 'estId', 'estRegNo', 'regNo', 'registrationNo', 'establishmentRegNo', 'registrationNumber'];
+  const regsFromClaims = (claims) => {
+    const out = new Set();
+    if (!claims) return [];
+    let scp = claims.gosiscp;
+    try { if (typeof scp === 'string') scp = JSON.parse(scp); } catch (_) { scp = null; }
+    const list = Array.isArray(scp) ? scp : (scp && typeof scp === 'object' ? [scp] : []);
+    for (const x of list) {
+      if (x == null) continue;
+      if (typeof x !== 'object') { if (/^\d{5,}$/.test(String(x))) out.add(String(x)); continue; }
+      for (const k of EST_KEYS) if (x[k] != null && /^\d{5,}$/.test(String(x[k]))) out.add(String(x[k]));
     }
-    const matches = haystack.match(JWT_RE);
-    if (!matches) return null;
-    for (const m of matches) {
-      const claims = decodeJwt(m);
-      if (claims && (claims.iss || '').indexOf('gosi') !== -1) return m;
-    }
-    return null;
+    for (const k of EST_KEYS) if (k !== 'e' && claims[k] != null && /^\d{5,}$/.test(String(claims[k]))) out.add(String(claims[k]));
+    return Array.from(out);
   };
+  const allGosiJwts = (haystack) => {
+    if (haystack == null) return [];
+    if (typeof haystack !== 'string') {
+      try { haystack = JSON.stringify(haystack); } catch (_) { return []; }
+    }
+    const matches = haystack.match(JWT_RE) || [];
+    return matches.filter((m) => { const c = decodeJwt(m); return c && (c.iss || '').indexOf('gosi') !== -1; });
+  };
+  // كان يأخذ أول توكن تأمينات يجده — وقد يكون توكناً قديماً/منتهياً أو توكن هوية
+  // بدون منشآت. الآن: نجمع كل التوكنات ونفضّل غير المنتهي الذي فيه منشآت.
   const probeStorage = () => {
+    const found = [];
     const stores = [];
     try { stores.push(sessionStorage); } catch (_) {}
     try { stores.push(localStorage); } catch (_) {}
     for (const s of stores) {
       try {
-        for (let i = 0; i < s.length; i++) {
-          const v = s.getItem(s.key(i));
-          const jwt = findGosiJwt(v);
-          if (jwt) return 'Bearer ' + jwt;
-        }
+        for (let i = 0; i < s.length; i++) found.push(...allGosiJwts(s.getItem(s.key(i))));
       } catch (_) {}
     }
-    try {
-      const jwt = findGosiJwt(document.cookie);
-      if (jwt) return 'Bearer ' + jwt;
-    } catch (_) {}
-    return null;
+    try { found.push(...allGosiJwts(document.cookie)); } catch (_) {}
+    if (!found.length) return null;
+    const now = Date.now() / 1000;
+    const score = (j) => {
+      const c = decodeJwt(j) || {};
+      const live = !c.exp || c.exp > now;
+      return (live ? 2 : 0) + (regsFromClaims(c).length ? 1 : 0) + (c.exp || 0) / 1e12;
+    };
+    found.sort((a, b) => score(b) - score(a));
+    return 'Bearer ' + found[0];
   };
 
   try {
@@ -187,11 +215,25 @@
     let claims = null;
     try { claims = JSON.parse(atob(pad64(parts[1].replace(/-/g, '+').replace(/_/g, '/')))); }
     catch (_) { return msg(L('فشل فك التوكن.', 'Failed to decode the token.')); }
-    let scp = [];
-    try { scp = typeof claims.gosiscp === 'string' ? JSON.parse(claims.gosiscp) : (claims.gosiscp || []); }
-    catch (_) { scp = []; }
-    let regNos = Array.from(new Set((scp || []).map(x => x && x.e).filter(Boolean)));
-    if (!regNos.length) return msg(L('لا توجد منشآت في التوكن.', 'No establishments found in the token.'));
+    // المصادر بالترتيب: claims التوكن ← طلبات البوابة السابقة (performance) ←
+    // انتظار أن يفتح المستخدم صفحة منشأة فنلتقط رقمها من الطلب.
+    const collectRegs = () => {
+      const s = new Set(regsFromClaims(claims));
+      // توكن التقطناه من الشبكة لاحقاً قد يختلف عن توكن التخزين.
+      if (captured && captured.auth) regsFromClaims(decodeJwt(captured.auth.replace(/^Bearer\s+/i, ''))).forEach((r) => s.add(r));
+      scanPerfEntries();
+      seenRegs.forEach((r) => s.add(r));
+      return Array.from(s);
+    };
+    let regNos = collectRegs();
+    if (!regNos.length) {
+      msg(L('لم أجد رقم المنشأة في التوكن. افتح صفحة المنشأة أو «قائمة المشتركين» في البوابة وسألتقطه تلقائياً...', 'Establishment number not in the token. Open the establishment page or "Contributor List" in the portal and I will pick it up automatically...'));
+      for (let i = 0; i < 1500 && !regNos.length; i++) {
+        await new Promise(r => setTimeout(r, 200));
+        regNos = collectRegs();
+      }
+    }
+    if (!regNos.length) return msg(L('لم أجد أي منشأة. افتح صفحة المنشأة في البوابة ثم اضغط الزر مجدداً.', 'No establishment found. Open the establishment page in the portal, then click the button again.'));
 
     msg(L('جلب بيانات ' + regNos.length + ' منشأة من التأمينات...', 'Fetching data for ' + regNos.length + ' establishments from GOSI...'));
 
