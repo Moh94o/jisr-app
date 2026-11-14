@@ -4119,6 +4119,89 @@ function _HistoryEntry({ h, T, lang }) {
   )
 }
 
+/* حالة القوائم المالية — من الفحص الشهري لخدمة «قوائم» العامة (qawaem_filings
+   عبر v_ops_qawaem، 2026-11-14). سنة لكل صف: مودعة/معتمدة/غير مودعة مع تاريخي
+   الإيداع والاعتماد، وحقول المراجع من قراءات المركز القديمة متى وُجدت. الخدمة لا تميّز
+   المرفوضة عن قيد المراجعة: كلاهما «لم تُعتمد بعد». نهاية السنة المالية من عقد التأسيس
+   (facility_fiscal_years) والموعد = النهاية + 6 أشهر (نظام الشركات م17/2). */
+const QAWAEM_CARD_STATUS = {
+  'Approved by SBC': { ar: 'معتمدة', en: 'Approved', c: C.ok },
+  'Filed - not approved yet': { ar: 'مودعة — لم تُعتمد بعد', en: 'Filed — not approved yet', c: C.warn },
+  'Not filed': { ar: 'غير مودعة', en: 'Not filed', c: C.red },
+  'No filings found': { ar: 'لا توجد قوائم مودعة', en: 'No filings found', c: C.red },
+  'Check failed': { ar: 'تعذّر الفحص', en: 'Check failed', c: C.gray },
+  'Overdue': { ar: 'متأخرة — فات موعد الإيداع', en: 'Overdue', c: C.red },
+  'Not due yet': { ar: 'لم يحن موعد الإيداع', en: 'Not due yet', c: C.blue },
+  'First year not ended': { ar: 'لم تنتهِ السنة المالية الأولى', en: 'First year not ended', c: C.blue },
+  'Overdue (no contract)': { ar: 'متأخرة يقيناً (لا يوجد عقد)', en: 'Overdue (no contract)', c: C.red },
+  'Maybe overdue (no contract)': { ar: 'ربما متأخرة (لا يوجد عقد)', en: 'Maybe overdue (no contract)', c: C.warn },
+  'Establishment - none filed': { ar: 'مؤسسة — لا توجد قوائم مودعة', en: 'Establishment — none filed', c: C.gray },
+  'Unknown': { ar: 'غير معروف', en: 'Unknown', c: C.gray },
+}
+export function QawaemFilingsCard({ sb, unified, T }) {
+  const [rows, setRows] = useState(null)
+  useEffect(() => {
+    if (!sb || !unified) { setRows(null); return }
+    let cancelled = false
+    sb.from('v_ops_qawaem').select('*').eq('unified_number', String(unified))
+      .then(({ data }) => { if (!cancelled) setRows(Array.isArray(data) ? data : []) })
+    return () => { cancelled = true }
+  }, [sb, unified])
+  if (!rows || !rows.length) return null
+  const sorted = [...rows].sort((a, b) => (Number(a.fiscal_year) || 0) - (Number(b.fiscal_year) || 0))
+  const filed = rows.filter((r) => r.filed_on).length
+  const lastChecked = rows.map((r) => r.last_checked).filter(Boolean).sort().pop()
+  const rowBase = {
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '9px 12px', borderRadius: 8,
+    background: 'var(--inputBg)', border: '1px solid var(--bd)', minWidth: 0,
+  }
+  const kv = (k, v, ltr) => (
+    <div style={rowBase}>
+      <span style={{ fontSize: 11, color: 'var(--tx3)', fontWeight: 600 }}>{k}</span>
+      <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--tx)', ...(ltr ? { direction: 'ltr', unicodeBidi: 'isolate' } : {}) }}>{v}</span>
+    </div>
+  )
+  return (
+    <CollapsibleCard title={T('حالة القوائم المالية', 'Financial Statements Status')} color="#a78bfa" badge={`${filed}/${rows.length}`}>
+      <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {sorted.map((y) => {
+          const st = QAWAEM_CARD_STATUS[y.filing_status] || { ar: y.filing_status, en: y.filing_status, c: C.gray }
+          return (
+            <div key={y.id} style={{ ...rowBase, padding: 12, display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'stretch' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx)' }}>
+                  {y.fiscal_year ? `${T('السنة المالية', 'Financial year')} ${y.fiscal_year}${y.calendar_type === 'هجري' ? T(' هـ', ' AH') : ''}` : T('القوائم المالية', 'Financial statements')}
+                </div>
+                <span style={{ fontSize: 10, fontWeight: 600, padding: '3px 8px', borderRadius: 6, background: st.c + '26', color: st.c, whiteSpace: 'nowrap' }}>
+                  {T(st.ar, st.en)}
+                </span>
+              </div>
+              {(y.fy_end || y.deadline || y.filed_on || y.approved_on || y.statutory_period || y.audit_firm) && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                  {y.fy_end && kv(T('نهاية السنة المالية', 'Fiscal year end'), y.fy_end, true)}
+                  {y.deadline && kv(y.fy_end ? T('آخر موعد للإيداع', 'Filing deadline') : T('آخر موعد ممكن', 'Latest possible deadline'), y.deadline, true)}
+                  {y.filed_on && kv(T('تاريخ الإيداع', 'Filed on'), y.filed_on, true)}
+                  {y.approved_on && kv(T('تاريخ الاعتماد', 'Approved on'), y.approved_on, true)}
+                  {y.statutory_period && kv(T('فترة السنة المالية', 'Fiscal period'), y.statutory_period, true)}
+                  {y.fy_basis && kv(T('مصدر نهاية السنة', 'Fiscal-year source'), y.fy_basis)}
+                  {y.audit_firm && kv(T('مكتب المراجعة', 'Audit firm'), y.audit_firm)}
+                  {y.on_time && kv(T('أُودعت خلال المدة النظامية', 'Filed on time'), T(y.on_time, y.on_time === 'نعم' ? 'Yes' : 'No'))}
+                  {y.unaudited && kv(T('غير مدققة', 'Unaudited'), T(y.unaudited, y.unaudited === 'نعم' ? 'Yes' : 'No'))}
+                </div>
+              )}
+            </div>
+          )
+        })}
+        {lastChecked && (
+          <div style={{ fontSize: 10.5, color: 'var(--tx3)', textAlign: 'center' }}>
+            {T('آخر فحص من «قوائم»:', 'Last checked on Qawaem:')} <span style={{ direction: 'ltr', unicodeBidi: 'isolate' }}>{lastChecked}</span>
+          </div>
+        )}
+      </div>
+    </CollapsibleCard>
+  )
+}
+
 export function SyncHistoryCard({ history, fileVersions, T, lang }) {
   const [srcFilter, setSrcFilter] = useState(null)
   if (!history.length && !fileVersions.length) return null
@@ -7968,8 +8051,6 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                 const qawaem = ext['Qawaem/GetQawaemStatistics']?.response_body || null
                 // Bare array, one entry per financial year. A 404 (no statements
                 // filed) is stored as a non-array body, so guard on the type.
-                const qawaemStatusRaw = ext['Qawaem/GetCRSubmissionInfo']?.response_body
-                const qawaemStatus = Array.isArray(qawaemStatusRaw) ? qawaemStatusRaw : []
                 const violations = ext['mcV2/GetViolationsQuery']?.response_body || null
                 const caseViolations = ext['mcV2/GetCaseViolationsQuery']?.response_body || null
 
@@ -8057,46 +8138,8 @@ export default function SbcFacilities({ sb, toast, user, lang, personFilter, onT
                       </CollapsibleCard>
                     )}
 
-                    {/* حالة القوائم المالية — per-year filing status.
-                        Field naming is a trap worth stating: `filingDate` is
-                        the END of the statutory window (startDate → filingDate
-                        is the period the portal shows), NOT when the statement
-                        was actually filed. The real submission date is
-                        firstPendingDate. */}
-                    {qawaemStatus.length > 0 && (
-                      <CollapsibleCard title={T('حالة القوائم المالية', 'Financial Statements Status')} color="#a78bfa" badge={num(qawaemStatus.length)} showSbcIcon>
-                        <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                          {[...qawaemStatus].sort((a, b) => (Number(a.year) || 0) - (Number(b.year) || 0)).map((y, i) => {
-                            const onTime = y.isOnTime === true
-                            const statusColor = onTime ? '#22c55e' : '#eab308'
-                            const dateOnly = (s) => (s ? String(s).split(' ')[0] : null)
-                            return (
-                              <div key={y.filingCode || y.year || i} style={{ ...rowBase, padding: 12, display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'stretch' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                                  <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx)' }}>
-                                    {T('السنة المالية', 'Financial year')} {y.year}
-                                  </div>
-                                  {y.filingStatusDesc && (
-                                    <span style={{ fontSize: 10, fontWeight: 600, padding: '3px 8px', borderRadius: 6, background: statusColor + '26', color: statusColor, whiteSpace: 'nowrap' }}>
-                                      {y.filingStatusDesc}
-                                    </span>
-                                  )}
-                                </div>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-                                  <Row k={T('نوع التقويم', 'Calendar')} v={y.isHijriDate ? T('هجري', 'Hijri') : T('ميلادي', 'Gregorian')} />
-                                  <Row k={T('الفترة النظامية للإيداع', 'Statutory period')} v={(y.startDate && y.filingDate) ? `${y.startDate} → ${y.filingDate}` : '—'} ltr />
-                                  <Row k={T('تاريخ الإيداع', 'Filed on')} v={dateOnly(y.firstPendingDate) || '—'} ltr />
-                                  <Row k={T('مكتب المراجعة', 'Audit firm')} v={y.firmName || '—'} />
-                                  <Row k={T('أُودعت خلال المدة النظامية', 'Filed on time')} v={onTime ? T('نعم', 'Yes') : T('لا', 'No')} />
-                                  <Row k={T('غير مدققة', 'Unaudited')} v={y.isUnAudit ? T('نعم', 'Yes') : T('لا', 'No')} />
-                                  {y.isResubmission && <Row k={T('إعادة إيداع', 'Resubmission')} v={T('نعم', 'Yes')} />}
-                                </div>
-                              </div>
-                            )
-                          })}
-                        </div>
-                      </CollapsibleCard>
-                    )}
+                    {/* حالة القوائم المالية — فحص «قوائم» الشهري (qawaem_filings) */}
+                    <QawaemFilingsCard sb={sb} unified={detail?.cr_national_number} T={T} />
 
                     {/* رخص البلدية (Momrah) */}
                     {momrahList.length > 0 && (

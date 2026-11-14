@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import BackButton from './components/BackButton'
-import { FAC_DETAIL_TYPE_SCALE, fmtDMY, SourceCompareCard, UnifiedWorkersCard, MudadCards, AjeerCards, SyncHistoryCard } from './pages/SbcFacilities.jsx'
+import { FAC_DETAIL_TYPE_SCALE, fmtDMY, SourceCompareCard, UnifiedWorkersCard, MudadCards, AjeerCards, SyncHistoryCard, QawaemFilingsCard } from './pages/SbcFacilities.jsx'
 import { can as canPerm, canCardBtn, cardVisible, isGM, userOffices } from './lib/permissions.js'
 import { branchLabel } from './lib/utils.js'
 import { navSetHere } from './lib/navStack.js'
@@ -6488,8 +6488,6 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                 const qawaem = ext['Qawaem/GetQawaemStatistics']?.response_body || null
                 const violations = ext['mcV2/GetViolationsQuery']?.response_body || null
                 const caseViolations = ext['mcV2/GetCaseViolationsQuery']?.response_body || null
-                const qawaemStatusRaw = ext['Qawaem/GetCRSubmissionInfo']?.response_body
-                const qawaemStatus = Array.isArray(qawaemStatusRaw) ? qawaemStatusRaw : []
 
                 // Match existing facility-card styles exactly
                 const rowBase = {
@@ -6570,41 +6568,8 @@ export default function FacilitiesPage({ sb, toast, user, lang, personFilter, on
                       </CollapsibleCard>
                     )}
 
-                    {/* حالة القوائم المالية — لكل سنة مالية */}
-                    {qawaemStatus.length > 0 && (
-                      <CollapsibleCard title={T('حالة القوائم المالية', 'Financial Statements Status')} color="#a78bfa" badge={num(qawaemStatus.length)} showSbcIcon>
-                        <div style={{ padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                          {[...qawaemStatus].sort((a, b) => (Number(a.year) || 0) - (Number(b.year) || 0)).map((y, i) => {
-                            const onTime = y.isOnTime === true
-                            const statusColor = onTime ? '#22c55e' : '#eab308'
-                            const dateOnly = (s) => (s ? String(s).split(' ')[0] : null)
-                            return (
-                              <div key={y.filingCode || y.year || i} style={{ ...rowBase, padding: 12, display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'stretch' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                                  <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx)' }}>
-                                    {T('السنة المالية', 'Financial year')} {y.year}
-                                  </div>
-                                  {y.filingStatusDesc && (
-                                    <span style={{ fontSize: 10, fontWeight: 600, padding: '3px 8px', borderRadius: 6, background: statusColor + '26', color: statusColor, whiteSpace: 'nowrap' }}>
-                                      {y.filingStatusDesc}
-                                    </span>
-                                  )}
-                                </div>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-                                  <Row k={T('نوع التقويم', 'Calendar')} v={y.isHijriDate ? T('هجري', 'Hijri') : T('ميلادي', 'Gregorian')} />
-                                  <Row k={T('الفترة النظامية للإيداع', 'Statutory period')} v={(y.startDate && y.filingDate) ? `${y.startDate} → ${y.filingDate}` : '—'} ltr />
-                                  <Row k={T('تاريخ الإيداع', 'Filed on')} v={dateOnly(y.firstPendingDate) || '—'} ltr />
-                                  <Row k={T('مكتب المراجعة', 'Audit firm')} v={y.firmName || '—'} />
-                                  <Row k={T('أُودعت خلال المدة النظامية', 'Filed on time')} v={onTime ? T('نعم', 'Yes') : T('لا', 'No')} />
-                                  <Row k={T('غير مدققة', 'Unaudited')} v={y.isUnAudit ? T('نعم', 'Yes') : T('لا', 'No')} />
-                                  {y.isResubmission && <Row k={T('إعادة إيداع', 'Resubmission')} v={T('نعم', 'Yes')} />}
-                                </div>
-                              </div>
-                            )
-                          })}
-                        </div>
-                      </CollapsibleCard>
-                    )}
+                    {/* حالة القوائم المالية — فحص «قوائم» الشهري (qawaem_filings) */}
+                    <QawaemFilingsCard sb={sb} unified={detail?.cr_national_number} T={T} />
 
                     {/* رخص البلدية (Momrah) */}
                     {momrahList.length > 0 && (
