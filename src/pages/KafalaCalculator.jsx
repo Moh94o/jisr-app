@@ -605,8 +605,6 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
   const [f, setF] = useState(makeInitialForm)
 
   const set = (k, v) => setF(p => ({ ...p, [k]: v }))
-  // الإعفاء مقفل دائماً على «لا» — يُفرض حتى على الحسبات المحمَّلة.
-  useEffect(() => { if (f.exemption !== false) setF(p => ({ ...p, exemption: false })) }, [f.exemption])
 
   // منع التكرار: حسبة تنازل مصدّقة/مفوترة سارية لنفس العامل تمنع إصدار حسبة جديدة حتى تُلغى
   const [dupQuote, setDupQuote] = useState(null)
