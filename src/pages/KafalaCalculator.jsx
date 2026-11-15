@@ -1512,7 +1512,8 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
             {!f.transferOnly && stageVisible(user,'transfer_calc','w_pricing') && (
             <Card Icon={BadgeCheck} label={T('هل يوجد إعفاء؟','Exemption?')}
               hint={f.exemption === false ? T('رخصة العمل بسعر بدون إعفاء','no-exemption work-permit rate') : T('حساب رخصة العمل الاعتيادي','standard work-permit calc')} span={2}>
-              <YesNo value={f.exemption !== false} onChange={v => set('exemption', v)} lang={lang} height={42} />
+              {/* معطّل بطلب المستخدم — يبقى على القيمة الافتراضية (نعم) ولا يمكن تغييره */}
+              <YesNo value={f.exemption !== false} onChange={v => set('exemption', v)} lang={lang} height={42} disabled />
             </Card>
             )}
 
