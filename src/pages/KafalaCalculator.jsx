@@ -591,7 +591,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
     return {
       name: '', iqama: '', phone: '', iqamaExpiry: '', dob: '', nationality: 'بنغلاديشي', gender: 'ذكر', occupation: '', legalStatus: 'صالح',
       workerType: 'facility', currentEmployer: '', currentEmployerId: '', newOccupation: '', newOccupationId: null, occupationId: null, wpExpiry: '',
-      hasNoticePeriod: false, employerConsent: false, changeProfession: false, renewIqama: true, transferOnly: false, exemption: true,
+      hasNoticePeriod: false, employerConsent: false, changeProfession: false, renewIqama: true, transferOnly: false, exemption: false,
       transferCount: '0', renewalMonths: '12', iqamaFineCount: '1',
       transferFeeInput: String(cfg.transferFee1),
       iqamaRenewalFee: String(Math.round(cfg.iqamaPerMonth * 12)),
@@ -605,6 +605,8 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
   const [f, setF] = useState(makeInitialForm)
 
   const set = (k, v) => setF(p => ({ ...p, [k]: v }))
+  // الإعفاء مقفل دائماً على «لا» — يُفرض حتى على الحسبات المحمَّلة.
+  useEffect(() => { if (f.exemption !== false) setF(p => ({ ...p, exemption: false })) }, [f.exemption])
 
   // منع التكرار: حسبة تنازل مصدّقة/مفوترة سارية لنفس العامل تمنع إصدار حسبة جديدة حتى تُلغى
   const [dupQuote, setDupQuote] = useState(null)
@@ -1512,7 +1514,7 @@ export default function KafalaCalculator({ sb, user, toast, lang, onClose, onGoT
             {!f.transferOnly && stageVisible(user,'transfer_calc','w_pricing') && (
             <Card Icon={BadgeCheck} label={T('هل يوجد إعفاء؟','Exemption?')}
               hint={f.exemption === false ? T('رخصة العمل بسعر بدون إعفاء','no-exemption work-permit rate') : T('حساب رخصة العمل الاعتيادي','standard work-permit calc')} span={2}>
-              {/* معطّل بطلب المستخدم — يبقى على القيمة الافتراضية (نعم) ولا يمكن تغييره */}
+              {/* مقفل على «لا» دائماً — خيار «نعم» معطّل */}
               <YesNo value={f.exemption !== false} onChange={v => set('exemption', v)} lang={lang} height={42} disabled />
             </Card>
             )}
